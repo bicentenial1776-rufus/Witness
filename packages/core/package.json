@@ -1,0 +1,32 @@
+{
+  "name": "@witness/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Platform-agnostic GEDCOM parsing and Supabase persistence for Witness.",
+  "type": "module",
+  "main": "./dist/gedcom/index.js",
+  "types": "./dist/gedcom/index.d.ts",
+  "exports": {
+    "./gedcom": "./dist/gedcom/index.js",
+    "./supabase": "./dist/supabase/import.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "parse:sample": "tsx scripts/parse-sample.ts",
+    "create-test-user": "tsx scripts/create-test-user.ts",
+    "live-import": "tsx scripts/live-import.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.0",
+    "ws": "^8.21.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.109.0"
+  }
+}

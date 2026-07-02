@@ -70,3 +70,5 @@ export async function importParsedGedcom(
 
 export { buildImportPayload } from './transform.js';
 export type { ImportPayload } from './transform.js';
+export type { Database } from './database.types.js';
+export type { WitnessSupabaseClient } from './client.js';
