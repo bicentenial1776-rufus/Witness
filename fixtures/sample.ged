@@ -1,0 +1,68 @@
+0 HEAD
+1 SOUR Ancestry.com Family Trees
+2 NAME Ancestry.com Member Trees
+2 _TREE Sample Family Tree
+1 DATE 1 Jul 2026
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+0 @I1@ INDI
+1 NAME John /Smith/
+2 GIVN John
+2 SURN Smith
+1 SEX M
+1 BIRT
+2 DATE 12 Apr 1850
+2 PLAC Boston, Suffolk, Massachusetts, USA
+1 DEAT
+2 DATE 3 Jan 1920
+2 PLAC Boston, Suffolk, Massachusetts, USA
+1 BURI
+2 PLAC Mount Auburn Cemetery, Cambridge, Massachusetts, USA
+1 FAMS @F1@
+0 @I2@ INDI
+1 NAME Jane /Doe/
+1 SEX F
+1 BIRT
+2 DATE ABT 1855
+2 PLAC Cambridge, Massachusetts, USA
+1 FAMS @F1@
+0 @I3@ INDI
+1 NAME Robert /Smith/
+1 SEX M
+1 BIRT
+2 DATE BET 1875 AND 1877
+2 PLAC Boston, Suffolk, Massachusetts, USA
+1 RESI
+2 DATE 1900
+2 PLAC New York, New York, USA
+1 FAMC @F1@
+0 @I4@ INDI
+1 NAME Living Person /Smith/
+1 SEX F
+1 BIRT
+2 DATE 1975
+2 PLAC Boston, Massachusetts, USA
+1 FAMC @F1@
+0 @I5@ INDI
+1 NAME Mystery Ancestor /Unknown/
+1 SEX U
+1 BIRT
+2 DATE ?unknown
+0 @I6@ INDI
+1 NAME Impossible Child /Smith/
+1 SEX M
+1 BIRT
+2 DATE 1840
+1 FAMC @F1@
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 CHIL @I3@
+1 CHIL @I4@
+1 CHIL @I6@
+1 MARR
+2 DATE 20 Jun 1874
+2 PLAC Boston, Suffolk, Massachusetts, USA
+0 TRLR
