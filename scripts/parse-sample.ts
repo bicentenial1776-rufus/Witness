@@ -1,12 +1,11 @@
 import { readFileSync } from 'node:fs';
-import { basename } from 'node:path';
+import { basename, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseGedcom } from '../src/gedcom/index.js';
 
-const filePath = process.argv[2];
-if (!filePath) {
-  console.error('Usage: npm run parse:sample -- <path-to-gedcom-file>');
-  process.exit(1);
-}
+const DEFAULT_FIXTURE = join(dirname(fileURLToPath(import.meta.url)), '../fixtures/Howe_Field Family Tree.ged');
+
+const filePath = process.argv[2] ?? DEFAULT_FIXTURE;
 
 const text = readFileSync(filePath, 'utf-8');
 const result = parseGedcom(text, basename(filePath));
