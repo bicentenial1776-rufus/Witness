@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Witness — Witnesses to History</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #14110F; }
+  html { scroll-behavior: smooth; }
+  * { box-sizing: border-box; }
+  ::selection { background: #B45309; color: #F7F3EE; }
+  body { font-family: 'Inter', sans-serif; }
+  [hidden] { display: none !important; }
+  @keyframes wv-fade { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ═══════════════ Password gate ═══════════════ */
+  .gate {
+    min-height: 100vh; background: #1C1917; font-family: 'Inter', sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 48px 24px; text-align: center;
+  }
+  .gate-brand { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .gate-wordmark { display: flex; align-items: center; gap: 13px; }
+  .gate-wordmark-text { font-family: 'Playfair Display', serif; color: #F7F3EE; font-size: 38px; letter-spacing: 0.28em; font-weight: 600; }
+  .gate-dot { width: 6px; height: 6px; border-radius: 50%; background: #B45309; display: inline-block; }
+  .gate-eyebrow { color: #E0913A; font-size: 13px; letter-spacing: 0.42em; text-transform: uppercase; }
+  .gate-form { margin-top: 52px; display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; max-width: 360px; }
+  .gate-label { color: rgba(247,243,238,0.5); font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 4px; }
+  .gate-input {
+    width: 100%; background: rgba(247,243,238,0.04); border: 1px solid rgba(247,243,238,0.2);
+    border-radius: 10px; padding: 15px 18px; color: #F7F3EE; font-family: 'Inter', sans-serif;
+    font-size: 16px; letter-spacing: 0.02em; outline: none; text-align: center;
+  }
+  .gate-input:focus { border-color: #B45309; }
+  .gate-button {
+    width: 100%; background: #B45309; border: none; border-radius: 10px; padding: 15px 18px;
+    color: #F9F5F0; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
+  }
+  .gate-button:hover { background: #9A4708; }
+  .gate-error { margin-top: 8px; color: rgba(247,243,238,0.7); font-size: 14.5px; line-height: 1.55; max-width: 340px; }
+  .gate-error .email { color: #E0913A; }
+
+  /* ═══════════════ Unlocked page ═══════════════ */
+  .page { font-family: 'Inter', sans-serif; background: #1C1917; animation: wv-fade 0.7s ease both; }
+
+  .eyebrow { font-size: 13px; letter-spacing: 0.34em; text-transform: uppercase; font-weight: 500; }
+  .eyebrow--light { color: #B45309; }
+  .eyebrow--dark { color: #E0913A; }
+  .section-heading { font-family: 'Playfair Display', serif; font-size: clamp(2rem, 3.6vw, 3.1rem); font-weight: 500; margin: 0; }
+
+  /* Section 1 — Hero */
+  .hero { position: relative; min-height: 94vh; background: #1C1917; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
+  .hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 38%; }
+  .hero-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(20,17,15,0.66) 0%, rgba(20,17,15,0.15) 32%, rgba(20,17,15,0.28) 58%, rgba(20,17,15,0.9) 100%); }
+  .hero-wordmark { position: absolute; top: 38px; left: clamp(24px, 5vw, 64px); display: flex; align-items: center; gap: 11px; z-index: 2; }
+  .hero-wordmark-text { font-family: 'Playfair Display', serif; color: #F7F3EE; font-size: 26px; letter-spacing: 0.24em; font-weight: 600; }
+  .hero-wordmark-dot { width: 5px; height: 5px; border-radius: 50%; background: #B45309; display: inline-block; }
+  .hero-content { position: relative; z-index: 2; max-width: 1080px; margin: 0 auto; padding: 0 clamp(24px, 6vw, 64px); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 26px; }
+  .hero-eyebrow { color: #E0913A; font-size: clamp(12px, 1.4vw, 15px); letter-spacing: 0.4em; text-transform: uppercase; font-weight: 500; }
+  .hero-headline { font-family: 'Playfair Display', serif; color: #F9F5F0; font-size: clamp(2.1rem, 5vw, 4.4rem); line-height: 1.12; font-weight: 500; margin: 0; text-wrap: balance; text-shadow: 0 2px 30px rgba(0,0,0,0.5); }
+  .hero-headline .witness-word { font-style: italic; color: #E9C9A0; }
+  .hero-hairline { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, rgba(180,83,9,0) 0%, #B45309 50%, rgba(180,83,9,0) 100%); z-index: 2; }
+
+  /* Section 2 — The Problem */
+  .problem { background: #F7F3EE; padding: clamp(72px, 10vw, 140px) clamp(24px, 6vw, 96px); }
+  .problem-grid { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: clamp(48px, 6vw, 96px); align-items: start; }
+  .problem-eyebrow { margin-bottom: 28px; }
+  .problem-quote { font-family: 'Playfair Display', serif; color: #1C1917; font-size: clamp(2rem, 3.6vw, 3.1rem); line-height: 1.2; font-weight: 500; margin: 0; text-wrap: balance; }
+  .problem-quote .accent { color: #B45309; font-style: italic; }
+  .problem-copy { display: flex; flex-direction: column; gap: 24px; padding-top: 8px; }
+  .problem-copy p { margin: 0; font-size: clamp(16px, 1.3vw, 18.5px); line-height: 1.7; color: #57534E; }
+  .problem-copy p.emphasis { color: #1C1917; }
+
+  /* Section 3 — What It Does */
+  .does { background: #1C1917; padding: clamp(72px, 10vw, 140px) clamp(24px, 6vw, 96px); }
+  .does-inner { max-width: 1280px; margin: 0 auto; }
+  .section-header { text-align: center; margin-bottom: clamp(48px, 6vw, 80px); }
+  .section-header .eyebrow { margin-bottom: 22px; }
+  .does-heading { color: #F9F5F0; line-height: 1.15; }
+  .query-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 24px; }
+  .query-card { background: #FBF8F3; border-radius: 16px; padding: 30px 30px 32px; display: flex; flex-direction: column; }
+  .query-card-label { color: #78716C; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; }
+  .query-card-question { font-family: 'Playfair Display', serif; font-size: 21px; color: #1C1917; line-height: 1.32; margin-top: 12px; }
+  .query-card-result { display: flex; gap: 12px; margin-top: auto; padding-top: 22px; }
+  .query-card-arrow { color: #B45309; font-size: 18px; line-height: 1.5; }
+  .query-card-answer { font-size: 16px; line-height: 1.55; color: #3A3532; }
+  .query-card-answer .key { color: #B45309; font-weight: 600; }
+
+  /* Section 4 — The Experience */
+  .experience { background: #F7F3EE; padding: clamp(72px, 10vw, 140px) clamp(24px, 6vw, 96px); }
+  .experience-inner { max-width: 1280px; margin: 0 auto; }
+  .experience-heading { color: #1C1917; line-height: 1.15; }
+  .experience-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: clamp(28px, 3.5vw, 48px); }
+  .moment { display: flex; flex-direction: column; gap: 18px; }
+  .moment-title { align-self: flex-start; display: inline-flex; align-items: baseline; gap: 14px; }
+  .moment-index { font-family: 'Playfair Display', serif; font-size: 34px; color: #B45309; font-weight: 600; }
+  .moment-name { font-family: 'Playfair Display', serif; font-size: 25px; color: #1C1917; font-weight: 600; }
+  .moment-chip { display: inline-flex; align-self: flex-start; align-items: baseline; gap: 10px; background: #1C1917; border-radius: 10px; padding: 12px 18px; }
+  .moment-chip--gps { align-items: center; gap: 9px; }
+  .moment-chip-figure { font-family: 'Playfair Display', serif; font-size: 26px; color: #E0913A; font-weight: 600; }
+  .moment-chip-caption { font-size: 13px; color: rgba(247,243,238,0.7); }
+  .moment-chip-pulse { width: 9px; height: 9px; border-radius: 50%; background: #16A34A; box-shadow: 0 0 0 4px rgba(22,163,74,0.3); }
+  .moment-chip-gps-text { font-size: 13px; color: rgba(247,243,238,0.85); letter-spacing: 0.08em; }
+  .moment-chip-name { font-family: 'Playfair Display', serif; font-size: 17px; color: #F7F3EE; }
+  .moment-chip-dates { font-size: 13px; color: rgba(247,243,238,0.6); }
+  .moment p { margin: 0; font-size: 16.5px; line-height: 1.68; color: #57534E; }
+
+  /* Section 5 — What Makes It Different */
+  .different { background: #1C1917; padding: clamp(72px, 10vw, 140px) clamp(24px, 6vw, 96px); }
+  .different-inner { max-width: 1240px; margin: 0 auto; }
+  .different-header { margin-bottom: clamp(48px, 6vw, 76px); max-width: 820px; }
+  .different-header .eyebrow { margin-bottom: 22px; }
+  .different-heading { color: #F9F5F0; line-height: 1.18; text-wrap: balance; }
+  .different-heading .accent { color: #E0913A; font-style: italic; }
+  .different-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: clamp(32px, 4vw, 56px); }
+  .pillar { display: flex; flex-direction: column; gap: 14px; padding-top: 28px; border-top: 1.5px solid rgba(247,243,238,0.16); }
+  .pillar-index { font-family: 'Playfair Display', serif; font-size: 30px; color: #E0913A; font-weight: 600; }
+  .pillar h3 { font-family: 'Playfair Display', serif; font-size: 23px; color: #F9F5F0; font-weight: 600; margin: 0; }
+  .pillar p { margin: 0; font-size: 16px; line-height: 1.62; color: rgba(247,243,238,0.68); }
+
+  /* Section 6 — The Vision */
+  .vision { position: relative; background: #1C1917; overflow: hidden; padding: clamp(84px, 11vw, 156px) clamp(24px, 6vw, 96px); }
+  .vision-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 35%; opacity: 0.22; }
+  .vision-overlay { position: absolute; inset: 0; background: radial-gradient(circle at 50% 30%, rgba(180,83,9,0.10), rgba(28,25,23,0.4) 55%), linear-gradient(180deg, #1C1917 0%, rgba(28,25,23,0.72) 40%, #1C1917 100%); }
+  .vision-content { position: relative; z-index: 2; max-width: 1140px; margin: 0 auto; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .vision-eyebrow { color: #E0913A; font-size: 13px; letter-spacing: 0.4em; text-transform: uppercase; font-weight: 500; margin-bottom: 30px; }
+  .vision-headline { font-family: 'Playfair Display', serif; color: #B45309; font-size: clamp(3rem, 7vw, 6rem); line-height: 1; font-weight: 600; margin: 0; }
+  .vision-lede { margin: 34px 0 0; max-width: 760px; font-size: clamp(16px, 1.4vw, 20px); line-height: 1.66; color: rgba(247,243,238,0.85); }
+  .vision-lede .inside { color: #F9F5F0; }
+  .vision-grid { margin-top: clamp(44px, 5vw, 64px); width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 22px; text-align: left; }
+  .vision-card { background: #2A2018; border: 1px solid rgba(180,83,9,0.5); border-radius: 15px; padding: 26px; display: flex; flex-direction: column; gap: 11px; }
+  .vision-card-title { display: flex; align-items: center; gap: 9px; }
+  .vision-card-dot { width: 6px; height: 6px; background: #B45309; border-radius: 50%; }
+  .vision-card-name { font-family: 'Playfair Display', serif; font-size: 20px; color: #F7F3EE; font-weight: 600; }
+  .vision-card p { margin: 0; font-size: 15px; line-height: 1.58; color: rgba(247,243,238,0.7); }
+  .vision-closing { margin-top: clamp(36px, 4vw, 52px); font-family: 'Playfair Display', serif; font-style: italic; font-size: clamp(18px, 2vw, 24px); color: #B45309; }
+
+  /* Section 7 — About the Project */
+  .about { background: #F7F3EE; padding: clamp(72px, 10vw, 140px) clamp(24px, 6vw, 96px); }
+  .about-inner { max-width: 1080px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: clamp(40px, 5vw, 72px); align-items: center; justify-content: center; }
+  .about-photo { width: 150px; height: 150px; border-radius: 50%; background: #1C1917; border: 1px solid rgba(180,83,9,0.5); flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+  .about-photo span { color: rgba(247,243,238,0.35); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; }
+  .about-text { flex: 1 1 340px; min-width: 0; }
+  .about-eyebrow { margin-bottom: 24px; }
+  .about-statement { margin: 0; font-family: 'Playfair Display', serif; font-size: clamp(1.35rem, 2.4vw, 2rem); line-height: 1.4; color: #1C1917; font-weight: 500; }
+  .about-copy { margin: 22px 0 0; font-size: clamp(16px, 1.3vw, 18px); line-height: 1.7; color: #57534E; }
+  .about-site { margin-top: 26px; color: #B45309; font-size: 15px; letter-spacing: 0.06em; }
+
+  /* Section 8 — What I'm Looking For */
+  .asks { background: #1C1917; padding: clamp(80px, 10vw, 148px) clamp(24px, 6vw, 96px); }
+  .asks-inner { max-width: 1120px; margin: 0 auto; text-align: center; }
+  .asks-eyebrow { margin-bottom: 26px; }
+  .asks-heading { font-family: 'Playfair Display', serif; color: #F9F5F0; font-size: clamp(2.4rem, 4.6vw, 3.9rem); line-height: 1.1; font-weight: 500; margin: 0; }
+  .asks-grid { margin-top: clamp(48px, 6vw, 72px); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 22px; text-align: left; }
+  .ask-card { background: #241E1A; border: 1px solid rgba(224,145,58,0.3); border-radius: 16px; padding: 32px 30px; display: flex; flex-direction: column; gap: 13px; }
+  .ask-card-index { font-family: 'Playfair Display', serif; font-size: 28px; color: #E0913A; font-weight: 600; }
+  .ask-card h3 { font-family: 'Playfair Display', serif; font-size: 22px; color: #F9F5F0; font-weight: 600; margin: 0; }
+  .ask-card p { margin: 0; font-size: 16px; line-height: 1.6; color: rgba(247,243,238,0.7); }
+  .asks-closing { margin: clamp(44px, 5vw, 64px) auto 0; max-width: 640px; font-family: 'Playfair Display', serif; font-style: italic; font-size: clamp(17px, 1.8vw, 21px); line-height: 1.5; color: rgba(247,243,238,0.82); }
+  .asks-email { margin-top: 30px; font-size: clamp(17px, 1.6vw, 20px); color: #E0913A; letter-spacing: 0.03em; }
+  .footer { margin-top: clamp(56px, 7vw, 88px); padding-top: 32px; border-top: 1px solid rgba(247,243,238,0.12); display: flex; align-items: center; justify-content: center; gap: 11px; }
+  .footer-wordmark { font-family: 'Playfair Display', serif; color: rgba(247,243,238,0.6); font-size: 18px; letter-spacing: 0.24em; font-weight: 600; }
+  .footer-dot { width: 4px; height: 4px; border-radius: 50%; background: #B45309; display: inline-block; }
+  .footer-site { color: rgba(247,243,238,0.4); font-size: 14px; letter-spacing: 0.16em; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ PASSWORD GATE ═══════════════ -->
+<div class="gate" id="gate">
+  <div class="gate-brand">
+    <div class="gate-wordmark">
+      <span class="gate-wordmark-text">WITNESS</span>
+      <span class="gate-dot"></span>
+    </div>
+    <div class="gate-eyebrow">Witnesses to History</div>
+  </div>
+
+  <form class="gate-form" id="gate-form">
+    <div class="gate-label">By invitation</div>
+    <input class="gate-input" id="gate-input" type="password" placeholder="Enter password" aria-label="Password">
+    <button class="gate-button" type="submit">Enter</button>
+    <div class="gate-error" id="gate-error" hidden>This preview is by invitation. Contact <span class="email">rufus@witnesslives.com</span> to request access.</div>
+  </form>
+</div>
+
+<!-- ═══════════════ UNLOCKED PAGE ═══════════════ -->
+<div class="page" id="page" hidden>
+
+  <!-- Section 1 — Hero -->
+  <section class="hero">
+    <img class="hero-img" src="assets/hero.png" alt="A present-day man among his 1800s New England ancestors by candlelight">
+    <div class="hero-overlay"></div>
+    <div class="hero-wordmark">
+      <span class="hero-wordmark-text">WITNESS</span>
+      <span class="hero-wordmark-dot"></span>
+    </div>
+    <div class="hero-content">
+      <div class="hero-eyebrow">Witnesses to History</div>
+      <h1 class="hero-headline">Your ancestors witnessed history.<br><span class="witness-word">Witness</span> lets you witness them.</h1>
+    </div>
+    <div class="hero-hairline"></div>
+  </section>
+
+  <!-- Section 2 — The Problem -->
+  <section class="problem">
+    <div class="problem-grid">
+      <div>
+        <div class="eyebrow eyebrow--light problem-eyebrow">The Problem</div>
+        <h2 class="problem-quote">You have thousands of ancestors. You can't answer the <span class="accent">simplest questions</span> about them.</h2>
+      </div>
+      <div class="problem-copy">
+        <p>A serious genealogist can spend years building a tree of five thousand people — and still have no way to ask it who was alive during a war, who lived in the town they're visiting, or which life among all those names was the most extraordinary.</p>
+        <p>Ancestry and FamilySearch are excellent at what they were built for: research and construction. But discovery, analysis, and meaning-making are afterthoughts. The tree grows, and the questions that would make it matter go unanswered.</p>
+        <p class="emphasis">Witness is the intelligence layer built for exactly that gap — the questions a family tree should be able to answer, and finally can.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 3 — What It Does -->
+  <section class="does">
+    <div class="does-inner">
+      <div class="section-header">
+        <div class="eyebrow eyebrow--dark">What It Does</div>
+        <h2 class="section-heading does-heading">What Witness can tell you.</h2>
+      </div>
+      <div class="query-grid">
+
+        <div class="query-card">
+          <div class="query-card-label">Temporal</div>
+          <div class="query-card-question">Who in my family was alive during King Philip's War?</div>
+          <div class="query-card-result"><span class="query-card-arrow">→</span><div class="query-card-answer"><span class="key">1,046 ancestors</span>, with names, ages, and locations.</div></div>
+        </div>
+
+        <div class="query-card">
+          <div class="query-card-label">Geographic</div>
+          <div class="query-card-question">I'm standing in this cemetery — is anyone here related to me?</div>
+          <div class="query-card-result"><span class="query-card-arrow">→</span><div class="query-card-answer"><span class="key">3 confirmed matches</span> within 200 meters.</div></div>
+        </div>
+
+        <div class="query-card">
+          <div class="query-card-label">Remarkable Lives</div>
+          <div class="query-card-question">Who was the most remarkable person in my family tree?</div>
+          <div class="query-card-result"><span class="query-card-arrow">→</span><div class="query-card-answer"><span class="key">Catherine Marbury Scott</span>, half-sister of Anne Hutchinson, 1621–1687.</div></div>
+        </div>
+
+        <div class="query-card">
+          <div class="query-card-label">Branch Focus</div>
+          <div class="query-card-question">My family identifies as Acadian — show me that branch.</div>
+          <div class="query-card-result"><span class="query-card-arrow">→</span><div class="query-card-answer"><span class="key">43 ancestors</span>, Grand-Pré to Quebec, the Grand Dérangement traced.</div></div>
+        </div>
+
+        <div class="query-card">
+          <div class="query-card-label">Research Brief</div>
+          <div class="query-card-question">I've hit a brick wall. What should I research next?</div>
+          <div class="query-card-result"><span class="query-card-arrow">→</span><div class="query-card-answer">An AI research brief with <span class="key">7 prioritized questions</span> and specific archives.</div></div>
+        </div>
+
+        <div class="query-card">
+          <div class="query-card-label">This Week</div>
+          <div class="query-card-question">What should I know about my family this week?</div>
+          <div class="query-card-result"><span class="query-card-arrow">→</span><div class="query-card-answer"><span class="key">Ebenezer Howe</span> was born on this day in 1743 and lived 81 years through the Revolution.</div></div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 4 — The Experience -->
+  <section class="experience">
+    <div class="experience-inner">
+      <div class="section-header">
+        <div class="eyebrow eyebrow--light">The Experience</div>
+        <h2 class="section-heading experience-heading">Three moments where the tree comes alive.</h2>
+      </div>
+      <div class="experience-grid">
+
+        <div class="moment">
+          <div class="moment-title">
+            <span class="moment-index">01</span>
+            <span class="moment-name">The First Revelation</span>
+          </div>
+          <div class="moment-chip"><span class="moment-chip-figure">1,046</span><span class="moment-chip-caption">alive during King Philip's War</span></div>
+          <p>You ask one question and the answer reorders how you see your family — a thousand people who lived through a moment you only knew from a history book, each with a name, an age, a place.</p>
+        </div>
+
+        <div class="moment">
+          <div class="moment-title">
+            <span class="moment-index">02</span>
+            <span class="moment-name">The Field Moment</span>
+          </div>
+          <div class="moment-chip moment-chip--gps"><span class="moment-chip-pulse"></span><span class="moment-chip-gps-text">GPS match · 38m · North Burial Ground</span></div>
+          <p>You are standing in a cemetery you drove past a hundred times. Your phone confirms what you never suspected: a fourth great-grandmother is buried thirty-eight meters from where you stand.</p>
+        </div>
+
+        <div class="moment">
+          <div class="moment-title">
+            <span class="moment-index">03</span>
+            <span class="moment-name">The Ancestor Encounter</span>
+          </div>
+          <div class="moment-chip"><span class="moment-chip-name">Catherine M. Scott</span><span class="moment-chip-dates">1617–1687</span></div>
+          <p>A name in a database becomes a life. A warm, readable biography — where she was born, what she believed, what it cost her — and suddenly an ancestor is a person you feel you have met.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 5 — What Makes It Different -->
+  <section class="different">
+    <div class="different-inner">
+      <div class="different-header">
+        <div class="eyebrow eyebrow--dark">What Makes It Different</div>
+        <h2 class="section-heading different-heading">Witness deepens over time. <span class="accent">It doesn't exhaust itself.</span></h2>
+      </div>
+      <div class="different-grid">
+
+        <div class="pillar">
+          <div class="pillar-index">01</div>
+          <h3>Branch Focus</h3>
+          <p>Designate a heritage — Acadian, Colonial New England, French Canadian — and the whole product reorients around it. The lens you see your family through becomes the one that matters to you.</p>
+        </div>
+
+        <div class="pillar">
+          <div class="pillar-index">02</div>
+          <h3>Research Brief Generator</h3>
+          <p>Every brick wall becomes a structured research document — named archives, record types, and prioritized questions. It is a place to begin, written by something that has read the whole tree.</p>
+        </div>
+
+        <div class="pillar">
+          <div class="pillar-index">03</div>
+          <h3>Annual Family Wrapped</h3>
+          <p>Each December, a personal summary of your family's year in history — the discoveries made, the ancestor of the year. A ritual that returns, and a reason to come back for it.</p>
+        </div>
+
+        <div class="pillar">
+          <div class="pillar-index">04</div>
+          <h3>The Inheritance Transfer</h3>
+          <p>The archive is built to be handed on. The tree, the biographies, the discoveries, and a letter in your own words — passed to the next generation with ceremony, as a gift rather than a login.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 6 — The Vision: Family Street View -->
+  <section class="vision">
+    <img class="vision-img" src="assets/hero.png" alt="" aria-hidden="true">
+    <div class="vision-overlay"></div>
+    <div class="vision-content">
+      <div class="vision-eyebrow">The Vision · Family Street View</div>
+      <h2 class="vision-headline">Walk among them.</h2>
+      <p class="vision-lede">Every genealogy tool ever built asks you to look at your family tree from the outside. Witness inverts that entirely. Family Street View puts you <span class="inside">inside</span> the tree — walking from house to house through the generations, your ancestors present in the rooms around you, the time slider aging them in real time as you move through their world.</p>
+
+      <div class="vision-grid">
+        <div class="vision-card">
+          <div class="vision-card-title"><span class="vision-card-dot"></span><span class="vision-card-name">The Room</span></div>
+          <p>Each family unit is a candlelit house interior, period-accurate to the era. Ancestors stand as figures sized to their age — children small, elders stooped, the hearth burning.</p>
+        </div>
+        <div class="vision-card">
+          <div class="vision-card-title"><span class="vision-card-dot"></span><span class="vision-card-name">The Time Slider</span></div>
+          <p>Drag it forward and children grow, parents age, figures fade at the year of their death. Drag it back and a young couple appears before their children are born. Time becomes felt, not calculated.</p>
+        </div>
+        <div class="vision-card">
+          <div class="vision-card-title"><span class="vision-card-dot"></span><span class="vision-card-name">The Back Door</span></div>
+          <p>Leaving through the back door brings you to two houses side by side — the families of origin of each parent. Every threshold you cross takes you one generation deeper into the past.</p>
+        </div>
+      </div>
+
+      <div class="vision-closing">A proof of concept exists. The production version ships shortly after launch.</div>
+    </div>
+  </section>
+
+  <!-- Section 7 — About the Project -->
+  <section class="about">
+    <div class="about-inner">
+      <div class="about-photo"><span>Photo</span></div>
+      <div class="about-text">
+        <div class="eyebrow eyebrow--light about-eyebrow">About the Project</div>
+        <p class="about-statement">I'm Rufus Howe. I've spent years building a family tree of over 5,000 people — and kept running into the same frustration: the tools are excellent for building, and poor for discovering.</p>
+        <p class="about-copy">Witness is my attempt to fix that. It's built on my own family's GEDCOM file, validated against real data, and designed for people who take their family history seriously.</p>
+        <div class="about-site">witnesslives.com</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 8 — What I'm Looking For -->
+  <section class="asks">
+    <div class="asks-inner">
+      <div class="eyebrow eyebrow--dark asks-eyebrow">What I'm Looking For</div>
+      <h2 class="asks-heading">I'd value your perspective.</h2>
+
+      <div class="asks-grid">
+        <div class="ask-card">
+          <div class="ask-card-index">01</div>
+          <h3>Twenty minutes</h3>
+          <p>Honest feedback on whether this solves problems you actually encounter.</p>
+        </div>
+        <div class="ask-card">
+          <div class="ask-card-index">02</div>
+          <h3>Early access</h3>
+          <p>A seat in the beta, in exchange for your thoughts as it takes shape.</p>
+        </div>
+        <div class="ask-card">
+          <div class="ask-card-index">03</div>
+          <h3>Introductions</h3>
+          <p>To others in the genealogy community who might want to know about this.</p>
+        </div>
+      </div>
+
+      <p class="asks-closing">This preview is shared by invitation. Thank you for taking the time.</p>
+      <div class="asks-email">rufus@witnesslives.com</div>
+
+      <div class="footer">
+        <span class="footer-wordmark">WITNESS</span>
+        <span class="footer-dot"></span>
+        <span class="footer-site">witnesslives.com</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  var PASSWORD = 'witnesses';
+  var gate = document.getElementById('gate');
+  var page = document.getElementById('page');
+  var form = document.getElementById('gate-form');
+  var input = document.getElementById('gate-input');
+  var error = document.getElementById('gate-error');
+
+  function unlock() {
+    gate.hidden = true;
+    page.hidden = false;
+    try { window.scrollTo(0, 0); } catch (e) {}
+  }
+
+  try {
+    if (localStorage.getItem('witness_preview_unlocked') === '1') {
+      unlock();
+    }
+  } catch (e) {}
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var val = (input.value || '').trim().toLowerCase();
+    if (val === PASSWORD) {
+      try { localStorage.setItem('witness_preview_unlocked', '1'); } catch (err) {}
+      error.hidden = true;
+      unlock();
+    } else {
+      error.hidden = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>
