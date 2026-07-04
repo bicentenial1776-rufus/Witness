@@ -1,5 +1,5 @@
 import { Link, router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Pressable, View } from 'react-native';
 
 import { HISTORICAL_EVENTS, type HistoricalEvent } from '@witness/core/history';
@@ -7,6 +7,7 @@ import { HISTORICAL_EVENTS, type HistoricalEvent } from '@witness/core/history';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useSession } from '@/auth/session-provider';
+import { armDigestNotification } from '@/lib/digest-notifications';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
 import { supabase } from '@/lib/supabase';
 
@@ -44,6 +45,14 @@ export default function Home() {
       loadTrees();
     }, [loadTrees]),
   );
+
+  // Keep next Sunday's digest notification armed with fresh content.
+  const activeTreeId = trees?.length
+    ? [...trees].sort((a, b) => b.individual_count - a.individual_count)[0].id
+    : undefined;
+  useEffect(() => {
+    if (activeTreeId) armDigestNotification(activeTreeId).catch(() => {});
+  }, [activeTreeId]);
 
   function confirmDelete(tree: TreeRow) {
     Alert.alert(
@@ -131,6 +140,13 @@ export default function Home() {
           <ThemedText type="subtitle" style={{ marginTop: 12 }}>
             Explore
           </ThemedText>
+          <Pressable
+            onPress={() => router.push({ pathname: '/digest', params: { treeId: activeTree.id } })}
+            style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, gap: 2 }}
+          >
+            <ThemedText>This week in your family</ThemedText>
+            <ThemedText type="small">The anniversaries your tree marks this week</ThemedText>
+          </Pressable>
           <Pressable
             onPress={() => router.push({ pathname: '/places', params: { treeId: activeTree.id } })}
             style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, gap: 2 }}

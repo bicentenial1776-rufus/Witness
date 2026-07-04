@@ -697,7 +697,7 @@ export type Database = {
         | "after"
         | "between"
         | "unknown"
-      enrichment_type: "biography" | "historical_context"
+      enrichment_type: "biography" | "historical_context" | "digest_note"
       individual_event_type:
         | "birth"
         | "death"
@@ -856,7 +856,7 @@ export const Constants = {
         "between",
         "unknown",
       ],
-      enrichment_type: ["biography", "historical_context"],
+      enrichment_type: ["biography", "historical_context", "digest_note"],
       individual_event_type: [
         "birth",
         "death",
