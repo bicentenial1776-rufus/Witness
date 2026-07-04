@@ -10,7 +10,8 @@
     "./gedcom": "./dist/gedcom/index.js",
     "./supabase": "./dist/supabase/import.js",
     "./history": "./dist/history/events.js",
-    "./query": "./dist/query/aliveDuring.js"
+    "./query": "./dist/query/index.js",
+    "./geocode": "./dist/geocode/nominatim.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
