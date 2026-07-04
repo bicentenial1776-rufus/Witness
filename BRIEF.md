@@ -261,6 +261,7 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 - ✅ Historical context enrichment — Wikidata events + Chronicling America newspapers feed a per-ancestor "world they lived in" narrative; same cache and daily budget
 - ✅ Shareable discovery cards — branded 1080×1350 card (ink/parchment/amber) captured from query results into the iOS share sheet
 - ✅ Research Brief Generator — gap detection + structured brief (ordered questions, named archives, why records are missing, what breakthrough looks like); research queue with status lifecycle in app. Phase 3 milestone met.
+- ✅ Home person + relationship engine — home-person designation with onboarding suggestion, closest-common-ancestor relationship calculator (pedigree collapse, half-relationships, in-laws, confidence), 1,033 direct ancestors pre-computed in ~5s, "your 7th great-grandmother" labels across all result screens. Verified: Katherine Marbury = 7th great-grandmother, paternal Scott line
 - ⬜ Encrypted raw GEDCOM upload to Storage — bucket + RLS exist, upload not wired
 - ⬜ Remaining UI features (maps, notifications, iPad layouts, timeline/constellation views)
 
