@@ -7,6 +7,7 @@ import { HISTORICAL_EVENTS, type HistoricalEvent } from '@witness/core/history';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useSession } from '@/auth/session-provider';
+import { invalidateGeographyCache } from '@/lib/geography-cache';
 import { supabase } from '@/lib/supabase';
 
 interface TreeRow {
@@ -52,20 +53,26 @@ export default function Home() {
           onPress: async () => {
             const { error } = await supabase.from('trees').delete().eq('id', tree.id);
             if (error) Alert.alert('Delete failed', error.message);
-            else loadTrees();
+            else {
+              invalidateGeographyCache();
+              loadTrees();
+            }
           },
         },
       ],
     );
   }
 
+  // Until there's an active-tree selector, everything queries the richest tree.
+  const activeTree = trees?.length
+    ? [...trees].sort((a, b) => b.individual_count - a.individual_count)[0]
+    : undefined;
+
   function openEvent(event: HistoricalEvent) {
-    if (!trees?.length) return;
-    // Until there's an active-tree selector, query the richest tree.
-    const target = [...trees].sort((a, b) => b.individual_count - a.individual_count)[0];
+    if (!activeTree) return;
     router.push({
       pathname: '/query/[eventId]',
-      params: { eventId: event.id, treeId: target.id },
+      params: { eventId: event.id, treeId: activeTree.id },
     });
   }
 
@@ -108,10 +115,30 @@ export default function Home() {
       </Link>
       <Button title="Sign out" onPress={() => supabase.auth.signOut()} />
 
-      {Boolean(trees?.length) && (
-        <ThemedText type="subtitle" style={{ marginTop: 12 }}>
-          Who was alive during…
-        </ThemedText>
+      {activeTree && (
+        <>
+          <ThemedText type="subtitle" style={{ marginTop: 12 }}>
+            Explore
+          </ThemedText>
+          <Pressable
+            onPress={() => router.push({ pathname: '/places', params: { treeId: activeTree.id } })}
+            style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, gap: 2 }}
+          >
+            <ThemedText>Where your family lived</ThemedText>
+            <ThemedText type="small">Every state, province, and country in your tree</ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push({ pathname: '/migrations', params: { treeId: activeTree.id } })}
+            style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, gap: 2 }}
+          >
+            <ThemedText>Migration paths</ThemedText>
+            <ThemedText type="small">The moves your family made, generation by generation</ThemedText>
+          </Pressable>
+
+          <ThemedText type="subtitle" style={{ marginTop: 12 }}>
+            Who was alive during…
+          </ThemedText>
+        </>
       )}
     </View>
   );
