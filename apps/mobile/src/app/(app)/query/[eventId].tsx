@@ -1,10 +1,12 @@
+import * as Sharing from 'expo-sharing';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Button, FlatList, Pressable, View } from 'react-native';
 
 import { getHistoricalEvent } from '@witness/core/history';
 import { aliveDuring, type AliveDuringResult, type AliveMatch } from '@witness/core/query';
 
+import { DiscoveryCard, type DiscoveryCardHandle } from '@/components/discovery-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { supabase } from '@/lib/supabase';
@@ -20,6 +22,12 @@ export default function AliveDuringScreen() {
   const event = getHistoricalEvent(eventId);
   const [result, setResult] = useState<AliveDuringResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const cardRef = useRef<DiscoveryCardHandle>(null);
+
+  async function shareDiscovery() {
+    const uri = await cardRef.current?.capture?.();
+    if (uri) await Sharing.shareAsync(uri, { mimeType: 'image/png' });
+  }
 
   useEffect(() => {
     if (!event || !treeId) return;
@@ -70,6 +78,15 @@ export default function AliveDuringScreen() {
             {result.documentedCount.toLocaleString()} documented ·{' '}
             {result.probableCount.toLocaleString()} probable
           </ThemedText>
+          {result.matches.length > 0 && (
+            <Button title="Share this discovery" onPress={shareDiscovery} />
+          )}
+          <DiscoveryCard
+            ref={cardRef}
+            headline={`${result.matches.length.toLocaleString()} of my ancestors were alive during ${event.name}`}
+            detail={event.summary}
+            years={`${years} · ${event.region}`}
+          />
           <FlatList
             data={result.matches}
             keyExtractor={(match) => match.individual.id}

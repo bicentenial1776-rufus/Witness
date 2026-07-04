@@ -258,9 +258,11 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 - ✅ Geocoding pipeline — Nominatim at 1 req/sec; 3,664 of 3,808 places (96%) have lat/lng in the live DB
 - ✅ GPS radius query — haversine over geocoded places ("within 15km of Sudbury MA" → 84 places with ancestors); awaiting device-GPS UI in Phase 4
 - ✅ AI ancestor biography — generate-biography Edge Function (Claude Sonnet 4.6, server-side key), enrichment_cache table, 20/day rate limit, living persons refused server-side; ancestor detail screen in app (tap from any results list). Verified live: ~12s generate, ~400ms cache hit
+- ✅ Historical context enrichment — Wikidata events + Chronicling America newspapers feed a per-ancestor "world they lived in" narrative; same cache and daily budget
+- ✅ Shareable discovery cards — branded 1080×1350 card (ink/parchment/amber) captured from query results into the iOS share sheet
+- ✅ Research Brief Generator — gap detection + structured brief (ordered questions, named archives, why records are missing, what breakthrough looks like); research queue with status lifecycle in app. Phase 3 milestone met.
 - ⬜ Encrypted raw GEDCOM upload to Storage — bucket + RLS exist, upload not wired
-- ⬜ Remaining Phase 3: historical context enrichment (Wikidata/Chronicling America), shareable discovery cards, Research Brief Generator
-- ⬜ Remaining UI features (maps, notifications, iPad layouts)
+- ⬜ Remaining UI features (maps, notifications, iPad layouts, timeline/constellation views)
 
 ### Data Storage — Option B Encryption
 - Raw GEDCOM file: encrypted client-side before upload, stored as opaque blob in Supabase Storage. Server cannot read it.
