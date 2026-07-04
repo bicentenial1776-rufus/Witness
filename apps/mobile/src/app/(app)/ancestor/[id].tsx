@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Button, ScrollView, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -22,23 +22,110 @@ interface EventRow {
   places: { raw: string } | null;
 }
 
-type BiographyState =
+type SectionState =
   | { name: 'none' }
   | { name: 'generating' }
   | { name: 'ready'; text: string }
   | { name: 'error'; message: string };
 
+async function invokeError(error: unknown): Promise<string> {
+  const fallback = error instanceof Error ? error.message : String(error);
+  try {
+    const body = await (error as { context?: Response }).context?.json?.();
+    return body?.error ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/** One AI-enriched text section backed by a cache row + Edge Function. */
+function useEnrichment(
+  individualId: string | undefined,
+  enrichmentType: 'biography' | 'historical_context',
+  fn: string,
+  key: string,
+) {
+  const [state, setState] = useState<SectionState>({ name: 'none' });
+
+  useEffect(() => {
+    if (!individualId) return;
+    let cancelled = false;
+    supabase
+      .from('enrichment_cache')
+      .select('content')
+      .eq('individual_id', individualId)
+      .eq('enrichment_type', enrichmentType)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data) setState({ name: 'ready', text: data.content });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [individualId, enrichmentType]);
+
+  const generate = useCallback(async () => {
+    setState({ name: 'generating' });
+    const { data, error } = await supabase.functions.invoke(fn, {
+      body: { individualId },
+    });
+    if (error) setState({ name: 'error', message: await invokeError(error) });
+    else setState({ name: 'ready', text: data[key] });
+  }, [individualId, fn, key]);
+
+  return { state, generate };
+}
+
+function EnrichmentSection({
+  title,
+  buttonTitle,
+  generatingLabel,
+  state,
+  onGenerate,
+}: {
+  title: string;
+  buttonTitle: string;
+  generatingLabel: string;
+  state: SectionState;
+  onGenerate: () => void;
+}) {
+  return (
+    <>
+      <ThemedText type="subtitle" style={{ marginTop: 16 }}>
+        {title}
+      </ThemedText>
+      {state.name === 'ready' ? (
+        <ThemedText>{state.text}</ThemedText>
+      ) : state.name === 'generating' ? (
+        <View style={{ gap: 8, marginVertical: 8 }}>
+          <ActivityIndicator />
+          <ThemedText type="small">{generatingLabel}</ThemedText>
+        </View>
+      ) : (
+        <>
+          {state.name === 'error' && <ThemedText>{state.message}</ThemedText>}
+          <Button title={buttonTitle} onPress={onGenerate} />
+        </>
+      )}
+    </>
+  );
+}
+
 export default function AncestorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [person, setPerson] = useState<Person | null>(null);
   const [events, setEvents] = useState<EventRow[]>([]);
-  const [biography, setBiography] = useState<BiographyState>({ name: 'none' });
+  const [briefBusy, setBriefBusy] = useState(false);
+  const [briefError, setBriefError] = useState<string | null>(null);
+
+  const biography = useEnrichment(id, 'biography', 'generate-biography', 'biography');
+  const worldContext = useEnrichment(id, 'historical_context', 'generate-historical-context', 'context');
 
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
     (async () => {
-      const [{ data: personRow }, { data: eventRows }, { data: cached }] = await Promise.all([
+      const [{ data: personRow }, { data: eventRows }] = await Promise.all([
         supabase
           .from('individuals')
           .select('id, full_name, sex, birth_year, death_year, living')
@@ -50,40 +137,28 @@ export default function AncestorScreen() {
           .eq('individual_id', id)
           .order('date_year', { ascending: true })
           .returns<EventRow[]>(),
-        supabase
-          .from('enrichment_cache')
-          .select('content')
-          .eq('individual_id', id)
-          .eq('enrichment_type', 'biography')
-          .maybeSingle(),
       ]);
       if (cancelled) return;
       setPerson(personRow);
       setEvents(eventRows ?? []);
-      if (cached) setBiography({ name: 'ready', text: cached.content });
     })();
     return () => {
       cancelled = true;
     };
   }, [id]);
 
-  async function generateBiography() {
-    setBiography({ name: 'generating' });
-    const { data, error } = await supabase.functions.invoke('generate-biography', {
+  async function startResearchBrief() {
+    setBriefBusy(true);
+    setBriefError(null);
+    const { data, error } = await supabase.functions.invoke('generate-research-brief', {
       body: { individualId: id },
     });
+    setBriefBusy(false);
     if (error) {
-      let message = error.message;
-      try {
-        const body = await (error as { context?: Response }).context?.json?.();
-        if (body?.error) message = body.error;
-      } catch {
-        // keep the generic message
-      }
-      setBiography({ name: 'error', message });
+      setBriefError(await invokeError(error));
       return;
     }
-    setBiography({ name: 'ready', text: data.biography });
+    router.push({ pathname: '/research/[briefId]', params: { briefId: data.id } });
   }
 
   if (!person) {
@@ -106,25 +181,40 @@ export default function AncestorScreen() {
           {person.living ? ' · living' : ''}
         </ThemedText>
 
-        <ThemedText type="subtitle" style={{ marginTop: 16 }}>
-          Their story
-        </ThemedText>
         {person.living ? (
-          <ThemedText>
+          <ThemedText style={{ marginTop: 16 }}>
             {person.full_name.split(' ')[0]} appears to be living, so Witness keeps their story
             private.
           </ThemedText>
-        ) : biography.name === 'ready' ? (
-          <ThemedText>{biography.text}</ThemedText>
-        ) : biography.name === 'generating' ? (
-          <View style={{ gap: 8, marginVertical: 8 }}>
-            <ActivityIndicator />
-            <ThemedText type="small">Writing their story from the record…</ThemedText>
-          </View>
         ) : (
           <>
-            {biography.name === 'error' && <ThemedText>{biography.message}</ThemedText>}
-            <Button title="Tell me their story" onPress={generateBiography} />
+            <EnrichmentSection
+              title="Their story"
+              buttonTitle="Tell me their story"
+              generatingLabel="Writing their story from the record…"
+              state={biography.state}
+              onGenerate={biography.generate}
+            />
+            <EnrichmentSection
+              title="The world they lived in"
+              buttonTitle="Show me their world"
+              generatingLabel="Searching the historical record…"
+              state={worldContext.state}
+              onGenerate={worldContext.generate}
+            />
+
+            <ThemedText type="subtitle" style={{ marginTop: 16 }}>
+              Research
+            </ThemedText>
+            {briefError && <ThemedText>{briefError}</ThemedText>}
+            {briefBusy ? (
+              <View style={{ gap: 8, marginVertical: 8 }}>
+                <ActivityIndicator />
+                <ThemedText type="small">Preparing a research brief…</ThemedText>
+              </View>
+            ) : (
+              <Button title="Start a research brief" onPress={startResearchBrief} />
+            )}
           </>
         )}
 

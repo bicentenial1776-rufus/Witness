@@ -134,6 +134,13 @@ export default function Home() {
             <ThemedText>Migration paths</ThemedText>
             <ThemedText type="small">The moves your family made, generation by generation</ThemedText>
           </Pressable>
+          <Pressable
+            onPress={() => router.push('/research')}
+            style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, gap: 2 }}
+          >
+            <ThemedText>Research queue</ThemedText>
+            <ThemedText type="small">Your open brick walls and the briefs to break them</ThemedText>
+          </Pressable>
 
           <ThemedText type="subtitle" style={{ marginTop: 12 }}>
             Who was alive during…
