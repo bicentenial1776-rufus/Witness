@@ -146,6 +146,20 @@ export default function Home() {
             <ThemedText type="small">The moves your family made, generation by generation</ThemedText>
           </Pressable>
           <Pressable
+            onPress={() => router.push({ pathname: '/map', params: { treeId: activeTree.id } })}
+            style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, gap: 2 }}
+          >
+            <ThemedText>Ancestor map</ThemedText>
+            <ThemedText type="small">Every place your family touched, by era</ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push({ pathname: '/here', params: { treeId: activeTree.id } })}
+            style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, gap: 2 }}
+          >
+            <ThemedText>I'm here</ThemedText>
+            <ThemedText type="small">Who in your family lived where you're standing?</ThemedText>
+          </Pressable>
+          <Pressable
             onPress={() => router.push('/research')}
             style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, gap: 2 }}
           >

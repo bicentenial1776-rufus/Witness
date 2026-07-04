@@ -208,6 +208,29 @@ export interface NearbyPlace {
   residents: RegionResident[];
 }
 
+/** Everyone with a life event at one specific place. */
+export function ancestorsAtPlace(index: GeographyIndex, placeId: string): RegionResident[] {
+  const place = index.places.get(placeId);
+  if (!place) return [];
+  const byIndividual = new Map<string, ResidentEvent[]>();
+  for (const event of index.events) {
+    if (event.placeId !== placeId) continue;
+    if (!byIndividual.has(event.individualId)) byIndividual.set(event.individualId, []);
+    byIndividual.get(event.individualId)!.push({
+      eventType: event.eventType,
+      year: event.year,
+      placeRaw: place.raw,
+    });
+  }
+  const residents: RegionResident[] = [];
+  for (const [individualId, events] of byIndividual) {
+    const individual = index.individuals.get(individualId);
+    if (individual) residents.push({ individual, events });
+  }
+  residents.sort((a, b) => a.individual.full_name.localeCompare(b.individual.full_name));
+  return residents;
+}
+
 /**
  * Geocoded places within the radius, nearest first, each with the
  * ancestors who had a life event there. Requires the geocoding pipeline
@@ -224,23 +247,42 @@ export function nearbyAncestors(index: GeographyIndex, options: NearbyOptions): 
   }
   hits.sort((a, b) => a.distanceKm - b.distanceKm);
 
-  return hits.map(({ place, distanceKm }) => {
-    const byIndividual = new Map<string, ResidentEvent[]>();
-    for (const event of index.events) {
-      if (event.placeId !== place.id) continue;
-      if (!byIndividual.has(event.individualId)) byIndividual.set(event.individualId, []);
-      byIndividual.get(event.individualId)!.push({
-        eventType: event.eventType,
-        year: event.year,
-        placeRaw: place.raw,
-      });
-    }
-    const residents: RegionResident[] = [];
-    for (const [individualId, events] of byIndividual) {
-      const individual = index.individuals.get(individualId);
-      if (individual) residents.push({ individual, events });
-    }
-    residents.sort((a, b) => a.individual.full_name.localeCompare(b.individual.full_name));
-    return { place, distanceKm, residents };
-  });
+  return hits.map(({ place, distanceKm }) => ({
+    place,
+    distanceKm,
+    residents: ancestorsAtPlace(index, place.id),
+  }));
+}
+
+// Map support --------------------------------------------------------------
+
+export interface PlaceActivity {
+  place: GeoPlace;
+  /** Events at this place inside the era window. */
+  eventCount: number;
+}
+
+/**
+ * Geocoded places with at least one event in the era window, busiest
+ * first — the map's marker source. Events without a year only count
+ * when no era filter is applied.
+ */
+export function placesWithActivity(
+  index: GeographyIndex,
+  era?: { startYear: number; endYear: number },
+): PlaceActivity[] {
+  const counts = new Map<string, number>();
+  for (const event of index.events) {
+    if (!event.placeId) continue;
+    if (era && (event.year === null || event.year < era.startYear || event.year > era.endYear)) continue;
+    counts.set(event.placeId, (counts.get(event.placeId) ?? 0) + 1);
+  }
+  const result: PlaceActivity[] = [];
+  for (const [placeId, eventCount] of counts) {
+    const place = index.places.get(placeId);
+    if (!place || place.latitude === null || place.longitude === null) continue;
+    result.push({ place, eventCount });
+  }
+  result.sort((a, b) => b.eventCount - a.eventCount);
+  return result;
 }
