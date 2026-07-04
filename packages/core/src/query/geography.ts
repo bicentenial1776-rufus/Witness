@@ -20,7 +20,7 @@ export interface GeoPlace {
 
 export interface GeoEvent {
   individualId: string;
-  eventType: 'birth' | 'death' | 'burial' | 'residence';
+  eventType: 'birth' | 'death' | 'burial' | 'residence' | 'military';
   year: number | null;
   placeId: string | null;
 }

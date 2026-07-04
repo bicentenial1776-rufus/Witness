@@ -1,0 +1,47 @@
+0 HEAD
+1 GEDC
+2 VERS 7.0
+1 SOUR FamilySearch
+0 @N1@ SNOTE Emigrated from Rotterdam aboard the Beaver.
+1 CONT Arrived Philadelphia 1738.
+0 @O1@ OBJE
+1 FILE portrait.jpg
+2 FORM image/jpeg
+2 TITL Portrait of Anna
+0 @I1@ INDI
+1 NAME Anna /Visser/
+2 GIVN Anna
+2 SURN Visser
+1 SEX F
+1 _UID ABC123DEF456
+1 BIRT
+2 DATE 1712
+3 PHRASE about 1712, per the family bible
+2 PLAC Rotterdam, Netherlands
+1 DEAT
+2 DATE 2 MAR 1780
+2 PLAC Philadelphia, Pennsylvania, USA
+1 SNOTE @N1@
+1 NOTE She signed her name with a mark.
+1 OBJE @O1@
+2 _PRIM Y
+1 FAMS @F1@
+0 @I2@ INDI
+1 NAME Pieter /Visser/
+1 SEX M
+1 FAMS @F1@
+0 @I3@ INDI
+1 NAME Jan /Visser/
+1 SEX M
+1 BIRT
+2 DATE 1736
+1 FAMC @F1@
+0 @F1@ FAM
+1 HUSB @I2@
+1 WIFE @I1@
+1 CHIL @I3@
+2 _FREL adopted
+2 _MREL natural
+1 MARR
+2 DATE 1735
+0 TRLR

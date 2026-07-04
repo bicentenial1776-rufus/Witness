@@ -267,19 +267,25 @@ export type Database = {
         Row: {
           birth_order: number | null
           family_id: string
+          father_relation: string | null
           individual_id: string
+          mother_relation: string | null
           user_id: string
         }
         Insert: {
           birth_order?: number | null
           family_id: string
+          father_relation?: string | null
           individual_id: string
+          mother_relation?: string | null
           user_id: string
         }
         Update: {
           birth_order?: number | null
           family_id?: string
+          father_relation?: string | null
           individual_id?: string
+          mother_relation?: string | null
           user_id?: string
         }
         Relationships: [
@@ -381,6 +387,8 @@ export type Database = {
       }
       individuals: {
         Row: {
+          ancestry_apid: string | null
+          ancestry_uid: string | null
           birth_year: number | null
           death_year: number | null
           full_name: string
@@ -397,6 +405,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ancestry_apid?: string | null
+          ancestry_uid?: string | null
           birth_year?: number | null
           death_year?: number | null
           full_name: string
@@ -413,6 +423,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ancestry_apid?: string | null
+          ancestry_uid?: string | null
           birth_year?: number | null
           death_year?: number | null
           full_name?: string
@@ -686,7 +698,12 @@ export type Database = {
         | "between"
         | "unknown"
       enrichment_type: "biography" | "historical_context"
-      individual_event_type: "birth" | "death" | "burial" | "residence"
+      individual_event_type:
+        | "birth"
+        | "death"
+        | "burial"
+        | "residence"
+        | "military"
       research_brief_status: "open" | "in_progress" | "resolved" | "archived"
       sex_type: "M" | "F" | "U"
     }
@@ -840,7 +857,13 @@ export const Constants = {
         "unknown",
       ],
       enrichment_type: ["biography", "historical_context"],
-      individual_event_type: ["birth", "death", "burial", "residence"],
+      individual_event_type: [
+        "birth",
+        "death",
+        "burial",
+        "residence",
+        "military",
+      ],
       research_brief_status: ["open", "in_progress", "resolved", "archived"],
       sex_type: ["M", "F", "U"],
     },

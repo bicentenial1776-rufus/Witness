@@ -117,6 +117,8 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
       living: individual.living,
       birth_year: individual.birth?.date?.year ?? null,
       death_year: individual.death?.date?.year ?? null,
+      ancestry_uid: individual.uid ?? null,
+      ancestry_apid: individual.apid ?? null,
     });
 
     if (individual.birth) {
@@ -130,6 +132,9 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
     }
     individual.residences.forEach((residence, index) => {
       individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'residence', residence, placeIdMap, index));
+    });
+    individual.military.forEach((service, index) => {
+      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'military', service, placeIdMap, index));
     });
   }
 
@@ -160,10 +165,19 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
     // A CHIL/FAMC pointer that references an xref we never parsed as an
     // INDI record is a real (if rare) possibility in messy exports; skip
     // rather than insert a dangling FK.
+    const relationByChild = new Map(family.childRelationships.map((r) => [r.childId, r]));
     family.childIds.forEach((childXref, index) => {
       const childId = individualIdMap.get(childXref);
       if (!childId) return;
-      familyChildren.push({ family_id: familyId, individual_id: childId, user_id: userId, birth_order: index });
+      const relation = relationByChild.get(childXref);
+      familyChildren.push({
+        family_id: familyId,
+        individual_id: childId,
+        user_id: userId,
+        birth_order: index,
+        father_relation: relation?.fatherRelation ?? null,
+        mother_relation: relation?.motherRelation ?? null,
+      });
     });
   }
 
