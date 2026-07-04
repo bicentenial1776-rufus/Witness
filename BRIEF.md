@@ -254,8 +254,9 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 - ✅ Live database write — full tree imported to hosted Supabase as an authenticated user and verified (5,495 individuals, ~45s)
 - ✅ In-app GEDCOM import — file picker → parse → import with progress, tree list + delete on home screen (verified end-to-end in simulator)
 - ✅ Temporal query engine — 26-event curated library, "alive during X" with documented/probable confidence, prompt cards + results screen in app. King Philip's War over 5,495 people: 413ms (milestone was <2s)
-- ⬜ Geographic queries — place rollups, migration paths
-- ⬜ Geocoding pipeline — lat/lng columns exist, not yet populated
+- ✅ Geographic queries — region rollups with canonicalized state/country names, ancestors-per-region, tree-wide migration paths (England → Massachusetts, 169 people, ~1679), places + migrations screens in app
+- ✅ Geocoding pipeline — Nominatim at 1 req/sec; 3,664 of 3,808 places (96%) have lat/lng in the live DB
+- ✅ GPS radius query — haversine over geocoded places ("within 15km of Sudbury MA" → 84 places with ancestors); awaiting device-GPS UI in Phase 4
 - ⬜ Encrypted raw GEDCOM upload to Storage — bucket + RLS exist, upload not wired
 - ⬜ AI enrichment, all remaining UI features
 
