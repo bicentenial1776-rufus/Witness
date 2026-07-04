@@ -60,11 +60,16 @@ export default function RegionScreen() {
             keyExtractor={(resident) => resident.individual.id}
             style={{ marginTop: 12 }}
             renderItem={({ item }) => (
-              <View style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, marginBottom: 8, gap: 2 }}>
+              <Pressable
+                onPress={() =>
+                  router.push({ pathname: '/ancestor/[id]', params: { id: item.individual.id } })
+                }
+                style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, marginBottom: 8, gap: 2 }}
+              >
                 <ThemedText>{item.individual.full_name}</ThemedText>
                 <ThemedText type="small">{lifeSpan(item)}</ThemedText>
                 <ThemedText type="small">{connection(item)}</ThemedText>
-              </View>
+              </Pressable>
             )}
           />
         </>

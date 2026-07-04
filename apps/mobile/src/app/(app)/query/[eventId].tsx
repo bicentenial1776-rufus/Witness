@@ -75,7 +75,10 @@ export default function AliveDuringScreen() {
             keyExtractor={(match) => match.individual.id}
             style={{ marginTop: 12 }}
             renderItem={({ item }) => (
-              <View
+              <Pressable
+                onPress={() =>
+                  router.push({ pathname: '/ancestor/[id]', params: { id: item.individual.id } })
+                }
                 style={{
                   borderWidth: 1,
                   borderStyle: item.confidence === 'probable' ? 'dashed' : 'solid',
@@ -92,7 +95,7 @@ export default function AliveDuringScreen() {
                   {matchLine(item, event.startYear)}
                   {item.confidence === 'probable' ? ' · probable' : ''}
                 </ThemedText>
-              </View>
+              </Pressable>
             )}
           />
         </>
