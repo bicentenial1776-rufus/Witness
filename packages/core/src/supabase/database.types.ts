@@ -479,6 +479,60 @@ export type Database = {
           },
         ]
       }
+      research_briefs: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          individual_id: string
+          model: string
+          status: Database["public"]["Enums"]["research_brief_status"]
+          title: string
+          tree_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          individual_id: string
+          model: string
+          status?: Database["public"]["Enums"]["research_brief_status"]
+          title: string
+          tree_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          individual_id?: string
+          model?: string
+          status?: Database["public"]["Enums"]["research_brief_status"]
+          title?: string
+          tree_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_briefs_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_briefs_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trees: {
         Row: {
           charset: string | null
@@ -552,6 +606,7 @@ export type Database = {
         | "unknown"
       enrichment_type: "biography" | "historical_context"
       individual_event_type: "birth" | "death" | "burial" | "residence"
+      research_brief_status: "open" | "in_progress" | "resolved" | "archived"
       sex_type: "M" | "F" | "U"
     }
     CompositeTypes: {
@@ -705,6 +760,7 @@ export const Constants = {
       ],
       enrichment_type: ["biography", "historical_context"],
       individual_event_type: ["birth", "death", "burial", "residence"],
+      research_brief_status: ["open", "in_progress", "resolved", "archived"],
       sex_type: ["M", "F", "U"],
     },
   },
