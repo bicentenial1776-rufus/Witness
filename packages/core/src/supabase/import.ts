@@ -18,6 +18,7 @@ async function insertInBatches<T extends Record<string, unknown>>(
   table: TableName,
   rows: T[],
   batchSize: number,
+  reportInserted: (count: number) => void,
 ): Promise<void> {
   for (const batch of chunk(rows, batchSize)) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,11 +26,22 @@ async function insertInBatches<T extends Record<string, unknown>>(
     if (error) {
       throw new Error(`Failed inserting into ${table} (batch of ${batch.length}): ${error.message}`);
     }
+    reportInserted(batch.length);
   }
+}
+
+export interface ImportProgress {
+  /** Table currently being written. */
+  table: TableName;
+  /** Rows written so far across all tables. */
+  insertedRows: number;
+  /** Total rows the import will write. */
+  totalRows: number;
 }
 
 export interface ImportGedcomOptions extends BuildImportPayloadOptions {
   batchSize?: number;
+  onProgress?: (progress: ImportProgress) => void;
 }
 
 export interface ImportGedcomResult {
@@ -57,13 +69,25 @@ export async function importParsedGedcom(
   const { error: treeError } = await client.from('trees').insert(payload.tree);
   if (treeError) throw new Error(`Failed inserting tree: ${treeError.message}`);
 
-  await insertInBatches(client, 'places', payload.places, batchSize);
-  await insertInBatches(client, 'individuals', payload.individuals, batchSize);
-  await insertInBatches(client, 'individual_events', payload.individualEvents, batchSize);
-  await insertInBatches(client, 'families', payload.families, batchSize);
-  await insertInBatches(client, 'family_children', payload.familyChildren, batchSize);
-  await insertInBatches(client, 'curiosities', payload.curiosities, batchSize);
-  await insertInBatches(client, 'curiosity_individuals', payload.curiosityIndividuals, batchSize);
+  const tables: [TableName, Record<string, unknown>[]][] = [
+    ['places', payload.places],
+    ['individuals', payload.individuals],
+    ['individual_events', payload.individualEvents],
+    ['families', payload.families],
+    ['family_children', payload.familyChildren],
+    ['curiosities', payload.curiosities],
+    ['curiosity_individuals', payload.curiosityIndividuals],
+  ];
+
+  const totalRows = tables.reduce((sum, [, rows]) => sum + rows.length, 0);
+  let insertedRows = 0;
+
+  for (const [table, rows] of tables) {
+    await insertInBatches(client, table, rows, batchSize, (count) => {
+      insertedRows += count;
+      options.onProgress?.({ table, insertedRows, totalRows });
+    });
+  }
 
   return { treeId: payload.tree.id as string };
 }
