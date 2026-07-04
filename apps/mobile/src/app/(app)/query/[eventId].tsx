@@ -1,0 +1,102 @@
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
+
+import { getHistoricalEvent } from '@witness/core/history';
+import { aliveDuring, type AliveDuringResult, type AliveMatch } from '@witness/core/query';
+
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { supabase } from '@/lib/supabase';
+
+function matchLine(match: AliveMatch, startYear: number): string {
+  if (match.bornDuring) return 'Born during these years';
+  if (match.ageAtStart === null) return 'Age unknown';
+  return `Was ${match.ageAtStart} in ${startYear}`;
+}
+
+export default function AliveDuringScreen() {
+  const { eventId, treeId } = useLocalSearchParams<{ eventId: string; treeId: string }>();
+  const event = getHistoricalEvent(eventId);
+  const [result, setResult] = useState<AliveDuringResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!event || !treeId) return;
+    let cancelled = false;
+    aliveDuring(supabase, treeId, event)
+      .then((r) => {
+        if (!cancelled) setResult(r);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [event, treeId]);
+
+  if (!event) {
+    return (
+      <ThemedView style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
+        <ThemedText>Unknown event.</ThemedText>
+      </ThemedView>
+    );
+  }
+
+  const years =
+    event.startYear === event.endYear ? String(event.startYear) : `${event.startYear}–${event.endYear}`;
+
+  return (
+    <ThemedView style={{ flex: 1, padding: 24, paddingTop: 72, gap: 8 }}>
+      <Pressable onPress={() => router.back()}>
+        <ThemedText type="link">‹ Back</ThemedText>
+      </Pressable>
+      <ThemedText type="title">{event.name}</ThemedText>
+      <ThemedText type="small">
+        {years} · {event.region}
+      </ThemedText>
+
+      {error && <ThemedText>Something went wrong: {error}</ThemedText>}
+
+      {!result && !error && <ActivityIndicator style={{ marginVertical: 24 }} />}
+
+      {result && (
+        <>
+          <ThemedText type="subtitle" style={{ marginTop: 8 }}>
+            {result.matches.length.toLocaleString()} people in your family were alive
+          </ThemedText>
+          <ThemedText type="small">
+            {result.documentedCount.toLocaleString()} documented ·{' '}
+            {result.probableCount.toLocaleString()} probable
+          </ThemedText>
+          <FlatList
+            data={result.matches}
+            keyExtractor={(match) => match.individual.id}
+            style={{ marginTop: 12 }}
+            renderItem={({ item }) => (
+              <View
+                style={{
+                  borderWidth: 1,
+                  borderStyle: item.confidence === 'probable' ? 'dashed' : 'solid',
+                  borderColor: '#999',
+                  borderRadius: 8,
+                  padding: 12,
+                  marginBottom: 8,
+                  gap: 2,
+                }}
+              >
+                <ThemedText>{item.individual.full_name}</ThemedText>
+                <ThemedText type="small">
+                  {item.individual.birth_year ?? '?'}–{item.individual.death_year ?? '?'} ·{' '}
+                  {matchLine(item, event.startYear)}
+                  {item.confidence === 'probable' ? ' · probable' : ''}
+                </ThemedText>
+              </View>
+            )}
+          />
+        </>
+      )}
+    </ThemedView>
+  );
+}

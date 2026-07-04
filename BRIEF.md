@@ -253,9 +253,11 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 - ✅ Import pipeline — ParsedGedcom → DB rows, batched insert, 31 tests passing
 - ✅ Live database write — full tree imported to hosted Supabase as an authenticated user and verified (5,495 individuals, ~45s)
 - ✅ In-app GEDCOM import — file picker → parse → import with progress, tree list + delete on home screen (verified end-to-end in simulator)
+- ✅ Temporal query engine — 26-event curated library, "alive during X" with documented/probable confidence, prompt cards + results screen in app. King Philip's War over 5,495 people: 413ms (milestone was <2s)
+- ⬜ Geographic queries — place rollups, migration paths
 - ⬜ Geocoding pipeline — lat/lng columns exist, not yet populated
 - ⬜ Encrypted raw GEDCOM upload to Storage — bucket + RLS exist, upload not wired
-- ⬜ Query engine, AI enrichment, all remaining UI features
+- ⬜ AI enrichment, all remaining UI features
 
 ### Data Storage — Option B Encryption
 - Raw GEDCOM file: encrypted client-side before upload, stored as opaque blob in Supabase Storage. Server cannot read it.

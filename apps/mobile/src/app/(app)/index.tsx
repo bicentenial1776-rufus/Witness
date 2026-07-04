@@ -1,6 +1,8 @@
-import { Link, useFocusEffect } from 'expo-router';
+import { Link, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Pressable, View } from 'react-native';
+
+import { HISTORICAL_EVENTS, type HistoricalEvent } from '@witness/core/history';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -57,53 +59,83 @@ export default function Home() {
     );
   }
 
-  return (
-    <ThemedView style={{ flex: 1, padding: 24, paddingTop: 72, gap: 12 }}>
+  function openEvent(event: HistoricalEvent) {
+    if (!trees?.length) return;
+    // Until there's an active-tree selector, query the richest tree.
+    const target = [...trees].sort((a, b) => b.individual_count - a.individual_count)[0];
+    router.push({
+      pathname: '/query/[eventId]',
+      params: { eventId: event.id, treeId: target.id },
+    });
+  }
+
+  const header = (
+    <View style={{ gap: 12, marginBottom: 12 }}>
       <ThemedText type="title">Witness</ThemedText>
-      <ThemedText>Signed in as {session?.user.email}</ThemedText>
+      <ThemedText type="small">Signed in as {session?.user.email}</ThemedText>
 
       {trees === null ? (
         <ActivityIndicator style={{ marginVertical: 24 }} />
       ) : trees.length === 0 ? (
-        <View style={{ gap: 12, marginVertical: 24 }}>
+        <View style={{ gap: 12, marginVertical: 12 }}>
           <ThemedText type="subtitle">No tree yet</ThemedText>
           <ThemedText>Import a GEDCOM file to bring your family history into Witness.</ThemedText>
         </View>
       ) : (
-        <FlatList
-          data={trees}
-          keyExtractor={(tree) => tree.id}
-          style={{ flexGrow: 0, marginVertical: 12 }}
-          renderItem={({ item }) => (
-            <View
-              style={{
-                borderWidth: 1,
-                borderColor: '#999',
-                borderRadius: 8,
-                padding: 12,
-                marginBottom: 8,
-                gap: 4,
-              }}
-            >
-              <ThemedText type="subtitle">{item.name}</ThemedText>
-              <ThemedText>
-                {item.individual_count.toLocaleString()} people ·{' '}
-                {item.family_count.toLocaleString()} families ·{' '}
-                {item.place_count.toLocaleString()} places
-              </ThemedText>
-              <ThemedText>Imported {new Date(item.imported_at).toLocaleDateString()}</ThemedText>
-              <Pressable onPress={() => confirmDelete(item)}>
-                <ThemedText type="link">Delete</ThemedText>
-              </Pressable>
-            </View>
-          )}
-        />
+        trees.map((tree) => (
+          <View
+            key={tree.id}
+            style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, gap: 4 }}
+          >
+            <ThemedText type="subtitle">{tree.name}</ThemedText>
+            <ThemedText type="small">
+              {tree.individual_count.toLocaleString()} people ·{' '}
+              {tree.family_count.toLocaleString()} families ·{' '}
+              {tree.place_count.toLocaleString()} places
+            </ThemedText>
+            <ThemedText type="small">
+              Imported {new Date(tree.imported_at).toLocaleDateString()}
+            </ThemedText>
+            <Pressable onPress={() => confirmDelete(tree)}>
+              <ThemedText type="link">Delete</ThemedText>
+            </Pressable>
+          </View>
+        ))
       )}
 
       <Link href="/import" asChild>
         <Button title="Import GEDCOM file" />
       </Link>
       <Button title="Sign out" onPress={() => supabase.auth.signOut()} />
+
+      {Boolean(trees?.length) && (
+        <ThemedText type="subtitle" style={{ marginTop: 12 }}>
+          Who was alive during…
+        </ThemedText>
+      )}
+    </View>
+  );
+
+  return (
+    <ThemedView style={{ flex: 1, paddingTop: 72 }}>
+      <FlatList
+        data={trees?.length ? HISTORICAL_EVENTS : []}
+        keyExtractor={(event) => event.id}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24 }}
+        ListHeaderComponent={header}
+        renderItem={({ item }) => (
+          <Pressable
+            onPress={() => openEvent(item)}
+            style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, marginBottom: 8, gap: 2 }}
+          >
+            <ThemedText>{item.name}</ThemedText>
+            <ThemedText type="small">
+              {item.startYear === item.endYear ? item.startYear : `${item.startYear}–${item.endYear}`} ·{' '}
+              {item.region}
+            </ThemedText>
+          </Pressable>
+        )}
+      />
     </ThemedView>
   );
 }
