@@ -251,10 +251,11 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 - ✅ GEDCOM parser — complete. Pure TypeScript, 24 tests, validated against real 11MB file. 5,495 individuals, 1,852 families, 3,808 places, parsed in 110ms.
 - ✅ Supabase schema — 8 tables, RLS policies, indexes live on project bdjsahbjptpcmouqozvs
 - ✅ Import pipeline — ParsedGedcom → DB rows, batched insert, 31 tests passing
-- 🔄 Live database write — not yet exercised with real authenticated user
+- ✅ Live database write — full tree imported to hosted Supabase as an authenticated user and verified (5,495 individuals, ~45s)
+- ✅ In-app GEDCOM import — file picker → parse → import with progress, tree list + delete on home screen (verified end-to-end in simulator)
 - ⬜ Geocoding pipeline — lat/lng columns exist, not yet populated
-- ⬜ Expo/React Native app — no mobile UI code yet
-- ⬜ Query engine, AI enrichment, all UI features
+- ⬜ Encrypted raw GEDCOM upload to Storage — bucket + RLS exist, upload not wired
+- ⬜ Query engine, AI enrichment, all remaining UI features
 
 ### Data Storage — Option B Encryption
 - Raw GEDCOM file: encrypted client-side before upload, stored as opaque blob in Supabase Storage. Server cannot read it.
