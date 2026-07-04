@@ -479,6 +479,76 @@ export type Database = {
           },
         ]
       }
+      relationships: {
+        Row: {
+          computed_at: string
+          generation_distance: number
+          home_person_id: string
+          id: string
+          individual_id: string
+          is_collateral: boolean
+          is_direct_ancestor: boolean
+          is_direct_descendant: boolean
+          label: string
+          line: string
+          path: Json
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          computed_at?: string
+          generation_distance: number
+          home_person_id: string
+          id?: string
+          individual_id: string
+          is_collateral?: boolean
+          is_direct_ancestor?: boolean
+          is_direct_descendant?: boolean
+          label: string
+          line: string
+          path: Json
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          computed_at?: string
+          generation_distance?: number
+          home_person_id?: string
+          id?: string
+          individual_id?: string
+          is_collateral?: boolean
+          is_direct_ancestor?: boolean
+          is_direct_descendant?: boolean
+          label?: string
+          line?: string
+          path?: Json
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationships_home_person_id_fkey"
+            columns: ["home_person_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationships_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationships_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       research_briefs: {
         Row: {
           content: string
@@ -539,6 +609,7 @@ export type Database = {
           export_date: string | null
           family_count: number
           gedcom_version: string | null
+          home_person_id: string | null
           id: string
           imported_at: string
           individual_count: number
@@ -553,6 +624,7 @@ export type Database = {
           export_date?: string | null
           family_count?: number
           gedcom_version?: string | null
+          home_person_id?: string | null
           id?: string
           imported_at?: string
           individual_count?: number
@@ -567,6 +639,7 @@ export type Database = {
           export_date?: string | null
           family_count?: number
           gedcom_version?: string | null
+          home_person_id?: string | null
           id?: string
           imported_at?: string
           individual_count?: number
@@ -576,7 +649,15 @@ export type Database = {
           source_file?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "trees_home_person_id_fkey"
+            columns: ["home_person_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
