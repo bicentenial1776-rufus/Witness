@@ -86,7 +86,8 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 ## Core Features — V1
 
 ### GEDCOM Import
-- Full GEDCOM 5.5.1 parser
+- Full GEDCOM 5.5.1 parser (Ancestry) and GEDCOM 7.0 (FamilySearch), including .gdz archives, with version auto-detection and graceful fallback
+- Ancestry extension capture: UID/_UID (re-import matching), _MILT military events, _PRIM photo flags, _APID record ids, _FREL/_MREL child relationship qualifiers
 - Import via Files app, iCloud Drive, AirDrop, email attachment
 - Handles large files (10MB+, 5,000+ individuals)
 - Client-side encryption before upload to Supabase

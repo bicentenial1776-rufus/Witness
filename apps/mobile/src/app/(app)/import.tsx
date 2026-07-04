@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Button } from 'react-native';
 
 import type { ParsedGedcom } from '@witness/core/gedcom';
-import { parseGedcom } from '@witness/core/gedcom';
+import { extractGedcomText, parseGedcom } from '@witness/core/gedcom';
 import { importParsedGedcom, type ImportProgress } from '@witness/core/supabase';
 
 import { ThemedText } from '@/components/themed-text';
@@ -33,7 +33,10 @@ export default function ImportGedcom() {
     const asset = result.assets[0];
     setStep({ name: 'parsing', fileName: asset.name });
     try {
-      const text = await new File(asset.uri).text();
+      // Bytes, not text: FamilySearch .gdz exports are zip archives and
+      // extractGedcomText handles both those and plain .ged files.
+      const bytes = await new File(asset.uri).bytes();
+      const text = extractGedcomText(bytes);
       const parsed = parseGedcom(text, asset.name);
       if (parsed.metadata.individualCount === 0) {
         Alert.alert('Not a GEDCOM file', `No individuals found in ${asset.name}. Is this a GEDCOM export?`);
