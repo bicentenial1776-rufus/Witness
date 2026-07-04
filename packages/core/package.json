@@ -8,7 +8,9 @@
   "types": "./dist/gedcom/index.d.ts",
   "exports": {
     "./gedcom": "./dist/gedcom/index.js",
-    "./supabase": "./dist/supabase/import.js"
+    "./supabase": "./dist/supabase/import.js",
+    "./history": "./dist/history/events.js",
+    "./query": "./dist/query/aliveDuring.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
