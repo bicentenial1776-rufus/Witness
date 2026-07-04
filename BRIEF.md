@@ -263,6 +263,10 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 - ✅ Shareable discovery cards — branded 1080×1350 card (ink/parchment/amber) captured from query results into the iOS share sheet
 - ✅ Research Brief Generator — gap detection + structured brief (ordered questions, named archives, why records are missing, what breakthrough looks like); research queue with status lifecycle in app. Phase 3 milestone met.
 - ✅ Home person + relationship engine — home-person designation with onboarding suggestion, closest-common-ancestor relationship calculator (pedigree collapse, half-relationships, in-laws, confidence), 1,033 direct ancestors pre-computed in ~5s, "your 7th great-grandmother" labels across all result screens. Verified: Katherine Marbury = 7th great-grandmother, paternal Scott line
+- ✅ Ancestor map — era-filtered places on Apple Maps, callouts to per-place ancestor lists
+- ✅ "I'm Here" mode — GPS radius search (500m–50km) with century tabs and relationship labels. Milestone verified: at Sudbury's cemetery, 103 people found, town places 29m away
+- ⬜ BillionGraves cemetery matching — deferred pending API access/outreach; radius search covers the cemetery case with tree data
+- ⬜ Proactive location notifications, iPad split-view layouts — remaining Phase 4
 - ⬜ Encrypted raw GEDCOM upload to Storage — bucket + RLS exist, upload not wired
 - ⬜ Remaining UI features (maps, notifications, iPad layouts, timeline/constellation views)
 
