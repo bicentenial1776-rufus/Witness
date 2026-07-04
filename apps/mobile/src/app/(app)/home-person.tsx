@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Button, FlatList, Pressable, TextInput, View } from 'react-native';
+import { ActivityIndicator, Button, FlatList, TextInput, View } from 'react-native';
 
 import { setHomePerson, suggestHomePerson, type HomePersonCandidate } from '@witness/core/family';
 
+import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { invalidateRelationshipCache } from '@/lib/relationship-cache';
@@ -78,11 +79,7 @@ export default function HomePersonScreen() {
   }
 
   return (
-    <ThemedView style={{ flex: 1, padding: 24, paddingTop: 72, gap: 12 }}>
-      <Pressable onPress={() => router.back()}>
-        <ThemedText type="link">‹ Back</ThemedText>
-      </Pressable>
-      <ThemedText type="title">Who are you in this tree?</ThemedText>
+    <ThemedView style={{ flex: 1, padding: 24, gap: 12 }}>
 
       {step.name === 'loading' && <ActivityIndicator style={{ marginVertical: 24 }} />}
 
@@ -113,16 +110,13 @@ export default function HomePersonScreen() {
             data={candidates}
             keyExtractor={(person) => person.id}
             renderItem={({ item }) => (
-              <Pressable
-                onPress={() => choose(item)}
-                style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, marginBottom: 8, gap: 2 }}
-              >
+              <Card onPress={() => choose(item)} style={{ marginBottom: 8 }}>
                 <ThemedText>{item.full_name}</ThemedText>
                 <ThemedText type="small">
                   {item.birth_year ? `born ${item.birth_year}` : 'birth year unknown'}
                   {item.living ? ' · living' : ''}
                 </ThemedText>
-              </Pressable>
+              </Card>
             )}
           />
         </>

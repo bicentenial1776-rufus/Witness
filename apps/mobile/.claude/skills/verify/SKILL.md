@@ -5,7 +5,9 @@ description: Build, launch, and drive the Witness Expo app in the iOS simulator 
 
 # Verifying the Witness mobile app
 
-The app runs in **Expo Go 57** on the iOS simulator (usually an iPhone 16, often already booted — check `xcrun simctl list devices booted`). The test user is already signed in inside Expo Go, with two live trees: Howe/Field Family Tree (5,495 people, id `c7a063aa-9ae5-4fef-be15-fb30f3835d78`) and Sample Family Tree (6 people).
+The app runs in **Expo Go 57** on the iOS simulator (usually an iPhone 16, often already booted — check `xcrun simctl list devices booted`). The test user signs in automatically in dev: `apps/mobile/.env` (gitignored) sets `EXPO_PUBLIC_DEV_AUTOLOGIN=1` plus dev credentials, which the sign-in screen honors under `__DEV__`. Live trees: Howe/Field Family Tree (5,495 people, id `c7a063aa-9ae5-4fef-be15-fb30f3835d78`) and Sample Family Tree (6 people).
+
+There is no tap automation (AppleScript clicks are blocked without accessibility permission) — anything requiring a tap must be reached by deep link or observed indirectly. A stale JS bundle can persist across `openurl` calls: `xcrun simctl terminate booted host.exp.Exponent` first to force a fresh load. Dark mode: `xcrun simctl ui booted appearance dark|light`.
 
 ## Launch
 

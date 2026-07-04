@@ -1,9 +1,10 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable } from 'react-native';
+import { ActivityIndicator, FlatList } from 'react-native';
 
 import { ancestorsAtPlace, type GeographyIndex, type RegionResident } from '@witness/core/query';
 
+import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
@@ -32,17 +33,14 @@ export default function PlaceScreen() {
   const residents: RegionResident[] = index && placeId ? ancestorsAtPlace(index, placeId) : [];
 
   return (
-    <ThemedView style={{ flex: 1, padding: 24, paddingTop: 72, gap: 8 }}>
-      <Pressable onPress={() => router.back()}>
-        <ThemedText type="link">‹ Back</ThemedText>
-      </Pressable>
+    <ThemedView style={{ flex: 1, padding: 24, gap: 8 }}>
+      <Stack.Screen options={{ title: place ? (place.parts[0] ?? place.raw) : '' }} />
       {!index ? (
         <ActivityIndicator style={{ marginVertical: 24 }} />
       ) : !place ? (
         <ThemedText>Place not found.</ThemedText>
       ) : (
         <>
-          <ThemedText type="title">{place.parts[0] ?? place.raw}</ThemedText>
           <ThemedText type="small">{place.raw}</ThemedText>
           <ThemedText type="subtitle">
             {residents.length.toLocaleString()} people in your family have events here
@@ -52,11 +50,11 @@ export default function PlaceScreen() {
             keyExtractor={(resident) => resident.individual.id}
             style={{ marginTop: 12 }}
             renderItem={({ item }) => (
-              <Pressable
+              <Card
                 onPress={() =>
                   router.push({ pathname: '/ancestor/[id]', params: { id: item.individual.id } })
                 }
-                style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, marginBottom: 8, gap: 2 }}
+                style={{ marginBottom: 8 }}
               >
                 <ThemedText>{item.individual.full_name}</ThemedText>
                 {relationships.has(item.individual.id) && (
@@ -67,7 +65,7 @@ export default function PlaceScreen() {
                     .map((e) => `${e.eventType}${e.year ? ` ${e.year}` : ''}`)
                     .join(' · ')}
                 </ThemedText>
-              </Pressable>
+              </Card>
             )}
           />
         </>

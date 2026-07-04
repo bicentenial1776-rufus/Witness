@@ -1,7 +1,8 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable } from 'react-native';
+import { ActivityIndicator, FlatList } from 'react-native';
 
+import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { supabase } from '@/lib/supabase';
@@ -20,7 +21,7 @@ export const STATUS_LABELS: Record<BriefRow['status'], string> = {
   archived: 'Archived',
 };
 
-export default function ResearchQueueScreen() {
+export default function ResearchTab() {
   const [briefs, setBriefs] = useState<BriefRow[] | null>(null);
 
   useFocusEffect(
@@ -42,15 +43,13 @@ export default function ResearchQueueScreen() {
 
   return (
     <ThemedView style={{ flex: 1, padding: 24, paddingTop: 72, gap: 8 }}>
-      <Pressable onPress={() => router.back()}>
-        <ThemedText type="link">‹ Back</ThemedText>
-      </Pressable>
-      <ThemedText type="title">Research queue</ThemedText>
+      <ThemedText type="title">Research</ThemedText>
+      <ThemedText type="small">Your open brick walls and the briefs to break them</ThemedText>
 
       {briefs === null ? (
         <ActivityIndicator style={{ marginVertical: 24 }} />
       ) : briefs.length === 0 ? (
-        <ThemedText>
+        <ThemedText style={{ marginTop: 12 }}>
           No open briefs. Start one from any ancestor whose record has gaps.
         </ThemedText>
       ) : (
@@ -59,15 +58,17 @@ export default function ResearchQueueScreen() {
           keyExtractor={(brief) => brief.id}
           style={{ marginTop: 12 }}
           renderItem={({ item }) => (
-            <Pressable
-              onPress={() => router.push({ pathname: '/research/[briefId]', params: { briefId: item.id } })}
-              style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, marginBottom: 8, gap: 2 }}
+            <Card
+              onPress={() =>
+                router.push({ pathname: '/research/[briefId]', params: { briefId: item.id } })
+              }
+              style={{ marginBottom: 8 }}
             >
               <ThemedText>{item.title}</ThemedText>
               <ThemedText type="small">
                 {STATUS_LABELS[item.status]} · {new Date(item.created_at).toLocaleDateString()}
               </ThemedText>
-            </Pressable>
+            </Card>
           )}
         />
       )}

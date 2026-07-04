@@ -4,6 +4,7 @@ import { ActivityIndicator, Button, ScrollView, View } from 'react-native';
 
 import { getRelationship } from '@witness/core/family';
 
+import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getRelationshipMap } from '@/lib/relationship-cache';
@@ -194,11 +195,8 @@ export default function AncestorScreen() {
   }
 
   return (
-    <ThemedView style={{ flex: 1, paddingTop: 72 }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 48, gap: 8 }}>
-        <ThemedText type="link" onPress={() => router.back()}>
-          ‹ Back
-        </ThemedText>
+    <ThemedView style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48, gap: 8 }}>
         <ThemedText type="title">{person.full_name}</ThemedText>
         {relationship && <ThemedText type="subtitle">Your {relationship}</ThemedText>}
         <ThemedText type="small">
@@ -248,16 +246,13 @@ export default function AncestorScreen() {
         </ThemedText>
         {events.length === 0 && <ThemedText type="small">No dated events recorded.</ThemedText>}
         {events.map((event, index) => (
-          <View
-            key={index}
-            style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, gap: 2 }}
-          >
+          <Card key={index}>
             <ThemedText>
               {event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1)}
               {event.date_raw ? ` · ${event.date_raw}` : event.date_year ? ` · ${event.date_year}` : ''}
             </ThemedText>
             {event.places?.raw && <ThemedText type="small">{event.places.raw}</ThemedText>}
-          </View>
+          </Card>
         ))}
       </ScrollView>
     </ThemedView>

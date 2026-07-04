@@ -1,9 +1,10 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
+import { ActivityIndicator, FlatList } from 'react-native';
 
 import { migrationPaths, type MigrationPath } from '@witness/core/query';
 
+import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
@@ -29,11 +30,7 @@ export default function MigrationsScreen() {
   }, [treeId]);
 
   return (
-    <ThemedView style={{ flex: 1, padding: 24, paddingTop: 72, gap: 8 }}>
-      <Pressable onPress={() => router.back()}>
-        <ThemedText type="link">‹ Back</ThemedText>
-      </Pressable>
-      <ThemedText type="title">Migration paths</ThemedText>
+    <ThemedView style={{ flex: 1, padding: 24, gap: 8 }}>
       <ThemedText type="small">
         Each path is a move your family made within one lifetime, counted across the whole tree.
       </ThemedText>
@@ -45,9 +42,9 @@ export default function MigrationsScreen() {
         <FlatList
           data={paths.filter((path) => path.count >= 2)}
           keyExtractor={(path) => `${path.from}→${path.to}`}
-          style={{ marginTop: 12 }}
+          style={{ marginTop: 4 }}
           renderItem={({ item }) => (
-            <View style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, marginBottom: 8, gap: 2 }}>
+            <Card style={{ marginBottom: 8 }}>
               <ThemedText>
                 {item.from} → {item.to}
               </ThemedText>
@@ -60,7 +57,7 @@ export default function MigrationsScreen() {
                   {item.examples[0].toYear ? `, arrived ${item.examples[0].toYear}` : ''}
                 </ThemedText>
               )}
-            </View>
+            </Card>
           )}
         />
       )}

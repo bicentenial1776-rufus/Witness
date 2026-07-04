@@ -70,7 +70,6 @@ export default function ImportGedcom() {
 
   return (
     <ThemedView style={{ flex: 1, justifyContent: 'center', padding: 24, gap: 12 }}>
-      <ThemedText type="title">Import your tree</ThemedText>
 
       {step.name === 'pick' && (
         <>

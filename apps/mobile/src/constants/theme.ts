@@ -1,6 +1,9 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * The brand system from BRIEF.md. Light mode is the parchment world — warm
+ * paper surfaces with ink text; dark mode is the ink world — deep ink
+ * surfaces with parchment text. Amber is the single accent everywhere for
+ * now; the per-feature lens colors (plum, moss, dawn blue) arrive later as
+ * section accents.
  */
 
 import '@/global.css';
@@ -9,18 +12,24 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: '#1C1917', // deep ink
+    textSecondary: '#6B6157',
+    background: '#F7F3EE', // parchment
+    backgroundElement: '#FFFDF9', // raised card surface
+    backgroundSelected: '#ECE4D8',
+    border: '#E2D9CC',
+    accent: '#B45309', // amber
+    onAccent: '#FFFDF9',
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: '#F7F3EE',
+    textSecondary: '#B0A69A',
+    background: '#1C1917',
+    backgroundElement: '#2A2018',
+    backgroundSelected: '#3A2E20',
+    border: '#3E362C',
+    accent: '#E08D2F', // amber, lifted for contrast on ink
+    onAccent: '#1C1917',
   },
 } as const;
 

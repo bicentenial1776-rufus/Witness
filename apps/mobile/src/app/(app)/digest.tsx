@@ -1,16 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Switch, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 import { weeklyDigest, type DigestEntry, type WeeklyDigest } from '@witness/core/query';
 
+import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import {
-  armDigestNotification,
-  isDigestNotificationEnabled,
-  setDigestNotificationEnabled,
-} from '@/lib/digest-notifications';
+import { armDigestNotification } from '@/lib/digest-notifications';
 import { getRelationshipMap } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 
@@ -41,12 +38,6 @@ export default function DigestScreen() {
   const [error, setError] = useState<string | null>(null);
   const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
   const [notes, setNotes] = useState<Record<string, NoteState>>({});
-  const [notifyEnabled, setNotifyEnabled] = useState(false);
-  const [notifyBusy, setNotifyBusy] = useState(false);
-
-  useEffect(() => {
-    isDigestNotificationEnabled().then(setNotifyEnabled);
-  }, []);
 
   useEffect(() => {
     if (!treeId) return;
@@ -108,20 +99,9 @@ export default function DigestScreen() {
     if (treeId) armDigestNotification(treeId).catch(() => {});
   }, [treeId]);
 
-  async function toggleNotifications(value: boolean) {
-    if (!treeId) return;
-    setNotifyBusy(true);
-    setNotifyEnabled(await setDigestNotificationEnabled(value, treeId));
-    setNotifyBusy(false);
-  }
-
   return (
-    <ThemedView style={{ flex: 1, paddingTop: 72 }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 48, gap: 12 }}>
-        <ThemedText type="link" onPress={() => router.back()}>
-          ‹ Back
-        </ThemedText>
-        <ThemedText type="title">This Week in Your Family</ThemedText>
+    <ThemedView style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48, gap: 12 }}>
         {digest && (
           <ThemedText type="small">
             {digest.weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })} –{' '}
@@ -145,14 +125,15 @@ export default function DigestScreen() {
           const relationship = relationships.get(entry.individualId);
           const note = notes[entry.individualId];
           return (
-            <Pressable
+            <Card
               key={entry.eventId}
               onPress={() =>
                 router.push({ pathname: '/ancestor/[id]', params: { id: entry.individualId } })
               }
-              style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 16, gap: 4 }}
             >
-              <ThemedText type="small">{formatOccurs(entry.occursOn)}</ThemedText>
+              <ThemedText type="smallBold" themeColor="accent">
+                {formatOccurs(entry.occursOn).toUpperCase()}
+              </ThemedText>
               <ThemedText type="subtitle">{entry.fullName}</ThemedText>
               {relationship && <ThemedText type="small">Your {relationship}</ThemedText>}
               <ThemedText>
@@ -170,30 +151,9 @@ export default function DigestScreen() {
               <ThemedText type="link" style={{ marginTop: 4 }}>
                 Their full story ›
               </ThemedText>
-            </Pressable>
+            </Card>
           );
         })}
-
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: 12,
-            borderWidth: 1,
-            borderColor: '#999',
-            borderRadius: 8,
-            padding: 16,
-          }}
-        >
-          <View style={{ flex: 1, paddingRight: 12 }}>
-            <ThemedText>Weekly reminder</ThemedText>
-            <ThemedText type="small">
-              A Sunday morning notification with the week's anniversaries.
-            </ThemedText>
-          </View>
-          <Switch value={notifyEnabled} onValueChange={toggleNotifications} disabled={notifyBusy} />
-        </View>
       </ScrollView>
     </ThemedView>
   );

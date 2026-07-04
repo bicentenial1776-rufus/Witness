@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Button, TextInput } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -10,6 +10,16 @@ export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Simulator-driven verification can't type; a gitignored .env opts into
+  // signing in as the dev account automatically. Dev builds only.
+  useEffect(() => {
+    const email = process.env.EXPO_PUBLIC_DEV_EMAIL;
+    const password = process.env.EXPO_PUBLIC_DEV_PASSWORD;
+    if (__DEV__ && process.env.EXPO_PUBLIC_DEV_AUTOLOGIN === '1' && email && password) {
+      supabase.auth.signInWithPassword({ email, password });
+    }
+  }, []);
 
   async function handleSignIn() {
     setIsSubmitting(true);

@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
@@ -7,7 +7,9 @@ import { placesWithActivity, type GeographyIndex } from '@witness/core/query';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useActiveTree } from '@/lib/active-tree';
 import { getGeographyIndex } from '@/lib/geography-cache';
+import { useTheme } from '@/hooks/use-theme';
 
 const MAX_MARKERS = 300;
 
@@ -19,8 +21,10 @@ const ERAS: { label: string; range?: { startYear: number; endYear: number } }[] 
   { label: '1900s', range: { startYear: 1900, endYear: 1999 } },
 ];
 
-export default function AncestorMapScreen() {
-  const { treeId } = useLocalSearchParams<{ treeId: string }>();
+export default function AncestorMapTab() {
+  const theme = useTheme();
+  const { activeTree } = useActiveTree();
+  const treeId = activeTree?.id;
   const [index, setIndex] = useState<GeographyIndex | null>(null);
   const [eraIndex, setEraIndex] = useState(0);
 
@@ -60,6 +64,14 @@ export default function AncestorMapScreen() {
     };
   }, [markers]);
 
+  if (!treeId) {
+    return (
+      <ThemedView style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
+        <ThemedText style={{ textAlign: 'center' }}>Import a tree to see your family on the map.</ThemedText>
+      </ThemedView>
+    );
+  }
+
   return (
     <ThemedView style={{ flex: 1 }}>
       {index === null ? (
@@ -84,27 +96,36 @@ export default function AncestorMapScreen() {
       )}
 
       <View style={{ position: 'absolute', top: 60, left: 0, right: 0, gap: 8 }}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
-          <Pressable
-            onPress={() => router.back()}
-            style={{ backgroundColor: '#1C1917', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 }}
-          >
-            <ThemedText style={{ color: '#F7F3EE' }}>‹ Back</ThemedText>
-          </Pressable>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+        >
           {ERAS.map((era, i) => (
             <Pressable
               key={era.label}
               onPress={() => setEraIndex(i)}
               style={{
-                backgroundColor: i === eraIndex ? '#B45309' : '#1C1917',
+                backgroundColor: i === eraIndex ? theme.accent : '#1C1917',
                 borderRadius: 16,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
+                paddingHorizontal: 14,
+                paddingVertical: 7,
               }}
             >
               <ThemedText style={{ color: '#F7F3EE' }}>{era.label}</ThemedText>
             </Pressable>
           ))}
+          <Pressable
+            onPress={() => router.push({ pathname: '/here', params: { treeId } })}
+            style={{
+              backgroundColor: '#16A34A', // moss — the field-features color
+              borderRadius: 16,
+              paddingHorizontal: 14,
+              paddingVertical: 7,
+            }}
+          >
+            <ThemedText style={{ color: '#F7F3EE' }}>I’m here</ThemedText>
+          </Pressable>
         </ScrollView>
         {markers.length === MAX_MARKERS && (
           <ThemedText type="small" style={{ paddingHorizontal: 16 }}>

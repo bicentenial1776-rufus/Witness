@@ -1,9 +1,10 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
+import { ActivityIndicator, FlatList } from 'react-native';
 
 import { ancestorsInRegion, type RegionResident } from '@witness/core/query';
 
+import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
@@ -46,11 +47,8 @@ export default function RegionScreen() {
   }, [treeId, region]);
 
   return (
-    <ThemedView style={{ flex: 1, padding: 24, paddingTop: 72, gap: 8 }}>
-      <Pressable onPress={() => router.back()}>
-        <ThemedText type="link">‹ Back</ThemedText>
-      </Pressable>
-      <ThemedText type="title">{region}</ThemedText>
+    <ThemedView style={{ flex: 1, padding: 24, gap: 8 }}>
+      <Stack.Screen options={{ title: region ?? '' }} />
 
       {error && <ThemedText>Something went wrong: {error}</ThemedText>}
       {!residents && !error && <ActivityIndicator style={{ marginVertical: 24 }} />}
@@ -65,11 +63,11 @@ export default function RegionScreen() {
             keyExtractor={(resident) => resident.individual.id}
             style={{ marginTop: 12 }}
             renderItem={({ item }) => (
-              <Pressable
+              <Card
                 onPress={() =>
                   router.push({ pathname: '/ancestor/[id]', params: { id: item.individual.id } })
                 }
-                style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, marginBottom: 8, gap: 2 }}
+                style={{ marginBottom: 8 }}
               >
                 <ThemedText>{item.individual.full_name}</ThemedText>
                 {relationships.has(item.individual.id) && (
@@ -77,7 +75,7 @@ export default function RegionScreen() {
                 )}
                 <ThemedText type="small">{lifeSpan(item)}</ThemedText>
                 <ThemedText type="small">{connection(item)}</ThemedText>
-              </Pressable>
+              </Card>
             )}
           />
         </>

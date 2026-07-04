@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { SessionProvider, useSession } from '@/auth/session-provider';
+import { ActiveTreeProvider } from '@/lib/active-tree';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -55,7 +56,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <SessionProvider>
-        <RootNavigator />
+        <ActiveTreeProvider>
+          <RootNavigator />
+        </ActiveTreeProvider>
       </SessionProvider>
     </ThemeProvider>
   );

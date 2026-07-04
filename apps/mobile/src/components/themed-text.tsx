@@ -8,13 +8,25 @@ export type ThemedTextProps = TextProps & {
   themeColor?: ThemeColor;
 };
 
+/**
+ * Type scale: serif display (titles/subtitles — the historical-document
+ * voice), sans body. Body sizes lean large; the audience skews 55+.
+ */
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
+
+  const defaultColor =
+    themeColor ??
+    (type === 'small' || type === 'smallBold'
+      ? 'textSecondary'
+      : type === 'link' || type === 'linkPrimary'
+        ? 'accent'
+        : 'text');
 
   return (
     <Text
       style={[
-        { color: theme[themeColor ?? 'text'] },
+        { color: theme[defaultColor] },
         type === 'default' && styles.default,
         type === 'title' && styles.title,
         type === 'small' && styles.small,
@@ -42,28 +54,31 @@ const styles = StyleSheet.create({
     fontWeight: 700,
   },
   default: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: 500,
+    fontSize: 17,
+    lineHeight: 25,
+    fontWeight: 400,
   },
   title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
+    fontFamily: Fonts.serif,
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: 700,
   },
   subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
+    fontFamily: Fonts.serif,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: 600,
   },
   link: {
-    lineHeight: 30,
-    fontSize: 14,
+    lineHeight: 25,
+    fontSize: 17,
+    fontWeight: 500,
   },
   linkPrimary: {
-    lineHeight: 30,
-    fontSize: 14,
-    color: '#3c87f7',
+    lineHeight: 25,
+    fontSize: 17,
+    fontWeight: 600,
   },
   code: {
     fontFamily: Fonts.mono,

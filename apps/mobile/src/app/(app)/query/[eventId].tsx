@@ -1,11 +1,12 @@
 import * as Sharing from 'expo-sharing';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Button, FlatList, Pressable, View } from 'react-native';
+import { ActivityIndicator, Button, FlatList } from 'react-native';
 
 import { getHistoricalEvent } from '@witness/core/history';
 import { aliveDuring, type AliveDuringResult, type AliveMatch } from '@witness/core/query';
 
+import { Card } from '@/components/card';
 import { DiscoveryCard, type DiscoveryCardHandle } from '@/components/discovery-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -61,11 +62,8 @@ export default function AliveDuringScreen() {
     event.startYear === event.endYear ? String(event.startYear) : `${event.startYear}–${event.endYear}`;
 
   return (
-    <ThemedView style={{ flex: 1, padding: 24, paddingTop: 72, gap: 8 }}>
-      <Pressable onPress={() => router.back()}>
-        <ThemedText type="link">‹ Back</ThemedText>
-      </Pressable>
-      <ThemedText type="title">{event.name}</ThemedText>
+    <ThemedView style={{ flex: 1, padding: 24, gap: 8 }}>
+      <Stack.Screen options={{ title: event.name }} />
       <ThemedText type="small">
         {years} · {event.region}
       </ThemedText>
@@ -97,18 +95,13 @@ export default function AliveDuringScreen() {
             keyExtractor={(match) => match.individual.id}
             style={{ marginTop: 12 }}
             renderItem={({ item }) => (
-              <Pressable
+              <Card
                 onPress={() =>
                   router.push({ pathname: '/ancestor/[id]', params: { id: item.individual.id } })
                 }
                 style={{
-                  borderWidth: 1,
                   borderStyle: item.confidence === 'probable' ? 'dashed' : 'solid',
-                  borderColor: '#999',
-                  borderRadius: 8,
-                  padding: 12,
                   marginBottom: 8,
-                  gap: 2,
                 }}
               >
                 <ThemedText>{item.individual.full_name}</ThemedText>
@@ -120,7 +113,7 @@ export default function AliveDuringScreen() {
                   {matchLine(item, event.startYear)}
                   {item.confidence === 'probable' ? ' · probable' : ''}
                 </ThemedText>
-              </Pressable>
+              </Card>
             )}
           />
         </>

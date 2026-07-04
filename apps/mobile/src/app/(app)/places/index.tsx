@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable } from 'react-native';
+import { ActivityIndicator, FlatList } from 'react-native';
 
 import { regionRollups, type RegionRollup } from '@witness/core/query';
 
+import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
@@ -29,12 +30,7 @@ export default function PlacesScreen() {
   }, [treeId]);
 
   return (
-    <ThemedView style={{ flex: 1, padding: 24, paddingTop: 72, gap: 8 }}>
-      <Pressable onPress={() => router.back()}>
-        <ThemedText type="link">‹ Back</ThemedText>
-      </Pressable>
-      <ThemedText type="title">Where your family lived</ThemedText>
-
+    <ThemedView style={{ flex: 1, padding: 24, gap: 8 }}>
       {error && <ThemedText>Something went wrong: {error}</ThemedText>}
       {!rollups && !error && <ActivityIndicator style={{ marginVertical: 24 }} />}
 
@@ -42,19 +38,19 @@ export default function PlacesScreen() {
         <FlatList
           data={rollups}
           keyExtractor={(rollup) => rollup.region}
-          style={{ marginTop: 12 }}
+          style={{ marginTop: 4 }}
           renderItem={({ item }) => (
-            <Pressable
+            <Card
               onPress={() =>
                 router.push({ pathname: '/places/[region]', params: { region: item.region, treeId } })
               }
-              style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, marginBottom: 8, gap: 2 }}
+              style={{ marginBottom: 8 }}
             >
               <ThemedText>{item.region}</ThemedText>
               <ThemedText type="small">
                 {item.individualCount.toLocaleString()} people · {item.placeCount.toLocaleString()} places
               </ThemedText>
-            </Pressable>
+            </Card>
           )}
         />
       )}

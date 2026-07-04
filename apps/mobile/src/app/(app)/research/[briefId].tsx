@@ -65,11 +65,8 @@ export default function BriefScreen() {
   }
 
   return (
-    <ThemedView style={{ flex: 1, paddingTop: 72 }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 48, gap: 8 }}>
-        <ThemedText type="link" onPress={() => router.back()}>
-          ‹ Back
-        </ThemedText>
+    <ThemedView style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48, gap: 8 }}>
         <ThemedText type="title">{brief.title}</ThemedText>
         <ThemedText type="small">
           {brief.status.replace('_', ' ')} · generated {new Date(brief.created_at).toLocaleDateString()}

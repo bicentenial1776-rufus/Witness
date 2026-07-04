@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, SectionList, View } from 'rea
 
 import { nearbyAncestors, type GeographyIndex, type NearbyPlace } from '@witness/core/query';
 
+import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
@@ -97,11 +98,7 @@ export default function ImHereScreen() {
   );
 
   return (
-    <ThemedView style={{ flex: 1, padding: 24, paddingTop: 72, gap: 8 }}>
-      <Pressable onPress={() => router.back()}>
-        <ThemedText type="link">‹ Back</ThemedText>
-      </Pressable>
-      <ThemedText type="title">I'm here</ThemedText>
+    <ThemedView style={{ flex: 1, padding: 24, gap: 8 }}>
 
       {denied && (
         <ThemedText>
@@ -171,11 +168,11 @@ export default function ImHereScreen() {
               </ThemedText>
             )}
             renderItem={({ item }) => (
-              <Pressable
+              <Card
                 onPress={() =>
                   router.push({ pathname: '/ancestor/[id]', params: { id: item.individual.id } })
                 }
-                style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, marginTop: 8, gap: 2 }}
+                style={{ marginTop: 8 }}
               >
                 <ThemedText>{item.individual.full_name}</ThemedText>
                 {relationships.has(item.individual.id) && (
@@ -184,7 +181,7 @@ export default function ImHereScreen() {
                 <ThemedText type="small">
                   {item.events.map((e) => `${e.eventType}${e.year ? ` ${e.year}` : ''}`).join(' · ')}
                 </ThemedText>
-              </Pressable>
+              </Card>
             )}
           />
         </>
