@@ -1,10 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Button, FlatList, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
 
 import { setHomePerson, suggestHomePerson, type HomePersonCandidate } from '@witness/core/family';
 
+import { Button } from '@/components/button';
 import { Card } from '@/components/card';
+import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { invalidateRelationshipCache } from '@/lib/relationship-cache';
@@ -93,18 +95,17 @@ export default function HomePersonScreen() {
             title={`Yes, I'm ${step.candidate.full_name}`}
             onPress={() => choose({ id: step.candidate.id, full_name: step.candidate.full_name })}
           />
-          <Button title="Choose someone else" onPress={() => setStep({ name: 'choosing' })} />
+          <Button variant="secondary" title="Choose someone else" onPress={() => setStep({ name: 'choosing' })} />
         </>
       )}
 
       {step.name === 'choosing' && (
         <>
-          <TextInput
+          <TextField
             placeholder="Search by name"
             autoCapitalize="none"
             value={search}
             onChangeText={setSearch}
-            style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12 }}
           />
           <FlatList
             data={candidates}

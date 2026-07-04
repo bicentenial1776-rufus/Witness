@@ -3,12 +3,13 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Button } from 'react-native';
+import { ActivityIndicator, Alert } from 'react-native';
 
 import type { ParsedGedcom } from '@witness/core/gedcom';
 import { extractGedcomText, parseGedcom } from '@witness/core/gedcom';
 import { importParsedGedcom, type ImportProgress } from '@witness/core/supabase';
 
+import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useSession } from '@/auth/session-provider';
@@ -99,7 +100,7 @@ export default function ImportGedcom() {
             <ThemedText>{step.parsed.metadata.parseWarnings.length} parse warnings (non-fatal)</ThemedText>
           )}
           <Button title="Import to Witness" onPress={() => runImport(step.fileName, step.parsed)} />
-          <Button title="Choose a different file" onPress={pickAndParse} />
+          <Button variant="secondary" title="Choose a different file" onPress={pickAndParse} />
         </>
       )}
 
@@ -129,12 +130,12 @@ export default function ImportGedcom() {
               router.replace({ pathname: '/home-person', params: { treeId: step.treeId } })
             }
           />
-          <Button title="Skip for now" onPress={() => router.back()} />
+          <Button variant="secondary" title="Skip for now" onPress={() => router.back()} />
         </>
       )}
 
       {(step.name === 'pick' || step.name === 'ready') && (
-        <Button title="Cancel" onPress={() => router.back()} />
+        <Button variant="secondary" title="Cancel" onPress={() => router.back()} />
       )}
     </ThemedView>
   );

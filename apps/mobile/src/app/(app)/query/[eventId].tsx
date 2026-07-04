@@ -1,11 +1,12 @@
 import * as Sharing from 'expo-sharing';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Button, FlatList } from 'react-native';
+import { ActivityIndicator, FlatList } from 'react-native';
 
 import { getHistoricalEvent } from '@witness/core/history';
 import { aliveDuring, type AliveDuringResult, type AliveMatch } from '@witness/core/query';
 
+import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { DiscoveryCard, type DiscoveryCardHandle } from '@/components/discovery-card';
 import { ThemedText } from '@/components/themed-text';

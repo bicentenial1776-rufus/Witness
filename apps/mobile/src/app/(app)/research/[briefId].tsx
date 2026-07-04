@@ -1,7 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Button, ScrollView, Share, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Share, View } from 'react-native';
 
+import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { supabase } from '@/lib/supabase';
@@ -78,7 +79,7 @@ export default function BriefScreen() {
         />
         <View style={{ gap: 8 }}>
           {NEXT_STATUS[brief.status].map((action) => (
-            <Button key={action.to} title={action.label} onPress={() => setStatus(action.to)} />
+            <Button key={action.to} variant="secondary" title={action.label} onPress={() => setStatus(action.to)} />
           ))}
         </View>
 

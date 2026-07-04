@@ -1,7 +1,9 @@
 import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Button, TextInput } from 'react-native';
+import { Alert } from 'react-native';
 
+import { Button } from '@/components/button';
+import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { supabase } from '@/lib/supabase';
@@ -31,22 +33,20 @@ export default function SignIn() {
   return (
     <ThemedView style={{ flex: 1, justifyContent: 'center', padding: 24, gap: 12 }}>
       <ThemedText type="title">Witness</ThemedText>
-      <TextInput
+      <TextField
         placeholder="Email"
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
-        style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12 }}
       />
-      <TextInput
+      <TextField
         placeholder="Password"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
-        style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12 }}
       />
-      <Button title={isSubmitting ? 'Signing in…' : 'Sign in'} onPress={handleSignIn} disabled={isSubmitting} />
+      <Button title="Sign in" busy={isSubmitting} onPress={handleSignIn} />
       <Link href="/sign-up">
         <ThemedText type="link">Need an account? Sign up</ThemedText>
       </Link>
