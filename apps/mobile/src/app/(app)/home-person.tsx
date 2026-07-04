@@ -1,0 +1,153 @@
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Button, FlatList, Pressable, TextInput, View } from 'react-native';
+
+import { setHomePerson, suggestHomePerson, type HomePersonCandidate } from '@witness/core/family';
+
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { invalidateRelationshipCache } from '@/lib/relationship-cache';
+import { supabase } from '@/lib/supabase';
+
+interface PersonRow {
+  id: string;
+  full_name: string;
+  birth_year: number | null;
+  living: boolean;
+}
+
+type Step =
+  | { name: 'loading' }
+  | { name: 'suggested'; candidate: HomePersonCandidate }
+  | { name: 'choosing' }
+  | { name: 'saving'; personName: string; progress: { computed: number; total: number } | null }
+  | { name: 'done'; personName: string; cachedAncestors: number };
+
+export default function HomePersonScreen() {
+  const { treeId } = useLocalSearchParams<{ treeId: string }>();
+  const [step, setStep] = useState<Step>({ name: 'loading' });
+  const [search, setSearch] = useState('');
+  const [candidates, setCandidates] = useState<PersonRow[]>([]);
+
+  useEffect(() => {
+    if (!treeId) return;
+    let cancelled = false;
+    suggestHomePerson(supabase, treeId).then((candidate) => {
+      if (cancelled) return;
+      setStep(candidate ? { name: 'suggested', candidate } : { name: 'choosing' });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [treeId]);
+
+  useEffect(() => {
+    if (step.name !== 'choosing' || !treeId) return;
+    let cancelled = false;
+    (async () => {
+      let query = supabase
+        .from('individuals')
+        .select('id, full_name, birth_year, living')
+        .eq('tree_id', treeId)
+        .order('birth_year', { ascending: false, nullsFirst: false })
+        .limit(30);
+      // Without a search, show people who could plausibly be the user.
+      query = search.trim() ? query.ilike('full_name', `%${search.trim()}%`) : query.eq('living', true);
+      const { data } = await query;
+      if (!cancelled) setCandidates(data ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [step.name, search, treeId]);
+
+  async function choose(person: { id: string; full_name: string }) {
+    if (!treeId) return;
+    setStep({ name: 'saving', personName: person.full_name, progress: null });
+    try {
+      const { cachedAncestors } = await setHomePerson(supabase, treeId, person.id, {
+        onProgress: (computed, total) =>
+          setStep({ name: 'saving', personName: person.full_name, progress: { computed, total } }),
+      });
+      invalidateRelationshipCache();
+      setStep({ name: 'done', personName: person.full_name, cachedAncestors });
+    } catch (error) {
+      setStep({ name: 'choosing' });
+      console.error('setHomePerson failed:', error);
+    }
+  }
+
+  return (
+    <ThemedView style={{ flex: 1, padding: 24, paddingTop: 72, gap: 12 }}>
+      <Pressable onPress={() => router.back()}>
+        <ThemedText type="link">‹ Back</ThemedText>
+      </Pressable>
+      <ThemedText type="title">Who are you in this tree?</ThemedText>
+
+      {step.name === 'loading' && <ActivityIndicator style={{ marginVertical: 24 }} />}
+
+      {step.name === 'suggested' && (
+        <>
+          <ThemedText>
+            We think this might be you — {step.candidate.full_name}
+            {step.candidate.birth_year ? `, born ${step.candidate.birth_year}` : ''}. Is that right?
+          </ThemedText>
+          <Button
+            title={`Yes, I'm ${step.candidate.full_name}`}
+            onPress={() => choose({ id: step.candidate.id, full_name: step.candidate.full_name })}
+          />
+          <Button title="Choose someone else" onPress={() => setStep({ name: 'choosing' })} />
+        </>
+      )}
+
+      {step.name === 'choosing' && (
+        <>
+          <TextInput
+            placeholder="Search by name"
+            autoCapitalize="none"
+            value={search}
+            onChangeText={setSearch}
+            style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12 }}
+          />
+          <FlatList
+            data={candidates}
+            keyExtractor={(person) => person.id}
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => choose(item)}
+                style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, marginBottom: 8, gap: 2 }}
+              >
+                <ThemedText>{item.full_name}</ThemedText>
+                <ThemedText type="small">
+                  {item.birth_year ? `born ${item.birth_year}` : 'birth year unknown'}
+                  {item.living ? ' · living' : ''}
+                </ThemedText>
+              </Pressable>
+            )}
+          />
+        </>
+      )}
+
+      {step.name === 'saving' && (
+        <View style={{ gap: 8, marginVertical: 8 }}>
+          <ActivityIndicator />
+          <ThemedText>
+            Tracing your family lines
+            {step.progress ? ` — ${step.progress.computed} ancestors found` : '…'}
+          </ThemedText>
+        </View>
+      )}
+
+      {step.name === 'done' && (
+        <>
+          <ThemedText type="subtitle">Welcome home, {step.personName.split(' ')[0]}.</ThemedText>
+          <ThemedText>
+            Witness traced {step.cachedAncestors.toLocaleString()} direct ancestors. Every query
+            now knows how each person relates to you.
+          </ThemedText>
+          <Button title="Done" onPress={() => router.back()} />
+        </>
+      )}
+    </ThemedView>
+  );
+}

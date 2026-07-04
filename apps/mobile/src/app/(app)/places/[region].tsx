@@ -7,6 +7,7 @@ import { ancestorsInRegion, type RegionResident } from '@witness/core/query';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
+import { getRelationshipMap } from '@/lib/relationship-cache';
 
 function lifeSpan(resident: RegionResident): string {
   const { birth_year, death_year } = resident.individual;
@@ -23,6 +24,7 @@ function connection(resident: RegionResident): string {
 export default function RegionScreen() {
   const { region, treeId } = useLocalSearchParams<{ region: string; treeId: string }>();
   const [residents, setResidents] = useState<RegionResident[] | null>(null);
+  const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -35,6 +37,9 @@ export default function RegionScreen() {
       .catch((e: unknown) => {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       });
+    getRelationshipMap(treeId).then((map) => {
+      if (!cancelled) setRelationships(map);
+    });
     return () => {
       cancelled = true;
     };
@@ -67,6 +72,9 @@ export default function RegionScreen() {
                 style={{ borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, marginBottom: 8, gap: 2 }}
               >
                 <ThemedText>{item.individual.full_name}</ThemedText>
+                {relationships.has(item.individual.id) && (
+                  <ThemedText type="small">your {relationships.get(item.individual.id)}</ThemedText>
+                )}
                 <ThemedText type="small">{lifeSpan(item)}</ThemedText>
                 <ThemedText type="small">{connection(item)}</ThemedText>
               </Pressable>

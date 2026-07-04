@@ -17,6 +17,8 @@ interface TreeRow {
   family_count: number;
   place_count: number;
   imported_at: string;
+  home_person_id: string | null;
+  home_person: { full_name: string } | null;
 }
 
 export default function Home() {
@@ -26,7 +28,9 @@ export default function Home() {
   const loadTrees = useCallback(async () => {
     const { data, error } = await supabase
       .from('trees')
-      .select('id, name, individual_count, family_count, place_count, imported_at')
+      .select(
+        'id, name, individual_count, family_count, place_count, imported_at, home_person_id, home_person:individuals!trees_home_person_id_fkey(full_name)',
+      )
       .order('imported_at', { ascending: false });
     if (error) {
       Alert.alert('Could not load trees', error.message);
@@ -103,6 +107,13 @@ export default function Home() {
             <ThemedText type="small">
               Imported {new Date(tree.imported_at).toLocaleDateString()}
             </ThemedText>
+            <Pressable
+              onPress={() => router.push({ pathname: '/home-person', params: { treeId: tree.id } })}
+            >
+              <ThemedText type="link">
+                {tree.home_person ? `You are ${tree.home_person.full_name} · change` : 'Tell us who you are'}
+              </ThemedText>
+            </Pressable>
             <Pressable onPress={() => confirmDelete(tree)}>
               <ThemedText type="link">Delete</ThemedText>
             </Pressable>

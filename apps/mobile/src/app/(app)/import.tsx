@@ -118,8 +118,16 @@ export default function ImportGedcom() {
           <ThemedText type="subtitle">Your tree is in.</ThemedText>
           <ThemedText>
             {step.parsed.metadata.individualCount.toLocaleString()} people are now part of Witness.
+            One more thing: tell us who you are in this tree, and every ancestor gets a
+            relationship to you.
           </ThemedText>
-          <Button title="Done" onPress={() => router.back()} />
+          <Button
+            title="Find me in the tree"
+            onPress={() =>
+              router.replace({ pathname: '/home-person', params: { treeId: step.treeId } })
+            }
+          />
+          <Button title="Skip for now" onPress={() => router.back()} />
         </>
       )}
 

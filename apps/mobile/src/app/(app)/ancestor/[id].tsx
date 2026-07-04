@@ -2,12 +2,16 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Button, ScrollView, View } from 'react-native';
 
+import { getRelationship } from '@witness/core/family';
+
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { getRelationshipMap } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 
 interface Person {
   id: string;
+  tree_id: string;
   full_name: string;
   sex: 'M' | 'F' | 'U';
   birth_year: number | null;
@@ -115,6 +119,7 @@ export default function AncestorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [person, setPerson] = useState<Person | null>(null);
   const [events, setEvents] = useState<EventRow[]>([]);
+  const [relationship, setRelationship] = useState<string | null>(null);
   const [briefBusy, setBriefBusy] = useState(false);
   const [briefError, setBriefError] = useState<string | null>(null);
 
@@ -128,7 +133,7 @@ export default function AncestorScreen() {
       const [{ data: personRow }, { data: eventRows }] = await Promise.all([
         supabase
           .from('individuals')
-          .select('id, full_name, sex, birth_year, death_year, living')
+          .select('id, tree_id, full_name, sex, birth_year, death_year, living')
           .eq('id', id)
           .maybeSingle(),
         supabase
@@ -141,6 +146,25 @@ export default function AncestorScreen() {
       if (cancelled) return;
       setPerson(personRow);
       setEvents(eventRows ?? []);
+
+      // Relationship to the home person: instant from the ancestor cache,
+      // otherwise a live graph walk (cousins, descendants, in-laws).
+      if (personRow) {
+        const cached = (await getRelationshipMap(personRow.tree_id)).get(personRow.id);
+        if (cached) {
+          if (!cancelled) setRelationship(cached);
+        } else {
+          const { data: tree } = await supabase
+            .from('trees')
+            .select('home_person_id')
+            .eq('id', personRow.tree_id)
+            .single();
+          if (tree?.home_person_id && tree.home_person_id !== personRow.id) {
+            const live = await getRelationship(supabase, personRow.tree_id, tree.home_person_id, personRow.id);
+            if (!cancelled && live.confidence !== 'none') setRelationship(live.label);
+          }
+        }
+      }
     })();
     return () => {
       cancelled = true;
@@ -176,6 +200,7 @@ export default function AncestorScreen() {
           ‹ Back
         </ThemedText>
         <ThemedText type="title">{person.full_name}</ThemedText>
+        {relationship && <ThemedText type="subtitle">Your {relationship}</ThemedText>}
         <ThemedText type="small">
           {person.birth_year ?? '?'}–{person.living ? '' : (person.death_year ?? '?')}
           {person.living ? ' · living' : ''}

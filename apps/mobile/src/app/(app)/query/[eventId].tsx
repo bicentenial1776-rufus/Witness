@@ -9,6 +9,7 @@ import { aliveDuring, type AliveDuringResult, type AliveMatch } from '@witness/c
 import { DiscoveryCard, type DiscoveryCardHandle } from '@/components/discovery-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { getRelationshipMap } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 
 function matchLine(match: AliveMatch, startYear: number): string {
@@ -21,6 +22,7 @@ export default function AliveDuringScreen() {
   const { eventId, treeId } = useLocalSearchParams<{ eventId: string; treeId: string }>();
   const event = getHistoricalEvent(eventId);
   const [result, setResult] = useState<AliveDuringResult | null>(null);
+  const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
   const [error, setError] = useState<string | null>(null);
   const cardRef = useRef<DiscoveryCardHandle>(null);
 
@@ -39,6 +41,9 @@ export default function AliveDuringScreen() {
       .catch((e: unknown) => {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       });
+    getRelationshipMap(treeId).then((map) => {
+      if (!cancelled) setRelationships(map);
+    });
     return () => {
       cancelled = true;
     };
@@ -107,6 +112,9 @@ export default function AliveDuringScreen() {
                 }}
               >
                 <ThemedText>{item.individual.full_name}</ThemedText>
+                {relationships.has(item.individual.id) && (
+                  <ThemedText type="small">your {relationships.get(item.individual.id)}</ThemedText>
+                )}
                 <ThemedText type="small">
                   {item.individual.birth_year ?? '?'}–{item.individual.death_year ?? '?'} ·{' '}
                   {matchLine(item, event.startYear)}
