@@ -114,6 +114,60 @@ export type Database = {
           },
         ]
       }
+      enrichment_cache: {
+        Row: {
+          content: string
+          created_at: string
+          enrichment_type: Database["public"]["Enums"]["enrichment_type"]
+          id: string
+          individual_id: string
+          input_tokens: number | null
+          model: string
+          output_tokens: number | null
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          enrichment_type: Database["public"]["Enums"]["enrichment_type"]
+          id?: string
+          individual_id: string
+          input_tokens?: number | null
+          model: string
+          output_tokens?: number | null
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          enrichment_type?: Database["public"]["Enums"]["enrichment_type"]
+          id?: string
+          individual_id?: string
+          input_tokens?: number | null
+          model?: string
+          output_tokens?: number | null
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrichment_cache_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrichment_cache_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       families: {
         Row: {
           gedcom_xref: string
@@ -496,6 +550,7 @@ export type Database = {
         | "after"
         | "between"
         | "unknown"
+      enrichment_type: "biography" | "historical_context"
       individual_event_type: "birth" | "death" | "burial" | "residence"
       sex_type: "M" | "F" | "U"
     }
@@ -648,6 +703,7 @@ export const Constants = {
         "between",
         "unknown",
       ],
+      enrichment_type: ["biography", "historical_context"],
       individual_event_type: ["birth", "death", "burial", "residence"],
       sex_type: ["M", "F", "U"],
     },

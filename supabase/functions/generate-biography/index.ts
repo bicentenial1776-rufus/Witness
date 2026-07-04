@@ -1,0 +1,216 @@
+// Generates a ~300-word AI biography for one ancestor and caches it in
+// enrichment_cache. Runs server-side so the Anthropic key never reaches
+// the client. Reads use the caller's JWT (RLS proves ownership); the
+// cache insert uses the service role. Living persons are refused here,
+// not just hidden in the UI.
+
+import Anthropic from 'npm:@anthropic-ai/sdk@0.65.0';
+import { createClient } from 'npm:@supabase/supabase-js@2';
+
+const DAILY_LIMIT = 20;
+const MODEL = 'claude-sonnet-4-6';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+function json(status: number, body: Record<string, unknown>): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+interface EventRow {
+  event_type: string;
+  date_year: number | null;
+  date_raw: string | null;
+  places: { raw: string } | null;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (req.method !== 'POST') return json(405, { error: 'POST only' });
+
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) return json(401, { error: 'Missing authorization' });
+
+  let individualId: string;
+  try {
+    ({ individualId } = await req.json());
+    if (typeof individualId !== 'string') throw new Error();
+  } catch {
+    return json(400, { error: 'Body must be JSON with an individualId string' });
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  // RLS-scoped client: acts as the calling user.
+  const db = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const admin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+
+  const { data: userData, error: userError } = await db.auth.getUser();
+  if (userError || !userData.user) return json(401, { error: 'Invalid token' });
+  const userId = userData.user.id;
+
+  // Ownership is enforced by RLS: a foreign individual simply isn't found.
+  const { data: person, error: personError } = await db
+    .from('individuals')
+    .select('id, tree_id, full_name, given_name, surname, sex, birth_year, death_year, living')
+    .eq('id', individualId)
+    .maybeSingle();
+  if (personError) return json(500, { error: personError.message });
+  if (!person) return json(404, { error: 'Ancestor not found' });
+
+  if (person.living) {
+    return json(403, {
+      error: 'Biographies are never generated for living persons.',
+      code: 'living_person',
+    });
+  }
+
+  // Cache first — a hit costs nothing and doesn't touch the daily limit.
+  const { data: cached } = await db
+    .from('enrichment_cache')
+    .select('content, model, created_at')
+    .eq('individual_id', individualId)
+    .eq('enrichment_type', 'biography')
+    .maybeSingle();
+  if (cached) return json(200, { biography: cached.content, cached: true });
+
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const { count: usedToday } = await db
+    .from('enrichment_cache')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', startOfDay.toISOString());
+  if ((usedToday ?? 0) >= DAILY_LIMIT) {
+    return json(429, {
+      error: `Daily limit of ${DAILY_LIMIT} AI generations reached. It resets at midnight UTC.`,
+      code: 'rate_limited',
+    });
+  }
+
+  // Gather the documented facts of this life.
+  const { data: events } = await db
+    .from('individual_events')
+    .select('event_type, date_year, date_raw, places(raw)')
+    .eq('individual_id', individualId)
+    .order('date_year', { ascending: true, nullsFirst: false })
+    .returns<EventRow[]>();
+
+  const { data: familiesAsSpouse } = await db
+    .from('families')
+    .select('id, husband_id, wife_id, marriage_date_year, marriage_place:places(raw)')
+    .or(`husband_id.eq.${individualId},wife_id.eq.${individualId}`);
+
+  const spouseIds = (familiesAsSpouse ?? [])
+    .map((f) => (f.husband_id === individualId ? f.wife_id : f.husband_id))
+    .filter((id): id is string => Boolean(id));
+  const familyIds = (familiesAsSpouse ?? []).map((f) => f.id);
+
+  const { data: spouses } = spouseIds.length
+    ? await db.from('individuals').select('id, full_name, birth_year, death_year').in('id', spouseIds)
+    : { data: [] };
+
+  const { data: childLinks } = familyIds.length
+    ? await db
+        .from('family_children')
+        .select('individual_id, family_id')
+        .in('family_id', familyIds)
+    : { data: [] };
+  const childIds = (childLinks ?? []).map((c) => c.individual_id);
+  const { data: children } = childIds.length
+    ? await db.from('individuals').select('full_name, birth_year, living').in('id', childIds)
+    : { data: [] };
+
+  const facts: string[] = [];
+  facts.push(
+    `Name: ${person.full_name}` +
+      (person.sex === 'M' ? ' (male)' : person.sex === 'F' ? ' (female)' : ''),
+  );
+  if (person.birth_year || person.death_year) {
+    facts.push(`Lived: ${person.birth_year ?? 'unknown'} – ${person.death_year ?? 'unknown'}`);
+  }
+  for (const event of events ?? []) {
+    const place = event.places?.raw ? ` in ${event.places.raw}` : '';
+    const when = event.date_raw ?? event.date_year ?? 'date unknown';
+    facts.push(`${event.event_type}: ${when}${place}`);
+  }
+  for (const family of familiesAsSpouse ?? []) {
+    const spouseId = family.husband_id === individualId ? family.wife_id : family.husband_id;
+    const spouse = (spouses ?? []).find((s) => s.id === spouseId);
+    if (spouse) {
+      const when = family.marriage_date_year ? ` in ${family.marriage_date_year}` : '';
+      const where = family.marriage_place?.raw ? ` at ${family.marriage_place.raw}` : '';
+      facts.push(`Married ${spouse.full_name} (${spouse.birth_year ?? '?'}–${spouse.death_year ?? '?'})${when}${where}`);
+    }
+  }
+  const nonLivingChildren = (children ?? []).filter((c) => !c.living);
+  if (children?.length) {
+    facts.push(
+      `Children: ${children.length}` +
+        (nonLivingChildren.length
+          ? ` — including ${nonLivingChildren
+              .map((c) => `${c.full_name}${c.birth_year ? ` (b. ${c.birth_year})` : ''}`)
+              .join(', ')}`
+          : ''),
+    );
+  }
+
+  const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
+
+  let response;
+  try {
+    response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 1024,
+      thinking: { type: 'disabled' },
+      output_config: { effort: 'low' },
+      system: [
+        'You write short biographies of ancestors for Witness, a family history app.',
+        'Write roughly 300 words of warm, readable prose — a life story, not a data dump.',
+        'Work ONLY from the facts provided. Never invent names, dates, places, occupations, or events.',
+        'Where the record is thin, say so honestly and evoke what life in that time and place was generally like, clearly framed as context rather than fact.',
+        'If the facts contain an apparent inconsistency, treat it as a curiosity of the record, never as an error to correct.',
+        'Do not use headers, lists, or preamble. Begin directly with the person.',
+      ].join(' '),
+      messages: [
+        {
+          role: 'user',
+          content: `Write the biography of this ancestor.\n\nDocumented facts:\n${facts.join('\n')}`,
+        },
+      ],
+    });
+  } catch (error) {
+    console.error('Anthropic call failed:', error);
+    return json(502, { error: 'Biography generation failed. Please try again.' });
+  }
+
+  const textBlock = response.content.find((b) => b.type === 'text');
+  if (response.stop_reason === 'refusal' || !textBlock) {
+    return json(502, { error: 'Biography generation was declined. Please try again.' });
+  }
+  const biography = textBlock.text.trim();
+
+  const { error: insertError } = await admin.from('enrichment_cache').insert({
+    individual_id: individualId,
+    tree_id: person.tree_id,
+    user_id: userId,
+    enrichment_type: 'biography',
+    content: biography,
+    model: response.model,
+    input_tokens: response.usage.input_tokens,
+    output_tokens: response.usage.output_tokens,
+  });
+  // A concurrent request may have won the unique constraint race; the
+  // content we just generated is still a fine response.
+  if (insertError && !insertError.message.includes('duplicate')) {
+    console.error('Cache insert failed:', insertError.message);
+  }
+
+  return json(200, { biography, cached: false });
+});
