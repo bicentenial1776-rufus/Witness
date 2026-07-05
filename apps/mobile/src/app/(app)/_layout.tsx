@@ -42,6 +42,7 @@ export default function AppLayout() {
       <Stack.Screen name="import-guide/[platform]" options={{ title: '' }} />
       <Stack.Screen name="home-person" options={{ title: 'Who Are You?' }} />
       <Stack.Screen name="you" options={{ title: 'You' }} />
+      <Stack.Screen name="faq" options={{ title: 'Questions & Answers' }} />
       <Stack.Screen name="migrations" options={{ title: 'Migration Paths' }} />
       <Stack.Screen name="kindred" options={{ title: 'Kindred Couples' }} />
       <Stack.Screen name="places/index" options={{ title: 'Where They Lived' }} />

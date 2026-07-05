@@ -103,6 +103,9 @@ export default function YouTab() {
         <ThemedText type="link" onPress={() => router.push('/import-guide')}>
           How to export a tree from Ancestry, FamilySearch & more ›
         </ThemedText>
+        <ThemedText type="link" onPress={() => router.push('/faq')}>
+          Questions & answers ›
+        </ThemedText>
 
         <Card style={{ marginTop: 8 }}>
           <View
