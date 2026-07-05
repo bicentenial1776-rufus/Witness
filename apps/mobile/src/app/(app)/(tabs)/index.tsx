@@ -37,13 +37,13 @@ export default function Home() {
         {trees === null ? (
           <ActivityIndicator style={{ marginVertical: 24 }} />
         ) : trees.length === 0 ? (
-          <Card onPress={() => router.push('/import')} style={{ marginTop: 12 }}>
+          <Card onPress={() => router.push('/import-guide')} style={{ marginTop: 12 }}>
             <ThemedText type="subtitle">Bring your family in</ThemedText>
             <ThemedText>
-              Import the GEDCOM file from Ancestry, FamilySearch, or any tree you’ve built, and
-              Witness will start connecting it to history.
+              Your tree lives on Ancestry, FamilySearch, or another platform — Witness will walk
+              you through getting it out and bringing it to life.
             </ThemedText>
-            <ThemedText type="link">Import a GEDCOM file ›</ThemedText>
+            <ThemedText type="link">Show me how ›</ThemedText>
           </Card>
         ) : (
           activeTree && (

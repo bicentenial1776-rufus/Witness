@@ -78,6 +78,9 @@ export default function ImportGedcom() {
             Choose a GEDCOM file exported from Ancestry, FamilySearch, or any genealogy platform.
           </ThemedText>
           <Button title="Choose GEDCOM file" onPress={pickAndParse} />
+          <ThemedText type="link" onPress={() => router.push('/import-guide')}>
+            Don’t have your file yet? See how to get it ›
+          </ThemedText>
         </>
       )}
 
