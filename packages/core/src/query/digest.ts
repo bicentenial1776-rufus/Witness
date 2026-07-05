@@ -44,6 +44,13 @@ export interface DigestEntry extends AnniversaryCandidate {
 export interface WeeklyDigest {
   weekStart: Date;
   weekEnd: Date;
+  /**
+   * The week's program: the best anniversary of each day that has one
+   * (up to 7 rows, one person at most once), in date order. The rows that
+   * also appear in `entries` are the featured ones.
+   */
+  days: DigestEntry[];
+  /** The featured entries — the editorial 3, always a subset of `days`. */
   entries: DigestEntry[];
   /** Total anniversaries in the window before editorial selection. */
   candidateCount: number;
@@ -157,6 +164,50 @@ export function selectDigestEntries(
   return picked;
 }
 
+/**
+ * One row per day: each day's highest-scoring anniversary, in date order.
+ * A person appears at most once across the week (a same-week birth and
+ * death anniversary of one ancestor yields the earlier day's row; the
+ * later day falls to its next-best candidate). Ties break on name so the
+ * program is deterministic.
+ */
+export function selectDailyBest(
+  candidates: AnniversaryCandidate[],
+  window: WindowDay[],
+  directAncestorIds: ReadonlySet<string> = new Set(),
+): DigestEntry[] {
+  const byDay = new Map(window.map((d) => [`${d.month}-${d.day}`, d.date]));
+
+  const scoredByDay = new Map<number, DigestEntry[]>();
+  for (const candidate of candidates) {
+    const occursOn = byDay.get(`${candidate.month}-${candidate.day}`);
+    if (!occursOn) continue;
+    const yearsAgo = candidate.year !== null ? occursOn.getFullYear() - candidate.year : null;
+    const entry: DigestEntry = {
+      ...candidate,
+      occursOn,
+      yearsAgo,
+      score: scoreCandidate(candidate, yearsAgo, directAncestorIds),
+    };
+    const key = occursOn.getTime();
+    scoredByDay.set(key, [...(scoredByDay.get(key) ?? []), entry]);
+  }
+
+  const days: DigestEntry[] = [];
+  const usedIndividuals = new Set<string>();
+  for (const key of [...scoredByDay.keys()].sort((a, b) => a - b)) {
+    const best = scoredByDay
+      .get(key)!
+      .filter((e) => !usedIndividuals.has(e.individualId))
+      .sort((a, b) => b.score - a.score || a.fullName.localeCompare(b.fullName))[0];
+    if (best) {
+      days.push(best);
+      usedIndividuals.add(best.individualId);
+    }
+  }
+  return days;
+}
+
 interface AnniversaryRow {
   id: string;
   individual_id: string;
@@ -217,7 +268,11 @@ export async function fetchWeekAnniversaries(
   }));
 }
 
-/** Fetch + editorial selection for the week starting at weekStart. */
+/**
+ * Fetch + editorial selection for the week starting at weekStart: the
+ * daily program first, then the featured 3 chosen from among the daily
+ * rows (so a featured entry is always visible in the program).
+ */
 export async function weeklyDigest(
   client: WitnessSupabaseClient,
   treeId: string,
@@ -226,10 +281,12 @@ export async function weeklyDigest(
 ): Promise<WeeklyDigest> {
   const window = digestWindow(weekStart);
   const candidates = await fetchWeekAnniversaries(client, treeId, window);
+  const days = selectDailyBest(candidates, window, directAncestorIds);
   return {
     weekStart: window[0]!.date,
     weekEnd: window[6]!.date,
-    entries: selectDigestEntries(candidates, window, directAncestorIds),
+    days,
+    entries: selectDigestEntries(days, window, directAncestorIds),
     candidateCount: candidates.length,
   };
 }

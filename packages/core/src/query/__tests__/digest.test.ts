@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   digestWindow,
   scoreCandidate,
+  selectDailyBest,
   selectDigestEntries,
   DIGEST_MAX_ENTRIES,
   type AnniversaryCandidate,
@@ -178,5 +179,44 @@ describe('selectDigestEntries', () => {
   it('returns fewer entries when the week is thin', () => {
     expect(selectDigestEntries([candidate({})], window)).toHaveLength(1);
     expect(selectDigestEntries([], window)).toHaveLength(0);
+  });
+});
+
+describe('selectDailyBest', () => {
+  const window = digestWindow(new Date(2026, 6, 6)); // Jul 6–12 2026
+
+  it('picks the highest-scoring candidate per day, in date order', () => {
+    const days = selectDailyBest(
+      [
+        candidate({ fullName: 'Plain Monday', month: 7, day: 6 }),
+        candidate({ fullName: 'Rich Monday', month: 7, day: 6, placeRaw: 'Salem' }),
+        candidate({ fullName: 'Only Wednesday', month: 7, day: 8 }),
+      ],
+      window,
+    );
+    expect(days.map((d) => d.fullName)).toEqual(['Rich Monday', 'Only Wednesday']);
+  });
+
+  it('skips days with no anniversaries instead of padding to 7', () => {
+    expect(selectDailyBest([candidate({ month: 7, day: 9 })], window)).toHaveLength(1);
+  });
+
+  it('never repeats a person across the week', () => {
+    const days = selectDailyBest(
+      [
+        candidate({ individualId: 'same', fullName: 'Both Days', eventType: 'birth', month: 7, day: 6, placeRaw: 'Salem' }),
+        candidate({ individualId: 'same', fullName: 'Both Days', eventType: 'death', month: 7, day: 10, placeRaw: 'Salem' }),
+        candidate({ individualId: 'other', fullName: 'Backup Friday', month: 7, day: 10 }),
+      ],
+      window,
+    );
+    expect(days.map((d) => d.fullName)).toEqual(['Both Days', 'Backup Friday']);
+  });
+
+  it('caps at one row per day even on crowded days', () => {
+    const crowded = Array.from({ length: 5 }, (_, i) =>
+      candidate({ fullName: `Person ${i}`, month: 7, day: 7 }),
+    );
+    expect(selectDailyBest(crowded, window)).toHaveLength(1);
   });
 });

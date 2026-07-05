@@ -106,7 +106,7 @@ export default function DigestScreen() {
           <ThemedText type="small">
             {digest.weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })} –{' '}
             {digest.weekEnd.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}
-            {digest.candidateCount > digest.entries.length
+            {digest.candidateCount > digest.days.length
               ? ` · chosen from ${digest.candidateCount} anniversaries`
               : ''}
           </ThemedText>
@@ -115,24 +115,41 @@ export default function DigestScreen() {
         {error && <ThemedText>{error}</ThemedText>}
         {!digest && !error && <ActivityIndicator style={{ marginVertical: 24 }} />}
 
-        {digest?.entries.length === 0 && (
+        {digest?.days.length === 0 && (
           <ThemedText style={{ marginTop: 12 }}>
             A quiet week — no dated anniversaries in your tree fall in the next seven days.
           </ThemedText>
         )}
 
-        {digest?.entries.map((entry) => {
+        {digest?.days.map((entry) => {
           const relationship = relationships.get(entry.individualId);
+          const featured = digest.entries.some((e) => e.eventId === entry.eventId);
+          const open = () =>
+            router.push({ pathname: '/ancestor/[id]', params: { id: entry.individualId } });
+
+          if (!featured) {
+            return (
+              <Card key={entry.eventId} onPress={open} style={{ paddingVertical: 12 }}>
+                <ThemedText type="small">{formatOccurs(entry.occursOn)}</ThemedText>
+                <ThemedText>
+                  {entry.fullName}
+                  {relationship ? (
+                    <ThemedText type="small"> · your {relationship}</ThemedText>
+                  ) : null}
+                </ThemedText>
+                <ThemedText type="small">
+                  {anniversaryLine(entry)}
+                  {entry.placeRaw ? ` · ${entry.placeRaw.split(',')[0]}` : ''}
+                </ThemedText>
+              </Card>
+            );
+          }
+
           const note = notes[entry.individualId];
           return (
-            <Card
-              key={entry.eventId}
-              onPress={() =>
-                router.push({ pathname: '/ancestor/[id]', params: { id: entry.individualId } })
-              }
-            >
+            <Card key={entry.eventId} onPress={open}>
               <ThemedText type="smallBold" themeColor="accent">
-                {formatOccurs(entry.occursOn).toUpperCase()}
+                ✦ FEATURED · {formatOccurs(entry.occursOn).toUpperCase()}
               </ThemedText>
               <ThemedText type="subtitle">{entry.fullName}</ThemedText>
               {relationship && <ThemedText type="small">Your {relationship}</ThemedText>}
