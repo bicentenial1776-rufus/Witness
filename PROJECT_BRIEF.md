@@ -1,9 +1,9 @@
 # Witness — Family History Intelligence
 ### *Witnesses to History*
 
-**Version:** 2.0 — Updated Project Brief  
+**Version:** 2.1 — Project Brief (living document)  
 **Date:** July 2026  
-**Status:** In development — Phase 1 + 2 complete
+**Status:** In development — Phases 1–4 complete; Phase 5 (notifications, polish, beta prep) underway. Running on real devices. Build Status section below is authoritative.
 
 ---
 

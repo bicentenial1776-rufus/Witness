@@ -1,7 +1,7 @@
 # Ideas
 
 Unscheduled product ideas — things worth building someday that aren't on the
-V1/V2/V3 roadmap in BRIEF.md. When one gets scheduled, move it to the brief.
+V1/V2/V3 roadmap in PROJECT_BRIEF.md. When one gets scheduled, move it to the brief.
 
 ---
 
@@ -91,3 +91,17 @@ offer each as a research lead — reconnecting an island is a breakthrough,
 and knowing it's disconnected explains every missing relationship label
 inside it. Cheap: the component walk is the same graph already loaded for
 kindred couples.
+
+---
+
+## All Shared Ancestors on Kindred Cards
+
+**Added:** July 2026, from the full-depth kindred work.
+
+A kindred couple's card shows only the *closest* shared ancestor (that's
+what defines the cousin label). But couples often share several lines —
+Rufus ⚭ Ruth connect through Abigail Maxey (closest) *and* the William
+Haskell line. Add "…and N more shared ancestors" expanding to the full
+list, each tappable. The sweep already computes the full intersection of
+ancestor sets; it just discards everything but the minimum. Pairs well
+with the relationship-path viewer for each line.
