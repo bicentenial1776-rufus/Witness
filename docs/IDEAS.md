@@ -45,3 +45,35 @@ descendants of the direct-ancestor set), populating the existing
 "Related" tier that includes cousins — the scope Rufus originally asked
 for — and result lists can label cousins instantly. Watch compute cost:
 the collateral set can be thousands of people on a 5,495-person tree.
+
+---
+
+## Suggest a Moment — AI-Authored User Queries
+
+**Added:** July 2026, from the Explore/database-library work.
+
+Users will always want temporal queries we haven't shipped ("the Dust
+Bowl," "the Year Without a Summer," "Kennedy's assassination"). Asking
+them to author year ranges and region scopes is too much lift for the
+audience — but a query is now just five fields in the `historical_events`
+table, and drafting those fields from one plain sentence is a reliable
+one-shot AI task.
+
+The shape:
+
+1. A "Suggest a moment" box on Explore (one free-text sentence)
+2. An Edge Function has Claude draft the structured event — name, years,
+   region, one-sentence summary, keywords — from well-established history;
+   refuse or flag anything ambiguous
+3. The drafted event runs **immediately** for the suggesting user, stored
+   with a `suggested_by` marker (private to them at first)
+4. A lightweight review step promotes the best suggestions into the shared
+   library — every good suggestion enriches every user's Explore tab
+
+That last step is the compounding flywheel the brief promises ("more
+history to connect to every year, without the user doing anything").
+Guardrails: daily AI budget already exists; drafted events must pass sanity
+checks (years within 1000–present, plausible region); slugs namespaced
+(`user-` prefix) so they can't collide with the curated library.
+
+Timing: post-TestFlight.
