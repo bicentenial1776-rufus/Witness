@@ -54,10 +54,10 @@ describe('sweepKindredCouples', () => {
     expect(couples[0]!.label).toContain('record error');
   });
 
-  it('ignores couples whose shared ancestor is beyond the depth limit', () => {
-    // Second cousins: shared great-grandparent (3 up each).
+  it('finds distant kinship by default and labels the ancestor per spouse', () => {
+    // Second cousins: shared great-grandfather (3 up each).
     const graph = graphOf([
-      person('gg'),
+      person('gg', { sex: 'M' }),
       person('a', { father: 'gg' }),
       person('b', { father: 'gg' }),
       person('a2', { father: 'a' }),
@@ -66,7 +66,32 @@ describe('sweepKindredCouples', () => {
       person('b3', { father: 'b2', spouses: ['a3'] }),
     ]);
     expect(sweepKindredCouples(graph, 2)).toHaveLength(0);
-    expect(sweepKindredCouples(graph, 3)).toHaveLength(1);
+    const found = sweepKindredCouples(graph); // unlimited by default
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({
+      label: 'second cousins',
+      ancestorLabelA: 'great-grandfather',
+      ancestorLabelB: 'great-grandfather',
+    });
+  });
+
+  it('labels unequal depths in the Ruth-and-Rufus form', () => {
+    // Shared ancestor 3 up on one side, 4 up on the other.
+    const graph = graphOf([
+      person('anc', { sex: 'M' }),
+      person('p', { father: 'anc' }),
+      person('q', { father: 'anc' }),
+      person('p2', { father: 'p' }),
+      person('q2', { father: 'q' }),
+      person('q3', { father: 'q2' }),
+      person('wifeSide', { father: 'p2', spouses: ['husbandSide'] }),
+      person('husbandSide', { father: 'q3', spouses: ['wifeSide'] }),
+    ]);
+    const found = sweepKindredCouples(graph);
+    expect(found).toHaveLength(1);
+    const labels = [found[0]!.ancestorLabelA, found[0]!.ancestorLabelB].sort();
+    expect(labels).toEqual(['2nd great-grandfather', 'great-grandfather']);
+    expect(found[0]!.label).toBe('second cousins, 1× removed');
   });
 
   it('ignores unrelated couples', () => {

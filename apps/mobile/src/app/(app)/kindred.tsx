@@ -38,8 +38,9 @@ export default function KindredScreen() {
     <ThemedView style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 48, gap: 8 }}>
         <ThemedText type="small">
-          Marriages between blood relatives — a shared grandparent or closer. Common in close-knit
-          communities, and occasionally a sign of two records that need untangling.
+          Marriages between blood relatives, as deep as the tree records — closest kinship first.
+          Common in close-knit communities, and occasionally a sign of two records that need
+          untangling.
         </ThemedText>
 
         {error && <ThemedText>Something went wrong: {error}</ThemedText>}
@@ -69,13 +70,18 @@ export default function KindredScreen() {
             <ThemedText type="small">
               {years(couple.spouseA)} · {years(couple.spouseB)}
             </ThemedText>
+            <ThemedText type="small">
+              {couple.commonAncestor.name} is {couple.spouseA.name.split(' ')[0]}’s{' '}
+              {couple.ancestorLabelA} and {couple.spouseB.name.split(' ')[0]}’s{' '}
+              {couple.ancestorLabelB}.
+            </ThemedText>
             <ThemedText
               type="link"
               onPress={() =>
                 router.push({ pathname: '/ancestor/[id]', params: { id: couple.commonAncestor.id } })
               }
             >
-              Both descend from {couple.commonAncestor.name} ›
+              Visit {couple.commonAncestor.name} ›
             </ThemedText>
             <View style={{ flexDirection: 'row', gap: 16 }}>
               <ThemedText

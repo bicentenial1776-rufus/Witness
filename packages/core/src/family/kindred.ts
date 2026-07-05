@@ -3,12 +3,12 @@ import type { FamilyGraph, GraphPerson } from './graph.js';
 import { fetchFamilyGraph } from './homePerson.js';
 
 /**
- * Kindred couples: spouses who share a blood ancestor. Endogamy is common
- * in deep colonial and immigrant communities — surfacing it turns a quiet
- * structural fact into a discovery ("your great-grandparents were first
- * cousins"). The default depth stops at grandparents (first cousins or
- * closer), where the shared ancestry is unambiguous rather than the
- * background hum of any old New England town.
+ * Kindred couples: spouses who share a blood ancestor, as deep as the
+ * tree records. Endogamy is common in close-knit communities — surfacing
+ * it turns a quiet structural fact into a discovery ("you and your wife
+ * both descend from William Haskell"). Sorted closest kinship first; on
+ * a 5,495-person tree the full sweep yields around a dozen couples, so
+ * no depth cap is needed.
  */
 
 export interface KindredCouple {
@@ -18,7 +18,11 @@ export interface KindredCouple {
   /** Generations from each spouse up to the common ancestor. */
   generationsA: number;
   generationsB: number;
+  /** The couple's kinship: "first cousins", "third cousins, 2× removed". */
   label: string;
+  /** "8th great-grandfather" — the ancestor's relation to spouse A / B. */
+  ancestorLabelA: string;
+  ancestorLabelB: string;
 }
 
 /** Ancestor id → shallowest generation distance, climbing parent links. */
@@ -39,11 +43,38 @@ function ancestorDepths(graph: FamilyGraph, id: string): Map<string, number> {
   return depths;
 }
 
+const ORDINALS = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
+
+function ordinalWord(n: number): string {
+  return ORDINALS[n] ?? `${n}th`;
+}
+
+function ordinalSuffix(n: number): string {
+  if (n % 100 >= 11 && n % 100 <= 13) return `${n}th`;
+  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}` + '';
+}
+
 function coupleLabel(a: number, b: number): string {
-  if (a === 2 && b === 2) return 'first cousins';
-  if ((a === 1 && b === 2) || (a === 2 && b === 1)) return 'uncle/aunt and niece/nephew';
   if (a === 1 && b === 1) return 'siblings — likely a record error';
-  return `${Math.max(a, b)} generations from a shared ancestor`;
+  const closer = Math.min(a, b);
+  const removed = Math.abs(a - b);
+  if (closer === 1) {
+    return removed === 1
+      ? 'uncle/aunt and niece/nephew'
+      : `grand-uncle/aunt line, ${removed - 1}× removed`;
+  }
+  const cousins = `${ordinalWord(closer - 1)} cousins`;
+  return removed === 0 ? cousins : `${cousins}, ${removed}× removed`;
+}
+
+/** "father", "grandmother", "8th great-grandfather" — by climb distance. */
+export function ancestorLabel(generations: number, sex: 'M' | 'F' | 'U'): string {
+  const base =
+    sex === 'M' ? ['father', 'grandfather'] : sex === 'F' ? ['mother', 'grandmother'] : ['parent', 'grandparent'];
+  if (generations === 1) return base[0]!;
+  if (generations === 2) return base[1]!;
+  if (generations === 3) return `great-${base[1]}`;
+  return `${ordinalSuffix(generations - 2)} great-${base[1]}`;
 }
 
 /**
@@ -52,7 +83,7 @@ function coupleLabel(a: number, b: number): string {
  * (fewest total steps) is reported. Parent–child pairs (a 0 distance) are
  * record errors and excluded.
  */
-export function sweepKindredCouples(graph: FamilyGraph, maxGenerations = 2): KindredCouple[] {
+export function sweepKindredCouples(graph: FamilyGraph, maxGenerations = Infinity): KindredCouple[] {
   const seen = new Set<string>();
   const couples: KindredCouple[] = [];
 
@@ -84,6 +115,8 @@ export function sweepKindredCouples(graph: FamilyGraph, maxGenerations = 2): Kin
         generationsA: best.a,
         generationsB: best.b,
         label: coupleLabel(best.a, best.b),
+        ancestorLabelA: ancestorLabel(best.a, commonAncestor.sex),
+        ancestorLabelB: ancestorLabel(best.b, commonAncestor.sex),
       });
     }
   }
@@ -100,7 +133,7 @@ export function sweepKindredCouples(graph: FamilyGraph, maxGenerations = 2): Kin
 export async function kindredCouples(
   client: WitnessSupabaseClient,
   treeId: string,
-  maxGenerations = 2,
+  maxGenerations = Infinity,
 ): Promise<KindredCouple[]> {
   const graph = await fetchFamilyGraph(client, treeId);
   return sweepKindredCouples(graph, maxGenerations);

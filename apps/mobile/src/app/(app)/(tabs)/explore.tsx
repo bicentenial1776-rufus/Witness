@@ -114,7 +114,7 @@ export default function ExploreTab() {
                 onPress={() => router.push({ pathname: '/kindred', params: { treeId: activeTree.id } })}
               >
                 <ThemedText type="subtitle">Kindred couples</ThemedText>
-                <ThemedText type="small">Spouses who shared a grandparent or closer</ThemedText>
+                <ThemedText type="small">Spouses who shared an ancestor — however far back</ThemedText>
               </Card>
             </>
           )}
