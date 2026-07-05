@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
 import { TRANSFER_TIPS, getPlatformGuide } from '@/constants/gedcom-guide';
+import { WideContent } from '@/constants/theme';
 
 /** One platform's export walkthrough, ending at the import flow. */
 export default function ImportGuidePlatform() {
@@ -26,7 +27,7 @@ export default function ImportGuidePlatform() {
   return (
     <ThemedView style={{ flex: 1 }}>
       <Stack.Screen options={{ title: platform.name }} />
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48, gap: 12 }}>
+      <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 48, gap: 12 }}>
         {platform.intro && <ThemedText>{platform.intro}</ThemedText>}
 
         {platform.url && (

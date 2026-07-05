@@ -13,6 +13,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
 import { getRelationshipMap } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
+import { WideContent } from '@/constants/theme';
 
 interface Person {
   id: string;
@@ -312,7 +313,7 @@ export default function AncestorScreen() {
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48, gap: 8 }}>
+      <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 48, gap: 8 }}>
         <ThemedText type="title">{person.full_name}</ThemedText>
         {relationship && (
           <Pressable

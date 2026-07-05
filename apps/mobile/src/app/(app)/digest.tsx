@@ -10,6 +10,7 @@ import { ThemedView } from '@/components/themed-view';
 import { armDigestNotification } from '@/lib/digest-notifications';
 import { getRelationshipMap } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
+import { WideContent } from '@/constants/theme';
 
 /**
  * "This Week in Your Family" — up to three anniversaries this week, each
@@ -101,7 +102,7 @@ export default function DigestScreen() {
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48, gap: 12 }}>
+      <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 48, gap: 12 }}>
         {digest && (
           <ThemedText type="small">
             {digest.weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })} –{' '}

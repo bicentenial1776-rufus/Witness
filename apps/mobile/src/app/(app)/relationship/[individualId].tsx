@@ -9,6 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/lib/supabase';
+import { WideContent } from '@/constants/theme';
 
 /**
  * The proof behind a relationship label: the person-by-person chain from
@@ -44,7 +45,7 @@ export default function RelationshipScreen() {
   return (
     <ThemedView style={{ flex: 1 }}>
       <Stack.Screen options={{ title: 'How You’re Related' }} />
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48, gap: 12 }}>
+      <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 48, gap: 12 }}>
         {path === 'loading' ? (
           <View style={{ gap: 8, marginVertical: 24 }}>
             <ActivityIndicator />

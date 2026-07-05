@@ -15,6 +15,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useActiveTree } from '@/lib/active-tree';
 import { supabase } from '@/lib/supabase';
+import { WideContent } from '@/constants/theme';
 
 interface PersonHit {
   id: string;
@@ -157,7 +158,7 @@ export default function ExploreTab() {
         data={activeTree ? filtered : []}
         keyExtractor={(event) => event.id}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: 24, paddingTop: 72, paddingBottom: 48 }}
+        contentContainerStyle={{ ...WideContent, padding: 24, paddingTop: 72, paddingBottom: 48 }}
         ListHeaderComponent={header}
         renderItem={({ item }) => (
           <Card onPress={() => openEvent(item)} style={{ marginBottom: 8 }}>

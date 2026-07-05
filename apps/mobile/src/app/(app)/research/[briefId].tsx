@@ -6,6 +6,7 @@ import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { supabase } from '@/lib/supabase';
+import { WideContent } from '@/constants/theme';
 
 interface Brief {
   id: string;
@@ -67,7 +68,7 @@ export default function BriefScreen() {
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48, gap: 8 }}>
+      <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 48, gap: 8 }}>
         <ThemedText type="title">{brief.title}</ThemedText>
         <ThemedText type="small">
           {brief.status.replace('_', ' ')} · generated {new Date(brief.created_at).toLocaleDateString()}

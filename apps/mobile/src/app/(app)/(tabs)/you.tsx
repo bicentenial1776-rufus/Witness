@@ -14,6 +14,7 @@ import {
 import { invalidateGeographyCache } from '@/lib/geography-cache';
 import { invalidateRelationshipCache } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
+import { WideContent } from '@/constants/theme';
 
 export default function YouTab() {
   const { session } = useSession();
@@ -63,7 +64,7 @@ export default function YouTab() {
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 72, paddingBottom: 48, gap: 12 }}>
+      <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingTop: 72, paddingBottom: 48, gap: 12 }}>
         <ThemedText type="title">You</ThemedText>
         <ThemedText type="small">{session?.user.email}</ThemedText>
 

@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useActiveTree } from '@/lib/active-tree';
 import { armDigestNotification } from '@/lib/digest-notifications';
+import { WideContent } from '@/constants/theme';
 
 /**
  * The habit surface. Tree management lives on the You tab; Home is what's
@@ -28,7 +29,7 @@ export default function Home() {
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 72, paddingBottom: 48, gap: 12 }}>
+      <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingTop: 72, paddingBottom: 48, gap: 12 }}>
         <ThemedText type="title">Witness</ThemedText>
         <ThemedText type="small" style={{ marginTop: -8 }}>
           Witnesses to history

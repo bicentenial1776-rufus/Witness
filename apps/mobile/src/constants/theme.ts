@@ -72,3 +72,14 @@ export const Spacing = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+
+/**
+ * Cap scrolling content on wide screens (iPad): a centered readable
+ * column instead of edge-to-edge stretched cards. Spread into any
+ * ScrollView/FlatList contentContainerStyle.
+ */
+export const WideContent = {
+  maxWidth: MaxContentWidth,
+  width: '100%' as const,
+  alignSelf: 'center' as const,
+};

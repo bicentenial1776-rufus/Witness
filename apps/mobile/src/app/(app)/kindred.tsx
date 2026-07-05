@@ -8,6 +8,7 @@ import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { supabase } from '@/lib/supabase';
+import { WideContent } from '@/constants/theme';
 
 function years(person: { birthYear: number | null; deathYear: number | null }): string {
   return `${person.birthYear ?? '?'}–${person.deathYear ?? '?'}`;
@@ -35,7 +36,7 @@ export default function KindredScreen() {
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48, gap: 8 }}>
+      <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 48, gap: 8 }}>
         <ThemedText type="small">
           Marriages between blood relatives — a shared grandparent or closer. Common in close-knit
           communities, and occasionally a sign of two records that need untangling.

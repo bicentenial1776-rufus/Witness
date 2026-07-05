@@ -5,6 +5,7 @@ import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { GEDCOM_GUIDE } from '@/constants/gedcom-guide';
+import { WideContent } from '@/constants/theme';
 
 /**
  * Onboarding: where does your tree live today? Each platform opens a
@@ -14,7 +15,7 @@ import { GEDCOM_GUIDE } from '@/constants/gedcom-guide';
 export default function ImportGuideIndex() {
   return (
     <ThemedView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48, gap: 12 }}>
+      <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 48, gap: 12 }}>
         <ThemedText>
           Witness reads a GEDCOM file — the universal family-tree format every major platform can
           produce. Where do you build your tree today?
