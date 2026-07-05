@@ -1,16 +1,17 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect } from 'react';
-import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
+import { ActivityIndicator, ScrollView } from 'react-native';
 
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useActiveTree, type TreeRow } from '@/lib/active-tree';
+import { useActiveTree } from '@/lib/active-tree';
 import { armDigestNotification } from '@/lib/digest-notifications';
-import { invalidateGeographyCache } from '@/lib/geography-cache';
-import { invalidateRelationshipCache } from '@/lib/relationship-cache';
-import { supabase } from '@/lib/supabase';
 
+/**
+ * The habit surface. Tree management lives on the You tab; Home is what's
+ * new in your family's history right now.
+ */
 export default function Home() {
   const { trees, activeTree, refresh } = useActiveTree();
 
@@ -24,29 +25,6 @@ export default function Home() {
   useEffect(() => {
     if (activeTree) armDigestNotification(activeTree.id).catch(() => {});
   }, [activeTree?.id]);
-
-  function confirmDelete(tree: TreeRow) {
-    Alert.alert(
-      `Delete "${tree.name}"?`,
-      `This removes the imported copy (${tree.individual_count.toLocaleString()} people) from Witness. Your GEDCOM file is untouched.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const { error } = await supabase.from('trees').delete().eq('id', tree.id);
-            if (error) Alert.alert('Delete failed', error.message);
-            else {
-              invalidateGeographyCache();
-              invalidateRelationshipCache();
-              refresh();
-            }
-          },
-        },
-      ],
-    );
-  }
 
   return (
     <ThemedView style={{ flex: 1 }}>
@@ -68,53 +46,18 @@ export default function Home() {
             <ThemedText type="link">Import a GEDCOM file ›</ThemedText>
           </Card>
         ) : (
-          <>
-            {activeTree && (
-              <Card
-                onPress={() =>
-                  router.push({ pathname: '/digest', params: { treeId: activeTree.id } })
-                }
-              >
-                <ThemedText type="smallBold" themeColor="accent">
-                  THIS WEEK
-                </ThemedText>
-                <ThemedText type="subtitle">This week in your family</ThemedText>
-                <ThemedText>The anniversaries your tree marks over the next seven days.</ThemedText>
-                <ThemedText type="link">Read the week ›</ThemedText>
-              </Card>
-            )}
-
-            {trees.map((tree) => (
-              <Card key={tree.id}>
-                <ThemedText type="subtitle">{tree.name}</ThemedText>
-                <ThemedText type="small">
-                  {tree.individual_count.toLocaleString()} people ·{' '}
-                  {tree.family_count.toLocaleString()} families ·{' '}
-                  {tree.place_count.toLocaleString()} places
-                </ThemedText>
-                <ThemedText type="small">
-                  Imported {new Date(tree.imported_at).toLocaleDateString()}
-                </ThemedText>
-                <View style={{ flexDirection: 'row', gap: 16, marginTop: 4 }}>
-                  <ThemedText
-                    type="link"
-                    onPress={() =>
-                      router.push({ pathname: '/home-person', params: { treeId: tree.id } })
-                    }
-                  >
-                    {tree.home_person ? `You are ${tree.home_person.full_name}` : 'Tell us who you are'}
-                  </ThemedText>
-                  <ThemedText type="link" onPress={() => confirmDelete(tree)}>
-                    Delete
-                  </ThemedText>
-                </View>
-              </Card>
-            ))}
-
-            <ThemedText type="link" style={{ marginTop: 4 }} onPress={() => router.push('/import')}>
-              Import another tree ›
-            </ThemedText>
-          </>
+          activeTree && (
+            <Card
+              onPress={() => router.push({ pathname: '/digest', params: { treeId: activeTree.id } })}
+            >
+              <ThemedText type="smallBold" themeColor="accent">
+                THIS WEEK
+              </ThemedText>
+              <ThemedText type="subtitle">This week in your family</ThemedText>
+              <ThemedText>The anniversaries your tree marks over the next seven days.</ThemedText>
+              <ThemedText type="link">Read the week ›</ThemedText>
+            </Card>
+          )
         )}
       </ScrollView>
     </ThemedView>
