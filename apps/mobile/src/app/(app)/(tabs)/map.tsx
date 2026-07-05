@@ -131,17 +131,6 @@ export default function AncestorMapTab() {
             </Pressable>
           ))}
           <Pressable
-            onPress={() => router.push({ pathname: '/here', params: { treeId } })}
-            style={{
-              backgroundColor: '#16A34A', // moss — the field-features color
-              borderRadius: 16,
-              paddingHorizontal: 14,
-              paddingVertical: 7,
-            }}
-          >
-            <ThemedText style={{ color: '#F7F3EE' }}>I’m here</ThemedText>
-          </Pressable>
-          <Pressable
             onPress={() => setMapType(mapType === 'hybrid' ? 'mutedStandard' : 'hybrid')}
             style={{
               backgroundColor: mapType === 'hybrid' ? theme.accent : '#1C1917',

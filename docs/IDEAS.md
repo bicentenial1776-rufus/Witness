@@ -77,3 +77,17 @@ checks (years within 1000–present, plausible region); slugs namespaced
 (`user-` prefix) so they can't collide with the curated library.
 
 Timing: post-TestFlight.
+
+---
+
+## Unconnected Branches (Tree Islands)
+
+**Added:** July 2026, after Cornelius Stephanse Miller (1726–1810) surfaced
+with no derivable relationship — he sits in a 35-person island with no
+family link to the main tree. GEDCOMs accumulate these: research fragments
+never joined to the main line. An Explore analysis could flood-fill the
+family graph, list the islands ("3 unconnected branches · 82 people"), and
+offer each as a research lead — reconnecting an island is a breakthrough,
+and knowing it's disconnected explains every missing relationship label
+inside it. Cheap: the component walk is the same graph already loaded for
+kindred couples.

@@ -1,6 +1,7 @@
+import { SymbolView } from 'expo-symbols';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect } from 'react';
-import { ActivityIndicator, ScrollView } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
@@ -30,7 +31,17 @@ export default function Home() {
   return (
     <ThemedView style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingTop: 72, paddingBottom: 48, gap: 12 }}>
-        <ThemedText type="title">Witness</ThemedText>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <ThemedText type="title">Witness</ThemedText>
+          <Pressable
+            onPress={() => router.push('/you')}
+            hitSlop={12}
+            accessibilityLabel="Your account and trees"
+            style={{ paddingTop: 10 }}
+          >
+            <SymbolView name="gearshape" size={26} tintColor="#6B6157" />
+          </Pressable>
+        </View>
         <ThemedText type="small" style={{ marginTop: -8 }}>
           Witnesses to history
         </ThemedText>

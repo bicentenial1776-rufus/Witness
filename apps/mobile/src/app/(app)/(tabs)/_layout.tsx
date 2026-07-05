@@ -30,10 +30,13 @@ export default function TabsLayout() {
       <Tabs.Screen name="explore" options={{ title: 'Explore', tabBarIcon: tabIcon('hourglass') }} />
       <Tabs.Screen name="map" options={{ title: 'Map', tabBarIcon: tabIcon('map.fill') }} />
       <Tabs.Screen
+        name="proximity"
+        options={{ title: 'Nearby', tabBarIcon: tabIcon('location.fill') }}
+      />
+      <Tabs.Screen
         name="research"
         options={{ title: 'Research', tabBarIcon: tabIcon('books.vertical.fill') }}
       />
-      <Tabs.Screen name="you" options={{ title: 'You', tabBarIcon: tabIcon('person.crop.circle') }} />
     </Tabs>
   );
 }
