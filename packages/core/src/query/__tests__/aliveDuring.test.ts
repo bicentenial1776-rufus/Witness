@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { HISTORICAL_EVENTS, getHistoricalEvent } from '../../history/events.js';
-import { classifyAliveDuring, MAX_LIFESPAN_YEARS, type AliveCandidate } from '../aliveDuring.js';
+import {
+  classifyAliveDuring,
+  MAX_DOCUMENTED_LIFESPAN_YEARS,
+  MAX_LIFESPAN_YEARS,
+  type AliveCandidate,
+} from '../aliveDuring.js';
 
 const RANGE = { startYear: 1675, endYear: 1678 }; // King Philip's War
 
@@ -68,6 +73,35 @@ describe('classifyAliveDuring', () => {
 
   it('rejects persons with no dates at all', () => {
     expect(classifyAliveDuring(person({}), RANGE)).toBeNull();
+  });
+
+  it('rejects documented lifespans past the anomaly threshold (conflated records)', () => {
+    // The Abraham Packard case: 1738–1928 overlaps any 19th-century range
+    // but no one lives 190 years — that's two ancestors merged into one.
+    expect(
+      classifyAliveDuring(person({ birth_year: 1580, death_year: 1770 }), RANGE),
+    ).toBeNull();
+  });
+
+  it('rejects documented deaths before births', () => {
+    expect(classifyAliveDuring(person({ birth_year: 1680, death_year: 1660 }), RANGE)).toBeNull();
+  });
+
+  it('accepts a documented lifespan exactly at the anomaly threshold', () => {
+    const birth = 1600;
+    const match = classifyAliveDuring(
+      person({ birth_year: birth, death_year: birth + MAX_DOCUMENTED_LIFESPAN_YEARS }),
+      RANGE,
+    );
+    expect(match).toMatchObject({ confidence: 'documented' });
+  });
+
+  it('accepts a death-unknown match exactly at the assumed-lifespan boundary', () => {
+    const match = classifyAliveDuring(
+      person({ birth_year: RANGE.startYear - MAX_LIFESPAN_YEARS }),
+      RANGE,
+    );
+    expect(match).toMatchObject({ confidence: 'probable', ageAtStart: MAX_LIFESPAN_YEARS });
   });
 });
 

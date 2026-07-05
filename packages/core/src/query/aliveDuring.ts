@@ -8,8 +8,20 @@ import type { WitnessSupabaseClient } from '../supabase/client.js';
  * client-side so the confidence rules live in one testable place.
  */
 
-/** Assumed maximum lifespan when one endpoint of a life is undocumented. */
-export const MAX_LIFESPAN_YEARS = 100;
+/**
+ * Assumed maximum lifespan when one endpoint of a life is undocumented.
+ * Deliberately tighter than the longest documented lifespans: a birth-only
+ * person who'd be 95 during an event was overwhelmingly likely dead, and
+ * showing them as a probable witness reads as a data error.
+ */
+export const MAX_LIFESPAN_YEARS = 90;
+
+/**
+ * Documented lifespans above this are treated as record anomalies (usually
+ * two conflated same-name ancestors) and excluded rather than shown as,
+ * say, a 123-year-old witness. Anomalies are research leads, not matches.
+ */
+export const MAX_DOCUMENTED_LIFESPAN_YEARS = 100;
 
 export interface YearRange {
   startYear: number;
@@ -60,6 +72,8 @@ export function classifyAliveDuring(person: AliveCandidate, range: YearRange): A
   if (birth !== null && birth > endYear) return null;
 
   if (birth !== null && death !== null) {
+    // Impossible lifespans are record anomalies, not witnesses.
+    if (death - birth < 0 || death - birth > MAX_DOCUMENTED_LIFESPAN_YEARS) return null;
     if (death < startYear) return null;
     confidence = 'documented';
   } else if (birth !== null && death === null) {
