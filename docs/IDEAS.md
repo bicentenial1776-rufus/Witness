@@ -119,3 +119,39 @@ Plymouth to the frontier in one thumb-drag. Not a filter, an experience;
 pairs naturally with iPad presentation mode, and the brief already
 imagines a time slider for Family Street View. Needs marker
 enter/exit animation to feel alive.
+
+---
+
+## Web Application Behind a Paywall
+
+**Added:** July 2026, after the iPad install ("iPad is definitely a better
+form factor overall") — the brief's V2 "web browser version," expanded.
+
+The bigger the canvas, the more Witness feels like the research tool the
+brief promises; the web is the biggest canvas. Three legs:
+
+1. **Port, not rewrite.** The Expo/React Native codebase is universal —
+   react-native-web is already a dependency and most screens (digest,
+   queries, ancestor detail, relationship paths, FAQ) would render in a
+   browser today. Real work concentrates at the native edges: a web map
+   component, notifications, and a polish pass. Keep components
+   platform-agnostic in the meantime; when a decision could go either
+   way, lean toward the portable choice.
+
+2. **The paywall economics.** In-app subscriptions give Apple 15% of
+   $19.99; web billing (Stripe, or RevenueCat Web Billing — RevenueCat is
+   already the planned subscription layer, so both channels unify) costs
+   ~3% and, more importantly, owns the customer relationship: receipts,
+   win-backs, family-plan gifting. The dual model (app for daily use,
+   web for billing and deep sessions) is standard in this demographic —
+   Ancestry and newspapers.com both run it.
+
+3. **Web is the growth funnel.** Shared discovery cards and Annual
+   Wrapped currently dead-end for non-users. With a web app at
+   witnesslives.com (domain + Cloudflare DNS already in hand), every
+   share links to a living preview → trial. The web app and the organic
+   acquisition mechanic are the same artifact.
+
+**Trigger:** post-iOS-launch retention data. If trial conversion and
+week-4 usage look healthy, web-behind-paywall is the highest-leverage
+next move. Not before TestFlight.
