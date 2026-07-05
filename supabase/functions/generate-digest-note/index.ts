@@ -66,7 +66,8 @@ Deno.serve(async (req) => {
         'You write the short note under one entry in "This Week in Your Family," a weekly digest in Witness, a family history app.',
         'Write EXACTLY two sentences that place this ancestor in their historical moment — what the world around them was like, what their dates and places say about the life they led.',
         'Work ONLY from the facts provided plus broad, well-established historical context for that time and place. Never invent personal names, dates, places, or events.',
-        'Be specific and evocative, never generic. "Lived through interesting times" is a failure; name the times.',
+        'Be specific, never generic. "Lived through interesting times" is a failure; name the times.',
+        'Make no claims about the person\'s character, feelings, or experiences beyond what the facts document; frame historical events as context around them, not as things they witnessed or felt. Plain, concrete language — no dramatic or sentimental adjectives.',
         'No headers, no preamble, no third sentence. Begin directly.',
       ].join(' '),
       messages: [

@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
 import { getRelationship } from '@witness/core/family';
 
@@ -8,6 +8,7 @@ import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useTheme } from '@/hooks/use-theme';
 import { getRelationshipMap } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 
@@ -26,6 +27,13 @@ interface EventRow {
   date_year: number | null;
   date_raw: string | null;
   places: { raw: string } | null;
+}
+
+interface ParentRow {
+  id: string;
+  full_name: string;
+  birth_year: number | null;
+  death_year: number | null;
 }
 
 type SectionState =
@@ -56,6 +64,7 @@ function useEnrichment(
   useEffect(() => {
     if (!individualId) return;
     let cancelled = false;
+    setState({ name: 'none' });
     supabase
       .from('enrichment_cache')
       .select('content')
@@ -82,46 +91,84 @@ function useEnrichment(
   return { state, generate };
 }
 
-function EnrichmentSection({
-  title,
+function EnrichmentBody({
   buttonTitle,
   generatingLabel,
   state,
   onGenerate,
 }: {
-  title: string;
   buttonTitle: string;
   generatingLabel: string;
   state: SectionState;
   onGenerate: () => void;
 }) {
+  if (state.name === 'ready') return <ThemedText>{state.text}</ThemedText>;
+  if (state.name === 'generating') {
+    return (
+      <View style={{ gap: 8, marginVertical: 8 }}>
+        <ActivityIndicator />
+        <ThemedText type="small">{generatingLabel}</ThemedText>
+      </View>
+    );
+  }
   return (
     <>
-      <ThemedText type="subtitle" style={{ marginTop: 16 }}>
-        {title}
-      </ThemedText>
-      {state.name === 'ready' ? (
-        <ThemedText>{state.text}</ThemedText>
-      ) : state.name === 'generating' ? (
-        <View style={{ gap: 8, marginVertical: 8 }}>
-          <ActivityIndicator />
-          <ThemedText type="small">{generatingLabel}</ThemedText>
-        </View>
-      ) : (
-        <>
-          {state.name === 'error' && <ThemedText>{state.message}</ThemedText>}
-          <Button title={buttonTitle} onPress={onGenerate} />
-        </>
-      )}
+      {state.name === 'error' && <ThemedText>{state.message}</ThemedText>}
+      <Button title={buttonTitle} onPress={onGenerate} />
     </>
+  );
+}
+
+type SectionTab = 'story' | 'world' | 'research';
+
+const TABS: { key: SectionTab; label: string }[] = [
+  { key: 'story', label: 'Their story' },
+  { key: 'world', label: 'Their world' },
+  { key: 'research', label: 'Research' },
+];
+
+/** The record as a lifeline: amber moments on one vertical thread. */
+function Lifeline({ events }: { events: EventRow[] }) {
+  const theme = useTheme();
+  return (
+    <View>
+      {events.map((event, index) => (
+        <View key={index} style={{ flexDirection: 'row' }}>
+          <View style={{ width: 20, alignItems: 'center' }}>
+            <View
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: 5,
+                backgroundColor: theme.accent,
+                marginTop: 7,
+              }}
+            />
+            {index < events.length - 1 && (
+              <View style={{ width: 2, flex: 1, backgroundColor: theme.border }} />
+            )}
+          </View>
+          <View style={{ flex: 1, paddingLeft: 10, paddingBottom: index < events.length - 1 ? 20 : 0 }}>
+            <ThemedText>
+              {event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1)}
+              {event.date_raw ? ` · ${event.date_raw}` : event.date_year ? ` · ${event.date_year}` : ''}
+            </ThemedText>
+            {event.places?.raw && <ThemedText type="small">{event.places.raw}</ThemedText>}
+          </View>
+        </View>
+      ))}
+    </View>
   );
 }
 
 export default function AncestorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const theme = useTheme();
   const [person, setPerson] = useState<Person | null>(null);
   const [events, setEvents] = useState<EventRow[]>([]);
+  const [parents, setParents] = useState<ParentRow[]>([]);
   const [relationship, setRelationship] = useState<string | null>(null);
+  const [tab, setTab] = useState<SectionTab>('story');
   const [briefBusy, setBriefBusy] = useState(false);
   const [briefError, setBriefError] = useState<string | null>(null);
 
@@ -131,6 +178,11 @@ export default function AncestorScreen() {
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
+    setPerson(null);
+    setEvents([]);
+    setParents([]);
+    setRelationship(null);
+    setTab('story');
     (async () => {
       const [{ data: personRow }, { data: eventRows }] = await Promise.all([
         supabase
@@ -148,6 +200,29 @@ export default function AncestorScreen() {
       if (cancelled) return;
       setPerson(personRow);
       setEvents(eventRows ?? []);
+
+      // Parents: the families this person is a child of, then both spouses.
+      const { data: childLinks } = await supabase
+        .from('family_children')
+        .select('family_id')
+        .eq('individual_id', id);
+      const familyIds = (childLinks ?? []).map((l) => l.family_id);
+      if (familyIds.length && !cancelled) {
+        const { data: families } = await supabase
+          .from('families')
+          .select('husband_id, wife_id')
+          .in('id', familyIds);
+        const parentIds = [
+          ...new Set((families ?? []).flatMap((f) => [f.husband_id, f.wife_id])),
+        ].filter((pid): pid is string => Boolean(pid) && pid !== id);
+        if (parentIds.length) {
+          const { data: parentRows } = await supabase
+            .from('individuals')
+            .select('id, full_name, birth_year, death_year')
+            .in('id', parentIds);
+          if (!cancelled) setParents(parentRows ?? []);
+        }
+      }
 
       // Relationship to the home person: instant from the ancestor cache,
       // otherwise a live graph walk (cousins, descendants, in-laws).
@@ -205,6 +280,25 @@ export default function AncestorScreen() {
           {person.living ? ' · living' : ''}
         </ThemedText>
 
+        {parents.length > 0 && (
+          <View style={{ marginTop: 8, gap: 2 }}>
+            <ThemedText type="smallBold">PARENTS</ThemedText>
+            {parents.map((parent) => (
+              <Pressable
+                key={parent.id}
+                onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: parent.id } })}
+              >
+                <ThemedText type="link">
+                  {parent.full_name} ›{' '}
+                  <ThemedText type="small">
+                    {parent.birth_year ?? '?'}–{parent.death_year ?? '?'}
+                  </ThemedText>
+                </ThemedText>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
         {person.living ? (
           <ThemedText style={{ marginTop: 16 }}>
             {person.full_name.split(' ')[0]} appears to be living, so Witness keeps their story
@@ -212,49 +306,83 @@ export default function AncestorScreen() {
           </ThemedText>
         ) : (
           <>
-            <EnrichmentSection
-              title="Their story"
-              buttonTitle="Tell me their story"
-              generatingLabel="Writing their story from the record…"
-              state={biography.state}
-              onGenerate={biography.generate}
-            />
-            <EnrichmentSection
-              title="The world they lived in"
-              buttonTitle="Show me their world"
-              generatingLabel="Searching the historical record…"
-              state={worldContext.state}
-              onGenerate={worldContext.generate}
-            />
+            <View
+              style={{
+                flexDirection: 'row',
+                gap: 8,
+                marginTop: 16,
+              }}
+            >
+              {TABS.map(({ key, label }) => {
+                const active = tab === key;
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => setTab(key)}
+                    style={{
+                      backgroundColor: active ? theme.accent : theme.backgroundElement,
+                      borderWidth: 1,
+                      borderColor: active ? theme.accent : theme.border,
+                      borderRadius: 16,
+                      paddingHorizontal: 14,
+                      paddingVertical: 7,
+                    }}
+                  >
+                    <ThemedText
+                      type="small"
+                      style={{ color: active ? theme.onAccent : theme.text, fontWeight: 600 }}
+                    >
+                      {label}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
+            </View>
 
-            <ThemedText type="subtitle" style={{ marginTop: 16 }}>
-              Research
-            </ThemedText>
-            {briefError && <ThemedText>{briefError}</ThemedText>}
-            {briefBusy ? (
-              <View style={{ gap: 8, marginVertical: 8 }}>
-                <ActivityIndicator />
-                <ThemedText type="small">Preparing a research brief…</ThemedText>
-              </View>
-            ) : (
-              <Button title="Start a research brief" onPress={startResearchBrief} />
-            )}
+            <View style={{ marginTop: 8, gap: 8 }}>
+              {tab === 'story' && (
+                <EnrichmentBody
+                  buttonTitle="Tell me their story"
+                  generatingLabel="Writing their story from the record…"
+                  state={biography.state}
+                  onGenerate={biography.generate}
+                />
+              )}
+              {tab === 'world' && (
+                <EnrichmentBody
+                  buttonTitle="Show me their world"
+                  generatingLabel="Searching the historical record…"
+                  state={worldContext.state}
+                  onGenerate={worldContext.generate}
+                />
+              )}
+              {tab === 'research' && (
+                <>
+                  {briefError && <ThemedText>{briefError}</ThemedText>}
+                  {briefBusy ? (
+                    <View style={{ gap: 8, marginVertical: 8 }}>
+                      <ActivityIndicator />
+                      <ThemedText type="small">Preparing a research brief…</ThemedText>
+                    </View>
+                  ) : (
+                    <Button title="Start a research brief" onPress={startResearchBrief} />
+                  )}
+                </>
+              )}
+            </View>
           </>
         )}
 
         <ThemedText type="subtitle" style={{ marginTop: 16 }}>
           The record
         </ThemedText>
-        {events.length === 0 && <ThemedText type="small">No dated events recorded.</ThemedText>}
-        {events.map((event, index) => (
-          <Card key={index}>
-            <ThemedText>
-              {event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1)}
-              {event.date_raw ? ` · ${event.date_raw}` : event.date_year ? ` · ${event.date_year}` : ''}
-            </ThemedText>
-            {event.places?.raw && <ThemedText type="small">{event.places.raw}</ThemedText>}
+        {events.length === 0 ? (
+          <ThemedText type="small">No dated events recorded.</ThemedText>
+        ) : (
+          <Card>
+            <Lifeline events={events} />
           </Card>
-        ))}
+        )}
       </ScrollView>
     </ThemedView>
   );
