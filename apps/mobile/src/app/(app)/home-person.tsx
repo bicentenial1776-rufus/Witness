@@ -167,8 +167,8 @@ export default function HomePersonScreen() {
         <>
           <ThemedText type="subtitle">Welcome home, {step.personName.split(' ')[0]}.</ThemedText>
           <ThemedText>
-            Witness traced {step.cachedAncestors.toLocaleString()} direct ancestors. Every query
-            now knows how each person relates to you.
+            Witness traced {step.cachedAncestors.toLocaleString()} blood relatives — ancestors,
+            cousins, and all. Every list now knows how each person relates to you.
           </ThemedText>
           <Button title="Done" onPress={() => router.back()} />
         </>

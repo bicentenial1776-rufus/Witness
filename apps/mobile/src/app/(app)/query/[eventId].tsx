@@ -108,7 +108,7 @@ export default function AliveDuringScreen() {
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
               {(
                 [
-                  { key: 'line', label: `Your line (${lineMatches.length.toLocaleString()})` },
+                  { key: 'line', label: `Related (${lineMatches.length.toLocaleString()})` },
                   { key: 'all', label: `Everyone (${result.matches.length.toLocaleString()})` },
                 ] as const
               ).map(({ key, label }) => {
@@ -139,7 +139,7 @@ export default function AliveDuringScreen() {
           )}
           <ThemedText type="subtitle" style={{ marginTop: 8 }}>
             {shown.length.toLocaleString()}{' '}
-            {effectiveScope === 'line' ? 'of your direct line were alive' : 'people in your tree were alive'}
+            {effectiveScope === 'line' ? 'of your relatives were alive' : 'people in your tree were alive'}
           </ThemedText>
           <ThemedText type="small">
             {shownDocumented.toLocaleString()} documented ·{' '}
@@ -147,14 +147,14 @@ export default function AliveDuringScreen() {
           </ThemedText>
           {effectiveScope === 'line' && shown.length === 0 && (
             <ThemedText>
-              No one in your direct line — switch to Everyone to see the whole tree.
+              No relatives of yours — switch to Everyone to see the whole tree.
             </ThemedText>
           )}
           {shown.length > 0 && <Button title="Share this discovery" onPress={shareDiscovery} />}
           <DiscoveryCard
             ref={cardRef}
             headline={`${shown.length.toLocaleString()} ${
-              effectiveScope === 'line' ? 'of my direct ancestors' : 'people in my family tree'
+              effectiveScope === 'line' ? 'of my relatives' : 'people in my family tree'
             } were alive during ${event.name}`}
             detail={event.summary}
             years={`${years} · ${event.region}`}

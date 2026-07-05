@@ -128,10 +128,39 @@ export interface SetHomePersonOptions {
   onProgress?: (computed: number, total: number) => void;
 }
 
+/** All blood relatives of homeId: ancestors, descendants, and anyone
+ *  sharing an ancestor. Cheap set-intersection prefilter so the heavier
+ *  per-person labeling only runs on actual relatives. */
+function bloodRelativeIds(graph: FamilyGraph, homeId: string): string[] {
+  const homeAncestors = ancestorDepths(graph, homeId);
+  const ids: string[] = [];
+  for (const person of graph.people.values()) {
+    if (person.id === homeId) continue;
+    if (homeAncestors.has(person.id)) {
+      ids.push(person.id);
+      continue;
+    }
+    const theirs = ancestorDepths(graph, person.id);
+    if (theirs.has(homeId)) {
+      ids.push(person.id); // descendant
+      continue;
+    }
+    for (const ancestorId of theirs.keys()) {
+      if (homeAncestors.has(ancestorId)) {
+        ids.push(person.id); // collateral
+        break;
+      }
+    }
+  }
+  return ids;
+}
+
 /**
  * Designates the home person and (by default) pre-computes relationship
- * rows for every direct ancestor. Existing cached relationships for the
- * tree are replaced — a changed home person invalidates all of them.
+ * rows for every blood relative — direct ancestors, descendants, and
+ * collaterals (cousins, uncles/aunts), each with its label and path.
+ * Existing cached relationships for the tree are replaced — a changed
+ * home person invalidates all of them.
  */
 export async function setHomePerson(
   client: WitnessSupabaseClient,
@@ -155,29 +184,31 @@ export async function setHomePerson(
   if (!userId) throw new Error('Not signed in');
 
   const graph = await fetchFamilyGraph(client, treeId);
-  const ancestors = ancestorDepths(graph, individualId);
-  const ancestorIds = [...ancestors.keys()].filter((id) => id !== individualId);
+  const relativeIds = bloodRelativeIds(graph, individualId);
 
   const rows = [];
   let computed = 0;
-  for (const ancestorId of ancestorIds) {
-    const result = calculateRelationship(graph, individualId, ancestorId);
-    if (!result.isDirectAncestor) continue; // reachable only as spouse-of-ancestor etc.
+  for (const relativeId of relativeIds) {
+    const result = calculateRelationship(graph, individualId, relativeId);
+    computed += 1;
+    options.onProgress?.(computed, relativeIds.length);
+    // Blood only: the prefilter can surface people the labeler resolves
+    // as in-laws (spouse links win over distant blood); skip non-blood.
+    if (!result.isDirectAncestor && !result.isDirectDescendant && !result.isCollateral) continue;
+    if (result.confidence === 'none') continue;
     rows.push({
       tree_id: treeId,
       user_id: userId,
       home_person_id: individualId,
-      individual_id: ancestorId,
+      individual_id: relativeId,
       label: result.label,
       generation_distance: result.generationDistance,
       line: result.line,
       path: result.path,
-      is_direct_ancestor: true,
-      is_direct_descendant: false,
-      is_collateral: false,
+      is_direct_ancestor: result.isDirectAncestor,
+      is_direct_descendant: result.isDirectDescendant,
+      is_collateral: result.isCollateral,
     });
-    computed += 1;
-    options.onProgress?.(computed, ancestorIds.length);
   }
 
   for (let i = 0; i < rows.length; i += INSERT_BATCH) {
