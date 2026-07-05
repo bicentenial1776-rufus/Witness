@@ -307,7 +307,14 @@ function rowToEvent(row: EventRow): HistoricalEvent {
 export function eventMatchesSearch(event: HistoricalEvent, search: string): boolean {
   const q = search.trim().toLowerCase();
   if (!q) return true;
-  return [event.name, event.region, event.summary, ...(event.keywords ?? [])]
+  return [
+    event.name,
+    event.region,
+    event.summary,
+    String(event.startYear),
+    String(event.endYear),
+    ...(event.keywords ?? []),
+  ]
     .join(' ')
     .toLowerCase()
     .includes(q);
