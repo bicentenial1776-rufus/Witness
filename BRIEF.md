@@ -385,6 +385,8 @@ USPTO filing, domain secured, marketing site, community seeding, press outreach,
 
 ---
 
+Unscheduled ideas live in [docs/IDEAS.md](docs/IDEAS.md).
+
 ## V2 Roadmap (Post-Launch)
 
 - Natural language querying ("Who in my family would have known each other?")
