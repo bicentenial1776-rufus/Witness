@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
 import { getRelationship } from '@witness/core/family';
+import { fetchHistoricalEvents, type HistoricalEvent } from '@witness/core/history';
+import { classifyAliveDuring } from '@witness/core/query';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
@@ -167,6 +169,7 @@ export default function AncestorScreen() {
   const [person, setPerson] = useState<Person | null>(null);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [parents, setParents] = useState<ParentRow[]>([]);
+  const [moments, setMoments] = useState<{ event: HistoricalEvent; ageAtStart: number | null }[]>([]);
   const [relationship, setRelationship] = useState<string | null>(null);
   const [tab, setTab] = useState<SectionTab>('story');
   const [briefBusy, setBriefBusy] = useState(false);
@@ -181,6 +184,7 @@ export default function AncestorScreen() {
     setPerson(null);
     setEvents([]);
     setParents([]);
+    setMoments([]);
     setRelationship(null);
     setTab('story');
     (async () => {
@@ -200,6 +204,20 @@ export default function AncestorScreen() {
       if (cancelled) return;
       setPerson(personRow);
       setEvents(eventRows ?? []);
+
+      // Which library queries does this life overlap? Same classification
+      // rule as the alive-during engine, run against every event.
+      if (personRow) {
+        fetchHistoricalEvents(supabase).then((library) => {
+          if (cancelled) return;
+          setMoments(
+            library.flatMap((event) => {
+              const match = classifyAliveDuring(personRow, event);
+              return match ? [{ event, ageAtStart: match.ageAtStart }] : [];
+            }),
+          );
+        });
+      }
 
       // Parents: the families this person is a child of, then both spouses.
       const { data: childLinks } = await supabase
@@ -423,6 +441,36 @@ export default function AncestorScreen() {
           <Card>
             <Lifeline events={events} />
           </Card>
+        )}
+
+        {moments.length > 0 && (
+          <>
+            <ThemedText type="subtitle" style={{ marginTop: 16 }}>
+              {person.sex === 'F' ? 'Her' : person.sex === 'M' ? 'His' : 'Their'} moments in history
+            </ThemedText>
+            {moments.map(({ event, ageAtStart }) => (
+              <Card
+                key={event.id}
+                onPress={() =>
+                  router.push({
+                    pathname: '/query/[eventId]',
+                    params: { eventId: event.id, treeId: person.tree_id },
+                  })
+                }
+                style={{ paddingVertical: 12 }}
+              >
+                <ThemedText>{event.name}</ThemedText>
+                <ThemedText type="small">
+                  {event.startYear === event.endYear
+                    ? event.startYear
+                    : `${event.startYear}–${event.endYear}`}
+                  {ageAtStart !== null
+                    ? ` · was ${ageAtStart} when it began`
+                    : ' · born during these years'}
+                </ThemedText>
+              </Card>
+            ))}
+          </>
         )}
       </ScrollView>
     </ThemedView>

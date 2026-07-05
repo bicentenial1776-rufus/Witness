@@ -16,6 +16,14 @@ import { ThemedView } from '@/components/themed-view';
 import { useActiveTree } from '@/lib/active-tree';
 import { supabase } from '@/lib/supabase';
 
+interface PersonHit {
+  id: string;
+  full_name: string;
+  birth_year: number | null;
+  death_year: number | null;
+  living: boolean;
+}
+
 /**
  * Explore = the analyses (places, migrations, kindred couples) plus the
  * event library. The library comes from the database so new prompt cards
@@ -26,6 +34,7 @@ export default function ExploreTab() {
   const { activeTree } = useActiveTree();
   const [events, setEvents] = useState<readonly HistoricalEvent[]>(HISTORICAL_EVENTS);
   const [search, setSearch] = useState('');
+  const [people, setPeople] = useState<PersonHit[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +45,30 @@ export default function ExploreTab() {
       cancelled = true;
     };
   }, []);
+
+  // People search: name match in the active tree, debounced a beat.
+  useEffect(() => {
+    const q = search.trim();
+    if (!q || q.length < 2 || !activeTree) {
+      setPeople([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from('individuals')
+        .select('id, full_name, birth_year, death_year, living')
+        .eq('tree_id', activeTree.id)
+        .ilike('full_name', `%${q}%`)
+        .order('birth_year', { ascending: true, nullsFirst: false })
+        .limit(20);
+      if (!cancelled) setPeople(data ?? []);
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [search, activeTree?.id]);
 
   function openEvent(event: HistoricalEvent) {
     if (!activeTree) return;
@@ -52,7 +85,7 @@ export default function ExploreTab() {
       {activeTree ? (
         <>
           <TextField
-            placeholder="Search history — “mayflower”, “famine”, “1918”…"
+            placeholder="Search people & history — “Elizabeth Dane”, “mayflower”…"
             value={search}
             onChangeText={setSearch}
             autoCapitalize="none"
@@ -82,6 +115,27 @@ export default function ExploreTab() {
                 <ThemedText type="subtitle">Kindred couples</ThemedText>
                 <ThemedText type="small">Spouses who shared a grandparent or closer</ThemedText>
               </Card>
+            </>
+          )}
+
+          {searching && people.length > 0 && (
+            <>
+              <ThemedText type="subtitle">
+                {people.length === 20 ? 'First 20 people' : `${people.length} ${people.length === 1 ? 'person' : 'people'}`}
+              </ThemedText>
+              {people.map((person) => (
+                <Card
+                  key={person.id}
+                  onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: person.id } })}
+                  style={{ paddingVertical: 12 }}
+                >
+                  <ThemedText>{person.full_name}</ThemedText>
+                  <ThemedText type="small">
+                    {person.birth_year ?? '?'}–{person.living ? '' : (person.death_year ?? '?')}
+                    {person.living ? ' · living' : ''}
+                  </ThemedText>
+                </Card>
+              ))}
             </>
           )}
 
