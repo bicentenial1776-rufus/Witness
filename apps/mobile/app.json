@@ -8,7 +8,7 @@
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.witnesslives.witness"
     },
     "android": {
@@ -31,7 +31,7 @@
         {
           "backgroundColor": "#1C1917",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 240
         }
       ],
       "expo-sharing"
