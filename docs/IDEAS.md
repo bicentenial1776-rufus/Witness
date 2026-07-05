@@ -28,3 +28,20 @@ ancestor is a brick wall the user doesn't know they have. Natural tie-ins:
 
 Cheap MVP: the anomalies are already computed at classification time; the
 query screen just needs to receive and render them.
+
+---
+
+## Blood-Collateral Relationship Precompute
+
+**Added:** July 2026, from the "Your line" query filter work.
+
+The relationships table precomputes direct ancestors only (~800 rows).
+Uncles, aunts, cousins, and other blood collaterals are computed one at a
+time by a live graph walk — fine for a single ancestor screen, too slow to
+filter 300 query results. Extend `setHomePerson` to also precompute blood
+collaterals (anyone sharing a common ancestor with the home person, i.e.
+descendants of the direct-ancestor set), populating the existing
+`is_collateral` column. Then the query filter's "Your line" chip can grow a
+"Related" tier that includes cousins — the scope Rufus originally asked
+for — and result lists can label cousins instantly. Watch compute cost:
+the collateral set can be thousands of people on a 5,495-person tree.

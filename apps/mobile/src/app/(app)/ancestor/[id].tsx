@@ -296,7 +296,17 @@ export default function AncestorScreen() {
     <ThemedView style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48, gap: 8 }}>
         <ThemedText type="title">{person.full_name}</ThemedText>
-        {relationship && <ThemedText type="subtitle">Your {relationship}</ThemedText>}
+        {relationship && (
+          <Pressable
+            onPress={() =>
+              router.push({ pathname: '/relationship/[individualId]', params: { individualId: person.id } })
+            }
+          >
+            <ThemedText type="subtitle">
+              Your {relationship} <ThemedText type="link">›</ThemedText>
+            </ThemedText>
+          </Pressable>
+        )}
         <ThemedText type="small">
           {person.birth_year ?? '?'}–{person.living ? '' : (person.death_year ?? '?')}
           {person.living ? ' · living' : ''}

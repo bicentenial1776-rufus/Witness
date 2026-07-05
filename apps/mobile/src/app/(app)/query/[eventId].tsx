@@ -1,7 +1,7 @@
 import * as Sharing from 'expo-sharing';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
 
 import { getHistoricalEvent } from '@witness/core/history';
 import { aliveDuring, type AliveDuringResult, type AliveMatch } from '@witness/core/query';
@@ -11,6 +11,7 @@ import { Card } from '@/components/card';
 import { DiscoveryCard, type DiscoveryCardHandle } from '@/components/discovery-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useTheme } from '@/hooks/use-theme';
 import { getRelationshipMap } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 
@@ -22,11 +23,20 @@ function matchLine(match: AliveMatch, startYear: number): string {
 
 export default function AliveDuringScreen() {
   const { eventId, treeId } = useLocalSearchParams<{ eventId: string; treeId: string }>();
+  const theme = useTheme();
   const event = getHistoricalEvent(eventId);
   const [result, setResult] = useState<AliveDuringResult | null>(null);
   const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
+  const [scope, setScope] = useState<'line' | 'all'>('line');
   const [error, setError] = useState<string | null>(null);
   const cardRef = useRef<DiscoveryCardHandle>(null);
+
+  // Without a home person there is no "line" to filter by.
+  const hasLine = relationships.size > 0;
+  const effectiveScope = hasLine ? scope : 'all';
+  const lineMatches = (result?.matches ?? []).filter((m) => relationships.has(m.individual.id));
+  const shown = effectiveScope === 'line' ? lineMatches : (result?.matches ?? []);
+  const shownDocumented = shown.filter((m) => m.confidence === 'documented').length;
 
   async function shareDiscovery() {
     const uri = await cardRef.current?.capture?.();
@@ -75,24 +85,63 @@ export default function AliveDuringScreen() {
 
       {result && (
         <>
+          {hasLine && (
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+              {(
+                [
+                  { key: 'line', label: `Your line (${lineMatches.length.toLocaleString()})` },
+                  { key: 'all', label: `Everyone (${result.matches.length.toLocaleString()})` },
+                ] as const
+              ).map(({ key, label }) => {
+                const active = scope === key;
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => setScope(key)}
+                    style={{
+                      backgroundColor: active ? theme.accent : theme.backgroundElement,
+                      borderWidth: 1,
+                      borderColor: active ? theme.accent : theme.border,
+                      borderRadius: 16,
+                      paddingHorizontal: 14,
+                      paddingVertical: 7,
+                    }}
+                  >
+                    <ThemedText
+                      type="small"
+                      style={{ color: active ? theme.onAccent : theme.text, fontWeight: 600 }}
+                    >
+                      {label}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
           <ThemedText type="subtitle" style={{ marginTop: 8 }}>
-            {result.matches.length.toLocaleString()} people in your family were alive
+            {shown.length.toLocaleString()}{' '}
+            {effectiveScope === 'line' ? 'of your direct line were alive' : 'people in your tree were alive'}
           </ThemedText>
           <ThemedText type="small">
-            {result.documentedCount.toLocaleString()} documented ·{' '}
-            {result.probableCount.toLocaleString()} probable
+            {shownDocumented.toLocaleString()} documented ·{' '}
+            {(shown.length - shownDocumented).toLocaleString()} probable
           </ThemedText>
-          {result.matches.length > 0 && (
-            <Button title="Share this discovery" onPress={shareDiscovery} />
+          {effectiveScope === 'line' && shown.length === 0 && (
+            <ThemedText>
+              No one in your direct line — switch to Everyone to see the whole tree.
+            </ThemedText>
           )}
+          {shown.length > 0 && <Button title="Share this discovery" onPress={shareDiscovery} />}
           <DiscoveryCard
             ref={cardRef}
-            headline={`${result.matches.length.toLocaleString()} of my ancestors were alive during ${event.name}`}
+            headline={`${shown.length.toLocaleString()} ${
+              effectiveScope === 'line' ? 'of my direct ancestors' : 'people in my family tree'
+            } were alive during ${event.name}`}
             detail={event.summary}
             years={`${years} · ${event.region}`}
           />
           <FlatList
-            data={result.matches}
+            data={shown}
             keyExtractor={(match) => match.individual.id}
             style={{ marginTop: 12 }}
             renderItem={({ item }) => (
