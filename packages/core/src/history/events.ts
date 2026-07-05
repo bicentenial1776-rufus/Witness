@@ -15,9 +15,19 @@ export interface HistoricalEvent {
   region: string;
   /** One-sentence framing for the prompt card and results header. */
   summary: string;
+  /** Extra search terms beyond the visible text ("mayflower", "cajun"). */
+  keywords?: string[];
 }
 
 export const HISTORICAL_EVENTS: readonly HistoricalEvent[] = [
+  {
+    id: 'mayflower-landing',
+    name: 'The Mayflower Lands',
+    startYear: 1620,
+    endYear: 1620,
+    region: 'New England',
+    summary: 'The Pilgrims anchored off Cape Cod and founded Plymouth Colony.',
+  },
   {
     id: 'king-philips-war',
     name: "King Philip's War",
@@ -231,4 +241,74 @@ export const HISTORICAL_EVENTS: readonly HistoricalEvent[] = [
 
 export function getHistoricalEvent(id: string): HistoricalEvent | undefined {
   return HISTORICAL_EVENTS.find((event) => event.id === id);
+}
+
+/**
+ * The library is served from the database so new prompt cards reach every
+ * user without an app update; the bundled list above is the fallback when
+ * offline or before the table exists. Slugs are the stable contract.
+ */
+export async function fetchHistoricalEvents(client: {
+  from: (table: string) => any;
+}): Promise<readonly HistoricalEvent[]> {
+  try {
+    const { data, error } = await client
+      .from('historical_events')
+      .select('id, name, start_year, end_year, region, summary, keywords')
+      .order('sort_order');
+    if (error || !data?.length) return HISTORICAL_EVENTS;
+    return data.map(rowToEvent);
+  } catch {
+    return HISTORICAL_EVENTS;
+  }
+}
+
+/** One event by slug, DB-first with bundled fallback. */
+export async function fetchHistoricalEvent(
+  client: { from: (table: string) => any },
+  id: string,
+): Promise<HistoricalEvent | undefined> {
+  try {
+    const { data } = await client
+      .from('historical_events')
+      .select('id, name, start_year, end_year, region, summary, keywords')
+      .eq('id', id)
+      .maybeSingle();
+    if (data) return rowToEvent(data);
+  } catch {
+    // fall through to the bundled library
+  }
+  return getHistoricalEvent(id);
+}
+
+interface EventRow {
+  id: string;
+  name: string;
+  start_year: number;
+  end_year: number;
+  region: string;
+  summary: string;
+  keywords: string[] | null;
+}
+
+function rowToEvent(row: EventRow): HistoricalEvent {
+  return {
+    id: row.id,
+    name: row.name,
+    startYear: row.start_year,
+    endYear: row.end_year,
+    region: row.region,
+    summary: row.summary,
+    keywords: row.keywords ?? undefined,
+  };
+}
+
+/** Case-insensitive match across name, region, summary, and keywords. */
+export function eventMatchesSearch(event: HistoricalEvent, search: string): boolean {
+  const q = search.trim().toLowerCase();
+  if (!q) return true;
+  return [event.name, event.region, event.summary, ...(event.keywords ?? [])]
+    .join(' ')
+    .toLowerCase()
+    .includes(q);
 }

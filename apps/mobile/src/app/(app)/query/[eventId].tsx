@@ -3,7 +3,7 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
 
-import { getHistoricalEvent } from '@witness/core/history';
+import { fetchHistoricalEvent, type HistoricalEvent } from '@witness/core/history';
 import { aliveDuring, type AliveDuringResult, type AliveMatch } from '@witness/core/query';
 
 import { Button } from '@/components/button';
@@ -24,7 +24,7 @@ function matchLine(match: AliveMatch, startYear: number): string {
 export default function AliveDuringScreen() {
   const { eventId, treeId } = useLocalSearchParams<{ eventId: string; treeId: string }>();
   const theme = useTheme();
-  const event = getHistoricalEvent(eventId);
+  const [event, setEvent] = useState<HistoricalEvent | undefined | 'loading'>('loading');
   const [result, setResult] = useState<AliveDuringResult | null>(null);
   const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
   const [scope, setScope] = useState<'line' | 'all'>('line');
@@ -44,7 +44,19 @@ export default function AliveDuringScreen() {
   }
 
   useEffect(() => {
-    if (!event || !treeId) return;
+    if (!eventId) return;
+    let cancelled = false;
+    setEvent('loading');
+    fetchHistoricalEvent(supabase, eventId).then((e) => {
+      if (!cancelled) setEvent(e);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId]);
+
+  useEffect(() => {
+    if (event === 'loading' || !event || !treeId) return;
     let cancelled = false;
     aliveDuring(supabase, treeId, event)
       .then((r) => {
@@ -61,6 +73,13 @@ export default function AliveDuringScreen() {
     };
   }, [event, treeId]);
 
+  if (event === 'loading') {
+    return (
+      <ThemedView style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
+        <ActivityIndicator />
+      </ThemedView>
+    );
+  }
   if (!event) {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
