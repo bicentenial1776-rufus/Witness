@@ -34,6 +34,20 @@ Edits hot-reload; give it ~5s after saving before re-screenshotting.
 
 For query-layer verification without the UI, write a `.mts` script (must be `.mts` — tsx treats scratchpad `.ts` as CJS and top-level await fails) importing from `packages/core/src`, using `scripts/env.js` `loadEnv()/requireEnv()` and the `WITNESS_TEST_USER_EMAIL/PASSWORD` credentials in `packages/core/.env`, then run with `npx tsx` from `packages/core`.
 
+## Physical device installs
+
+Build with expo, install with devicectl (expo's device attach hangs):
+`npx expo run:ios --configuration Release --device <udid>` then kill the
+hung "Connecting to" process and run `xcrun devicectl device install app
+--device <udid> <DerivedData .app path>`. First-ever install on a NEW
+device fails signing with "provisioning profile doesn't include device" —
+build once with `xcodebuild -workspace ios/Witness.xcworkspace -scheme
+Witness -configuration Release -destination id=<udid>
+-allowProvisioningUpdates -allowProvisioningDeviceRegistration build`
+to register it, then devicectl install. Device gotchas: phone must be
+unlocked; Developer Mode required (Settings → Privacy & Security);
+iPad Magic Keyboard's USB-C port is charge-only.
+
 ## Gotchas
 
 - Supabase Edge Function calls fail quietly in-app until the function is deployed (`supabase functions deploy <name>`) — deploys and `supabase db push` require user approval.
