@@ -1,6 +1,7 @@
+import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 import MapView, { Marker, type MapType } from 'react-native-maps';
 
 import { placesWithActivity, type GeographyIndex } from '@witness/core/query';
@@ -14,7 +15,7 @@ import { useTheme } from '@/hooks/use-theme';
 const MAX_MARKERS = 300;
 
 const ERAS: { label: string; range?: { startYear: number; endYear: number } }[] = [
-  { label: 'All time' },
+  { label: 'All' },
   { label: '1600s', range: { startYear: 1600, endYear: 1699 } },
   { label: '1700s', range: { startYear: 1700, endYear: 1799 } },
   { label: '1800s', range: { startYear: 1800, endYear: 1899 } },
@@ -110,40 +111,28 @@ export default function AncestorMapTab() {
         </MapView>
       )}
 
-      <View style={{ position: 'absolute', top: 60, left: 0, right: 0, gap: 8 }}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-        >
-          {ERAS.map((era, i) => (
-            <Pressable
-              key={era.label}
-              onPress={() => setEraIndex(i)}
-              style={{
-                backgroundColor: i === eraIndex ? theme.accent : '#1C1917',
-                borderRadius: 16,
-                paddingHorizontal: 14,
-                paddingVertical: 7,
-              }}
-            >
-              <ThemedText style={{ color: '#F7F3EE' }}>{era.label}</ThemedText>
-            </Pressable>
-          ))}
+      <View style={{ position: 'absolute', top: 60, left: 0, right: 0, gap: 8, paddingHorizontal: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <SegmentedControl
+            style={{ flex: 1 }}
+            values={ERAS.map((era) => era.label)}
+            selectedIndex={eraIndex}
+            onChange={(event) => setEraIndex(event.nativeEvent.selectedSegmentIndex)}
+          />
           <Pressable
             onPress={() => setMapType(mapType === 'hybrid' ? 'mutedStandard' : 'hybrid')}
             style={{
               backgroundColor: mapType === 'hybrid' ? theme.accent : '#1C1917',
               borderRadius: 16,
-              paddingHorizontal: 14,
+              paddingHorizontal: 12,
               paddingVertical: 7,
             }}
           >
-            <ThemedText style={{ color: '#F7F3EE' }}>Satellite</ThemedText>
+            <ThemedText type="small" style={{ color: '#F7F3EE' }}>Sat</ThemedText>
           </Pressable>
-        </ScrollView>
+        </View>
         {markers.length === MAX_MARKERS && (
-          <ThemedText type="small" style={{ paddingHorizontal: 16 }}>
+          <ThemedText type="small">
             Showing the {MAX_MARKERS} busiest places for this era.
           </ThemedText>
         )}

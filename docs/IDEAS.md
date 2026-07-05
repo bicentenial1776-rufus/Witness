@@ -105,3 +105,17 @@ Haskell line. Add "…and N more shared ancestors" expanding to the full
 list, each tappable. The sweep already computes the full intersection of
 ancestor sets; it just discards everything but the minimum. Pairs well
 with the relationship-path viewer for each line.
+
+---
+
+## Time Scrubber for the Ancestor Map
+
+**Added:** July 2026, from the map-controls redesign.
+
+The era segmented control filters by century buckets. The richer concept:
+a decade-granular slider (1620 → present) sweeping a rolling ±25-year
+window, so dragging it animates your family spreading across the map —
+Plymouth to the frontier in one thumb-drag. Not a filter, an experience;
+pairs naturally with iPad presentation mode, and the brief already
+imagines a time slider for Family Street View. Needs marker
+enter/exit animation to feel alive.

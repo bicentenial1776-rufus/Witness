@@ -1,3 +1,4 @@
+import Slider from '@react-native-community/slider';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -22,10 +23,12 @@ import { useTheme } from '@/hooks/use-theme';
 
 const MILES_TO_KM = 1.60934;
 
-const RADII = [1, 5, 10, 15, 25].map((miles) => ({
-  label: `${miles} mi`,
-  km: miles * MILES_TO_KM,
-}));
+/**
+ * Log-scaled slider: half the track covers 1–10 miles (the cemetery and
+ * town range where precision matters), the rest sweeps out to 100.
+ */
+const MAX_MILES = 100;
+const milesFromT = (t: number) => Math.max(1, Math.round(MAX_MILES ** t));
 
 function distanceLabel(km: number): string {
   const miles = km / MILES_TO_KM;
@@ -79,9 +82,15 @@ export default function ProximityTab() {
   const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
   const [position, setPosition] = useState<{ latitude: number; longitude: number } | null>(null);
   const [denied, setDenied] = useState(false);
-  const [radiusIndex, setRadiusIndex] = useState(1);
+  // t in [0,1] on a log track; live follows the finger, committed queries.
+  const [liveT, setLiveT] = useState(Math.log(5) / Math.log(MAX_MILES));
+  const [committedT, setCommittedT] = useState(Math.log(5) / Math.log(MAX_MILES));
   const [century, setCentury] = useState<number | null>(null);
   const [view, setView] = useState<'list' | 'map'>('list');
+
+  const liveMiles = milesFromT(liveT);
+  const radiusMiles = milesFromT(committedT);
+  const radiusKm = radiusMiles * MILES_TO_KM;
 
   useEffect(() => {
     if (!treeId) return;
@@ -112,8 +121,8 @@ export default function ProximityTab() {
 
   const nearby = useMemo(() => {
     if (!index || !position) return null;
-    return nearbyAncestors(index, { ...position, radiusKm: RADII[radiusIndex]!.km });
-  }, [index, position, radiusIndex]);
+    return nearbyAncestors(index, { ...position, radiusKm });
+  }, [index, position, radiusKm]);
 
   const centuries = useMemo(() => (nearby ? centuriesOf(nearby) : []), [nearby]);
 
@@ -136,8 +145,6 @@ export default function ProximityTab() {
     () => new Set(sections.flatMap((s) => s.data.map((r) => r.individual.id))).size,
     [sections],
   );
-
-  const radiusKm = RADII[radiusIndex]!.km;
 
   if (!treeId) {
     return (
@@ -174,8 +181,8 @@ export default function ProximityTab() {
           {view === 'list' && (
             <ThemedText type="subtitle">
               {totalPeople > 0
-                ? `${totalPeople.toLocaleString()} of your family's people have history within ${RADII[radiusIndex]!.label} of you`
-                : `No family places within ${RADII[radiusIndex]!.label} — widen the search`}
+                ? `${totalPeople.toLocaleString()} of your family's people have history within ${radiusMiles} mi of you`
+                : `No family places within ${radiusMiles} mi — widen the search`}
             </ThemedText>
           )}
 
@@ -186,11 +193,13 @@ export default function ProximityTab() {
                 : undefined
             }
           >
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8, paddingHorizontal: view === 'map' ? 16 : 0 }}
-              style={{ flexGrow: 0 }}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+                paddingHorizontal: view === 'map' ? 16 : 0,
+              }}
             >
               <Chip
                 label={view === 'list' ? 'Map' : 'List'}
@@ -198,16 +207,36 @@ export default function ProximityTab() {
                 activeColor={theme.accent}
                 onPress={() => setView(view === 'list' ? 'map' : 'list')}
               />
-              {RADII.map((radius, i) => (
-                <Chip
-                  key={radius.label}
-                  label={radius.label}
-                  active={i === radiusIndex}
-                  activeColor={theme.accent}
-                  onPress={() => setRadiusIndex(i)}
-                />
-              ))}
-            </ScrollView>
+              <Slider
+                style={{ flex: 1 }}
+                minimumValue={0}
+                maximumValue={1}
+                value={committedT}
+                onValueChange={setLiveT}
+                onSlidingComplete={(t) => {
+                  setLiveT(t);
+                  setCommittedT(t);
+                }}
+                minimumTrackTintColor={theme.accent}
+              />
+              <View
+                style={{
+                  backgroundColor: view === 'map' ? '#1C1917' : theme.backgroundElement,
+                  borderRadius: 12,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                  minWidth: 62,
+                  alignItems: 'center',
+                }}
+              >
+                <ThemedText
+                  type="smallBold"
+                  style={{ color: view === 'map' ? '#F7F3EE' : theme.text }}
+                >
+                  {liveMiles} mi
+                </ThemedText>
+              </View>
+            </View>
             {view === 'list' && centuries.length > 1 && (
               <ScrollView
                 horizontal
