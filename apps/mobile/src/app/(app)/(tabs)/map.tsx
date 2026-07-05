@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, type MapType } from 'react-native-maps';
 
 import { placesWithActivity, type GeographyIndex } from '@witness/core/query';
 
@@ -27,6 +27,11 @@ export default function AncestorMapTab() {
   const treeId = activeTree?.id;
   const [index, setIndex] = useState<GeographyIndex | null>(null);
   const [eraIndex, setEraIndex] = useState(0);
+  // Apple Maps: full color styling isn't customizable, but mutedStandard
+  // is the desaturated cartography that suits the brand; hybrid = satellite
+  // with labels.
+  const [mapType, setMapType] = useState<MapType>('mutedStandard');
+  const mapRef = useRef<MapView>(null);
 
   useEffect(() => {
     if (!treeId) return;
@@ -59,10 +64,20 @@ export default function AncestorMapTab() {
     return {
       latitude: (minLat + maxLat) / 2,
       longitude: (minLng + maxLng) / 2,
-      latitudeDelta: Math.max(1, (maxLat - minLat) * 1.4),
-      longitudeDelta: Math.max(1, (maxLng - minLng) * 1.4),
+      latitudeDelta: Math.max(0.05, (maxLat - minLat) * 1.3),
+      longitudeDelta: Math.max(0.05, (maxLng - minLng) * 1.3),
     };
   }, [markers]);
+
+  // Reframe (animated) when the era changes instead of remounting the map.
+  useEffect(() => {
+    if (!markers.length) return;
+    mapRef.current?.fitToCoordinates(
+      markers.slice(0, 50).map((m) => ({ latitude: m.place.latitude!, longitude: m.place.longitude! })),
+      { edgePadding: { top: 140, right: 60, bottom: 80, left: 60 }, animated: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eraIndex, index]);
 
   if (!treeId) {
     return (
@@ -79,13 +94,13 @@ export default function AncestorMapTab() {
           <ActivityIndicator />
         </View>
       ) : (
-        <MapView key={eraIndex} style={{ flex: 1 }} initialRegion={initialRegion}>
+        <MapView ref={mapRef} style={{ flex: 1 }} initialRegion={initialRegion} mapType={mapType}>
           {markers.map(({ place, eventCount }) => (
             <Marker
               key={place.id}
               coordinate={{ latitude: place.latitude!, longitude: place.longitude! }}
               title={place.parts[0] ?? place.raw}
-              description={`${eventCount} event${eventCount === 1 ? '' : 's'} — tap for ancestors`}
+              description={`${eventCount} event${eventCount === 1 ? '' : 's'} · View the ancestors here ›`}
               tracksViewChanges={false}
               onCalloutPress={() =>
                 router.push({ pathname: '/place/[placeId]', params: { placeId: place.id, treeId } })
@@ -125,6 +140,17 @@ export default function AncestorMapTab() {
             }}
           >
             <ThemedText style={{ color: '#F7F3EE' }}>I’m here</ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => setMapType(mapType === 'hybrid' ? 'mutedStandard' : 'hybrid')}
+            style={{
+              backgroundColor: mapType === 'hybrid' ? theme.accent : '#1C1917',
+              borderRadius: 16,
+              paddingHorizontal: 14,
+              paddingVertical: 7,
+            }}
+          >
+            <ThemedText style={{ color: '#F7F3EE' }}>Satellite</ThemedText>
           </Pressable>
         </ScrollView>
         {markers.length === MAX_MARKERS && (

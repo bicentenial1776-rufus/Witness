@@ -11,15 +11,16 @@ import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
 import { getRelationshipMap } from '@/lib/relationship-cache';
 
-const RADII = [
-  { label: '500 m', km: 0.5 },
-  { label: '2 km', km: 2 },
-  { label: '10 km', km: 10 },
-  { label: '50 km', km: 50 },
-];
+const MILES_TO_KM = 1.60934;
+
+const RADII = [1, 5, 10, 15, 25].map((miles) => ({
+  label: `${miles} mi`,
+  km: miles * MILES_TO_KM,
+}));
 
 function distanceLabel(km: number): string {
-  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+  const miles = km / MILES_TO_KM;
+  return miles < 0.2 ? `${Math.round(miles * 5280)} ft` : `${miles.toFixed(1)} mi`;
 }
 
 /** Century tabs derived from the events actually found nearby. */
