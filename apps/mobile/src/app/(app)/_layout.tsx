@@ -9,6 +9,14 @@ import { useTheme } from '@/hooks/use-theme';
  * screens keep taking treeId params so deep links — like the digest
  * notification — work without any tab state.
  */
+
+// Anchor deep links on the tabs: opening a detail screen directly (a
+// notification tap, a dev-client link) still puts Home beneath it, so
+// there is always a back chevron and a tab bar to return to.
+export const unstable_settings = {
+  initialRouteName: '(tabs)',
+};
+
 export default function AppLayout() {
   const theme = useTheme();
 
