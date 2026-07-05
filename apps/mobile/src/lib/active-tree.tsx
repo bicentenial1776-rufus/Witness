@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { useSession } from '@/auth/session-provider';
+import { invalidateRelationshipCache } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -36,6 +37,7 @@ const ActiveTreeContext = createContext<ActiveTreeContextValue>({
 export function ActiveTreeProvider({ children }: { children: ReactNode }) {
   const { session } = useSession();
   const [trees, setTrees] = useState<TreeRow[] | null>(null);
+  const homePersons = useRef(new Map<string, string | null>());
 
   const refresh = useCallback(async () => {
     const { data, error } = await supabase
@@ -44,7 +46,15 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
         'id, name, individual_count, family_count, place_count, imported_at, home_person_id, home_person:individuals!trees_home_person_id_fkey(full_name)',
       )
       .order('imported_at', { ascending: false });
-    if (!error) setTrees(data);
+    if (error) return;
+    // A home person changed on another device leaves this device's cached
+    // relationship labels stale for the whole session — drop them here.
+    for (const tree of data ?? []) {
+      const known = homePersons.current.get(tree.id);
+      if (known !== undefined && known !== tree.home_person_id) invalidateRelationshipCache();
+      homePersons.current.set(tree.id, tree.home_person_id);
+    }
+    setTrees(data);
   }, []);
 
   useEffect(() => {

@@ -21,6 +21,7 @@ interface PersonRow {
 
 type Step =
   | { name: 'loading' }
+  | { name: 'current'; personName: string }
   | { name: 'suggested'; candidate: HomePersonCandidate }
   | { name: 'choosing' }
   | { name: 'saving'; personName: string; progress: { computed: number; total: number } | null }
@@ -32,13 +33,28 @@ export default function HomePersonScreen() {
   const [search, setSearch] = useState('');
   const [candidates, setCandidates] = useState<PersonRow[]>([]);
 
+  // A home person may already be set — show them, don't re-suggest.
+  // Re-running the suggestion here made a saved change look like it
+  // hadn't stuck ("We think this might be you…" every visit).
   useEffect(() => {
     if (!treeId) return;
     let cancelled = false;
-    suggestHomePerson(supabase, treeId).then((candidate) => {
+    (async () => {
+      const { data: tree } = await supabase
+        .from('trees')
+        .select('home_person:individuals!trees_home_person_id_fkey(full_name)')
+        .eq('id', treeId)
+        .maybeSingle();
+      if (cancelled) return;
+      const current = tree?.home_person as { full_name: string } | null;
+      if (current) {
+        setStep({ name: 'current', personName: current.full_name });
+        return;
+      }
+      const candidate = await suggestHomePerson(supabase, treeId);
       if (cancelled) return;
       setStep(candidate ? { name: 'suggested', candidate } : { name: 'choosing' });
-    });
+    })();
     return () => {
       cancelled = true;
     };
@@ -84,6 +100,20 @@ export default function HomePersonScreen() {
     <ThemedView style={{ flex: 1, padding: 24, gap: 12 }}>
 
       {step.name === 'loading' && <ActivityIndicator style={{ marginVertical: 24 }} />}
+
+      {step.name === 'current' && (
+        <>
+          <ThemedText>
+            You are <ThemedText style={{ fontWeight: 600 }}>{step.personName}</ThemedText> in this
+            tree. Every relationship label is computed from this person.
+          </ThemedText>
+          <Button
+            variant="secondary"
+            title="Change who I am"
+            onPress={() => setStep({ name: 'choosing' })}
+          />
+        </>
+      )}
 
       {step.name === 'suggested' && (
         <>
