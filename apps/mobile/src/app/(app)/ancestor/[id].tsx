@@ -248,9 +248,31 @@ export default function AncestorScreen() {
     };
   }, [id]);
 
-  async function startResearchBrief() {
+  // Tab selection initiates the section's action directly — no second tap.
+  function selectTab(next: SectionTab) {
+    setTab(next);
+    if (next === 'world' && worldContext.state.name === 'none') worldContext.generate();
+    if (next === 'research' && !briefBusy) openResearchBrief();
+  }
+
+  async function openResearchBrief() {
     setBriefBusy(true);
     setBriefError(null);
+    // An open brief for this ancestor already exists? Go there — the
+    // Edge Function would happily generate a duplicate.
+    const { data: existing } = await supabase
+      .from('research_briefs')
+      .select('id')
+      .eq('individual_id', id)
+      .neq('status', 'archived')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existing) {
+      setBriefBusy(false);
+      router.push({ pathname: '/research/[briefId]', params: { briefId: existing.id } });
+      return;
+    }
     const { data, error } = await supabase.functions.invoke('generate-research-brief', {
       body: { individualId: id },
     });
@@ -318,7 +340,7 @@ export default function AncestorScreen() {
                 return (
                   <Pressable
                     key={key}
-                    onPress={() => setTab(key)}
+                    onPress={() => selectTab(key)}
                     style={{
                       backgroundColor: active ? theme.accent : theme.backgroundElement,
                       borderWidth: 1,
@@ -348,27 +370,36 @@ export default function AncestorScreen() {
                   onGenerate={biography.generate}
                 />
               )}
-              {tab === 'world' && (
-                <EnrichmentBody
-                  buttonTitle="Show me their world"
-                  generatingLabel="Searching the historical record…"
-                  state={worldContext.state}
-                  onGenerate={worldContext.generate}
-                />
-              )}
-              {tab === 'research' && (
-                <>
-                  {briefError && <ThemedText>{briefError}</ThemedText>}
-                  {briefBusy ? (
-                    <View style={{ gap: 8, marginVertical: 8 }}>
-                      <ActivityIndicator />
-                      <ThemedText type="small">Preparing a research brief…</ThemedText>
-                    </View>
-                  ) : (
-                    <Button title="Start a research brief" onPress={startResearchBrief} />
-                  )}
-                </>
-              )}
+              {tab === 'world' &&
+                (worldContext.state.name === 'ready' ? (
+                  <ThemedText>{worldContext.state.text}</ThemedText>
+                ) : worldContext.state.name === 'error' ? (
+                  <>
+                    <ThemedText>{worldContext.state.message}</ThemedText>
+                    <Button title="Try again" onPress={worldContext.generate} />
+                  </>
+                ) : (
+                  <View style={{ gap: 8, marginVertical: 8 }}>
+                    <ActivityIndicator />
+                    <ThemedText type="small">Searching the historical record…</ThemedText>
+                  </View>
+                ))}
+              {tab === 'research' &&
+                (briefBusy ? (
+                  <View style={{ gap: 8, marginVertical: 8 }}>
+                    <ActivityIndicator />
+                    <ThemedText type="small">Preparing a research brief…</ThemedText>
+                  </View>
+                ) : briefError ? (
+                  <>
+                    <ThemedText>{briefError}</ThemedText>
+                    <Button title="Try again" onPress={openResearchBrief} />
+                  </>
+                ) : (
+                  <ThemedText type="link" onPress={openResearchBrief}>
+                    Open the research brief ›
+                  </ThemedText>
+                ))}
             </View>
           </>
         )}
