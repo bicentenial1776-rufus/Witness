@@ -4,7 +4,9 @@
 
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
-export const DAILY_LIMIT = 20;
+// Effectively unlimited for human use; exists to stop a runaway bug loop,
+// not to meter people. (Raised from 20 during family beta, July 2026.)
+export const DAILY_LIMIT = 1000;
 
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
