@@ -5,4 +5,5 @@ export * from './geography.js';
 export * from './migrations.js';
 export * from './treeIndex.js';
 export * from './milestones.js';
+export * from './placeDiscovery.js';
 export * from './structure.js';

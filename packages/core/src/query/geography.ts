@@ -1,7 +1,7 @@
 import type { WitnessSupabaseClient } from '../supabase/client.js';
 import type { Database } from '../supabase/database.types.js';
 import { fetchAllPages } from '../supabase/paginate.js';
-import { regionOf } from './regions.js';
+import { classifyPlace, regionOf } from './regions.js';
 
 /**
  * Geographic queries load the tree's places, events, and individuals once
@@ -18,6 +18,7 @@ export interface GeoPlace {
   latitude: number | null;
   longitude: number | null;
   region: string | null;
+  country: string | null;
 }
 
 export interface GeoEvent {
@@ -30,6 +31,7 @@ export interface GeoEvent {
 export interface GeoIndividual {
   id: string;
   full_name: string;
+  surname: string | null;
   birth_year: number | null;
   death_year: number | null;
   living: boolean;
@@ -46,7 +48,7 @@ export async function fetchGeographyIndex(
   treeId: string,
 ): Promise<GeographyIndex> {
   const [placeRows, eventRows, individualRows] = await Promise.all([
-    fetchAllPages<Omit<GeoPlace, 'region'>>(
+    fetchAllPages<Omit<GeoPlace, 'region' | 'country'>>(
       (from, to) =>
         client
           .from('places')
@@ -70,7 +72,7 @@ export async function fetchGeographyIndex(
       (from, to) =>
         client
           .from('individuals')
-          .select('id, full_name, birth_year, death_year, living')
+          .select('id, full_name, surname, birth_year, death_year, living')
           .eq('tree_id', treeId)
           .order('id')
           .range(from, to),
@@ -79,7 +81,8 @@ export async function fetchGeographyIndex(
   ]);
 
   const places = new Map<string, GeoPlace>();
-  for (const row of placeRows) places.set(row.id, { ...row, region: regionOf(row.parts) });
+  for (const row of placeRows)
+    places.set(row.id, { ...row, region: regionOf(row.parts), country: classifyPlace(row.parts).country });
 
   const events: GeoEvent[] = eventRows.map((row) => ({
     individualId: row.individual_id,

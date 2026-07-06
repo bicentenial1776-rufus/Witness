@@ -67,13 +67,13 @@ function fixtureIndex(): GeographyIndex {
         { id: 'p2', raw: 'Boston, MA', parts: ['Boston', 'MA'], latitude: 42.36, longitude: -71.06 },
         { id: 'p3', raw: 'Turner, Maine', parts: ['Turner', 'Maine'], latitude: 44.26, longitude: -70.26 },
         { id: 'p4', raw: 'Bocking, Essex, England', parts: ['Bocking', 'Essex', 'England'], latitude: null, longitude: null },
-      ] as Omit<GeoPlace, 'region'>[]
-    ).map((p) => [p.id, { ...p, region: regionOf(p.parts) }]),
+      ] as Omit<GeoPlace, 'region' | 'country'>[]
+    ).map((p) => [p.id, { ...p, region: regionOf(p.parts), country: classifyPlace(p.parts).country }]),
   );
   const individuals = new Map<string, GeoIndividual>([
-    ['i1', { id: 'i1', full_name: 'John Howe', birth_year: 1620, death_year: 1700, living: false }],
-    ['i2', { id: 'i2', full_name: 'Mary Field', birth_year: 1750, death_year: 1820, living: false }],
-    ['i3', { id: 'i3', full_name: 'Undated Smith', birth_year: null, death_year: null, living: false }],
+    ['i1', { id: 'i1', full_name: 'John Howe', surname: 'Howe', birth_year: 1620, death_year: 1700, living: false }],
+    ['i2', { id: 'i2', full_name: 'Mary Field', surname: 'Field', birth_year: 1750, death_year: 1820, living: false }],
+    ['i3', { id: 'i3', full_name: 'Undated Smith', surname: 'Smith', birth_year: null, death_year: null, living: false }],
   ]);
   return {
     places,
@@ -131,6 +131,7 @@ describe('migrationPaths', () => {
       latitude: null,
       longitude: null,
       region: 'United States',
+      country: 'United States',
     });
     // Mary: Massachusetts 1750 → vague US 1790 → Maine 1820. One real move.
     index.events.push({ individualId: 'i2', eventType: 'residence', year: 1790, placeId: 'p6' });
@@ -158,6 +159,7 @@ describe('migrationPaths', () => {
       latitude: null,
       longitude: null,
       region: 'New Hampshire',
+      country: 'United States',
     });
     index.events.push({ individualId: 'i2', eventType: 'burial', year: 1821, placeId: 'p5' });
     const paths = migrationPaths(index);

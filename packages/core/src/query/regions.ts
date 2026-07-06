@@ -120,7 +120,9 @@ export function classifyPlace(parts: readonly string[]): PlaceRegion {
   if (parts.length < 2) return { country: null, state: null };
 
   const last = normalizeToken(parts[parts.length - 1] ?? '');
-  const secondLast = parts.length >= 3 ? normalizeToken(parts[parts.length - 2] ?? '') : null;
+  // "Massachusetts, USA" resolves to the state even at two parts; a town
+  // in that position ("Boston, USA") simply won't match a state token.
+  const secondLast = normalizeToken(parts[parts.length - 2] ?? '');
 
   const country = COUNTRY_SYNONYMS[last];
   if (country === US) {
@@ -146,6 +148,12 @@ export function classifyPlace(parts: readonly string[]): PlaceRegion {
 export function regionOf(parts: readonly string[]): string | null {
   const { country, state } = classifyPlace(parts);
   return state ?? country;
+}
+
+/** Canonical US state / Canadian province for a single place part, if any. */
+export function canonicalState(part: string): string | null {
+  const token = normalizeToken(part);
+  return US_STATES[token] ?? CA_PROVINCES[token] ?? null;
 }
 
 const STATE_COUNTRY: Record<string, string> = {};

@@ -23,6 +23,21 @@ import {
   widowedAndRemarried,
 } from '../milestones.js';
 import {
+  NEW_ENGLAND_STATES,
+  bornAndDiedApart,
+  emigrantsBetween,
+  familyOrigins,
+  migrationClusters,
+  oceanCrossings,
+  placesAcrossCenturies,
+  regionShare,
+  residentsOfRegionsDuring,
+  singletonPlaces,
+  surnameHeartland,
+  surnamesDominatingPlaces,
+  topPlaces,
+} from '../placeDiscovery.js';
+import {
   duplicateCandidates,
   familiesSpanningCountries,
   mostDescendants,
@@ -185,6 +200,108 @@ describe.skipIf(!hasFixture)('Section X — family structure (real Howe/Field GE
     const pair = mostDistantPair(index);
     expect(pair).not.toBeNull();
     expect(pair!.steps).toBeGreaterThanOrEqual(10);
+  });
+});
+
+describe.skipIf(!hasFixture)('Section III — place discovery (real Howe/Field GEDCOM)', () => {
+
+  it('traces family origins back before 1700, oldest region first', () => {
+    const index = loadIndex();
+    const origins = familyOrigins(index);
+    expect(origins.length).toBeGreaterThanOrEqual(3);
+    expect(origins[0]!.earliestYear).toBeLessThan(1700);
+    for (let i = 1; i < origins.length; i++) {
+      expect(origins[i]!.earliestYear).toBeGreaterThanOrEqual(origins[i - 1]!.earliestYear);
+    }
+  });
+
+  it('finds Atlantic crossings with coherent shores', () => {
+    const index = loadIndex();
+    const crossings = oceanCrossings(index, 'atlantic');
+    expect(crossings.length).toBeGreaterThan(0);
+    for (const crossing of crossings) {
+      expect(crossing.from.country).not.toBe(crossing.to.country);
+      expect(crossing.from.year).toBeLessThanOrEqual(crossing.to.year);
+    }
+  });
+
+  it('finds Great Migration emigrants from England to New England', () => {
+    const index = loadIndex();
+    const emigrants = emigrantsBetween(index, ['England', 'United Kingdom'], NEW_ENGLAND_STATES);
+    expect(emigrants.length).toBeGreaterThan(0);
+    for (const emigrant of emigrants) {
+      expect(emigrant.from.year).toBeLessThanOrEqual(emigrant.to.year);
+    }
+  });
+
+  it('separates country-level and state-level displacement', () => {
+    const index = loadIndex();
+    const byCountry = bornAndDiedApart(index, 'country');
+    const byState = bornAndDiedApart(index, 'state');
+    expect(byCountry.length).toBeGreaterThan(0);
+    expect(byState.length).toBeGreaterThan(byCountry.length);
+    for (const entry of byState) expect(entry.bornIn).not.toBe(entry.diedIn);
+  });
+
+  it('rolls up top places at every level for a New England tree', () => {
+    const index = loadIndex();
+    const states = topPlaces(index, 'state');
+    expect(states.slice(0, 3).map((s) => s.name)).toContain('Massachusetts');
+    const towns = topPlaces(index, 'town');
+    expect(towns).toHaveLength(10);
+    for (let i = 1; i < towns.length; i++) {
+      expect(towns[i]!.individualCount).toBeLessThanOrEqual(towns[i - 1]!.individualCount);
+    }
+    const countries = topPlaces(index, 'country', 5);
+    expect(countries[0]!.name).toBe('United States');
+  });
+
+  it('measures the New England share of a New England family', () => {
+    const index = loadIndex();
+    const share = regionShare(index, NEW_ENGLAND_STATES);
+    expect(share.locatedCount).toBeGreaterThan(1000);
+    expect(share.share).toBeGreaterThan(0.3);
+    expect(share.share).toBeLessThanOrEqual(1);
+  });
+
+  it('finds era residents — colonial Massachusetts before 1700', () => {
+    const index = loadIndex();
+    const colonials = residentsOfRegionsDuring(index, ['Massachusetts'], { endYear: 1699 });
+    expect(colonials.length).toBeGreaterThan(50);
+    for (const resident of colonials.slice(0, 100)) {
+      for (const event of resident.events) expect(event.year).toBeLessThanOrEqual(1699);
+    }
+  });
+
+  it('finds generational anchor towns and one-off outposts', () => {
+    const index = loadIndex();
+    const anchors = placesAcrossCenturies(index, 3);
+    expect(anchors.length).toBeGreaterThan(0);
+    expect(anchors[0]!.centuryCount).toBeGreaterThanOrEqual(3);
+    expect(singletonPlaces(index).length).toBeGreaterThan(50);
+  });
+
+  it('surfaces chain migration clusters of at least two movers', () => {
+    const index = loadIndex();
+    const clusters = migrationClusters(index);
+    expect(clusters.length).toBeGreaterThan(0);
+    for (const cluster of clusters.slice(0, 50)) {
+      expect(cluster.movers.length).toBeGreaterThanOrEqual(2);
+      for (const mover of cluster.movers) {
+        expect(Math.floor(mover.toYear! / 10) * 10).toBe(cluster.decade);
+      }
+    }
+  });
+
+  it('maps the Howe heartland and town-surname dominance coherently', () => {
+    const index = loadIndex();
+    const heartland = surnameHeartland(index, 'Howe');
+    expect(heartland.length).toBeGreaterThan(0);
+    for (const dominance of surnamesDominatingPlaces(index)) {
+      expect(dominance.surnameCount).toBeLessThanOrEqual(dominance.totalCount);
+      expect(dominance.share).toBeGreaterThan(0);
+      expect(dominance.share).toBeLessThanOrEqual(1);
+    }
   });
 });
 
