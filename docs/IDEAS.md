@@ -167,7 +167,14 @@ it manually. Needs to be a server-side job: an Edge Function (or queue)
 that walks a tree's ungeocoded places at Nominatim's 1 req/sec after
 import, so the map lights up on its own. The FAQ already describes the
 intended behavior ("computed after import… fills in as places are
-located") — this makes it true without a human in the loop. Consider a
-shared places cache across trees (same raw place string → same
-coordinates) to make repeat imports near-instant. Prerequisite for
-TestFlight testers importing their own trees.
+located") — this makes it true without a human in the loop. The shared
+places cache across trees (same raw place string → same coordinates) is
+now VALIDATED: Ruth's 3,812-place import got 3,664 coordinates copied
+from Rufus's tree in seconds, leaving 4 for the live geocoder.
+
+Also required: the app's in-memory geography cache lasts the whole
+session, so a map opened before geocoding completes stays dark until the
+app restarts (observed on Ruth's first run). The job should pair with a
+client refresh — invalidate the geography cache when a tree's
+geocoded_at count changes, or refresh on Map tab focus with a staleness
+window. Prerequisite for TestFlight testers importing their own trees.
