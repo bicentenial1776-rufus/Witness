@@ -155,3 +155,19 @@ brief promises; the web is the biggest canvas. Three legs:
 **Trigger:** post-iOS-launch retention data. If trial conversion and
 week-4 usage look healthy, web-behind-paywall is the highest-leverage
 next move. Not before TestFlight.
+
+---
+
+## Automatic Post-Import Geocoding
+
+**Added:** July 2026, exposed by the second-account onboarding (Ruth's own
+import). Geocoding currently runs as a developer script from a laptop —
+an in-app import leaves the Map and Nearby tabs dark until someone runs
+it manually. Needs to be a server-side job: an Edge Function (or queue)
+that walks a tree's ungeocoded places at Nominatim's 1 req/sec after
+import, so the map lights up on its own. The FAQ already describes the
+intended behavior ("computed after import… fills in as places are
+located") — this makes it true without a human in the loop. Consider a
+shared places cache across trees (same raw place string → same
+coordinates) to make repeat imports near-instant. Prerequisite for
+TestFlight testers importing their own trees.

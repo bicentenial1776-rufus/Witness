@@ -29,5 +29,8 @@ Never. Witness is read-only by design — your GEDCOM and your tree on Ancestry,
 **What about living people?**
 People who appear to be living are excluded from AI-written stories and from anything shareable. Their records stay private to your account.
 
+**Why are the Map and Nearby tabs sparse right after an import?**
+Place coordinates are computed after import, and the free geocoding service works at a deliberate pace — a large tree with thousands of places can take a couple of hours to fully light up; a small export takes minutes. Everything else — the weekly digest, queries, stories, relationships — works immediately. The map fills in as places are located.
+
 **Something looks wrong and it isn't listed here.**
 Genealogy data is messy — that's half the fun. Write us at support@witnesslives.com and a real person will dig in with you.
