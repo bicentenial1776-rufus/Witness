@@ -3,8 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
 import { getRelationship } from '@witness/core/family';
-import { fetchHistoricalEvents, type HistoricalEvent } from '@witness/core/history';
-import { classifyAliveDuring } from '@witness/core/query';
+import { getLivedThroughEvents, type LivedThroughTag } from '@witness/core/history';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
@@ -170,7 +169,7 @@ export default function AncestorScreen() {
   const [person, setPerson] = useState<Person | null>(null);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [parents, setParents] = useState<ParentRow[]>([]);
-  const [moments, setMoments] = useState<{ event: HistoricalEvent; ageAtStart: number | null }[]>([]);
+  const [tags, setTags] = useState<LivedThroughTag[]>([]);
   const [relationship, setRelationship] = useState<string | null>(null);
   const [tab, setTab] = useState<SectionTab>('story');
   const [briefBusy, setBriefBusy] = useState(false);
@@ -185,7 +184,7 @@ export default function AncestorScreen() {
     setPerson(null);
     setEvents([]);
     setParents([]);
-    setMoments([]);
+    setTags([]);
     setRelationship(null);
     setTab('story');
     (async () => {
@@ -206,17 +205,11 @@ export default function AncestorScreen() {
       setPerson(personRow);
       setEvents(eventRows ?? []);
 
-      // Which library queries does this life overlap? Same classification
-      // rule as the alive-during engine, run against every event.
+      // "Lived through" tags: the 5 events that best frame this life,
+      // ranked by tier and boosted by this person's own geography.
       if (personRow) {
-        fetchHistoricalEvents(supabase).then((library) => {
-          if (cancelled) return;
-          setMoments(
-            library.flatMap((event) => {
-              const match = classifyAliveDuring(personRow, event);
-              return match ? [{ event, ageAtStart: match.ageAtStart }] : [];
-            }),
-          );
+        getLivedThroughEvents(supabase, personRow.id).then((ranked) => {
+          if (!cancelled && ranked) setTags(ranked);
         });
       }
 
@@ -331,6 +324,34 @@ export default function AncestorScreen() {
           {person.living ? ' · living' : ''}
         </ThemedText>
 
+        {tags.length > 0 && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+            {tags.map((tag) => (
+              <Pressable
+                key={tag.event.id}
+                onPress={() =>
+                  router.push({
+                    pathname: '/query/[eventId]',
+                    params: { eventId: tag.event.id, treeId: person.tree_id, pin: person.id },
+                  })
+                }
+                style={{
+                  backgroundColor: theme.backgroundElement,
+                  borderWidth: 1,
+                  borderColor: theme.accent,
+                  borderRadius: 14,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                }}
+              >
+                <ThemedText type="small" themeColor="accent" style={{ fontWeight: 600 }}>
+                  {tag.event.name}
+                </ThemedText>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
         {parents.length > 0 && (
           <View style={{ marginTop: 8, gap: 2 }}>
             <ThemedText type="smallBold">PARENTS</ThemedText>
@@ -444,35 +465,6 @@ export default function AncestorScreen() {
           </Card>
         )}
 
-        {moments.length > 0 && (
-          <>
-            <ThemedText type="subtitle" style={{ marginTop: 16 }}>
-              {person.sex === 'F' ? 'Her' : person.sex === 'M' ? 'His' : 'Their'} moments in history
-            </ThemedText>
-            {moments.map(({ event, ageAtStart }) => (
-              <Card
-                key={event.id}
-                onPress={() =>
-                  router.push({
-                    pathname: '/query/[eventId]',
-                    params: { eventId: event.id, treeId: person.tree_id },
-                  })
-                }
-                style={{ paddingVertical: 12 }}
-              >
-                <ThemedText>{event.name}</ThemedText>
-                <ThemedText type="small">
-                  {event.startYear === event.endYear
-                    ? event.startYear
-                    : `${event.startYear}–${event.endYear}`}
-                  {ageAtStart !== null
-                    ? ` · was ${ageAtStart} when it began`
-                    : ' · born during these years'}
-                </ThemedText>
-              </Card>
-            ))}
-          </>
-        )}
       </ScrollView>
     </ThemedView>
   );

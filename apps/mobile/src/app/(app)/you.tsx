@@ -13,6 +13,7 @@ import {
 } from '@/lib/digest-notifications';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
 import { invalidateRelationshipCache } from '@/lib/relationship-cache';
+import { invalidateShelfCache } from '@/lib/shelf-cache';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
 
@@ -47,6 +48,7 @@ export default function YouTab() {
             else {
               invalidateGeographyCache();
               invalidateRelationshipCache();
+              invalidateShelfCache();
               refresh();
             }
           },
