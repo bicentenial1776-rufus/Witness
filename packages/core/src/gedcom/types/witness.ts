@@ -53,6 +53,32 @@ export interface MediaRef {
   primary: boolean;
 }
 
+export interface SourceRecord {
+  /** GEDCOM xref, e.g. "S266917025". */
+  id: string;
+  title?: string;
+  author?: string;
+  /** Publication details; Ancestry packs original-data provenance in here. */
+  publisher?: string;
+  /** Ancestry _APID of the source database, e.g. "1,1265::0". */
+  apid?: string;
+}
+
+export interface SourceCitation {
+  /** Xref of the source record this citation points into. */
+  sourceId: string;
+  /** Which fact it supports: person, name, birth, residence, marriage, … */
+  fact: string;
+  /** Free-text locator: page, roll, school name and year, … */
+  page?: string;
+  /** Excerpt of what the record actually says (SOUR.DATA.TEXT). */
+  text?: string;
+  /** Link to the record image or partner site (SOUR.DATA.WWW). */
+  url?: string;
+  /** Ancestry _APID of the specific record — the deep-link id. */
+  apid?: string;
+}
+
 export interface Individual {
   id: string;
   name: IndividualName;
@@ -79,6 +105,8 @@ export interface Individual {
   uid?: string;
   /** First Ancestry _APID seen in the record (database::record id, for deep links). */
   apid?: string;
+  /** Source citations attached to this person and their facts. */
+  citations: SourceCitation[];
 }
 
 export interface ChildRelationship {
@@ -97,6 +125,8 @@ export interface Family {
   marriage?: GedcomEvent;
   /** Only children with a non-default relationship qualifier appear here. */
   childRelationships: ChildRelationship[];
+  /** Source citations for the family's facts (marriage, divorce, …). */
+  citations: SourceCitation[];
 }
 
 export type CuriosityType =
@@ -135,6 +165,8 @@ export interface ParsedGedcom {
   individuals: Map<string, Individual>;
   families: Map<string, Family>;
   places: PlaceRef[];
+  /** Top-level source records, keyed by xref. */
+  sources: Map<string, SourceRecord>;
   curiosities: Curiosity[];
   metadata: GedcomMetadata;
 }

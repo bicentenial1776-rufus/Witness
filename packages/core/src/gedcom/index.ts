@@ -4,8 +4,9 @@ import { parseFamily } from './parser/family.js';
 import { parseIndividual } from './parser/individual.js';
 import { collectSharedRecords } from './parser/records.js';
 import { child, value } from './parser/query.js';
+import { parseSourceRecord } from './parser/sources.js';
 import { buildTree } from './parser/tree.js';
-import type { Family, GedcomMetadata, Individual, ParsedGedcom } from './types/witness.js';
+import type { Family, GedcomMetadata, Individual, ParsedGedcom, SourceRecord } from './types/witness.js';
 
 export * from './types/witness.js';
 export { extractGedcomText, isZipData } from './gdz.js';
@@ -36,6 +37,7 @@ export function parseGedcom(text: string, sourceFile?: string): ParsedGedcom {
 
   const individuals = new Map<string, Individual>();
   const families = new Map<string, Family>();
+  const sources = new Map<string, SourceRecord>();
 
   // Pass 1: HEAD (version routing) and shared records that later records
   // point into (NOTE/SNOTE, OBJE).
@@ -66,6 +68,11 @@ export function parseGedcom(text: string, sourceFile?: string): ParsedGedcom {
         if (family) families.set(family.id, family);
         break;
       }
+      case 'SOUR': {
+        const source = parseSourceRecord(record);
+        if (source) sources.set(source.id, source);
+        break;
+      }
       default:
         break;
     }
@@ -78,6 +85,7 @@ export function parseGedcom(text: string, sourceFile?: string): ParsedGedcom {
     individuals,
     families,
     places: placeList,
+    sources,
     curiosities,
     metadata: {
       sourceFile,
