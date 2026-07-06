@@ -145,14 +145,14 @@ describe.skipIf(!hasFixture)('Section X — family structure (real Howe/Field GE
 
   it('counts descendants, grandchildren, and siblings coherently', () => {
     const index = loadIndex();
-    const descendants = mostDescendants(index);
+    const descendants = mostDescendants(index, 5000);
     const grandchildren = mostGrandchildren(index);
     const siblings = mostSiblings(index);
     expect(descendants[0]!.descendants).toBeGreaterThanOrEqual(grandchildren[0]!.grandchildren);
     expect(siblings[0]!.siblings).toBeGreaterThanOrEqual(5);
     // A person's descendants include at least their grandchildren.
     const topGrandparent = grandchildren[0]!;
-    const sameInDescendants = mostDescendants(index, 5000).find(
+    const sameInDescendants = descendants.find(
       (d) => d.individual.id === topGrandparent.individual.id,
     );
     expect(sameInDescendants!.descendants).toBeGreaterThanOrEqual(topGrandparent.grandchildren);

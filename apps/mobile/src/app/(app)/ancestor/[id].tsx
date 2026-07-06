@@ -3,13 +3,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
 import { getRelationship } from '@witness/core/family';
-import { getLivedThroughEvents, type LivedThroughTag } from '@witness/core/history';
+import {
+  rankLivedThroughEvents,
+  regionsFromPlaceParts,
+  type LivedThroughTag,
+} from '@witness/core/history';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { getEventLibrary } from '@/lib/event-library';
 import { getRelationshipMap } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
@@ -28,7 +33,7 @@ interface EventRow {
   event_type: string;
   date_year: number | null;
   date_raw: string | null;
-  places: { raw: string } | null;
+  places: { raw: string; parts: string[] } | null;
 }
 
 interface ParentRow {
@@ -196,7 +201,7 @@ export default function AncestorScreen() {
           .maybeSingle(),
         supabase
           .from('individual_events')
-          .select('event_type, date_year, date_raw, places(raw)')
+          .select('event_type, date_year, date_raw, places(raw, parts)')
           .eq('individual_id', id)
           .order('date_year', { ascending: true })
           .returns<EventRow[]>(),
@@ -206,10 +211,12 @@ export default function AncestorScreen() {
       setEvents(eventRows ?? []);
 
       // "Lived through" tags: the 5 events that best frame this life,
-      // ranked by tier and boosted by this person's own geography.
+      // ranked by tier and boosted by this person's own geography — all
+      // from data this screen already has, plus the cached event library.
       if (personRow) {
-        getLivedThroughEvents(supabase, personRow.id).then((ranked) => {
-          if (!cancelled && ranked) setTags(ranked);
+        const regions = regionsFromPlaceParts(eventRows ?? []);
+        getEventLibrary().then((library) => {
+          if (!cancelled) setTags(rankLivedThroughEvents(personRow, library, regions));
         });
       }
 

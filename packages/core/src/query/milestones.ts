@@ -1,5 +1,5 @@
 import { MAX_DOCUMENTED_LIFESPAN_YEARS } from './aliveDuring.js';
-import type { TreeIndex, TreeIndividual } from './treeIndex.js';
+import { parentsByChild, type TreeIndex, type TreeIndividual } from './treeIndex.js';
 
 /**
  * Section II of the query library — Life Milestones and Patterns. Every
@@ -471,26 +471,13 @@ export function lateParenthood(index: TreeIndex, minAge = 45): LateParenthood[] 
 
 // Generations ---------------------------------------------------------------
 
-function parentMap(index: TreeIndex): Map<string, string[]> {
-  const parents = new Map<string, string[]>();
-  for (const family of index.families) {
-    const parentIds = [family.husband_id, family.wife_id].filter((id): id is string => Boolean(id));
-    if (!parentIds.length) continue;
-    for (const childId of family.children) {
-      if (!parents.has(childId)) parents.set(childId, []);
-      parents.get(childId)!.push(...parentIds.filter((p) => !parents.get(childId)!.includes(p)));
-    }
-  }
-  return parents;
-}
-
 /**
  * Longest documented ancestor chain anywhere in the tree, in generations
  * (a person with no documented parents spans 1). Cycle-safe: a data-error
  * loop contributes no further depth.
  */
 export function treeGenerationSpan(index: TreeIndex): number {
-  const parents = parentMap(index);
+  const parents = parentsByChild(index);
   const memo = new Map<string, number>();
   const visiting = new Set<string>();
 
@@ -525,7 +512,7 @@ export interface GenerationLifespan {
  * from my oldest ancestor?" in one shape.
  */
 export function ancestorGenerations(index: TreeIndex, rootId: string): GenerationLifespan[] {
-  const parents = parentMap(index);
+  const parents = parentsByChild(index);
   const generationOf = new Map<string, number>([[rootId, 0]]);
   let frontier = [rootId];
   while (frontier.length) {
@@ -578,7 +565,7 @@ export interface SurnameLineDepth {
 
 /** Per-surname depth: furthest back, and where the paper trail goes cold. */
 export function surnameLineDepths(index: TreeIndex, minCount = 3): SurnameLineDepth[] {
-  const parents = parentMap(index);
+  const parents = parentsByChild(index);
   const lines = new Map<string, { count: number; earliest: number | null; coldAt: number | null }>();
   for (const person of index.individuals.values()) {
     if (!person.surname) continue;

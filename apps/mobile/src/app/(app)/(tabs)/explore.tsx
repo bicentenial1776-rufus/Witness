@@ -1,11 +1,10 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, View } from 'react-native';
 
 import {
   HISTORICAL_EVENTS,
   eventMatchesSearch,
-  fetchHistoricalEvents,
   type HistoricalEvent,
   type ShelfEntry,
 } from '@witness/core/history';
@@ -15,6 +14,7 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useActiveTree } from '@/lib/active-tree';
+import { getEventLibrary } from '@/lib/event-library';
 import { getShelf } from '@/lib/shelf-cache';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
@@ -44,13 +44,15 @@ export default function ExploreTab() {
   const { activeTree } = useActiveTree();
   const [events, setEvents] = useState<readonly HistoricalEvent[]>(HISTORICAL_EVENTS);
   const [shelf, setShelf] = useState<ShelfEntry[] | null>(null);
+  const [shelfFailed, setShelfFailed] = useState(false);
+  const [shelfAttempt, setShelfAttempt] = useState(0);
   const [search, setSearch] = useState('');
   const [people, setPeople] = useState<PersonHit[]>([]);
 
   // The full library backs search only; it is never listed outright.
   useEffect(() => {
     let cancelled = false;
-    fetchHistoricalEvents(supabase).then((list) => {
+    getEventLibrary().then((list) => {
       if (!cancelled) setEvents(list);
     });
     return () => {
@@ -65,17 +67,29 @@ export default function ExploreTab() {
     }
     let cancelled = false;
     setShelf(null);
+    setShelfFailed(false);
     getShelf(activeTree.id)
       .then((entries) => {
         if (!cancelled) setShelf(entries);
       })
       .catch(() => {
-        if (!cancelled) setShelf([]);
+        // A load failure is not an empty tree — say so, and retry on the
+        // next focus (the shelf cache never keeps failures).
+        if (!cancelled) {
+          setShelf([]);
+          setShelfFailed(true);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [activeTree?.id]);
+  }, [activeTree?.id, shelfAttempt]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (shelfFailed) setShelfAttempt((attempt) => attempt + 1);
+    }, [shelfFailed]),
+  );
 
   // People search: name match in the active tree, debounced a beat.
   useEffect(() => {
@@ -129,11 +143,16 @@ export default function ExploreTab() {
             <>
               <ThemedText type="subtitle">From your family’s history</ThemedText>
               {shelf === null && <ActivityIndicator style={{ marginVertical: 12 }} />}
-              {shelf?.length === 0 && (
-                <ThemedText type="small">
-                  Nothing to show yet — import a tree with dated ancestors to see their moments.
-                </ThemedText>
-              )}
+              {shelf?.length === 0 &&
+                (shelfFailed ? (
+                  <ThemedText type="small">
+                    Couldn’t reach your tree just now — this will retry when you come back.
+                  </ThemedText>
+                ) : (
+                  <ThemedText type="small">
+                    Nothing to show yet — import a tree with dated ancestors to see their moments.
+                  </ThemedText>
+                ))}
               {shelf?.map((entry) => (
                 <Card key={entry.event.id} onPress={() => openEvent(entry.event)}>
                   {entry.anniversaryLabel && (

@@ -31,9 +31,11 @@ update historical_events set tier = 'local',
   lens_affinity = array['colonial_new_england']
   where id in ('salem-witch-trials', 'boston-tea-party');
 
+-- No lens_affinity here: branch territories are derived from the union of
+-- a lens's events' geo_scope, and this continental theater would swallow
+-- Quebec and Nova Scotia into colonial_new_england.
 update historical_events set
-  geo_scope = '{"regions": ["New York", "Pennsylvania", "Virginia", "Massachusetts", "New Hampshire", "Maine", "Quebec", "Nova Scotia"]}',
-  lens_affinity = array['colonial_new_england', 'french_canadian']
+  geo_scope = '{"regions": ["New York", "Pennsylvania", "Virginia", "Massachusetts", "New Hampshire", "Maine", "Quebec", "Nova Scotia"]}'
   where id = 'french-and-indian-war';
 
 update historical_events set tier = 'regional',

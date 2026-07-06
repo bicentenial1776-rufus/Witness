@@ -15,7 +15,7 @@ interface SyntheticPerson {
 /** A minimal geography index: one birth event per person at their place. */
 function indexOf(people: SyntheticPerson[]): GeographyIndex {
   const places = new Map<string, { id: string; raw: string; parts: string[]; latitude: null; longitude: null; region: string | null }>();
-  const individuals = new Map<string, { id: string; full_name: string; birth_year: number | null; death_year: number | null }>();
+  const individuals = new Map<string, { id: string; full_name: string; birth_year: number | null; death_year: number | null; living: boolean }>();
   const events: GeographyIndex['events'] = [];
 
   for (const person of people) {
@@ -24,6 +24,7 @@ function indexOf(people: SyntheticPerson[]): GeographyIndex {
       full_name: `Person ${person.id}`,
       birth_year: person.birth,
       death_year: person.death,
+      living: false,
     });
     let placeId: string | null = null;
     if (person.placeParts) {
@@ -58,18 +59,18 @@ function acadianTree(): GeographyIndex {
 
 describe('detectBranches', () => {
   it('detects an Acadian branch from Acadian place concentration', () => {
-    expect(detectBranches(acadianTree())).toEqual(new Set(['acadian']));
+    expect(detectBranches(acadianTree(), HISTORICAL_EVENTS)).toEqual(new Set(['acadian']));
   });
 
-  it('detects Colonial New England only in the colonial era', () => {
+  it('detects Colonial New England only near the colonial era', () => {
     const colonial = indexOf([
       { id: 'c1', birth: 1650, death: 1700, placeParts: BOSTON },
       { id: 'c2', birth: 1660, death: 1710, placeParts: BOSTON },
     ]);
-    expect(detectBranches(colonial)).toEqual(new Set(['colonial_new_england']));
+    expect(detectBranches(colonial, HISTORICAL_EVENTS)).toEqual(new Set(['colonial_new_england']));
 
     const modern = indexOf([{ id: 'm1', birth: 1950, death: null, placeParts: BOSTON }]);
-    expect(detectBranches(modern)).toEqual(new Set());
+    expect(detectBranches(modern, HISTORICAL_EVENTS)).toEqual(new Set());
   });
 
   it('stays quiet below the share threshold', () => {
@@ -77,7 +78,7 @@ describe('detectBranches', () => {
     for (let i = 0; i < 30; i++) {
       people.push({ id: `e${i}`, birth: 1700, death: 1760, placeParts: ['London', 'England'] });
     }
-    expect(detectBranches(indexOf(people))).toEqual(new Set());
+    expect(detectBranches(indexOf(people), HISTORICAL_EVENTS)).toEqual(new Set());
   });
 });
 

@@ -1,4 +1,4 @@
-import type { TreeIndex, TreeIndividual } from './treeIndex.js';
+import { childrenByParent, parentsByChild, type TreeIndex, type TreeIndividual } from './treeIndex.js';
 
 /**
  * Section X of the query library — Family Structure and Relationships.
@@ -7,33 +7,6 @@ import type { TreeIndex, TreeIndividual } from './treeIndex.js';
  * marriages (family/kindred.ts) and the relationship path between two
  * individuals (family/relationship.ts).
  */
-
-function childrenByParent(index: TreeIndex): Map<string, string[]> {
-  const children = new Map<string, string[]>();
-  for (const family of index.families) {
-    for (const parentId of [family.husband_id, family.wife_id]) {
-      if (!parentId) continue;
-      if (!children.has(parentId)) children.set(parentId, []);
-      const list = children.get(parentId)!;
-      for (const childId of family.children) if (!list.includes(childId)) list.push(childId);
-    }
-  }
-  return children;
-}
-
-function parentsByChild(index: TreeIndex): Map<string, string[]> {
-  const parents = new Map<string, string[]>();
-  for (const family of index.families) {
-    const parentIds = [family.husband_id, family.wife_id].filter((id): id is string => Boolean(id));
-    if (!parentIds.length) continue;
-    for (const childId of family.children) {
-      if (!parents.has(childId)) parents.set(childId, []);
-      const list = parents.get(childId)!;
-      for (const parentId of parentIds) if (!list.includes(parentId)) list.push(parentId);
-    }
-  }
-  return parents;
-}
 
 // Descendants ---------------------------------------------------------------
 

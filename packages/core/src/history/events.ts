@@ -130,7 +130,6 @@ export const HISTORICAL_EVENTS: readonly HistoricalEvent[] = [
         'Nova Scotia',
       ],
     },
-    lensAffinity: ['colonial_new_england', 'french_canadian'],
   },
   {
     id: 'grand-derangement',
@@ -552,6 +551,11 @@ export function getHistoricalEvent(id: string): HistoricalEvent | undefined {
 const EVENT_COLUMNS =
   'id, name, start_year, end_year, region, summary, keywords, tier, geo_scope, lens_affinity';
 
+// A database that predates the event-curation migration rejects the new
+// columns; retrying with the original list keeps it DB-first (events that
+// exist only server-side stay reachable) instead of dropping to the bundle.
+const LEGACY_EVENT_COLUMNS = 'id, name, start_year, end_year, region, summary, keywords';
+
 /**
  * The library is served from the database so new events reach every user
  * without an app update; the bundled list above is the fallback when
@@ -561,15 +565,18 @@ export async function fetchHistoricalEvents(client: {
   from: (table: string) => any;
 }): Promise<readonly HistoricalEvent[]> {
   try {
-    const { data, error } = await client
-      .from('historical_events')
-      .select(EVENT_COLUMNS)
-      .order('sort_order');
-    if (error || !data?.length) return HISTORICAL_EVENTS;
-    return data.map(rowToEvent);
+    for (const columns of [EVENT_COLUMNS, LEGACY_EVENT_COLUMNS]) {
+      const { data, error } = await client
+        .from('historical_events')
+        .select(columns)
+        .order('sort_order');
+      if (!error && data?.length) return data.map(rowToEvent);
+      if (!error) break;
+    }
   } catch {
-    return HISTORICAL_EVENTS;
+    // fall through to the bundled library
   }
+  return HISTORICAL_EVENTS;
 }
 
 /** One event by slug, DB-first with bundled fallback. */
@@ -578,12 +585,15 @@ export async function fetchHistoricalEvent(
   id: string,
 ): Promise<HistoricalEvent | undefined> {
   try {
-    const { data } = await client
-      .from('historical_events')
-      .select(EVENT_COLUMNS)
-      .eq('id', id)
-      .maybeSingle();
-    if (data) return rowToEvent(data);
+    for (const columns of [EVENT_COLUMNS, LEGACY_EVENT_COLUMNS]) {
+      const { data, error } = await client
+        .from('historical_events')
+        .select(columns)
+        .eq('id', id)
+        .maybeSingle();
+      if (!error && data) return rowToEvent(data);
+      if (!error) break;
+    }
   } catch {
     // fall through to the bundled library
   }

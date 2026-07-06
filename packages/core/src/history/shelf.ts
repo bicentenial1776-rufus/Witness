@@ -1,4 +1,4 @@
-import { MAX_LIFESPAN_YEARS } from '../query/aliveDuring.js';
+import { classifyAliveDuring } from '../query/aliveDuring.js';
 import type { GeographyIndex } from '../query/geography.js';
 import { fetchGeographyIndex } from '../query/geography.js';
 import type { WitnessSupabaseClient } from '../supabase/client.js';
@@ -34,52 +34,68 @@ export interface ShelfEntry {
 
 // Branch detection -----------------------------------------------------------
 
-/** Share of a tree's placed events a region group needs to count as a branch. */
+/** Share of a tree's placed events a lens's territory needs to count. */
 export const BRANCH_SHARE_THRESHOLD = 0.05;
 
-const ACADIAN_REGIONS = new Set(['Acadia', 'Nova Scotia', 'New Brunswick', 'Prince Edward Island']);
-const NEW_ENGLAND_REGIONS = new Set([
-  'Massachusetts',
-  'Rhode Island',
-  'Connecticut',
-  'New Hampshire',
-  'Maine',
-  'Vermont',
-]);
+/**
+ * Widens a lens's era beyond its events' own years, so lives adjacent to
+ * the events (parents of the deported, children of the famine ships)
+ * still count toward the branch.
+ */
+const LENS_ERA_PADDING_YEARS = 50;
+
+interface LensTerritory {
+  regions: Set<string>;
+  startYear: number;
+  endYear: number;
+}
 
 /**
  * The heritage branches a tree's geography supports, in the lens_affinity
- * vocabulary. Deliberately coarse: a branch is detected when at least 5%
- * of the tree's placed events sit in its territory (for Colonial New
- * England, in the colonial era). The full Identity Lens feature will
- * refine this; the shelf only needs a confident signal.
+ * vocabulary. Branch definitions are derived from the event library
+ * itself — a lens's territory is the union of its events' geo_scope
+ * regions, its era the padded envelope of their years — so a new lens
+ * seeded server-side (with geo-scoped events) starts detecting without an
+ * app update. A branch is detected when at least 5% of the tree's placed
+ * events fall in the territory (and, when dated, near the era).
  */
-export function detectBranches(index: GeographyIndex): Set<string> {
-  let placed = 0;
-  let acadian = 0;
-  let colonialNewEngland = 0;
-  let irish = 0;
-  let frenchCanadian = 0;
+export function detectBranches(index: GeographyIndex, events: readonly HistoricalEvent[]): Set<string> {
+  const territories = new Map<string, LensTerritory>();
+  for (const event of events) {
+    if (!event.lensAffinity?.length || !event.geoScope?.regions.length) continue;
+    for (const lens of event.lensAffinity) {
+      let territory = territories.get(lens);
+      if (!territory) {
+        territory = { regions: new Set(), startYear: Infinity, endYear: -Infinity };
+        territories.set(lens, territory);
+      }
+      for (const region of event.geoScope.regions) territory.regions.add(region);
+      territory.startYear = Math.min(territory.startYear, event.startYear - LENS_ERA_PADDING_YEARS);
+      territory.endYear = Math.max(territory.endYear, event.endYear + LENS_ERA_PADDING_YEARS);
+    }
+  }
 
+  let placed = 0;
+  const hits = new Map<string, number>();
   for (const event of index.events) {
     if (!event.placeId) continue;
     const region = index.places.get(event.placeId)?.region;
     if (!region) continue;
     placed++;
-    if (ACADIAN_REGIONS.has(region)) acadian++;
-    if (NEW_ENGLAND_REGIONS.has(region) && event.year !== null && event.year <= 1775) {
-      colonialNewEngland++;
+    for (const [lens, territory] of territories) {
+      if (!territory.regions.has(region)) continue;
+      if (event.year !== null && (event.year < territory.startYear || event.year > territory.endYear)) {
+        continue;
+      }
+      hits.set(lens, (hits.get(lens) ?? 0) + 1);
     }
-    if (region === 'Ireland') irish++;
-    if (region === 'Quebec') frenchCanadian++;
   }
 
   const branches = new Set<string>();
   if (!placed) return branches;
-  if (acadian / placed >= BRANCH_SHARE_THRESHOLD) branches.add('acadian');
-  if (colonialNewEngland / placed >= BRANCH_SHARE_THRESHOLD) branches.add('colonial_new_england');
-  if (irish / placed >= BRANCH_SHARE_THRESHOLD) branches.add('irish');
-  if (frenchCanadian / placed >= BRANCH_SHARE_THRESHOLD) branches.add('french_canadian');
+  for (const [lens, count] of hits) {
+    if (count / placed >= BRANCH_SHARE_THRESHOLD) branches.add(lens);
+  }
   return branches;
 }
 
@@ -107,19 +123,13 @@ const GEO_WEIGHT = 4;
 const LENS_BONUS = 3;
 
 /**
- * The library's overlap rule with the alive-during engine's assumed
- * lifespan for undocumented deaths, over the denormalized years the
- * geography index already carries.
+ * The same classification rule the results screen runs, so the card's
+ * number and the tapped query's "Everyone" count agree.
  */
 function countAlive(index: GeographyIndex, event: HistoricalEvent): number {
   let count = 0;
   for (const person of index.individuals.values()) {
-    const birth = person.birth_year;
-    if (birth === null || birth > event.endYear) continue;
-    const death = person.death_year;
-    if (death !== null ? death >= event.startYear : birth + MAX_LIFESPAN_YEARS >= event.startYear) {
-      count++;
-    }
+    if (classifyAliveDuring({ ...person, sex: 'U' }, event)) count++;
   }
   return count;
 }
@@ -145,7 +155,7 @@ export function curateShelf(
   index: GeographyIndex,
   currentYear: number,
 ): ShelfEntry[] {
-  const branches = detectBranches(index);
+  const branches = detectBranches(index, events);
   const shares = regionShares(index);
 
   const scored: { entry: ShelfEntry; eligible: boolean }[] = [];
@@ -176,11 +186,11 @@ export function curateShelf(
   scored.sort((a, b) => b.entry.score - a.entry.score || a.entry.event.startYear - b.entry.event.startYear);
 
   const shelf = scored.filter((s) => s.eligible).slice(0, SHELF_MAX);
-  if (shelf.length < SHELF_MIN) {
-    for (const candidate of scored) {
-      if (shelf.length >= SHELF_MIN) break;
-      if (!shelf.includes(candidate)) shelf.push(candidate);
-    }
+  // Below the minimum, every eligible candidate is already shelved — fill
+  // the gap with the best of the ineligible rest.
+  for (const candidate of scored) {
+    if (shelf.length >= SHELF_MIN) break;
+    if (!candidate.eligible) shelf.push(candidate);
   }
   return shelf.map((s) => s.entry);
 }

@@ -49,7 +49,6 @@ export function rankLivedThroughEvents(
   person: AliveCandidate,
   events: readonly HistoricalEvent[],
   personRegions: ReadonlySet<string>,
-  cap: number = LIVED_THROUGH_TAG_CAP,
 ): LivedThroughTag[] {
   const tags: LivedThroughTag[] = [];
   for (const event of events) {
@@ -70,7 +69,7 @@ export function rankLivedThroughEvents(
       TIER_WEIGHT[b.event.tier] - TIER_WEIGHT[a.event.tier] ||
       a.event.startYear - b.event.startYear,
   );
-  return tags.slice(0, cap);
+  return tags.slice(0, LIVED_THROUGH_TAG_CAP);
 }
 
 interface PlacePartsRow {

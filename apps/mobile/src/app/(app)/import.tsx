@@ -14,7 +14,6 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useSession } from '@/auth/session-provider';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
-import { invalidateShelfCache } from '@/lib/shelf-cache';
 import { supabase } from '@/lib/supabase';
 
 type Step =
@@ -63,7 +62,6 @@ export default function ImportGedcom() {
         onProgress: (progress) => setStep({ name: 'importing', fileName, parsed, progress }),
       });
       invalidateGeographyCache();
-      invalidateShelfCache();
       setStep({ name: 'done', treeId, parsed });
     } catch (error) {
       Alert.alert('Import failed', error instanceof Error ? error.message : String(error));

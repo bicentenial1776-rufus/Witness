@@ -41,17 +41,24 @@ export default function AliveDuringScreen() {
   const lineMatches = (result?.matches ?? []).filter((m) => relationships.has(m.individual.id));
   const scoped = effectiveScope === 'line' ? lineMatches : (result?.matches ?? []);
   // Arriving from an ancestor's "lived through" tag pins that ancestor to
-  // the top of the results, whatever the scope filter says.
-  const pinned = pin ? (result?.matches ?? []).find((m) => m.individual.id === pin) : undefined;
-  const shown = pinned
-    ? [pinned, ...scoped.filter((m) => m.individual.id !== pinned.individual.id)]
-    : scoped;
+  // the top of the results. The pin only reorders within the current
+  // scope, so headline counts, tab labels, and the share card all stay
+  // consistent; a scope that excludes the pinned person simply shows
+  // them nowhere (the effect below picks the scope that contains them).
+  const pinned = pin ? scoped.find((m) => m.individual.id === pin) : undefined;
+  const shown = pinned ? [pinned, ...scoped.filter((m) => m !== pinned)] : scoped;
   const shownDocumented = shown.filter((m) => m.confidence === 'documented').length;
 
   async function shareDiscovery() {
     const uri = await cardRef.current?.capture?.();
     if (uri) await Sharing.shareAsync(uri, { mimeType: 'image/png' });
   }
+
+  // A pinned ancestor outside the home-person line must land on a scope
+  // that actually contains them.
+  useEffect(() => {
+    if (pin && relationships.size > 0 && !relationships.has(pin)) setScope('all');
+  }, [pin, relationships]);
 
   useEffect(() => {
     if (!eventId) return;

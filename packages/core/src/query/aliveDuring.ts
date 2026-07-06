@@ -1,4 +1,5 @@
 import type { WitnessSupabaseClient } from '../supabase/client.js';
+import { fetchAllPages } from '../supabase/paginate.js';
 
 /**
  * Temporal query: who in a tree was alive during a year range?
@@ -98,19 +99,6 @@ export function classifyAliveDuring(person: AliveCandidate, range: YearRange): A
 }
 
 const CANDIDATE_COLUMNS = 'id, full_name, sex, birth_year, death_year, living';
-const PAGE_SIZE = 1000;
-
-async function fetchAllPages(
-  buildQuery: (from: number, to: number) => PromiseLike<{ data: AliveCandidate[] | null; error: { message: string } | null }>,
-): Promise<AliveCandidate[]> {
-  const rows: AliveCandidate[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await buildQuery(from, from + PAGE_SIZE - 1);
-    if (error) throw new Error(`Temporal query failed: ${error.message}`);
-    rows.push(...(data ?? []));
-    if (!data || data.length < PAGE_SIZE) return rows;
-  }
-}
 
 /**
  * Fetches candidates with the range pushed down to Postgres, then applies
@@ -127,7 +115,7 @@ export async function aliveDuring(
   // Known birth year: born by the end of the range, not known to have died
   // before it began. (A null birth_year never satisfies lte, so these are
   // exactly the birth-documented candidates.)
-  const withBirth = await fetchAllPages((from, to) =>
+  const withBirth = await fetchAllPages<AliveCandidate>((from, to) =>
     client
       .from('individuals')
       .select(CANDIDATE_COLUMNS)
@@ -136,10 +124,11 @@ export async function aliveDuring(
       .or(`death_year.gte.${startYear},death_year.is.null`)
       .order('id')
       .range(from, to),
+    'Temporal query failed',
   );
 
   // Unknown birth year: place them by death year within an assumed lifespan.
-  const birthUnknown = await fetchAllPages((from, to) =>
+  const birthUnknown = await fetchAllPages<AliveCandidate>((from, to) =>
     client
       .from('individuals')
       .select(CANDIDATE_COLUMNS)
@@ -149,6 +138,7 @@ export async function aliveDuring(
       .lte('death_year', endYear + MAX_LIFESPAN_YEARS)
       .order('id')
       .range(from, to),
+    'Temporal query failed',
   );
 
   const matches: AliveMatch[] = [];

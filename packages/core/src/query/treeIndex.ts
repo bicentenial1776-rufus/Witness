@@ -1,6 +1,7 @@
 import type { ParsedGedcom } from '../gedcom/index.js';
 import type { WitnessSupabaseClient } from '../supabase/client.js';
 import type { Database } from '../supabase/database.types.js';
+import { fetchAllPages } from '../supabase/paginate.js';
 import { buildImportPayload } from '../supabase/transform.js';
 import { classifyPlace, regionOf } from './regions.js';
 
@@ -56,8 +57,6 @@ export interface TreeIndex {
   places: Map<string, TreePlace>;
 }
 
-interface IndividualRow extends TreeIndividual {}
-
 interface FamilyRow {
   id: string;
   husband_id: string | null;
@@ -86,7 +85,7 @@ interface PlaceRow {
 }
 
 export function buildTreeIndexFromRows(
-  individuals: IndividualRow[],
+  individuals: TreeIndividual[],
   families: FamilyRow[],
   familyChildren: FamilyChildRow[],
   events: EventRow[],
@@ -169,24 +168,41 @@ export function buildTreeIndexFromParsed(parsed: ParsedGedcom): TreeIndex {
   );
 }
 
-const PAGE_SIZE = 1000;
 
-async function fetchAll<T>(
-  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
-  label: string,
-): Promise<T[]> {
-  const rows: T[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await buildQuery(from, from + PAGE_SIZE - 1);
-    if (error) throw new Error(`Fetching ${label} failed: ${error.message}`);
-    rows.push(...(data ?? []));
-    if (!data || data.length < PAGE_SIZE) return rows;
+// Adjacency ------------------------------------------------------------------
+
+/** child id → deduped parent ids, from the family records. */
+export function parentsByChild(index: TreeIndex): Map<string, string[]> {
+  const parents = new Map<string, string[]>();
+  for (const family of index.families) {
+    const parentIds = [family.husband_id, family.wife_id].filter((id): id is string => Boolean(id));
+    if (!parentIds.length) continue;
+    for (const childId of family.children) {
+      if (!parents.has(childId)) parents.set(childId, []);
+      const list = parents.get(childId)!;
+      for (const parentId of parentIds) if (!list.includes(parentId)) list.push(parentId);
+    }
   }
+  return parents;
+}
+
+/** parent id → deduped child ids, from the family records. */
+export function childrenByParent(index: TreeIndex): Map<string, string[]> {
+  const children = new Map<string, string[]>();
+  for (const family of index.families) {
+    for (const parentId of [family.husband_id, family.wife_id]) {
+      if (!parentId) continue;
+      if (!children.has(parentId)) children.set(parentId, []);
+      const list = children.get(parentId)!;
+      for (const childId of family.children) if (!list.includes(childId)) list.push(childId);
+    }
+  }
+  return children;
 }
 
 export async function fetchTreeIndex(client: WitnessSupabaseClient, treeId: string): Promise<TreeIndex> {
   const [individuals, families, familyChildren, events, places] = await Promise.all([
-    fetchAll<IndividualRow>(
+    fetchAllPages<TreeIndividual>(
       (from, to) =>
         client
           .from('individuals')
@@ -194,9 +210,9 @@ export async function fetchTreeIndex(client: WitnessSupabaseClient, treeId: stri
           .eq('tree_id', treeId)
           .order('id')
           .range(from, to),
-      'individuals',
+      'Fetching individuals failed',
     ),
-    fetchAll<FamilyRow>(
+    fetchAllPages<FamilyRow>(
       (from, to) =>
         client
           .from('families')
@@ -204,20 +220,21 @@ export async function fetchTreeIndex(client: WitnessSupabaseClient, treeId: stri
           .eq('tree_id', treeId)
           .order('id')
           .range(from, to),
-      'families',
+      'Fetching families failed',
     ),
     // family_children carries no tree_id; scope through the family join.
-    fetchAll<FamilyChildRow>(
+    fetchAllPages<FamilyChildRow>(
       (from, to) =>
         client
           .from('family_children')
           .select('family_id, individual_id, birth_order, families!inner(tree_id)')
           .eq('families.tree_id', treeId)
           .order('family_id')
+          .order('individual_id')
           .range(from, to),
-      'family children',
+      'Fetching family children failed',
     ),
-    fetchAll<EventRow>(
+    fetchAllPages<EventRow>(
       (from, to) =>
         client
           .from('individual_events')
@@ -225,12 +242,12 @@ export async function fetchTreeIndex(client: WitnessSupabaseClient, treeId: stri
           .eq('tree_id', treeId)
           .order('id')
           .range(from, to),
-      'events',
+      'Fetching events failed',
     ),
-    fetchAll<PlaceRow>(
+    fetchAllPages<PlaceRow>(
       (from, to) =>
         client.from('places').select('id, raw, parts').eq('tree_id', treeId).order('id').range(from, to),
-      'places',
+      'Fetching places failed',
     ),
   ]);
   return buildTreeIndexFromRows(individuals, families, familyChildren, events, places);
