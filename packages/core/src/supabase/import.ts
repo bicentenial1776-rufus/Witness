@@ -51,7 +51,8 @@ export interface ImportGedcomResult {
 /**
  * Writes a parsed GEDCOM into Supabase. Inserts in FK-safe order: trees,
  * places, individuals, individual_events, families, family_children,
- * curiosities, curiosity_individuals. Every insert relies on RLS — the
+ * curiosities, curiosity_individuals, sources, citations. Every insert
+ * relies on RLS — the
  * passed-in client must be authenticated as the owning user (or use a
  * service-role client that bypasses RLS, e.g. for background jobs).
  *
@@ -77,6 +78,8 @@ export async function importParsedGedcom(
     ['family_children', payload.familyChildren],
     ['curiosities', payload.curiosities],
     ['curiosity_individuals', payload.curiosityIndividuals],
+    ['sources', payload.sources],
+    ['citations', payload.citations],
   ];
 
   const totalRows = tables.reduce((sum, [, rows]) => sum + rows.length, 0);

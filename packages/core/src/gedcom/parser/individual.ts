@@ -5,6 +5,7 @@ import { normalizeDate } from '../normalize/date.js';
 import type { PlaceRegistry } from '../normalize/places.js';
 import { child, children, value } from './query.js';
 import { resolveMediaRef, resolveNote, type SharedRecords } from './records.js';
+import { collectCitations } from './sources.js';
 import { stripXref } from './xref.js';
 
 function parseEvent(node: GedcomNode | undefined, places: PlaceRegistry): GedcomEvent | undefined {
@@ -117,5 +118,6 @@ export function parseIndividual(
     // Newer Ancestry exports emit bare UID instead of the older _UID.
     uid: value(node, '_UID') ?? value(node, 'UID'),
     apid: findApid(node),
+    citations: collectCitations(node, 'person'),
   };
 }

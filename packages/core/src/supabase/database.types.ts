@@ -39,6 +39,77 @@ export type Database = {
   }
   public: {
     Tables: {
+      citations: {
+        Row: {
+          ancestry_apid: string | null
+          fact: string
+          family_id: string | null
+          id: string
+          individual_id: string | null
+          page: string | null
+          source_id: string
+          text_excerpt: string | null
+          tree_id: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          ancestry_apid?: string | null
+          fact: string
+          family_id?: string | null
+          id?: string
+          individual_id?: string | null
+          page?: string | null
+          source_id: string
+          text_excerpt?: string | null
+          tree_id: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          ancestry_apid?: string | null
+          fact?: string
+          family_id?: string | null
+          id?: string
+          individual_id?: string | null
+          page?: string | null
+          source_id?: string
+          text_excerpt?: string | null
+          tree_id?: string
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "citations_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citations_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citations_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citations_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       curiosities: {
         Row: {
           family_id: string | null
@@ -614,6 +685,47 @@ export type Database = {
           },
           {
             foreignKeyName: "research_briefs_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sources: {
+        Row: {
+          ancestry_apid: string | null
+          author: string | null
+          gedcom_xref: string
+          id: string
+          publisher: string | null
+          title: string | null
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          ancestry_apid?: string | null
+          author?: string | null
+          gedcom_xref: string
+          id?: string
+          publisher?: string | null
+          title?: string | null
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          ancestry_apid?: string | null
+          author?: string | null
+          gedcom_xref?: string
+          id?: string
+          publisher?: string | null
+          title?: string | null
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sources_tree_id_fkey"
             columns: ["tree_id"]
             isOneToOne: false
             referencedRelation: "trees"

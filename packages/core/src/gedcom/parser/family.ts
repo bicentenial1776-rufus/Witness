@@ -3,6 +3,7 @@ import type { Family } from '../types/witness.js';
 import { normalizeDate } from '../normalize/date.js';
 import type { PlaceRegistry } from '../normalize/places.js';
 import { child, children, value } from './query.js';
+import { collectCitations } from './sources.js';
 import { stripXref } from './xref.js';
 
 /** Parses one `0 @F...@ FAM` record. Returns null if it has no xref to key it by. */
@@ -40,5 +41,6 @@ export function parseFamily(node: GedcomNode, places: PlaceRegistry): Family | n
         }
       : undefined,
     childRelationships,
+    citations: collectCitations(node, 'family'),
   };
 }

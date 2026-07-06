@@ -1,4 +1,4 @@
-import type { NormalizedDate, ParsedGedcom } from '../gedcom/index.js';
+import type { NormalizedDate, ParsedGedcom, SourceCitation } from '../gedcom/index.js';
 import type { Database } from './database.types.js';
 
 type TreeInsert = Database['public']['Tables']['trees']['Insert'];
@@ -9,6 +9,8 @@ type FamilyInsert = Database['public']['Tables']['families']['Insert'];
 type FamilyChildInsert = Database['public']['Tables']['family_children']['Insert'];
 type CuriosityInsert = Database['public']['Tables']['curiosities']['Insert'];
 type CuriosityIndividualInsert = Database['public']['Tables']['curiosity_individuals']['Insert'];
+type SourceInsert = Database['public']['Tables']['sources']['Insert'];
+type CitationInsert = Database['public']['Tables']['citations']['Insert'];
 type IndividualEventType = Database['public']['Enums']['individual_event_type'];
 
 export interface ImportPayload {
@@ -20,6 +22,8 @@ export interface ImportPayload {
   familyChildren: FamilyChildInsert[];
   curiosities: CuriosityInsert[];
   curiosityIndividuals: CuriosityIndividualInsert[];
+  sources: SourceInsert[];
+  citations: CitationInsert[];
 }
 
 export interface BuildImportPayloadOptions {
@@ -192,6 +196,50 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
     });
   }
 
+  const sourceIdMap = new Map<string, string>();
+  for (const source of parsed.sources.values()) sourceIdMap.set(source.id, generateId());
+
+  const sources: SourceInsert[] = [...parsed.sources.values()].map((source) => ({
+    id: sourceIdMap.get(source.id)!,
+    tree_id: treeId,
+    user_id: userId,
+    gedcom_xref: source.id,
+    title: source.title ?? null,
+    author: source.author ?? null,
+    publisher: source.publisher ?? null,
+    ancestry_apid: source.apid ?? null,
+  }));
+
+  // A citation pointing at a source record the file never defines is a
+  // dangling FK, not evidence; skip it like an unparseable child pointer.
+  const citations: CitationInsert[] = [];
+  const pushCitations = (
+    list: SourceCitation[],
+    subject: { individual_id: string } | { family_id: string },
+  ) => {
+    for (const citation of list) {
+      const sourceId = sourceIdMap.get(citation.sourceId);
+      if (!sourceId) continue;
+      citations.push({
+        tree_id: treeId,
+        user_id: userId,
+        source_id: sourceId,
+        fact: citation.fact,
+        page: citation.page ?? null,
+        text_excerpt: citation.text ?? null,
+        url: citation.url ?? null,
+        ancestry_apid: citation.apid ?? null,
+        ...subject,
+      });
+    }
+  };
+  for (const individual of parsed.individuals.values()) {
+    pushCitations(individual.citations, { individual_id: individualIdMap.get(individual.id)! });
+  }
+  for (const family of parsed.families.values()) {
+    pushCitations(family.citations, { family_id: familyIdMap.get(family.id)! });
+  }
+
   const curiosities: CuriosityInsert[] = [];
   const curiosityIndividuals: CuriosityIndividualInsert[] = [];
 
@@ -212,5 +260,16 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
     }
   }
 
-  return { tree, places, individuals, individualEvents, families, familyChildren, curiosities, curiosityIndividuals };
+  return {
+    tree,
+    places,
+    individuals,
+    individualEvents,
+    families,
+    familyChildren,
+    curiosities,
+    curiosityIndividuals,
+    sources,
+    citations,
+  };
 }
