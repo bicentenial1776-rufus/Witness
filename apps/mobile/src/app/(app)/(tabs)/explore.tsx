@@ -181,12 +181,26 @@ export default function ExploreTab() {
                 <ThemedText type="small">Every state, province, and country in your tree</ThemedText>
               </Card>
               <Card
+                onPress={() => router.push({ pathname: '/origins', params: { treeId: activeTree.id } })}
+              >
+                <ThemedText type="subtitle">Where your family began</ThemedText>
+                <ThemedText type="small">The earliest places your tree reaches back to</ThemedText>
+              </Card>
+              <Card
                 onPress={() =>
                   router.push({ pathname: '/migrations', params: { treeId: activeTree.id } })
                 }
               >
                 <ThemedText type="subtitle">Migration paths</ThemedText>
                 <ThemedText type="small">The moves your family made, generation by generation</ThemedText>
+              </Card>
+              <Card
+                onPress={() =>
+                  router.push({ pathname: '/crossings', params: { treeId: activeTree.id } })
+                }
+              >
+                <ThemedText type="subtitle">Ocean crossings</ThemedText>
+                <ThemedText type="small">Ancestors who crossed the Atlantic or Pacific</ThemedText>
               </Card>
               <Card
                 onPress={() => router.push({ pathname: '/kindred', params: { treeId: activeTree.id } })}

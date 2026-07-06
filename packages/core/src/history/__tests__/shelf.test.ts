@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GeographyIndex } from '../../query/geography.js';
-import { regionOf } from '../../query/regions.js';
+import { classifyPlace, regionOf } from '../../query/regions.js';
 import { HISTORICAL_EVENTS } from '../events.js';
 import { curateShelf, detectBranches, SHELF_MAX, SHELF_MIN } from '../shelf.js';
 
@@ -14,14 +14,15 @@ interface SyntheticPerson {
 
 /** A minimal geography index: one birth event per person at their place. */
 function indexOf(people: SyntheticPerson[]): GeographyIndex {
-  const places = new Map<string, { id: string; raw: string; parts: string[]; latitude: null; longitude: null; region: string | null }>();
-  const individuals = new Map<string, { id: string; full_name: string; birth_year: number | null; death_year: number | null; living: boolean }>();
+  const places = new Map<string, { id: string; raw: string; parts: string[]; latitude: null; longitude: null; region: string | null; country: string | null }>();
+  const individuals = new Map<string, { id: string; full_name: string; surname: string | null; birth_year: number | null; death_year: number | null; living: boolean }>();
   const events: GeographyIndex['events'] = [];
 
   for (const person of people) {
     individuals.set(person.id, {
       id: person.id,
       full_name: `Person ${person.id}`,
+      surname: null,
       birth_year: person.birth,
       death_year: person.death,
       living: false,
@@ -37,6 +38,7 @@ function indexOf(people: SyntheticPerson[]): GeographyIndex {
           latitude: null,
           longitude: null,
           region: regionOf(person.placeParts),
+          country: classifyPlace(person.placeParts).country,
         });
       }
     }

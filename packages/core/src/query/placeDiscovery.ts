@@ -1,20 +1,53 @@
 import { migrationPaths, type MigrationMover } from './migrations.js';
 import { canonicalState, isStateLevel } from './regions.js';
-import type { TreeEvent, TreeIndex, TreeIndividual, TreePlace } from './treeIndex.js';
 
 /**
  * Section III of the query library — Geographic Place Discovery. Pure
- * aggregations over a TreeIndex: family origins, ocean crossings,
- * born-vs-died displacement, top-places rollups, region shares, era
- * filters, sequential emigration ("lived in Quebec before New England"),
- * and surname–place dominance. Everything here works from place text
- * classification alone; nothing needs the geocoding pipeline.
+ * aggregations over any tree-shaped source: family origins, ocean
+ * crossings, born-vs-died displacement, top-places rollups, region
+ * shares, era filters, sequential emigration ("lived in Quebec before
+ * New England"), and surname–place dominance. Everything here works from
+ * place text classification alone; nothing needs the geocoding pipeline.
+ *
+ * Like MigrationSource, the source type is structural: the query
+ * engine's TreeIndex and the app's cached GeographyIndex both satisfy
+ * it, so screens reuse the index they already fetched.
  *
  * The "I'm in this town" lookups and radius search live in geography.ts;
  * frontier-territory and Great Migration questions are compositions of
  * residentsOfRegionsDuring / emigrantsBetween with the region sets below
  * (or caller-supplied ones), not hardcoded queries.
  */
+
+export interface DiscoveryIndividual {
+  id: string;
+  full_name: string;
+  surname: string | null;
+  birth_year: number | null;
+  death_year: number | null;
+  living: boolean;
+}
+
+export interface DiscoveryPlace {
+  id: string;
+  raw: string;
+  parts: readonly string[];
+  region: string | null;
+  country: string | null;
+}
+
+export interface DiscoveryEvent {
+  individualId: string;
+  eventType: string;
+  year: number | null;
+  placeId: string | null;
+}
+
+export interface PlaceDiscoverySource {
+  places: ReadonlyMap<string, DiscoveryPlace>;
+  events: readonly DiscoveryEvent[];
+  individuals: ReadonlyMap<string, DiscoveryIndividual>;
+}
 
 // Region sets ----------------------------------------------------------------
 
@@ -157,12 +190,12 @@ const EVENT_ORDER: Record<string, number> = { birth: 0, residence: 1, death: 2, 
 
 interface TimelinePoint {
   year: number;
-  eventType: TreeEvent['eventType'];
-  place: TreePlace;
+  eventType: string;
+  place: DiscoveryPlace;
 }
 
 /** Each individual's dated, located events in life order. */
-function datedTimelines(index: TreeIndex): Map<string, TimelinePoint[]> {
+function datedTimelines(index: PlaceDiscoverySource): Map<string, TimelinePoint[]> {
   const timelines = new Map<string, TimelinePoint[]>();
   for (const event of index.events) {
     if (event.year === null || !event.placeId) continue;
@@ -180,7 +213,7 @@ function datedTimelines(index: TreeIndex): Map<string, TimelinePoint[]> {
 }
 
 /** True when the place classifies into any of the named regions or countries. */
-function placeInRegions(place: TreePlace, regions: readonly string[]): boolean {
+function placeInRegions(place: DiscoveryPlace, regions: readonly string[]): boolean {
   return (
     (place.region !== null && regions.includes(place.region)) ||
     (place.country !== null && regions.includes(place.country))
@@ -193,7 +226,7 @@ export interface RegionOrigin {
   region: string;
   earliestYear: number;
   /** The ancestor whose event first places the family in this region. */
-  individual: TreeIndividual;
+  individual: DiscoveryIndividual;
   placeRaw: string;
   /** Everyone with a located event in the region, all time. */
   individualCount: number;
@@ -203,7 +236,7 @@ export interface RegionOrigin {
  * Where did the family originate? The earliest dated, located event per
  * region, oldest first — the regions the tree reaches back into.
  */
-export function familyOrigins(index: TreeIndex, limit = 10): RegionOrigin[] {
+export function familyOrigins(index: PlaceDiscoverySource, limit = 10): RegionOrigin[] {
   const byRegion = new Map<string, { earliest: TimelinePoint; individualId: string; ids: Set<string> }>();
   for (const [individualId, points] of datedTimelines(index)) {
     for (const point of points) {
@@ -241,7 +274,7 @@ export function familyOrigins(index: TreeIndex, limit = 10): RegionOrigin[] {
 // Sequential emigration ---------------------------------------------------------
 
 export interface Emigrant {
-  individual: TreeIndividual;
+  individual: DiscoveryIndividual;
   from: { placeRaw: string; year: number };
   to: { placeRaw: string; year: number };
 }
@@ -253,7 +286,7 @@ export interface Emigrant {
  * `from` is the last from-side event before arrival; earliest arrivals first.
  */
 export function emigrantsBetween(
-  index: TreeIndex,
+  index: PlaceDiscoverySource,
   from: readonly string[],
   to: readonly string[],
 ): Emigrant[] {
@@ -292,7 +325,7 @@ export function emigrantsBetween(
 
 /** Which ancestors were part of westward expansion? Seaboard → frontier, by era. */
 export function westwardExpansion(
-  index: TreeIndex,
+  index: PlaceDiscoverySource,
   era: { startYear: number; endYear: number } = { startYear: 1783, endYear: 1912 },
 ): Emigrant[] {
   return emigrantsBetween(index, EASTERN_SEABOARD_STATES, WESTWARD_FRONTIER_STATES).filter(
@@ -303,7 +336,7 @@ export function westwardExpansion(
 // Ocean crossings ----------------------------------------------------------------
 
 export interface OceanCrossing {
-  individual: TreeIndividual;
+  individual: DiscoveryIndividual;
   direction: 'toAmericas' | 'fromAmericas';
   from: { country: string; placeRaw: string; year: number };
   to: { country: string; placeRaw: string; year: number };
@@ -314,9 +347,9 @@ export interface OceanCrossing {
  * within one documented life is a crossing, so a return voyage counts
  * twice. Earliest crossings first.
  */
-export function oceanCrossings(index: TreeIndex, ocean: 'atlantic' | 'pacific'): OceanCrossing[] {
+export function oceanCrossings(index: PlaceDiscoverySource, ocean: 'atlantic' | 'pacific'): OceanCrossing[] {
   const farShore = ocean === 'atlantic' ? ATLANTIC_OLD_WORLD : PACIFIC_FAR_SIDE;
-  const shoreOf = (place: TreePlace): 'americas' | 'abroad' | null => {
+  const shoreOf = (place: DiscoveryPlace): 'americas' | 'abroad' | null => {
     if (!place.country) return null;
     if (AMERICAS.has(place.country)) return 'americas';
     if (farShore.has(place.country)) return 'abroad';
@@ -350,7 +383,7 @@ export function oceanCrossings(index: TreeIndex, ocean: 'atlantic' | 'pacific'):
 // Born vs died --------------------------------------------------------------------
 
 export interface BornDiedApart {
-  individual: TreeIndividual;
+  individual: DiscoveryIndividual;
   bornIn: string;
   diedIn: string;
   birthPlaceRaw: string;
@@ -363,9 +396,9 @@ export interface BornDiedApart {
  * must classify to a state or province, so "Maine" vs bare "United
  * States" never reads as displacement.
  */
-export function bornAndDiedApart(index: TreeIndex, level: 'country' | 'state'): BornDiedApart[] {
-  const birthPlace = new Map<string, TreePlace>();
-  const deathPlace = new Map<string, TreePlace>();
+export function bornAndDiedApart(index: PlaceDiscoverySource, level: 'country' | 'state'): BornDiedApart[] {
+  const birthPlace = new Map<string, DiscoveryPlace>();
+  const deathPlace = new Map<string, DiscoveryPlace>();
   for (const event of index.events) {
     if (!event.placeId) continue;
     const place = index.places.get(event.placeId);
@@ -378,7 +411,7 @@ export function bornAndDiedApart(index: TreeIndex, level: 'country' | 'state'): 
     }
   }
 
-  const labelOf = (place: TreePlace): string | null => {
+  const labelOf = (place: DiscoveryPlace): string | null => {
     if (level === 'country') return place.country;
     return place.region !== null && isStateLevel(place.region) ? place.region : null;
   };
@@ -435,7 +468,7 @@ function normalizeLead(part: string): string {
  * England; counties are only read when a town–county–state chain is
  * unambiguous.
  */
-export function placeLabelAt(place: TreePlace, level: PlaceLevel): string | null {
+export function placeLabelAt(place: DiscoveryPlace, level: PlaceLevel): string | null {
   const { parts, region, country } = place;
   switch (level) {
     case 'country':
@@ -461,7 +494,7 @@ export function placeLabelAt(place: TreePlace, level: PlaceLevel): string | null
 }
 
 /** Top towns/counties/states/countries by how many ancestors had an event there. */
-export function topPlaces(index: TreeIndex, level: PlaceLevel, limit = 10): PlaceCount[] {
+export function topPlaces(index: PlaceDiscoverySource, level: PlaceLevel, limit = 10): PlaceCount[] {
   const individuals = new Map<string, Set<string>>();
   const events = new Map<string, number>();
   for (const event of index.events) {
@@ -496,7 +529,7 @@ export interface RegionShare {
  * ancestors who have any located event at all, so missing place data
  * doesn't dilute the answer.
  */
-export function regionShare(index: TreeIndex, regions: readonly string[]): RegionShare {
+export function regionShare(index: PlaceDiscoverySource, regions: readonly string[]): RegionShare {
   const located = new Set<string>();
   const matched = new Set<string>();
   for (const event of index.events) {
@@ -516,15 +549,15 @@ export function regionShare(index: TreeIndex, regions: readonly string[]): Regio
 // Place persistence --------------------------------------------------------------------
 
 export interface SingletonPlace {
-  place: TreePlace;
-  individual: TreeIndividual;
-  eventType: TreeEvent['eventType'];
+  place: DiscoveryPlace;
+  individual: DiscoveryIndividual;
+  eventType: string;
   year: number | null;
 }
 
 /** Places that appear exactly once in the whole tree — the one-off outposts. */
-export function singletonPlaces(index: TreeIndex): SingletonPlace[] {
-  const byPlace = new Map<string, TreeEvent[]>();
+export function singletonPlaces(index: PlaceDiscoverySource): SingletonPlace[] {
+  const byPlace = new Map<string, DiscoveryEvent[]>();
   for (const event of index.events) {
     if (!event.placeId) continue;
     if (!byPlace.has(event.placeId)) byPlace.set(event.placeId, []);
@@ -548,7 +581,7 @@ export interface CenturyResidents {
 }
 
 export interface PlacePersistence {
-  place: TreePlace;
+  place: DiscoveryPlace;
   centuries: CenturyResidents[];
   /** Distinct centuries with a dated event at this place. */
   centuryCount: number;
@@ -558,7 +591,7 @@ export interface PlacePersistence {
  * Which places held the family across multiple centuries? The
  * generational-anchor towns, deepest roots first.
  */
-export function placesAcrossCenturies(index: TreeIndex, minCenturies = 2): PlacePersistence[] {
+export function placesAcrossCenturies(index: PlaceDiscoverySource, minCenturies = 2): PlacePersistence[] {
   const byPlace = new Map<string, Map<number, Set<string>>>();
   for (const event of index.events) {
     if (!event.placeId || event.year === null) continue;
@@ -589,8 +622,8 @@ export function placesAcrossCenturies(index: TreeIndex, minCenturies = 2): Place
 // Era-filtered residents -----------------------------------------------------------------
 
 export interface EraResident {
-  individual: TreeIndividual;
-  events: { eventType: TreeEvent['eventType']; year: number; placeRaw: string }[];
+  individual: DiscoveryIndividual;
+  events: { eventType: string; year: number; placeRaw: string }[];
 }
 
 /**
@@ -600,7 +633,7 @@ export interface EraResident {
  * Earliest-connected first.
  */
 export function residentsOfRegionsDuring(
-  index: TreeIndex,
+  index: PlaceDiscoverySource,
   regions: readonly string[],
   era?: { startYear?: number; endYear?: number },
 ): EraResident[] {
@@ -643,7 +676,7 @@ export interface MigrationCluster {
  * made the same regional move and arrived in the same decade — chain
  * migration made visible. Largest clusters first.
  */
-export function migrationClusters(index: TreeIndex, minSize = 2): MigrationCluster[] {
+export function migrationClusters(index: PlaceDiscoverySource, minSize = 2): MigrationCluster[] {
   const clusters: MigrationCluster[] = [];
   for (const path of migrationPaths(index)) {
     const byDecade = new Map<number, MigrationMover[]>();
@@ -679,7 +712,7 @@ export interface SurnameDominance {
  * Which surnames dominated particular towns? Towns where one surname is
  * the plurality of everyone recorded there, strongest holds first.
  */
-export function surnamesDominatingPlaces(index: TreeIndex, minIndividuals = 5): SurnameDominance[] {
+export function surnamesDominatingPlaces(index: PlaceDiscoverySource, minIndividuals = 5): SurnameDominance[] {
   const byTown = new Map<string, Map<string, Set<string>>>();
   const totals = new Map<string, Set<string>>();
   for (const event of index.events) {
@@ -728,7 +761,7 @@ export interface SurnamePlace {
 }
 
 /** Where did a surname line live? Its towns, most-populated first. */
-export function surnameHeartland(index: TreeIndex, surname: string, limit = 10): SurnamePlace[] {
+export function surnameHeartland(index: PlaceDiscoverySource, surname: string, limit = 10): SurnamePlace[] {
   const wanted = surname.toLowerCase();
   const byTown = new Map<string, Set<string>>();
   for (const event of index.events) {

@@ -43,6 +43,8 @@ export default function AppLayout() {
       <Stack.Screen name="home-person" options={{ title: 'Who Are You?' }} />
       <Stack.Screen name="you" options={{ title: 'You' }} />
       <Stack.Screen name="faq" options={{ title: 'Questions & Answers' }} />
+      <Stack.Screen name="origins" options={{ title: 'Where It Began' }} />
+      <Stack.Screen name="crossings" options={{ title: 'Ocean Crossings' }} />
       <Stack.Screen name="migrations" options={{ title: 'Migration Paths' }} />
       <Stack.Screen name="migration" options={{ title: '' }} />
       <Stack.Screen name="kindred" options={{ title: 'Kindred Couples' }} />
