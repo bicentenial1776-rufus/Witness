@@ -1,4 +1,3 @@
-import type { GeographyIndex } from './geography.js';
 import { isStateLevel, regionsCompatible } from './regions.js';
 
 /**
@@ -12,6 +11,21 @@ import { isStateLevel, regionsCompatible } from './regions.js';
  * "Maine", not a move — compatible-precision regions are coalesced (the
  * more specific label wins) rather than counted as migrations.
  */
+
+/**
+ * The minimal shape migration detection needs — both GeographyIndex (map
+ * screens) and TreeIndex (query engine) satisfy it structurally.
+ */
+export interface MigrationSource {
+  places: ReadonlyMap<string, { region: string | null }>;
+  events: readonly {
+    individualId: string;
+    eventType: string;
+    year: number | null;
+    placeId: string | null;
+  }[];
+  individuals: ReadonlyMap<string, { full_name: string }>;
+}
 
 export interface MigrationMover {
   individualId: string;
@@ -32,7 +46,7 @@ export interface MigrationPath {
 
 const EVENT_ORDER: Record<string, number> = { birth: 0, residence: 1, death: 2, burial: 3 };
 
-export function migrationPaths(index: GeographyIndex): MigrationPath[] {
+export function migrationPaths(index: MigrationSource): MigrationPath[] {
   const moves = new Map<string, MigrationMover[]>();
 
   const eventsByIndividual = new Map<string, { region: string; year: number | null; order: number }[]>();
