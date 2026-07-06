@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList } from 'react-native';
 
@@ -44,17 +44,25 @@ export default function MigrationsScreen() {
           keyExtractor={(path) => `${path.from}→${path.to}`}
           style={{ marginTop: 4 }}
           renderItem={({ item }) => (
-            <Card style={{ marginBottom: 8 }}>
+            <Card
+              onPress={() =>
+                router.push({
+                  pathname: '/migration',
+                  params: { treeId, from: item.from, to: item.to },
+                })
+              }
+              style={{ marginBottom: 8 }}
+            >
               <ThemedText>
                 {item.from} → {item.to}
               </ThemedText>
               <ThemedText type="small">
                 {item.count.toLocaleString()} people{item.medianYear ? ` · mostly around ${item.medianYear}` : ''}
               </ThemedText>
-              {item.examples[0] && (
+              {item.movers[0] && (
                 <ThemedText type="small">
-                  e.g. {item.examples[0].name}
-                  {item.examples[0].toYear ? `, arrived ${item.examples[0].toYear}` : ''}
+                  e.g. {item.movers[0].name}
+                  {item.movers[0].toYear ? `, arrived ${item.movers[0].toYear}` : ''}
                 </ThemedText>
               )}
             </Card>

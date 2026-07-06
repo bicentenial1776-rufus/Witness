@@ -44,6 +44,7 @@ export default function AppLayout() {
       <Stack.Screen name="you" options={{ title: 'You' }} />
       <Stack.Screen name="faq" options={{ title: 'Questions & Answers' }} />
       <Stack.Screen name="migrations" options={{ title: 'Migration Paths' }} />
+      <Stack.Screen name="migration" options={{ title: '' }} />
       <Stack.Screen name="kindred" options={{ title: 'Kindred Couples' }} />
       <Stack.Screen name="places/index" options={{ title: 'Where They Lived' }} />
       <Stack.Screen name="places/[region]" options={{ title: '' }} />

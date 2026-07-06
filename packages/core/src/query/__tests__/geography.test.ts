@@ -122,6 +122,33 @@ describe('migrationPaths', () => {
     expect(paths.find((p) => p.from === p.to)).toBeUndefined();
   });
 
+  it('treats a vague "United States" record as staying put, not a move', () => {
+    const index = fixtureIndex();
+    index.places.set('p6', {
+      id: 'p6',
+      raw: 'United States',
+      parts: ['Somewhere', 'United States'],
+      latitude: null,
+      longitude: null,
+      region: 'United States',
+    });
+    // Mary: Massachusetts 1750 → vague US 1790 → Maine 1820. One real move.
+    index.events.push({ individualId: 'i2', eventType: 'residence', year: 1790, placeId: 'p6' });
+    const paths = migrationPaths(index);
+    expect(paths.find((p) => p.to === 'United States' || p.from === 'United States')).toBeUndefined();
+    expect(paths).toContainEqual(
+      expect.objectContaining({ from: 'Massachusetts', to: 'Maine', count: 1 }),
+    );
+  });
+
+  it('lists every mover with their id so the app can link to them', () => {
+    const paths = migrationPaths(fixtureIndex());
+    const move = paths.find((p) => p.from === 'England' && p.to === 'Massachusetts')!;
+    expect(move.movers).toEqual([
+      { individualId: 'i1', name: 'John Howe', fromYear: 1620, toYear: 1645 },
+    ]);
+  });
+
   it('keeps multi-word region names intact', () => {
     const index = fixtureIndex();
     index.places.set('p5', {

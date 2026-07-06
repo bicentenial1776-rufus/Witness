@@ -94,6 +94,22 @@ describe('sweepKindredCouples', () => {
     expect(found[0]!.label).toBe('second cousins, 1× removed');
   });
 
+  it('replays each descent line, common ancestor first, spouse last', () => {
+    const graph = graphOf([
+      person('gg', { sex: 'M' }),
+      person('a', { father: 'gg' }),
+      person('b', { father: 'gg' }),
+      person('a2', { father: 'a' }),
+      person('husband', { father: 'a2', spouses: ['wife'] }),
+      person('wife', { father: 'b', spouses: ['husband'] }),
+    ]);
+    const [couple] = sweepKindredCouples(graph);
+    const pathOf = (spouseId: string) =>
+      (couple!.spouseA.id === spouseId ? couple!.pathA : couple!.pathB).map((p) => p.id);
+    expect(pathOf('husband')).toEqual(['gg', 'a', 'a2', 'husband']);
+    expect(pathOf('wife')).toEqual(['gg', 'b', 'wife']);
+  });
+
   it('ignores unrelated couples', () => {
     const graph = graphOf([
       person('p1'),

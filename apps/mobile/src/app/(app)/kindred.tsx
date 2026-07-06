@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 import { kindredCouples, type KindredCouple } from '@witness/core/family';
+import type { GraphPerson } from '@witness/core/family';
 
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
@@ -12,6 +13,81 @@ import { WideContent } from '@/constants/theme';
 
 function years(person: { birthYear: number | null; deathYear: number | null }): string {
   return `${person.birthYear ?? '?'}–${person.deathYear ?? '?'}`;
+}
+
+function visit(id: string) {
+  router.push({ pathname: '/ancestor/[id]', params: { id } });
+}
+
+/** One descent line, top (child of the common ancestor) to the spouse. */
+function DescentColumn({ path }: { path: GraphPerson[] }) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', gap: 2 }}>
+      {path.slice(1).map((person) => (
+        <View key={person.id} style={{ alignItems: 'center' }}>
+          <ThemedText type="small">↓</ThemedText>
+          <ThemedText
+            type="small"
+            themeColor="accent"
+            style={{ textAlign: 'center' }}
+            onPress={() => visit(person.id)}
+          >
+            {person.name}
+          </ThemedText>
+          <ThemedText type="small">{years(person)}</ThemedText>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * The side-by-side descent diagram: the shared ancestor at the crown,
+ * one column per spouse's line down to the couple themselves.
+ */
+function CoupleDiagram({ couple }: { couple: KindredCouple }) {
+  return (
+    <View style={{ marginTop: 12, gap: 8 }}>
+      <View style={{ alignItems: 'center' }}>
+        <ThemedText type="smallBold" themeColor="accent" onPress={() => visit(couple.commonAncestor.id)}>
+          {couple.commonAncestor.name}
+        </ThemedText>
+        <ThemedText type="small">{years(couple.commonAncestor)}</ThemedText>
+        <ThemedText type="small">↙ ↘</ThemedText>
+      </View>
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        <DescentColumn path={couple.pathA} />
+        <DescentColumn path={couple.pathB} />
+      </View>
+    </View>
+  );
+}
+
+function CoupleCard({ couple }: { couple: KindredCouple }) {
+  const [showDiagram, setShowDiagram] = useState(false);
+
+  return (
+    <Card>
+      <ThemedText type="subtitle">
+        {couple.spouseA.name} ⚭ {couple.spouseB.name}
+      </ThemedText>
+      <ThemedText type="smallBold" themeColor="accent">
+        {couple.label.toUpperCase()}
+      </ThemedText>
+      <ThemedText type="small">
+        {years(couple.spouseA)} · {years(couple.spouseB)}
+      </ThemedText>
+      <ThemedText type="small">
+        {couple.commonAncestor.name} is {couple.spouseA.name.split(' ')[0]}’s{' '}
+        {couple.ancestorLabelA} and {couple.spouseB.name.split(' ')[0]}’s{' '}
+        {couple.ancestorLabelB}.
+      </ThemedText>
+      <ThemedText type="link" onPress={() => setShowDiagram((s) => !s)}>
+        {showDiagram ? 'Hide the two lines ▴' : 'See how they’re related ▾'}
+      </ThemedText>
+      {showDiagram && <CoupleDiagram couple={couple} />}
+    </Card>
+  );
 }
 
 export default function KindredScreen() {
@@ -60,48 +136,7 @@ export default function KindredScreen() {
         )}
 
         {couples?.map((couple) => (
-          <Card key={`${couple.spouseA.id}-${couple.spouseB.id}`}>
-            <ThemedText type="subtitle">
-              {couple.spouseA.name} ⚭ {couple.spouseB.name}
-            </ThemedText>
-            <ThemedText type="smallBold" themeColor="accent">
-              {couple.label.toUpperCase()}
-            </ThemedText>
-            <ThemedText type="small">
-              {years(couple.spouseA)} · {years(couple.spouseB)}
-            </ThemedText>
-            <ThemedText type="small">
-              {couple.commonAncestor.name} is {couple.spouseA.name.split(' ')[0]}’s{' '}
-              {couple.ancestorLabelA} and {couple.spouseB.name.split(' ')[0]}’s{' '}
-              {couple.ancestorLabelB}.
-            </ThemedText>
-            <ThemedText
-              type="link"
-              onPress={() =>
-                router.push({ pathname: '/ancestor/[id]', params: { id: couple.commonAncestor.id } })
-              }
-            >
-              Visit {couple.commonAncestor.name} ›
-            </ThemedText>
-            <View style={{ flexDirection: 'row', gap: 16 }}>
-              <ThemedText
-                type="link"
-                onPress={() =>
-                  router.push({ pathname: '/ancestor/[id]', params: { id: couple.spouseA.id } })
-                }
-              >
-                {couple.spouseA.name.split(' ')[0]} ›
-              </ThemedText>
-              <ThemedText
-                type="link"
-                onPress={() =>
-                  router.push({ pathname: '/ancestor/[id]', params: { id: couple.spouseB.id } })
-                }
-              >
-                {couple.spouseB.name.split(' ')[0]} ›
-              </ThemedText>
-            </View>
-          </Card>
+          <CoupleCard key={`${couple.spouseA.id}-${couple.spouseB.id}`} couple={couple} />
         ))}
       </ScrollView>
     </ThemedView>

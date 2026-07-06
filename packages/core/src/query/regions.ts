@@ -147,3 +147,22 @@ export function regionOf(parts: readonly string[]): string | null {
   const { country, state } = classifyPlace(parts);
   return state ?? country;
 }
+
+const STATE_COUNTRY: Record<string, string> = {};
+for (const state of Object.values(US_STATES)) STATE_COUNTRY[state] = US;
+for (const province of Object.values(CA_PROVINCES)) STATE_COUNTRY[province] = CA;
+
+/** True when the region is a state/province rather than a whole country. */
+export function isStateLevel(region: string): boolean {
+  return region in STATE_COUNTRY;
+}
+
+/**
+ * True when two display regions can describe the same place at different
+ * precision — "Maine" and "United States" are one census record away from
+ * each other, not a migration.
+ */
+export function regionsCompatible(a: string, b: string): boolean {
+  if (a === b) return true;
+  return STATE_COUNTRY[a] === b || STATE_COUNTRY[b] === a;
+}
