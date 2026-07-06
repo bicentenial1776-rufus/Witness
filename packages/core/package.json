@@ -9,7 +9,7 @@
   "exports": {
     "./gedcom": "./dist/gedcom/index.js",
     "./supabase": "./dist/supabase/import.js",
-    "./history": "./dist/history/events.js",
+    "./history": "./dist/history/index.js",
     "./query": "./dist/query/index.js",
     "./geocode": "./dist/geocode/nominatim.js",
     "./family": "./dist/family/index.js"

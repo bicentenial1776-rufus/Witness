@@ -71,9 +71,9 @@ function fixtureIndex(): GeographyIndex {
     ).map((p) => [p.id, { ...p, region: regionOf(p.parts) }]),
   );
   const individuals = new Map<string, GeoIndividual>([
-    ['i1', { id: 'i1', full_name: 'John Howe', birth_year: 1620, death_year: 1700 }],
-    ['i2', { id: 'i2', full_name: 'Mary Field', birth_year: 1750, death_year: 1820 }],
-    ['i3', { id: 'i3', full_name: 'Undated Smith', birth_year: null, death_year: null }],
+    ['i1', { id: 'i1', full_name: 'John Howe', birth_year: 1620, death_year: 1700, living: false }],
+    ['i2', { id: 'i2', full_name: 'Mary Field', birth_year: 1750, death_year: 1820, living: false }],
+    ['i3', { id: 'i3', full_name: 'Undated Smith', birth_year: null, death_year: null, living: false }],
   ]);
   return {
     places,

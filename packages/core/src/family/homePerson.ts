@@ -1,4 +1,5 @@
 import type { WitnessSupabaseClient } from '../supabase/client.js';
+import { fetchAllPages } from '../supabase/paginate.js';
 import {
   buildGraphFromRows,
   type FamilyGraph,
@@ -8,21 +9,7 @@ import {
 } from './graph.js';
 import { ancestorDepths, calculateRelationship } from './relationship.js';
 
-const PAGE_SIZE = 1000;
 const INSERT_BATCH = 500;
-
-async function fetchAll<T>(
-  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
-  label: string,
-): Promise<T[]> {
-  const rows: T[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await buildQuery(from, from + PAGE_SIZE - 1);
-    if (error) throw new Error(`Fetching ${label} failed: ${error.message}`);
-    rows.push(...(data ?? []));
-    if (!data || data.length < PAGE_SIZE) return rows;
-  }
-}
 
 /** Loads the whole tree's parent/spouse structure into a FamilyGraph. */
 export async function fetchFamilyGraph(
@@ -30,7 +17,7 @@ export async function fetchFamilyGraph(
   treeId: string,
 ): Promise<FamilyGraph> {
   const [individuals, families, familyChildren] = await Promise.all([
-    fetchAll<GraphIndividualRow>(
+    fetchAllPages<GraphIndividualRow>(
       (from, to) =>
         client
           .from('individuals')
@@ -38,9 +25,9 @@ export async function fetchFamilyGraph(
           .eq('tree_id', treeId)
           .order('id')
           .range(from, to),
-      'individuals',
+      'Fetching individuals failed',
     ),
-    fetchAll<GraphFamilyRow>(
+    fetchAllPages<GraphFamilyRow>(
       (from, to) =>
         client
           .from('families')
@@ -48,17 +35,18 @@ export async function fetchFamilyGraph(
           .eq('tree_id', treeId)
           .order('id')
           .range(from, to),
-      'families',
+      'Fetching families failed',
     ),
-    fetchAll<GraphFamilyChildRow & { families: { tree_id: string } | null }>(
+    fetchAllPages<GraphFamilyChildRow & { families: { tree_id: string } | null }>(
       (from, to) =>
         client
           .from('family_children')
           .select('family_id, individual_id, families!inner(tree_id)')
           .eq('families.tree_id', treeId)
           .order('family_id')
+          .order('individual_id')
           .range(from, to),
-      'family children',
+      'Fetching family children failed',
     ),
   ]);
   return buildGraphFromRows(individuals, families, familyChildren);

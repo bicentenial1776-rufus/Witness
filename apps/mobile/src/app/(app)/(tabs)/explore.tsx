@@ -1,12 +1,12 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, View } from 'react-native';
 
 import {
   HISTORICAL_EVENTS,
   eventMatchesSearch,
-  fetchHistoricalEvents,
   type HistoricalEvent,
+  type ShelfEntry,
 } from '@witness/core/history';
 
 import { Card } from '@/components/card';
@@ -14,6 +14,8 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useActiveTree } from '@/lib/active-tree';
+import { getEventLibrary } from '@/lib/event-library';
+import { getShelf } from '@/lib/shelf-cache';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
 
@@ -25,27 +27,69 @@ interface PersonHit {
   living: boolean;
 }
 
+function eventYears(event: HistoricalEvent): string {
+  return event.startYear === event.endYear
+    ? String(event.startYear)
+    : `${event.startYear}–${event.endYear}`;
+}
+
 /**
- * Explore = the analyses (places, migrations, kindred couples) plus the
- * event library. The library comes from the database so new prompt cards
- * arrive without app updates — the search field is how it stays usable
- * as the list grows.
+ * Explore = the curated shelf (3–5 events scored for this tree, this
+ * month), the situation categories (places, migrations, kindred), and
+ * general search over people and history. Deliberately no browsable
+ * event catalog — events reach the user through the shelf, ancestor-card
+ * tags, and search (docs/QUERY_LIBRARY.md, Implementation Architecture).
  */
 export default function ExploreTab() {
   const { activeTree } = useActiveTree();
   const [events, setEvents] = useState<readonly HistoricalEvent[]>(HISTORICAL_EVENTS);
+  const [shelf, setShelf] = useState<ShelfEntry[] | null>(null);
+  const [shelfFailed, setShelfFailed] = useState(false);
+  const [shelfAttempt, setShelfAttempt] = useState(0);
   const [search, setSearch] = useState('');
   const [people, setPeople] = useState<PersonHit[]>([]);
 
+  // The full library backs search only; it is never listed outright.
   useEffect(() => {
     let cancelled = false;
-    fetchHistoricalEvents(supabase).then((list) => {
+    getEventLibrary().then((list) => {
       if (!cancelled) setEvents(list);
     });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!activeTree) {
+      setShelf(null);
+      return;
+    }
+    let cancelled = false;
+    setShelf(null);
+    setShelfFailed(false);
+    getShelf(activeTree.id)
+      .then((entries) => {
+        if (!cancelled) setShelf(entries);
+      })
+      .catch(() => {
+        // A load failure is not an empty tree — say so, and retry on the
+        // next focus (the shelf cache never keeps failures).
+        if (!cancelled) {
+          setShelf([]);
+          setShelfFailed(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTree?.id, shelfAttempt]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (shelfFailed) setShelfAttempt((attempt) => attempt + 1);
+    }, [shelfFailed]),
+  );
 
   // People search: name match in the active tree, debounced a beat.
   useEffect(() => {
@@ -77,7 +121,7 @@ export default function ExploreTab() {
   }
 
   const searching = search.trim().length > 0;
-  const filtered = events.filter((event) => eventMatchesSearch(event, search));
+  const filtered = searching ? events.filter((event) => eventMatchesSearch(event, search)) : [];
 
   const header = (
     <View style={{ gap: 12, marginBottom: 12 }}>
@@ -97,6 +141,39 @@ export default function ExploreTab() {
 
           {!searching && (
             <>
+              <ThemedText type="subtitle">From your family’s history</ThemedText>
+              {shelf === null && <ActivityIndicator style={{ marginVertical: 12 }} />}
+              {shelf?.length === 0 &&
+                (shelfFailed ? (
+                  <ThemedText type="small">
+                    Couldn’t reach your tree just now — this will retry when you come back.
+                  </ThemedText>
+                ) : (
+                  <ThemedText type="small">
+                    Nothing to show yet — import a tree with dated ancestors to see their moments.
+                  </ThemedText>
+                ))}
+              {shelf?.map((entry) => (
+                <Card key={entry.event.id} onPress={() => openEvent(entry.event)}>
+                  {entry.anniversaryLabel && (
+                    <ThemedText type="smallBold" themeColor="accent">
+                      {entry.anniversaryLabel.toUpperCase()}
+                    </ThemedText>
+                  )}
+                  <ThemedText type="subtitle">{entry.event.name}</ThemedText>
+                  <ThemedText type="small">
+                    {eventYears(entry.event)} · {entry.event.region}
+                  </ThemedText>
+                  <ThemedText type="small">{entry.event.summary}</ThemedText>
+                  <ThemedText type="smallBold">
+                    {entry.aliveCount.toLocaleString()} of your ancestors were alive ›
+                  </ThemedText>
+                </Card>
+              ))}
+
+              <ThemedText type="subtitle" style={{ marginTop: 12 }}>
+                Ways in
+              </ThemedText>
               <Card
                 onPress={() => router.push({ pathname: '/places', params: { treeId: activeTree.id } })}
               >
@@ -141,11 +218,11 @@ export default function ExploreTab() {
             </>
           )}
 
-          <ThemedText type="subtitle" style={{ marginTop: searching ? 0 : 12 }}>
-            {searching
-              ? `${filtered.length} ${filtered.length === 1 ? 'moment matches' : 'moments match'}`
-              : 'Who was alive during…'}
-          </ThemedText>
+          {searching && (
+            <ThemedText type="subtitle">
+              {`${filtered.length} ${filtered.length === 1 ? 'moment matches' : 'moments match'}`}
+            </ThemedText>
+          )}
         </>
       ) : (
         <ThemedText>Import a tree to start exploring.</ThemedText>
@@ -166,8 +243,7 @@ export default function ExploreTab() {
           <Card onPress={() => openEvent(item)} style={{ marginBottom: 8 }}>
             <ThemedText>{item.name}</ThemedText>
             <ThemedText type="small">
-              {item.startYear === item.endYear ? item.startYear : `${item.startYear}–${item.endYear}`} ·{' '}
-              {item.region}
+              {eventYears(item)} · {item.region}
             </ThemedText>
           </Card>
         )}

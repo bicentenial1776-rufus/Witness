@@ -22,7 +22,11 @@ function matchLine(match: AliveMatch, startYear: number): string {
 }
 
 export default function AliveDuringScreen() {
-  const { eventId, treeId } = useLocalSearchParams<{ eventId: string; treeId: string }>();
+  const { eventId, treeId, pin } = useLocalSearchParams<{
+    eventId: string;
+    treeId: string;
+    pin?: string;
+  }>();
   const theme = useTheme();
   const [event, setEvent] = useState<HistoricalEvent | undefined | 'loading'>('loading');
   const [result, setResult] = useState<AliveDuringResult | null>(null);
@@ -35,13 +39,26 @@ export default function AliveDuringScreen() {
   const hasLine = relationships.size > 0;
   const effectiveScope = hasLine ? scope : 'all';
   const lineMatches = (result?.matches ?? []).filter((m) => relationships.has(m.individual.id));
-  const shown = effectiveScope === 'line' ? lineMatches : (result?.matches ?? []);
+  const scoped = effectiveScope === 'line' ? lineMatches : (result?.matches ?? []);
+  // Arriving from an ancestor's "lived through" tag pins that ancestor to
+  // the top of the results. The pin only reorders within the current
+  // scope, so headline counts, tab labels, and the share card all stay
+  // consistent; a scope that excludes the pinned person simply shows
+  // them nowhere (the effect below picks the scope that contains them).
+  const pinned = pin ? scoped.find((m) => m.individual.id === pin) : undefined;
+  const shown = pinned ? [pinned, ...scoped.filter((m) => m !== pinned)] : scoped;
   const shownDocumented = shown.filter((m) => m.confidence === 'documented').length;
 
   async function shareDiscovery() {
     const uri = await cardRef.current?.capture?.();
     if (uri) await Sharing.shareAsync(uri, { mimeType: 'image/png' });
   }
+
+  // A pinned ancestor outside the home-person line must land on a scope
+  // that actually contains them.
+  useEffect(() => {
+    if (pin && relationships.size > 0 && !relationships.has(pin)) setScope('all');
+  }, [pin, relationships]);
 
   useEffect(() => {
     if (!eventId) return;
@@ -170,9 +187,15 @@ export default function AliveDuringScreen() {
                 }
                 style={{
                   borderStyle: item.confidence === 'probable' ? 'dashed' : 'solid',
+                  ...(item.individual.id === pin && { borderColor: theme.accent, borderWidth: 2 }),
                   marginBottom: 8,
                 }}
               >
+                {item.individual.id === pin && (
+                  <ThemedText type="smallBold" themeColor="accent">
+                    THE ANCESTOR YOU CAME FROM
+                  </ThemedText>
+                )}
                 <ThemedText>{item.individual.full_name}</ThemedText>
                 {relationships.has(item.individual.id) && (
                   <ThemedText type="small">your {relationships.get(item.individual.id)}</ThemedText>

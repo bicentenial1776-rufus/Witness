@@ -1,5 +1,6 @@
 import type { WitnessSupabaseClient } from '../supabase/client.js';
 import type { Database } from '../supabase/database.types.js';
+import { fetchAllPages } from '../supabase/paginate.js';
 import { regionOf } from './regions.js';
 
 /**
@@ -31,6 +32,7 @@ export interface GeoIndividual {
   full_name: string;
   birth_year: number | null;
   death_year: number | null;
+  living: boolean;
 }
 
 export interface GeographyIndex {
@@ -39,27 +41,12 @@ export interface GeographyIndex {
   individuals: Map<string, GeoIndividual>;
 }
 
-const PAGE_SIZE = 1000;
-
-async function fetchAll<T>(
-  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
-  label: string,
-): Promise<T[]> {
-  const rows: T[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await buildQuery(from, from + PAGE_SIZE - 1);
-    if (error) throw new Error(`Fetching ${label} failed: ${error.message}`);
-    rows.push(...(data ?? []));
-    if (!data || data.length < PAGE_SIZE) return rows;
-  }
-}
-
 export async function fetchGeographyIndex(
   client: WitnessSupabaseClient,
   treeId: string,
 ): Promise<GeographyIndex> {
   const [placeRows, eventRows, individualRows] = await Promise.all([
-    fetchAll<Omit<GeoPlace, 'region'>>(
+    fetchAllPages<Omit<GeoPlace, 'region'>>(
       (from, to) =>
         client
           .from('places')
@@ -67,9 +54,9 @@ export async function fetchGeographyIndex(
           .eq('tree_id', treeId)
           .order('id')
           .range(from, to),
-      'places',
+      'Fetching places failed',
     ),
-    fetchAll<{ individual_id: string; event_type: GeoEvent['eventType']; date_year: number | null; place_id: string | null }>(
+    fetchAllPages<{ individual_id: string; event_type: GeoEvent['eventType']; date_year: number | null; place_id: string | null }>(
       (from, to) =>
         client
           .from('individual_events')
@@ -77,17 +64,17 @@ export async function fetchGeographyIndex(
           .eq('tree_id', treeId)
           .order('id')
           .range(from, to),
-      'events',
+      'Fetching events failed',
     ),
-    fetchAll<GeoIndividual>(
+    fetchAllPages<GeoIndividual>(
       (from, to) =>
         client
           .from('individuals')
-          .select('id, full_name, birth_year, death_year')
+          .select('id, full_name, birth_year, death_year, living')
           .eq('tree_id', treeId)
           .order('id')
           .range(from, to),
-      'individuals',
+      'Fetching individuals failed',
     ),
   ]);
 
