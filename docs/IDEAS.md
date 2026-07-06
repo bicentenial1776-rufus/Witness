@@ -178,3 +178,20 @@ app restarts (observed on Ruth's first run). The job should pair with a
 client refresh — invalidate the geography cache when a tree's
 geocoded_at count changes, or refresh on Map tab focus with a staleness
 window. Prerequisite for TestFlight testers importing their own trees.
+
+## "Beyond Your Tree" — Web Search at Story Time
+
+**Idea (2026-07-05, from the Lewis Haskell Jr story):** for ancestors with
+genuinely public lives (state senators, postmasters, clergy), let the
+biography function optionally enable Claude's server-side web search and
+render anything it finds in a visually separate, clearly labeled section —
+"Beyond your tree" — never woven into the documented story.
+
+**Why deferred:** same-name confusion is the classic genealogy trap; the
+documented-facts-only prompt is the app's trust foundation. Any web-sourced
+sentence must corroborate birth/death dates and places before appearing,
+and the user should opt in per person. Roughly triples the pennies-per-story
+cost. The near-term answer is better data instead: record what you know as
+facts on the source platform, re-export, re-import (the importer now carries
+occupations, custom events, and probate), and let research briefs point at
+archives rather than assert facts.
