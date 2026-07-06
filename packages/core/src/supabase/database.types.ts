@@ -315,9 +315,11 @@ export type Database = {
           date_range_start_year: number | null
           date_raw: string | null
           date_year: number | null
+          detail: string | null
           event_type: Database["public"]["Enums"]["individual_event_type"]
           id: string
           individual_id: string
+          label: string | null
           place_id: string | null
           sort_order: number
           tree_id: string
@@ -334,9 +336,11 @@ export type Database = {
           date_range_start_year?: number | null
           date_raw?: string | null
           date_year?: number | null
+          detail?: string | null
           event_type: Database["public"]["Enums"]["individual_event_type"]
           id?: string
           individual_id: string
+          label?: string | null
           place_id?: string | null
           sort_order?: number
           tree_id: string
@@ -353,9 +357,11 @@ export type Database = {
           date_range_start_year?: number | null
           date_raw?: string | null
           date_year?: number | null
+          detail?: string | null
           event_type?: Database["public"]["Enums"]["individual_event_type"]
           id?: string
           individual_id?: string
+          label?: string | null
           place_id?: string | null
           sort_order?: number
           tree_id?: string
@@ -704,6 +710,9 @@ export type Database = {
         | "burial"
         | "residence"
         | "military"
+        | "occupation"
+        | "custom"
+        | "probate"
       research_brief_status: "open" | "in_progress" | "resolved" | "archived"
       sex_type: "M" | "F" | "U"
     }
@@ -863,6 +872,9 @@ export const Constants = {
         "burial",
         "residence",
         "military",
+        "occupation",
+        "custom",
+        "probate",
       ],
       research_brief_status: ["open", "in_progress", "resolved", "archived"],
       sex_type: ["M", "F", "U"],

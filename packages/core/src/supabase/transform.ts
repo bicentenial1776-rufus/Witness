@@ -33,7 +33,7 @@ function toIndividualEvent(
   treeId: string,
   userId: string,
   eventType: IndividualEventType,
-  event: { date?: NormalizedDate; placeId?: string } | undefined,
+  event: { date?: NormalizedDate; placeId?: string; label?: string; detail?: string } | undefined,
   placeIdMap: Map<string, string>,
   sortOrder: number,
 ): IndividualEventInsert {
@@ -44,6 +44,8 @@ function toIndividualEvent(
     user_id: userId,
     event_type: eventType,
     sort_order: sortOrder,
+    label: event?.label ?? null,
+    detail: event?.detail ?? null,
     place_id: event?.placeId ? (placeIdMap.get(event.placeId) ?? null) : null,
     date_raw: date?.raw ?? null,
     date_year: date?.year ?? null,
@@ -136,6 +138,15 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
     individual.military.forEach((service, index) => {
       individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'military', service, placeIdMap, index));
     });
+    individual.occupations.forEach((occupation, index) => {
+      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'occupation', occupation, placeIdMap, index));
+    });
+    individual.customEvents.forEach((event, index) => {
+      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'custom', event, placeIdMap, index));
+    });
+    if (individual.probate) {
+      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'probate', individual.probate, placeIdMap, 0));
+    }
   }
 
   const families: FamilyInsert[] = [];

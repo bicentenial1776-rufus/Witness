@@ -1,4 +1,5 @@
 import type { WitnessSupabaseClient } from '../supabase/client.js';
+import type { Database } from '../supabase/database.types.js';
 import { regionOf } from './regions.js';
 
 /**
@@ -20,7 +21,7 @@ export interface GeoPlace {
 
 export interface GeoEvent {
   individualId: string;
-  eventType: 'birth' | 'death' | 'burial' | 'residence' | 'military';
+  eventType: Database['public']['Enums']['individual_event_type'];
   year: number | null;
   placeId: string | null;
 }

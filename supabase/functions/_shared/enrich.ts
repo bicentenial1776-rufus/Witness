@@ -90,7 +90,26 @@ export interface EventRow {
   event_type: string;
   date_year: number | null;
   date_raw: string | null;
+  label: string | null;
+  detail: string | null;
   places: { raw: string; parts: string[] } | null;
+}
+
+// Bookkeeping identifiers (FamilySearch IDs and the like) travel as custom
+// events but aren't life facts; keep them out of prompts.
+const NOISE_LABELS = /familysearch id/i;
+
+/** One prompt-ready fact line, or null for bookkeeping noise. */
+export function renderEventLine(event: EventRow): string | null {
+  if (event.label && NOISE_LABELS.test(event.label)) return null;
+  const name = event.label ?? event.event_type;
+  const place = event.places?.raw ? ` in ${event.places.raw}` : '';
+  const detail = event.detail ? ` — ${event.detail}` : '';
+  // Undated, unplaced facts (most occupations) read better without a stub date.
+  if (!event.date_raw && event.date_year === null && !place) {
+    return event.detail ? `${name}: ${event.detail}` : `${name}`;
+  }
+  return `${name}: ${event.date_raw ?? event.date_year ?? 'date unknown'}${place}${detail}`;
 }
 
 export interface PersonFacts {
@@ -114,7 +133,7 @@ export async function loadPersonFacts(
 
   const { data: events } = await ctx.db
     .from('individual_events')
-    .select('event_type, date_year, date_raw, places(raw, parts)')
+    .select('event_type, date_year, date_raw, label, detail, places(raw, parts)')
     .eq('individual_id', individualId)
     .order('date_year', { ascending: true, nullsFirst: false })
     .returns<EventRow[]>();
@@ -127,8 +146,8 @@ export async function loadPersonFacts(
     factLines.push(`Lived: ${person.birth_year ?? 'unknown'} – ${person.death_year ?? 'unknown'}`);
   }
   for (const event of events ?? []) {
-    const place = event.places?.raw ? ` in ${event.places.raw}` : '';
-    factLines.push(`${event.event_type}: ${event.date_raw ?? event.date_year ?? 'date unknown'}${place}`);
+    const line = renderEventLine(event);
+    if (line) factLines.push(line);
   }
 
   return { person, events: events ?? [], factLines };

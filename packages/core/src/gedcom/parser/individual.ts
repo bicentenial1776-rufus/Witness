@@ -22,6 +22,29 @@ function parseEvent(node: GedcomNode | undefined, places: PlaceRegistry): Gedcom
   };
 }
 
+/**
+ * OCCU carries its payload on the tag line ("1 OCCU Farmer"); EVEN names the
+ * fact in TYPE and sometimes carries a payload in the line value or a NOTE
+ * ("1 EVEN / 2 TYPE Citizenship"). Skipped when nothing survives — an empty
+ * event row tells no story.
+ */
+function parseDetailedEvent(
+  node: GedcomNode,
+  places: PlaceRegistry,
+  shared: SharedRecords,
+): GedcomEvent | undefined {
+  const base = parseEvent(node, places) ?? {};
+  const label = value(node, 'TYPE');
+  const noteNode = child(node, 'NOTE') ?? child(node, 'SNOTE');
+  const detail = node.value.trim() || (noteNode ? resolveNote(noteNode, shared) : undefined);
+  if (!base.date && !base.placeId && !label && !detail) return undefined;
+  return {
+    ...base,
+    label,
+    detail: detail || undefined,
+  };
+}
+
 function parseName(nameNode: GedcomNode | undefined): IndividualName {
   if (!nameNode) return { full: 'Unknown' };
   // GEDCOM wraps the surname in slashes, e.g. "Henry Field /Howe/".
@@ -77,6 +100,13 @@ export function parseIndividual(
     burial: parseEvent(child(node, 'BURI'), places),
     residences: parseEvents('RESI'),
     military: parseEvents('_MILT'),
+    occupations: children(node, 'OCCU')
+      .map((n) => parseDetailedEvent(n, places, shared))
+      .filter((e): e is GedcomEvent => Boolean(e)),
+    customEvents: children(node, 'EVEN')
+      .map((n) => parseDetailedEvent(n, places, shared))
+      .filter((e): e is GedcomEvent => Boolean(e)),
+    probate: parseEvent(child(node, 'PROB'), places),
     familyAsChild: children(node, 'FAMC').map((n) => stripXref(n.value)),
     familyAsSpouse: children(node, 'FAMS').map((n) => stripXref(n.value)),
     living: flagLiving(birth, hasDeathRecord),

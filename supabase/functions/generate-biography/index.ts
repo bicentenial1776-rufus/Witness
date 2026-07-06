@@ -7,27 +7,15 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@0.65.0';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const DAILY_LIMIT = 20;
+import {
+  DAILY_LIMIT,
+  corsHeaders,
+  json,
+  renderEventLine,
+  type EventRow,
+} from '../_shared/enrich.ts';
+
 const MODEL = 'claude-sonnet-4-6';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-function json(status: number, body: Record<string, unknown>): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
-}
-
-interface EventRow {
-  event_type: string;
-  date_year: number | null;
-  date_raw: string | null;
-  places: { raw: string } | null;
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -97,7 +85,7 @@ Deno.serve(async (req) => {
   // Gather the documented facts of this life.
   const { data: events } = await db
     .from('individual_events')
-    .select('event_type, date_year, date_raw, places(raw)')
+    .select('event_type, date_year, date_raw, label, detail, places(raw, parts)')
     .eq('individual_id', individualId)
     .order('date_year', { ascending: true, nullsFirst: false })
     .returns<EventRow[]>();
@@ -136,9 +124,8 @@ Deno.serve(async (req) => {
     facts.push(`Lived: ${person.birth_year ?? 'unknown'} – ${person.death_year ?? 'unknown'}`);
   }
   for (const event of events ?? []) {
-    const place = event.places?.raw ? ` in ${event.places.raw}` : '';
-    const when = event.date_raw ?? event.date_year ?? 'date unknown';
-    facts.push(`${event.event_type}: ${when}${place}`);
+    const line = renderEventLine(event);
+    if (line) facts.push(line);
   }
   for (const family of familiesAsSpouse ?? []) {
     const spouseId = family.husband_id === individualId ? family.wife_id : family.husband_id;

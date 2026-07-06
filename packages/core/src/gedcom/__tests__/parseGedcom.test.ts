@@ -71,3 +71,50 @@ describe('parseGedcom (fixture)', () => {
     expect(Array.isArray(result.metadata.parseWarnings)).toBe(true);
   });
 });
+
+describe('occupation, custom event, and probate facts', () => {
+  // Ancestry's shapes exactly: OCCU with its payload on the tag line,
+  // EVEN named by TYPE (sometimes payload in a NOTE), PROB as a bare event.
+  const enrichedText = fixtureText.replace(
+    '1 BURI',
+    [
+      '1 OCCU First postmaster of Auburn',
+      '2 DATE 1900',
+      '2 PLAC Boston, Suffolk, Massachusetts, USA',
+      '1 EVEN',
+      '2 TYPE Citizenship',
+      '2 PLAC USA',
+      '1 EVEN',
+      '2 TYPE FamilySearch ID',
+      '2 NOTE L2LT-N43',
+      '1 PROB',
+      '2 DATE 1920',
+      '1 BURI',
+    ].join('\n'),
+  );
+  const enriched = parseGedcom(enrichedText, 'sample.ged');
+  const john = enriched.individuals.get('I1')!;
+
+  it('parses OCCU with its payload, date, and place', () => {
+    expect(john.occupations).toHaveLength(1);
+    expect(john.occupations[0]!.detail).toBe('First postmaster of Auburn');
+    expect(john.occupations[0]!.date).toMatchObject({ year: 1900 });
+    expect(john.occupations[0]!.placeId).toBeDefined();
+  });
+
+  it('parses EVEN custom facts, naming them from TYPE and reading NOTE payloads', () => {
+    expect(john.customEvents).toHaveLength(2);
+    expect(john.customEvents[0]).toMatchObject({ label: 'Citizenship' });
+    expect(john.customEvents[1]).toMatchObject({ label: 'FamilySearch ID', detail: 'L2LT-N43' });
+  });
+
+  it('parses PROB as a probate event', () => {
+    expect(john.probate?.date).toMatchObject({ year: 1920 });
+  });
+
+  it('drops an EVEN with no type, payload, date, or place', () => {
+    const emptyText = fixtureText.replace('1 BURI', '1 EVEN\n1 BURI');
+    const parsed = parseGedcom(emptyText, 'sample.ged');
+    expect(parsed.individuals.get('I1')!.customEvents).toHaveLength(0);
+  });
+});

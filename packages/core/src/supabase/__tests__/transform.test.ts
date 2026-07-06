@@ -97,4 +97,32 @@ describe('buildImportPayload', () => {
     // 3 CHIL lines in the fixture family, one now points nowhere -> 2 valid links.
     expect(childRows).toHaveLength(2);
   });
+  it('emits occupation, custom, and probate event rows with label and detail', () => {
+    const enrichedText = fixtureText.replace(
+      '1 BURI',
+      [
+        '1 OCCU Farmer',
+        '1 EVEN',
+        '2 TYPE Citizenship',
+        '2 PLAC USA',
+        '1 PROB',
+        '2 DATE 1920',
+        '1 BURI',
+      ].join('\n'),
+    );
+    const payload = buildImportPayload(parseGedcom(enrichedText, 'sample.ged'), { userId: USER_ID });
+    const john = payload.individuals.find((i) => i.gedcom_xref === 'I1')!;
+    const johnEvents = payload.individualEvents.filter((e) => e.individual_id === john.id);
+
+    expect(johnEvents.find((e) => e.event_type === 'occupation')).toMatchObject({
+      detail: 'Farmer',
+      label: null,
+    });
+    expect(johnEvents.find((e) => e.event_type === 'custom')).toMatchObject({
+      label: 'Citizenship',
+    });
+    expect(johnEvents.find((e) => e.event_type === 'probate')).toMatchObject({
+      date_year: 1920,
+    });
+  });
 });

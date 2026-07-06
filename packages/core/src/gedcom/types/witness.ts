@@ -30,6 +30,10 @@ export interface PlaceRef {
 export interface GedcomEvent {
   date?: NormalizedDate;
   placeId?: string;
+  /** Custom event name from EVEN.TYPE, e.g. "Citizenship". */
+  label?: string;
+  /** Free-text payload: occupation title, custom-event description. */
+  detail?: string;
 }
 
 export interface IndividualName {
@@ -60,6 +64,11 @@ export interface Individual {
   residences: GedcomEvent[];
   /** Ancestry _MILT military service events. */
   military: GedcomEvent[];
+  /** OCCU facts; the occupation text is in `detail`. */
+  occupations: GedcomEvent[];
+  /** EVEN custom facts (draft registration, citizenship, …); name in `label`. */
+  customEvents: GedcomEvent[];
+  probate?: GedcomEvent;
   familyAsChild: string[];
   familyAsSpouse: string[];
   living: boolean;
