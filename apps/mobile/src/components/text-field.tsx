@@ -1,9 +1,10 @@
+import type { Ref } from 'react';
 import { TextInput, type TextInputProps } from 'react-native';
 
 import { useTheme } from '@/hooks/use-theme';
 
 /** Themed text input: raised surface, hairline border, 17pt body type. */
-export function TextField({ style, ...rest }: TextInputProps) {
+export function TextField({ style, ...rest }: TextInputProps & { ref?: Ref<TextInput> }) {
   const theme = useTheme();
   return (
     <TextInput

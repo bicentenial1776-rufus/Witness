@@ -134,11 +134,14 @@ export default function HomePersonScreen() {
           <TextField
             placeholder="Search by name"
             autoCapitalize="none"
+            returnKeyType="search"
             value={search}
             onChangeText={setSearch}
           />
           <FlatList
             data={candidates}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             keyExtractor={(person) => person.id}
             renderItem={({ item }) => (
               <Card onPress={() => choose(item)} style={{ marginBottom: 8 }}>

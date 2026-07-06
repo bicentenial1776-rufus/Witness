@@ -87,6 +87,7 @@ export default function ExploreTab() {
         <>
           <TextField
             placeholder="Search people & history — “Elizabeth Dane”, “mayflower”…"
+            returnKeyType="search"
             value={search}
             onChangeText={setSearch}
             autoCapitalize="none"
@@ -158,6 +159,7 @@ export default function ExploreTab() {
         data={activeTree ? filtered : []}
         keyExtractor={(event) => event.id}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={{ ...WideContent, padding: 24, paddingTop: 72, paddingBottom: 48 }}
         ListHeaderComponent={header}
         renderItem={({ item }) => (

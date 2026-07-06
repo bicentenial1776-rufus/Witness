@@ -1,6 +1,13 @@
 import { Link } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  ScrollView,
+  TextInput,
+  TouchableWithoutFeedback,
+} from 'react-native';
 
 import { Button } from '@/components/button';
 import { TextField } from '@/components/text-field';
@@ -23,7 +30,10 @@ export default function SignIn() {
     }
   }, []);
 
+  const passwordRef = useRef<TextInput>(null);
+
   async function handleSignIn() {
+    Keyboard.dismiss();
     setIsSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setIsSubmitting(false);
@@ -31,25 +41,41 @@ export default function SignIn() {
   }
 
   return (
-    <ThemedView style={{ flex: 1, justifyContent: 'center', padding: 24, gap: 12 }}>
-      <ThemedText type="title">Witness</ThemedText>
-      <TextField
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextField
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-      <Button title="Sign in" busy={isSubmitting} onPress={handleSignIn} />
-      <Link href="/sign-up">
-        <ThemedText type="link">Need an account? Sign up</ThemedText>
-      </Link>
+    <ThemedView style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, gap: 12 }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+          >
+            <ThemedText type="title">Witness</ThemedText>
+            <TextField
+              placeholder="Email"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              value={email}
+              onChangeText={setEmail}
+            />
+            <TextField
+              ref={passwordRef}
+              placeholder="Password"
+              secureTextEntry
+              returnKeyType="go"
+              onSubmitEditing={handleSignIn}
+              value={password}
+              onChangeText={setPassword}
+            />
+            <Button title="Sign in" busy={isSubmitting} onPress={handleSignIn} />
+            <Link href="/sign-up">
+              <ThemedText type="link">Need an account? Sign up</ThemedText>
+            </Link>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </ThemedView>
   );
 }
