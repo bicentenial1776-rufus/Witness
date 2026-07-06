@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, View } from 'react-native';
 
 import { getRelationship } from '@witness/core/family';
 import {
@@ -41,6 +41,44 @@ interface ParentRow {
   full_name: string;
   birth_year: number | null;
   death_year: number | null;
+}
+
+interface CitationRow {
+  fact: string;
+  page: string | null;
+  text_excerpt: string | null;
+  url: string | null;
+  sources: { title: string | null } | null;
+}
+
+interface SourceGroup {
+  title: string;
+  facts: string[];
+  /** Excerpts of what the records actually say, deduped. */
+  excerpts: string[];
+  url: string | null;
+}
+
+/**
+ * Citations grouped per source, reading order: the source cited for the
+ * most facts first. Facts keep one mention each; excerpts dedupe (the
+ * same census line often backs several facts).
+ */
+function groupCitations(rows: CitationRow[]): SourceGroup[] {
+  const groups = new Map<string, SourceGroup>();
+  for (const row of rows) {
+    const title = row.sources?.title ?? 'Untitled source';
+    if (!groups.has(title)) groups.set(title, { title, facts: [], excerpts: [], url: null });
+    const group = groups.get(title)!;
+    if (!group.facts.includes(row.fact)) group.facts.push(row.fact);
+    if (row.text_excerpt && !group.excerpts.includes(row.text_excerpt)) {
+      group.excerpts.push(row.text_excerpt);
+    }
+    if (!group.url && row.url) group.url = row.url;
+  }
+  return [...groups.values()].sort(
+    (a, b) => b.facts.length - a.facts.length || a.title.localeCompare(b.title),
+  );
 }
 
 type SectionState =
@@ -175,6 +213,7 @@ export default function AncestorScreen() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [parents, setParents] = useState<ParentRow[]>([]);
   const [tags, setTags] = useState<LivedThroughTag[]>([]);
+  const [sources, setSources] = useState<SourceGroup[]>([]);
   const [relationship, setRelationship] = useState<string | null>(null);
   const [tab, setTab] = useState<SectionTab>('story');
   const [briefBusy, setBriefBusy] = useState(false);
@@ -190,6 +229,7 @@ export default function AncestorScreen() {
     setEvents([]);
     setParents([]);
     setTags([]);
+    setSources([]);
     setRelationship(null);
     setTab('story');
     (async () => {
@@ -219,6 +259,18 @@ export default function AncestorScreen() {
           if (!cancelled) setTags(rankLivedThroughEvents(personRow, library, regions));
         });
       }
+
+      // Sources: every citation naming this person, grouped per source.
+      // Trees imported before the citations migration simply have none;
+      // a database that predates the table errors and the section hides.
+      supabase
+        .from('citations')
+        .select('fact, page, text_excerpt, url, sources(title)')
+        .eq('individual_id', id)
+        .returns<CitationRow[]>()
+        .then(({ data }) => {
+          if (!cancelled && data) setSources(groupCitations(data));
+        });
 
       // Parents: the families this person is a child of, then both spouses.
       const { data: childLinks } = await supabase
@@ -470,6 +522,35 @@ export default function AncestorScreen() {
           <Card>
             <Lifeline events={events} />
           </Card>
+        )}
+
+        {sources.length > 0 && (
+          <>
+            <ThemedText type="subtitle" style={{ marginTop: 16 }}>
+              Sources
+            </ThemedText>
+            <ThemedText type="small">
+              How the record knows {person.full_name.split(' ')[0]} —{' '}
+              {sources.length === 1 ? 'one source' : `${sources.length} sources`}, as cited in your
+              tree.
+            </ThemedText>
+            {sources.map((source) => (
+              <Card key={source.title}>
+                <ThemedText type="smallBold">{source.title}</ThemedText>
+                <ThemedText type="small">cites their {source.facts.join(', ')}</ThemedText>
+                {source.excerpts.slice(0, 3).map((excerpt) => (
+                  <ThemedText key={excerpt} type="small" style={{ fontStyle: 'italic' }}>
+                    “{excerpt}”
+                  </ThemedText>
+                ))}
+                {source.url && (
+                  <ThemedText type="link" onPress={() => Linking.openURL(source.url!)}>
+                    View the record ›
+                  </ThemedText>
+                )}
+              </Card>
+            ))}
+          </>
         )}
 
       </ScrollView>
