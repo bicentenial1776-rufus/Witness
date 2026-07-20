@@ -6,6 +6,8 @@ import { useColorScheme } from 'react-native';
 
 import { SessionProvider, useSession } from '@/auth/session-provider';
 import { ActiveTreeProvider } from '@/lib/active-tree';
+import { ProfileProvider, useProfile } from '@/lib/profile';
+import { PurchasesProvider, usePurchases } from '@/lib/purchases';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,7 +22,13 @@ Notifications.setNotificationHandler({
 });
 
 function RootNavigator() {
-  const { session, isLoading } = useSession();
+  const { session, isLoading: isSessionLoading } = useSession();
+  const { onboardingCompleted, isLoading: isProfileLoading } = useProfile();
+  const { isEntitled, isLoading: isPurchasesLoading } = usePurchases();
+
+  // Profile/entitlement only resolve once there's a session to key them on.
+  const isLoading =
+    isSessionLoading || (Boolean(session) && (isProfileLoading || isPurchasesLoading));
 
   useEffect(() => {
     if (!isLoading) SplashScreen.hideAsync();
@@ -37,9 +45,20 @@ function RootNavigator() {
 
   if (isLoading) return null;
 
+  // The gauntlet a signed-in user walks once, in order: the transformation
+  // narrative (once per account), then the hard paywall (every relaunch
+  // until subscribed), then the app itself.
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={Boolean(session)}>
+      <Stack.Protected guard={Boolean(session) && !onboardingCompleted}>
+        <Stack.Screen name="(onboarding)" />
+      </Stack.Protected>
+
+      <Stack.Protected guard={Boolean(session) && onboardingCompleted && !isEntitled}>
+        <Stack.Screen name="paywall" />
+      </Stack.Protected>
+
+      <Stack.Protected guard={Boolean(session) && onboardingCompleted && isEntitled}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>
 
@@ -56,9 +75,13 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <SessionProvider>
-        <ActiveTreeProvider>
-          <RootNavigator />
-        </ActiveTreeProvider>
+        <ProfileProvider>
+          <PurchasesProvider>
+            <ActiveTreeProvider>
+              <RootNavigator />
+            </ActiveTreeProvider>
+          </PurchasesProvider>
+        </ProfileProvider>
       </SessionProvider>
     </ThemeProvider>
   );

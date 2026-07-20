@@ -568,6 +568,24 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          onboarding_completed_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          onboarding_completed_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          onboarding_completed_at?: string | null
+        }
+        Relationships: []
+      }
       relationships: {
         Row: {
           computed_at: string
