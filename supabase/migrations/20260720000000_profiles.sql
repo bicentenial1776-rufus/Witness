@@ -29,3 +29,9 @@ $$;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function handle_new_user();
+
+-- Accounts that signed up before this table existed also need a row,
+-- or markOnboardingComplete's UPDATE matches nothing and silently no-ops.
+insert into public.profiles (id)
+select id from auth.users
+on conflict (id) do nothing;
