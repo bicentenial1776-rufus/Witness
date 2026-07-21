@@ -28,25 +28,36 @@ top.
 
 Target delivery: portrait 1080×2340, HEVC, burned-in captions, under ~25 MB.
 
-## Timeline + narration
+## Timeline + narration (deep cut, ~4:20)
 
-Timecodes are from the moment the demo link is opened (t = 0). Pace is
-~2.3 words/second; each block is written to fit its hold with a beat of air.
+The full "How to read the Ascent" teaching edition: every taxonomy term,
+explained with everyday analogies for viewers who don't think in charts, and
+a return to base at the end so the video finishes where the user's own work
+begins. Timecodes are from content render (t = 0); pace is `say -r 180`
+scratch, ~3 words/second.
 
-| Time | Screen | Voice-over |
-|---|---|---|
-| 0:00–0:15 | **Base.** Your amber circle, name, birth year; the Pulse card below. | "This is the Ascent — your whole family tree as a climb. It starts with you, here at the base. The card below is the Pulse: how much of your tree is found, how much is proven, and where your effort matters most right now." |
-| 0:15–0:18 | *Scrolling up to generations 1–2.* | *(pause)* |
-| 0:18–0:34 | **Parents & grandparents.** Segmented bars, "2 of 2 found." | "Every generation is a row, and every segment is one ancestor who should exist — two parents, four grandparents, doubling every step. A colored segment means your tree names someone. A faded one is a gap: an ancestor history hasn't given up yet." |
-| 0:34–0:37 | *Scrolling to the middle generations.* | *(pause)* |
-| 0:37–0:49 | **Mid generations.** Era labels visible; brown segments. | "Brown means found but not yet proven. When a link is backed by a real source, it turns green — verified. And every row is stamped with its era, so you always know what years you're standing in." |
-| 0:49–0:52 | *Scrolling to generation 6.* | *(pause)* |
-| 0:52–1:11 | **The frontier.** Gapped bars, beacon card with why-statement. | "Higher up, the records thin. Every faded segment is a wall — an ancestor no one has named yet. And this is a beacon: the one wall where breaking through opens the most new ground. Every beacon comes with a research brief — a starting plan you can take to the archive, the library, or the other open tab." |
-| 1:11–1:15 | *Scrolling to the summit.* | *(pause)* |
-| 1:15–1:25 | **Summit.** "Here the records thin…" and the golden-thread line. | "This is the summit — eight generations up. One day a golden thread appears here: an unbroken, verified chain from you to someone born centuries ago." |
-| 1:27–1:41 | **Summit, holding.** | "The Ascent reads your tree — the work still happens where your tree lives, on Ancestry or FamilySearch. Find something, add it there, export a fresh GEDCOM, and bring it back. Then watch the climb change. That's the loop — and this is your scoreboard." |
+| Time | Screen | Block | Voice-over |
+|---|---|---|---|
+| 0:02–0:20 | **Base.** Your amber circle. | d1 | "Welcome to the Ascent. This is your whole family tree, laid out as a climb. Down here at the base is you — and every scroll upward takes you one generation deeper into the past. Think of it as a mountain you were born at the bottom of: your parents stand just above you, their parents above them, higher and higher, until the records run out." |
+| 0:21–0:45 | **Base.** Highlight the Pulse card. | d2 | "Before we climb, look at this card. We call it the Pulse — one glance tells you how your whole tree is doing. *Filled* is how many of your ancestors have a name in your tree. *Verified* is how many of those names are backed by real documents. And *beacons* — we'll meet one on the way up — are the places where a little research will open the most new ground. Below the numbers, the app names the one ancestor where your effort matters most right now." |
+| 0:47–0:50 | *Scroll to generations 1–2.* | | *(pause)* |
+| 0:51–1:14 | **Parents row.** Highlight the segmented bar. | d3 | "Now let's climb. Every generation is a row, and the boxes are what we call ancestor slots. Here's the idea: everyone — no exceptions — has exactly two parents, four grandparents, eight great-grandparents. The number doubles at every step. History has already set the table; the chairs are all there, whether or not you know who sat in them. A slot is one chair at that table." |
+| 1:15–1:27 | **Parents row**, bar still highlighted. | d4 | "A colored box means your tree has a name for that chair — that slot is filled. A faded box is an empty chair: an ancestor who certainly existed, but whose name your tree doesn't know yet. Every empty chair is an invitation." |
+| 1:28–1:31 | *Scroll to the middle generations.* | | *(pause)* |
+| 1:32–1:57 | **Gens 2–4.** Highlight a brown bar. | d5 | "Higher now. Brown means found — but found is not the same as proven. Anyone can copy a name into a tree. Proof lives in documents: a birth record, a census page, a will. When a link is backed by a source like that, its box turns green — verified. It's the difference between a family story and a court record. Today this tree is all brown; as you attach sources, the green will climb the mountain with you." |
+| 1:58–2:09 | **Gens 2–4.** Highlight an era label. | d6 | "And notice the small dates on every row. That's the era — the years that generation was born into. You're not just climbing a family tree; you're walking backward through time, decade by decade." |
+| 2:10–2:13 | *Scroll to generation 6.* | | *(pause)* |
+| 2:14–2:30 | **The frontier.** Highlight faded gap segments. | d7 | "Up here, the records begin to thin — see the faded gaps scattered through these rows? Genealogists call these brick walls: a line that stops because no one has found the next name. Every family tree on earth has them. The Ascent shows you exactly where yours are." |
+| 2:30–3:01 | **The frontier.** Highlight the beacon card. | d8 | "But not all walls are equal. A beacon is the app's answer to a simple question: which wall should I work on first? It finds the spot where one discovery would unlock the most new ancestors — like a lighthouse showing where to sail next. This card is a beacon. And here's a family secret worth knowing: sometimes two branches of your tree descend from the same ancestor — it happens more often than you'd think. That's called pedigree collapse, and when it happens, breaking a single wall can light up several lines at once. The Ascent marks those spots too." |
+| 3:02–3:13 | **The frontier.** Highlight the brief button. | d9 | "Every beacon offers a research brief: a written starting plan — what's known, what's missing, which records to look for — ready to take to the library, the archive, or the other open tab." |
+| 3:14–3:18 | *Scroll to the summit.* | | *(pause)* |
+| 3:19–3:44 | **Summit.** Highlight the summit line. | d10 | "The summit. Eight generations up — your sixth great-grandparents. Two hundred fifty-six of them, born as far back as the sixteen-hundreds. Here the records thin, and this is where research begins. One day, when a single line runs verified from you all the way to the top, a golden thread will appear here — an unbroken, documented chain from your name to someone born four centuries ago. That's the mountaineer's prize." |
+| 3:45–3:50 | *Scroll back down to the base.* | | *(pause)* |
+| 3:51–4:16 | **Base again.** Highlight the Pulse on "scoreboard." | d11 | "And back down to you. Remember: the Ascent reads your tree — the work itself happens where your tree lives, on Ancestry or FamilySearch. So the rhythm is simple. Pick a beacon. Do the research. Add what you find to your tree, export it fresh, and bring it back. Then open the Ascent, and watch the mountain change: chairs filled, walls broken, green climbing behind you. This is your scoreboard. Happy climbing." |
 
-Runtime: ~1:41 plus end card.
+Runtime: ~4:20 plus end card. This is the template for the explainer-video
+library: one deterministic in-app choreography per topic, one timecoded
+script, narration and highlights laid on in post.
 
 **Highlights:** as each term is spoken, draw attention to it on screen — an
 amber outline around the Pulse card, a generation bar, an era label, the wall
