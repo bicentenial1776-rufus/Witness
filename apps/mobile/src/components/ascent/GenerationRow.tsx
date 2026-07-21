@@ -140,7 +140,9 @@ export function GenerationRow({ generation, slots, beacons }: GenerationRowProps
 
   return (
     <View style={styles.row}>
-      <Text style={styles.eyebrow}>GENERATION {generation.generation}</Text>
+      <Text style={styles.eyebrow}>
+        GENERATION {generation.generation} · {generation.eraLabel.toUpperCase()}
+      </Text>
 
       <View style={styles.header}>
         <Text style={styles.relationship}>{generation.relationshipName}</Text>

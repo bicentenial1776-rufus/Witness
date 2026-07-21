@@ -35,18 +35,25 @@ Timecodes are from the moment the demo link is opened (t = 0). Pace is
 
 | Time | Screen | Voice-over |
 |---|---|---|
-| 0:00–0:11 | **Base.** Your amber circle, name, birth year; the Pulse card below. | "This is the Ascent — your whole family tree as a climb. It starts with you, here at the base. The card below is the Pulse: how much of your tree is found, how much is proven, and where your effort matters most right now." |
-| 0:11–0:14 | *Scrolling up to generations 1–2.* | *(pause)* |
-| 0:14–0:24 | **Parents & grandparents.** Segmented bars, "2 of 2 found." | "Every generation is a row, and every segment is one ancestor who should exist — two parents, four grandparents, doubling every step. A colored segment means your tree names someone. A dark one is a gap: an ancestor history hasn't given up yet." |
-| 0:24–0:27 | *Scrolling to the middle generations.* | *(pause)* |
-| 0:27–0:36 | **Mid generations.** Era labels visible; brown segments. | "Brown means found but not yet proven. When a link is backed by a real source, it turns green — verified. And every row is stamped with its era, so you always know what years you're standing in." |
-| 0:36–0:39 | *Scrolling to generation 6.* | *(pause)* |
-| 0:39–0:51 | **The frontier.** Wall chip, beacon card with why-statement. | "Higher up, the records thin. A flag marks a wall — a line that stops because no one has named the next ancestor. And this is a beacon: the one wall where breaking through opens the most new ground. Every beacon comes with a research brief — a starting plan you can take to the archive, the library, or the other open tab." |
-| 0:51–0:55 | *Scrolling to the summit.* | *(pause)* |
-| 0:55–1:05 | **Summit.** "Here the records thin…" and the golden-thread line. | "This is the summit — eight generations up. One day a golden thread appears here: an unbroken, verified chain from you to someone born centuries ago." |
-| 1:05–1:17 | **Summit, holding.** | "The Ascent reads your tree — the work still happens where your tree lives, on Ancestry or FamilySearch. Find something, add it there, export a fresh GEDCOM, and bring it back. Then watch the climb change. That's the loop — and this is your scoreboard." |
+| 0:00–0:15 | **Base.** Your amber circle, name, birth year; the Pulse card below. | "This is the Ascent — your whole family tree as a climb. It starts with you, here at the base. The card below is the Pulse: how much of your tree is found, how much is proven, and where your effort matters most right now." |
+| 0:15–0:18 | *Scrolling up to generations 1–2.* | *(pause)* |
+| 0:18–0:34 | **Parents & grandparents.** Segmented bars, "2 of 2 found." | "Every generation is a row, and every segment is one ancestor who should exist — two parents, four grandparents, doubling every step. A colored segment means your tree names someone. A faded one is a gap: an ancestor history hasn't given up yet." |
+| 0:34–0:37 | *Scrolling to the middle generations.* | *(pause)* |
+| 0:37–0:49 | **Mid generations.** Era labels visible; brown segments. | "Brown means found but not yet proven. When a link is backed by a real source, it turns green — verified. And every row is stamped with its era, so you always know what years you're standing in." |
+| 0:49–0:52 | *Scrolling to generation 6.* | *(pause)* |
+| 0:52–1:11 | **The frontier.** Gapped bars, beacon card with why-statement. | "Higher up, the records thin. Every faded segment is a wall — an ancestor no one has named yet. And this is a beacon: the one wall where breaking through opens the most new ground. Every beacon comes with a research brief — a starting plan you can take to the archive, the library, or the other open tab." |
+| 1:11–1:15 | *Scrolling to the summit.* | *(pause)* |
+| 1:15–1:25 | **Summit.** "Here the records thin…" and the golden-thread line. | "This is the summit — eight generations up. One day a golden thread appears here: an unbroken, verified chain from you to someone born centuries ago." |
+| 1:27–1:41 | **Summit, holding.** | "The Ascent reads your tree — the work still happens where your tree lives, on Ancestry or FamilySearch. Find something, add it there, export a fresh GEDCOM, and bring it back. Then watch the climb change. That's the loop — and this is your scoreboard." |
 
-Runtime: ~1:17 plus end card.
+Runtime: ~1:41 plus end card.
+
+**Highlights:** as each term is spoken, draw attention to it on screen — an
+amber outline around the Pulse card, a generation bar, an era label, the wall
+chip, the beacon card, and the golden-thread line, appearing with the phrase
+and fading before the next. In the scratch/animatic cut these are post-drawn
+boxes; the production cut can do proper motion graphics, but keep the same
+appear-with-the-phrase timing.
 
 ## Production notes
 

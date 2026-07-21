@@ -1,5 +1,10 @@
 import { createContext, useContext, useEffect, useState, type PropsWithChildren } from 'react';
-import { Platform } from 'react-native';
+import { LogBox, Platform } from 'react-native';
+
+// The store isn't fully configured yet, so RevenueCat logs noisy (and
+// expected) fetch errors on every dev launch. Keep them out of the LogBox
+// toast — they still reach the console.
+LogBox.ignoreLogs([/\[RevenueCat\]/]);
 import Purchases, {
   LOG_LEVEL,
   type CustomerInfo,
@@ -17,7 +22,16 @@ const apiKey = Platform.select({
   default: undefined,
 });
 
+/**
+ * Dev-only escape hatch: EXPO_PUBLIC_DEV_SKIP_PAYWALL=1 in apps/mobile/.env
+ * (gitignored) grants entitlement without RevenueCat, so simulators and demo
+ * recordings never block on store configuration. Compiled out of release
+ * builds by the __DEV__ guard.
+ */
+const DEV_SKIP_PAYWALL = __DEV__ && process.env.EXPO_PUBLIC_DEV_SKIP_PAYWALL === '1';
+
 function isEntitled(info: CustomerInfo | null): boolean {
+  if (DEV_SKIP_PAYWALL) return true;
   return Boolean(info?.entitlements.active[ENTITLEMENT_ID]);
 }
 

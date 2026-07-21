@@ -90,11 +90,11 @@ interface AscentData {
  */
 const DEMO_SETTLE_MS = 1500;
 const DEMO_TIMELINE: { to: number; scrollMs: number; holdMs: number }[] = [
-  { to: 1.0, scrollMs: 0, holdMs: 10000 }, // base: You + the Pulse
-  { to: 0.8, scrollMs: 3000, holdMs: 10000 }, // gens 1–2: slots, filled vs empty
-  { to: 0.55, scrollMs: 3000, holdMs: 9000 }, // mid gens: verified, era labels
-  { to: 0.3, scrollMs: 3000, holdMs: 12000 }, // gen 6: walls, beacons, brief
-  { to: 0.0, scrollMs: 4000, holdMs: 22000 }, // summit + golden thread + closing loop
+  { to: 1.0, scrollMs: 0, holdMs: 14000 }, // base: You + the Pulse
+  { to: 0.77, scrollMs: 3000, holdMs: 16000 }, // gens 1–2: slots, filled vs empty
+  { to: 0.55, scrollMs: 3000, holdMs: 12000 }, // mid gens: verified, era labels
+  { to: 0.3, scrollMs: 3000, holdMs: 19000 }, // gen 6: walls, beacons, brief
+  { to: 0.0, scrollMs: 4000, holdMs: 26000 }, // summit + golden thread + closing loop
 ];
 
 /**
