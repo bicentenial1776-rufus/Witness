@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams } from 'expo-router';
 
 import {
   computeTreeHealth,
@@ -80,13 +81,35 @@ interface AscentData {
 }
 
 /**
+ * Demo mode (dev only): a deterministic scripted scroll for recording the
+ * tutorial video. Open `mobile://ascent?demo=1` and start the screen capture;
+ * after a settle delay the screen climbs from base to summit on this timeline.
+ * Timings and stops MUST stay in sync with docs/ascent-vo-script.md.
+ *
+ * `to` is scroll progress: 1 = base (home person), 0 = summit (gen 8).
+ */
+const DEMO_SETTLE_MS = 1500;
+const DEMO_TIMELINE: { to: number; scrollMs: number; holdMs: number }[] = [
+  { to: 1.0, scrollMs: 0, holdMs: 10000 }, // base: You + the Pulse
+  { to: 0.8, scrollMs: 3000, holdMs: 10000 }, // gens 1–2: slots, filled vs empty
+  { to: 0.55, scrollMs: 3000, holdMs: 9000 }, // mid gens: verified, era labels
+  { to: 0.3, scrollMs: 3000, holdMs: 12000 }, // gen 6: walls, beacons, brief
+  { to: 0.0, scrollMs: 4000, holdMs: 22000 }, // summit + golden thread + closing loop
+];
+
+/**
  * Ascent: vertical, scrollable generation ladder showing tree health from home person upward.
  * Loads scrolled to bottom (home person + summary), user scrolls UP to ascend generations.
  */
 export default function AscentScreen() {
   const { activeTree } = useActiveTree();
+  const { demo } = useLocalSearchParams<{ demo?: string }>();
+  const demoMode = __DEV__ && demo === '1';
   const scrollRef = useRef<ScrollView>(null);
   const startedAtBase = useRef(false);
+  const demoStarted = useRef(false);
+  const contentHeight = useRef(0);
+  const viewportHeight = useRef(0);
   const [headerSpy, setHeaderSpy] = useState('You · Home');
   const [data, setData] = useState<AscentData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -111,6 +134,44 @@ export default function AscentScreen() {
       cancelled = true;
     };
   }, [treeId, homePersonId]);
+
+  const maybeStartDemo = useCallback(() => {
+    if (!demoMode || demoStarted.current) return;
+    const maxScroll = contentHeight.current - viewportHeight.current;
+    if (maxScroll <= 0) return;
+    demoStarted.current = true;
+
+    // Flatten the timeline into absolute keyframes, then drive with rAF so
+    // velocity is constant regardless of frame rate.
+    const segments: { t0: number; t1: number; from: number; to: number }[] = [];
+    let t = DEMO_SETTLE_MS;
+    let at = 1.0;
+    for (const step of DEMO_TIMELINE) {
+      if (step.scrollMs > 0) {
+        segments.push({ t0: t, t1: t + step.scrollMs, from: at, to: step.to });
+        t += step.scrollMs;
+      }
+      at = step.to;
+      segments.push({ t0: t, t1: t + step.holdMs, from: at, to: at });
+      t += step.holdMs;
+    }
+
+    const start = Date.now();
+    const tick = () => {
+      const elapsed = Date.now() - start;
+      const segment = segments.find((s) => elapsed >= s.t0 && elapsed < s.t1);
+      if (!segment) {
+        if (elapsed >= t) return; // timeline finished
+        requestAnimationFrame(tick);
+        return;
+      }
+      const ratio = segment.t1 === segment.t0 ? 1 : (elapsed - segment.t0) / (segment.t1 - segment.t0);
+      const progress = segment.from + (segment.to - segment.from) * ratio;
+      scrollRef.current?.scrollTo({ y: progress * maxScroll, animated: false });
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [demoMode]);
 
   const handleScroll = useCallback((event: { nativeEvent: { contentSize: { height: number }; layoutMeasurement: { height: number }; contentOffset: { y: number } } }) => {
     const contentHeight = event.nativeEvent.contentSize.height;
@@ -183,12 +244,18 @@ export default function AscentScreen() {
         style={{ flex: 1 }}
         onScroll={handleScroll}
         scrollEventThrottle={100}
-        onContentSizeChange={() => {
+        onLayout={(e) => {
+          viewportHeight.current = e.nativeEvent.layout.height;
+          maybeStartDemo();
+        }}
+        onContentSizeChange={(_w, h) => {
+          contentHeight.current = h;
           // The ascent starts at the base — home person in view, ancestors above
           if (!startedAtBase.current) {
             startedAtBase.current = true;
             scrollRef.current?.scrollToEnd({ animated: false });
           }
+          maybeStartDemo();
         }}
       >
         <View style={styles.scrollContent}>
