@@ -16,11 +16,16 @@ import { useSession } from '@/auth/session-provider';
 /** The single subscription tier — $19.99/year, no feature gating (BRIEF.md). */
 export const ENTITLEMENT_ID = process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID ?? 'premium';
 
-const apiKey = Platform.select({
+const rawApiKey = Platform.select({
   ios: process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY,
   android: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY,
   default: undefined,
 });
+
+// RevenueCat deliberately hard-crashes Release builds configured with a
+// Test Store (test_…) key. Treat one like a missing key outside dev: skip
+// configuration entirely and fail closed — the paywall still gates.
+const apiKey = rawApiKey && (__DEV__ || !rawApiKey.startsWith('test_')) ? rawApiKey : undefined;
 
 /**
  * Dev-only escape hatch: EXPO_PUBLIC_DEV_SKIP_PAYWALL=1 in apps/mobile/.env
@@ -64,9 +69,10 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     if (!apiKey) {
-      // No RevenueCat project configured yet (see .env) — fail closed so
-      // the paywall still gates, rather than silently granting access.
-      console.warn('Missing RevenueCat API key. Check apps/mobile/.env.');
+      // Key missing, or a Test Store key in a release build (see above) —
+      // fail closed so the paywall still gates, rather than crashing or
+      // silently granting access.
+      console.warn('RevenueCat API key missing or unusable in this build. Check apps/mobile/.env.');
       setIsLoading(false);
       return;
     }
