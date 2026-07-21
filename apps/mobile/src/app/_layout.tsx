@@ -8,6 +8,7 @@ import { SessionProvider, useSession } from '@/auth/session-provider';
 import { ActiveTreeProvider } from '@/lib/active-tree';
 import { ProfileProvider, useProfile } from '@/lib/profile';
 import { PurchasesProvider, usePurchases } from '@/lib/purchases';
+import { SuperwallGate } from '@/lib/superwall';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -77,9 +78,11 @@ export default function RootLayout() {
       <SessionProvider>
         <ProfileProvider>
           <PurchasesProvider>
-            <ActiveTreeProvider>
-              <RootNavigator />
-            </ActiveTreeProvider>
+            <SuperwallGate>
+              <ActiveTreeProvider>
+                <RootNavigator />
+              </ActiveTreeProvider>
+            </SuperwallGate>
           </PurchasesProvider>
         </ProfileProvider>
       </SessionProvider>

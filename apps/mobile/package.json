@@ -22,6 +22,7 @@
     "expo-sharing": "~57.0.2",
     "expo-splash-screen": "~57.0.1",
     "expo-status-bar": "~57.0.0",
+    "expo-superwall": "^1.2.0",
     "expo-symbols": "~57.0.0",
     "expo-system-ui": "~57.0.0",
     "expo-web-browser": "~57.0.0",

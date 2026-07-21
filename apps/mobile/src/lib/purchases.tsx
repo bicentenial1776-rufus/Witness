@@ -40,6 +40,24 @@ function isEntitled(info: CustomerInfo | null): boolean {
   return Boolean(info?.entitlements.active[ENTITLEMENT_ID]);
 }
 
+let configured = false;
+
+/**
+ * Configure RevenueCat exactly once, synchronously. Called during
+ * PurchasesProvider render so RevenueCat is always configured before
+ * Superwall (rendered as a child) initializes — the documented order.
+ * Returns whether the SDK is usable in this build.
+ */
+export function ensurePurchasesConfigured(): boolean {
+  if (!apiKey) return false;
+  if (!configured) {
+    Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.ERROR);
+    Purchases.configure({ apiKey });
+    configured = true;
+  }
+  return true;
+}
+
 interface PurchasesContextValue {
   isLoading: boolean;
   isEntitled: boolean;
@@ -67,8 +85,11 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Render-time so RevenueCat is configured before any child (Superwall) mounts.
+  const purchasesActive = ensurePurchasesConfigured();
+
   useEffect(() => {
-    if (!apiKey) {
+    if (!purchasesActive) {
       // Key missing, or a Test Store key in a release build (see above) —
       // fail closed so the paywall still gates, rather than crashing or
       // silently granting access.
@@ -76,9 +97,6 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
       setIsLoading(false);
       return;
     }
-
-    Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.ERROR);
-    Purchases.configure({ apiKey });
 
     const listener = (info: CustomerInfo) => setCustomerInfo(info);
     Purchases.addCustomerInfoUpdateListener(listener);

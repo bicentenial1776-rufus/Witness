@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
 import { useProfile } from '@/lib/profile';
+import { useOnboardingPlacement } from '@/lib/superwall';
 
 // Fixed brand colors, not the device theme: this is a scripted narrative
 // sequence (like the marketing preview site and the discovery card), and
@@ -125,6 +126,7 @@ const SCREENS: Screen[] = [
 
 export default function Onboarding() {
   const { markOnboardingComplete } = useProfile();
+  const registerOnboardingComplete = useOnboardingPlacement();
   const [index, setIndex] = useState(0);
   const [isFinishing, setIsFinishing] = useState(false);
 
@@ -143,6 +145,10 @@ export default function Onboarding() {
     }
     setIsFinishing(true);
     await markOnboardingComplete();
+    // The router's entitlement guard now shows the paywall screen; this
+    // placement lets the Superwall dashboard present its paywall over it
+    // (trial + $19.99/yr) and run experiments without an app release.
+    await registerOnboardingComplete();
   }
 
   return (

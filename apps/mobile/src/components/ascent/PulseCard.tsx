@@ -1,6 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { router } from 'expo-router';
 import type { Beacon } from '@witness/core/family';
+
+import { usePremiumGate } from '@/lib/superwall';
 
 const styles = StyleSheet.create({
   card: {
@@ -93,6 +96,8 @@ interface PulseCardProps {
  * Pulse card at the bottom showing headline stats and the top priority beacon.
  */
 export function PulseCard({ headlineStats, topBeacon }: PulseCardProps) {
+  const premiumGate = usePremiumGate();
+
   return (
     <View style={styles.card}>
       <View style={styles.statsGrid}>
@@ -120,7 +125,10 @@ export function PulseCard({ headlineStats, topBeacon }: PulseCardProps) {
               {topBeacon.individual?.name || 'Unknown'}
             </Text>
             <Text style={styles.beaconWhy}>{topBeacon.whyStatement}</Text>
-            <Pressable style={styles.button}>
+            <Pressable
+              style={styles.button}
+              onPress={() => premiumGate(() => router.push('/research'))}
+            >
               <Text style={styles.buttonText}>Get Research Brief</Text>
             </Pressable>
           </View>

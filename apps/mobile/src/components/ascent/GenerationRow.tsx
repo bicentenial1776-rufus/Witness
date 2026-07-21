@@ -1,6 +1,9 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { router } from 'expo-router';
 import type { GenerationStats, AhnentafelSlot, Beacon } from '@witness/core/family';
+
+import { usePremiumGate } from '@/lib/superwall';
 
 const styles = StyleSheet.create({
   row: {
@@ -126,6 +129,7 @@ interface GenerationRowProps {
  * Shows eyebrow, relationship label, segmented bar, chips (frontier/collapse), and beacon cards.
  */
 export function GenerationRow({ generation, slots, beacons }: GenerationRowProps) {
+  const premiumGate = usePremiumGate();
   const verifiedCount = slots.filter(s => s.state === 'verified').length;
   const filledCount = slots.filter(s => s.individual).length;
 
@@ -202,7 +206,10 @@ export function GenerationRow({ generation, slots, beacons }: GenerationRowProps
             {beacon.individual?.name || 'Unknown'}
           </Text>
           <Text style={styles.beaconWhy}>{beacon.whyStatement}</Text>
-          <Pressable style={styles.buttonBrief}>
+          <Pressable
+            style={styles.buttonBrief}
+            onPress={() => premiumGate(() => router.push('/research'))}
+          >
             <Text style={styles.buttonBriefText}>Generate Research Brief</Text>
           </Pressable>
         </View>
