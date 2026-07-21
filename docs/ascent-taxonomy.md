@@ -161,6 +161,56 @@ directly because beacons are, by construction, where a brief pays off most.
 
 ---
 
+## The transformation (promotional wording)
+
+Every family tree starts the same way: a burst of enthusiasm, a few hundred
+names copied in, and then — quietly — the gaps. Empty branches nobody noticed.
+Links that were guesses. Whole lines that stop a generation short of where the
+records could actually take them.
+
+The Ascent turns that invisible state of affairs into a landscape you can see.
+The first time you open it, your tree tells you the truth: this much found,
+this much proven, here are the walls. And then, climb by climb, the picture
+changes. Gaps fill. Brown turns to green as guesses become documented fact. A
+beacon that once marked your hardest wall goes dark because you broke through
+it — and three new generations light up above where it stood. One day a golden
+thread appears: an unbroken, verified chain from you to someone born four
+centuries ago.
+
+Not every slot can be filled — records burn, ships sink, parishes flood. The
+Ascent's promise is different: a tree taken as far as the surviving
+documentation can take it, and the confidence of knowing which is which — what
+you've proven, what remains a guess, and what history simply didn't write
+down. That is an optimized tree. The Ascent is the difference between hoping
+your tree is done and knowing exactly how done it is.
+
+## How the Ascent fits into real research
+
+The Ascent reads your tree; it doesn't edit it. Your tree lives where you
+built it — Ancestry, FamilySearch, or another service — and Witness sees the
+snapshot you exported as a GEDCOM file. So the working rhythm is a loop:
+
+1. **Read the Ascent** to pick your target — usually the top beacon, or the
+   nearest wall on the line you care about.
+2. **Do the work where the tree lives.** Either side by side — Witness open on
+   one screen (or your phone) as the map, Ancestry or FamilySearch on the
+   other as the workbench — or by generating a **research brief** for the
+   target ancestor and taking it with you: printed, or on your phone at the
+   archive, library, or courthouse. The brief is designed to be exactly the
+   packet you'd want away from the app: what's known, what's missing, which
+   records to chase.
+3. **Add what you find to the root tree** — new ancestors, attached sources,
+   corrected links — in Ancestry or FamilySearch, the way you normally would.
+4. **Re-export and re-import.** Export a fresh GEDCOM and import it into
+   Witness. The Ascent recomputes, and the climb shows its new state: slots
+   filled, frontiers pushed back, maybe a beacon retired.
+
+Each pass around the loop is one increment of real progress, and the Ascent is
+the scoreboard between passes — the before-and-after that shows what your
+research trip actually bought.
+
+---
+
 ## Notes for help-file and animation authors (not user-facing)
 
 - **V1 honesty:** verification isn't computed yet — every filled slot
