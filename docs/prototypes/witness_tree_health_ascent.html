@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Witness Tree Health: Ascent</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            background: #fafaf8;
+            color: #1a1a1a;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            height: 100vh;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #e0e0dc;
+        }
+
+        /* Fixed Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 480px;
+            height: 56px;
+            background: #fafaf8;
+            border-bottom: 1px solid #e0e0dc;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 50;
+            font-size: 12px;
+            font-weight: 500;
+            color: #666;
+        }
+
+        .header-spy {
+            flex: 1;
+            text-align: right;
+        }
+
+        /* Scroll Container */
+        .scroll-container {
+            flex: 1;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            padding-top: 56px;
+            scroll-behavior: smooth;
+        }
+
+        .scroll-container::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .scroll-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: #d0d0cc;
+            border-radius: 2px;
+        }
+
+        /* Content */
+        .content {
+            padding: 32px 16px 16px;
+        }
+
+        /* Summit */
+        .summit {
+            text-align: center;
+            margin-bottom: 48px;
+            font-style: italic;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #888;
+            font-family: 'Playfair Display', serif;
+        }
+
+        .golden-thread-tag {
+            display: inline-block;
+            margin-top: 8px;
+            font-family: 'Inter', sans-serif;
+            font-style: normal;
+            font-size: 11px;
+            font-weight: 500;
+            color: #d4af37;
+            letter-spacing: 0.5px;
+        }
+
+        /* Generation Row */
+        .generation-row {
+            margin-bottom: 40px;
+        }
+
+        .gen-eyebrow {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: #999;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .gen-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 12px;
+        }
+
+        .gen-relationship {
+            font-family: 'Playfair Display', serif;
+            font-size: 16px;
+            font-weight: 400;
+            color: #1a1a1a;
+        }
+
+        .gen-stats {
+            font-size: 12px;
+            color: #999;
+            text-align: right;
+        }
+
+        /* Segmented Bar */
+        .segmented-bar {
+            display: flex;
+            gap: 3px;
+            margin-bottom: 12px;
+            align-items: center;
+            height: 32px;
+        }
+
+        .segment {
+            flex: 1;
+            height: 100%;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            position: relative;
+        }
+
+        .segment:hover {
+            opacity: 0.8;
+        }
+
+        .segment.verified {
+            background: #00a890;
+        }
+
+        .segment.unverified {
+            background: #8b7355;
+            opacity: 0.6;
+        }
+
+        .segment.empty {
+            background: #2a2a28;
+            opacity: 0.2;
+        }
+
+        .segment.beacon {
+            background: #f59e0b;
+            animation: pulse-beacon 2s infinite;
+        }
+
+        @keyframes pulse-beacon {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @media (prefers-reduced-motion) {
+            .segment.beacon {
+                animation: none;
+                opacity: 0.8;
+            }
+        }
+
+        .segment.thread-anchor {
+            border-left: 2px solid #d4af37;
+        }
+
+        /* Chips */
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-size: 11px;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 10px;
+            background: #f0f0ec;
+            border-radius: 12px;
+            color: #1a1a1a;
+            font-weight: 500;
+        }
+
+        .chip.frontier-wall {
+            background: #fff4e6;
+            color: #b8860b;
+        }
+
+        .chip.frontier-verify {
+            background: #f3f3f1;
+            color: #666;
+        }
+
+        .chip.collapse {
+            background: #f3f3f1;
+            color: #666;
+        }
+
+        /* Beacon Card */
+        .beacon-card {
+            background: white;
+            border: 1px solid #e0e0dc;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .beacon-card-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #1a1a1a;
+        }
+
+        .beacon-card-why {
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .btn-brief {
+            width: 100%;
+            padding: 8px;
+            background: #1a1a1a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-brief:hover {
+            background: #333;
+        }
+
+        .btn-brief.queued {
+            background: #ccc;
+            color: #666;
+            cursor: default;
+        }
+
+        /* Base / Home Person */
+        .base {
+            margin-bottom: 24px;
+        }
+
+        .scroll-hint {
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 24px;
+        }
+
+        .home-person-circle {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #f59e0b;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-bottom: 12px;
+        }
+
+        .circle:hover {
+            transform: scale(1.05);
+        }
+
+        .circle-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .circle-year {
+            font-size: 12px;
+            margin-top: 4px;
+            opacity: 0.9;
+        }
+
+        /* Pulse Card */
+        .pulse-card {
+            background: white;
+            border: 1px solid #e0e0dc;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 32px;
+        }
+
+        .pulse-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-value {
+            font-family: 'Playfair Display', serif;
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: #999;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        .pulse-beacon {
+            background: #f9f9f7;
+            border-top: 1px solid #e0e0dc;
+            padding-top: 12px;
+            margin-top: 12px;
+        }
+
+        .beacon-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #999;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .btn-get-brief {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-get-brief:hover {
+            background: #333;
+        }
+
+        /* Bottom Sheet (Generation Detail) */
+        .bottom-sheet {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-width: 480px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            border-top: 1px solid #e0e0dc;
+            border-radius: 12px 12px 0 0;
+            padding: 20px 16px;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 100;
+            animation: slide-up 0.3s ease-out;
+        }
+
+        .bottom-sheet.active {
+            display: block;
+        }
+
+        @keyframes slide-up {
+            from {
+                transform: translateX(-50%) translateY(100%);
+            }
+            to {
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        .sheet-handle {
+            width: 40px;
+            height: 4px;
+            background: #e0e0dc;
+            border-radius: 2px;
+            margin: 0 auto 12px;
+        }
+
+        .sheet-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #1a1a1a;
+        }
+
+        .sheet-subtitle {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 16px;
+        }
+
+        .line-row {
+            padding: 12px 0;
+            border-bottom: 1px solid #e0e0dc;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .line-row:last-child {
+            border-bottom: none;
+        }
+
+        .line-name {
+            font-weight: 500;
+            margin-bottom: 4px;
+            color: #1a1a1a;
+        }
+
+        .line-status {
+            font-size: 11px;
+            color: #999;
+        }
+
+        /* Golden Thread Line (SVG overlay) */
+        .thread-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .thread-line {
+            stroke: #d4af37;
+            stroke-width: 2;
+            opacity: 0.4;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .segmented-bar {
+                gap: 2px;
+            }
+
+            .gen-relationship {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Fixed Header -->
+        <div class="header">
+            <div style="font-size: 14px; font-weight: 600; letter-spacing: 1px;">⬜ WITNESS</div>
+            <div class="header-spy">Gen 5 · 3rd great-grandparents</div>
+        </div>
+
+        <!-- SVG for Golden Threads -->
+        <svg class="thread-container" id="threadContainer"></svg>
+
+        <!-- Main Scroll Container -->
+        <div class="scroll-container" id="scrollContainer">
+            <div class="content">
+                <!-- Summit -->
+                <div class="summit">
+                    Here the records thin. This is where research begins.
+                    <div class="golden-thread-tag">— Scott thread continues, verified, to 1621 —</div>
+                </div>
+
+                <!-- Generation 8: 8th great-grandparents -->
+                <div class="generation-row">
+                    <div class="gen-eyebrow">GENERATION 8</div>
+                    <div class="gen-header">
+                        <div class="gen-relationship">8th Great-Grandparents</div>
+                        <div class="gen-stats">6 of 128 found / 2 verified</div>
+                    </div>
+                    <div class="segmented-bar" id="gen8-bar">
+                        <!-- Segments generated by JS -->
+                    </div>
+                    <div class="chips">
+                        <div class="chip frontier-wall">⚑ Fobes — wall</div>
+                        <div class="chip frontier-verify">Field — verify link</div>
+                        <div class="chip collapse">◈ collapse — 2 lines</div>
+                    </div>
+                    <div class="beacon-card">
+                        <div class="beacon-card-name">Ebenezer Fobes</div>
+                        <div class="beacon-card-why">Converges 4 lines; wall at gen 6 opens generations worth of descendants</div>
+                        <button class="btn-brief">Generate Research Brief</button>
+                    </div>
+                </div>
+
+                <!-- Generation 7: 7th great-grandparents -->
+                <div class="generation-row">
+                    <div class="gen-eyebrow">GENERATION 7</div>
+                    <div class="gen-header">
+                        <div class="gen-relationship">7th Great-Grandparents</div>
+                        <div class="gen-stats">18 of 64 found / 12 verified</div>
+                    </div>
+                    <div class="segmented-bar" id="gen7-bar">
+                        <!-- Segments generated by JS -->
+                    </div>
+                    <div class="chips">
+                        <div class="chip frontier-verify">Howe — verify 1</div>
+                    </div>
+                </div>
+
+                <!-- Generation 6: 6th great-grandparents -->
+                <div class="generation-row">
+                    <div class="gen-eyebrow">GENERATION 6</div>
+                    <div class="gen-header">
+                        <div class="gen-relationship">6th Great-Grandparents</div>
+                        <div class="gen-stats">28 of 32 found / 18 verified</div>
+                    </div>
+                    <div class="segmented-bar" id="gen6-bar">
+                        <!-- Segments generated by JS -->
+                    </div>
+                </div>
+
+                <!-- Generation 5: 5th great-grandparents -->
+                <div class="generation-row">
+                    <div class="gen-eyebrow">GENERATION 5</div>
+                    <div class="gen-header">
+                        <div class="gen-relationship">5th Great-Grandparents</div>
+                        <div class="gen-stats">16 of 16 found / 14 verified</div>
+                    </div>
+                    <div class="segmented-bar" id="gen5-bar">
+                        <!-- Segments generated by JS -->
+                    </div>
+                </div>
+
+                <!-- Generation 4: Great-great-grandparents -->
+                <div class="generation-row">
+                    <div class="gen-eyebrow">GENERATION 4</div>
+                    <div class="gen-header">
+                        <div class="gen-relationship">Great-Great-Grandparents</div>
+                        <div class="gen-stats">8 of 8 found / 8 verified</div>
+                    </div>
+                    <div class="segmented-bar" id="gen4-bar">
+                        <!-- Segments generated by JS -->
+                    </div>
+                </div>
+
+                <!-- Generation 3: Great-grandparents -->
+                <div class="generation-row">
+                    <div class="gen-eyebrow">GENERATION 3</div>
+                    <div class="gen-header">
+                        <div class="gen-relationship">Great-Grandparents</div>
+                        <div class="gen-stats">4 of 4 found / 4 verified</div>
+                    </div>
+                    <div class="segmented-bar" id="gen3-bar">
+                        <!-- Segments generated by JS -->
+                    </div>
+                    <div class="chips">
+                        <div class="chip frontier-wall">⚑ Howe — clear to gen 8</div>
+                    </div>
+                </div>
+
+                <!-- Generation 2: Grandparents -->
+                <div class="generation-row">
+                    <div class="gen-eyebrow">GENERATION 2</div>
+                    <div class="gen-header">
+                        <div class="gen-relationship">Grandparents</div>
+                        <div class="gen-stats">2 of 2 found / 2 verified</div>
+                    </div>
+                    <div class="segmented-bar" id="gen2-bar">
+                        <!-- Segments generated by JS -->
+                    </div>
+                </div>
+
+                <!-- Generation 1: Parents -->
+                <div class="generation-row">
+                    <div class="gen-eyebrow">GENERATION 1</div>
+                    <div class="gen-header">
+                        <div class="gen-relationship">Parents</div>
+                        <div class="gen-stats">2 of 2 found / 2 verified</div>
+                    </div>
+                    <div class="segmented-bar" id="gen1-bar">
+                        <!-- Segments generated by JS -->
+                    </div>
+                </div>
+
+                <!-- Base Section -->
+                <div class="base">
+                    <div class="scroll-hint">↑ Scroll up to climb your tree</div>
+
+                    <div class="home-person-circle">
+                        <div class="circle">
+                            <div class="circle-name">You</div>
+                            <div class="circle-year">b. 1968</div>
+                        </div>
+                        <div style="font-size: 12px; color: #666;">Margaret Smith</div>
+                    </div>
+
+                    <!-- Pulse Card -->
+                    <div class="pulse-card">
+                        <div class="pulse-stats">
+                            <div class="stat">
+                                <div class="stat-value">78%</div>
+                                <div class="stat-label">Filled</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">71%</div>
+                                <div class="stat-label">Verified</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">3</div>
+                                <div class="stat-label">Beacons</div>
+                            </div>
+                        </div>
+
+                        <div class="pulse-beacon">
+                            <div class="beacon-label">Where your effort matters most right now</div>
+                            <div class="beacon-card">
+                                <div class="beacon-card-name">Ebenezer Fobes</div>
+                                <div class="beacon-card-why">Opens 4 lines, wall at gen 6 → 3 generations of potential discovery</div>
+                                <button class="btn-get-brief">Get Research Brief</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Sheet (Hidden by default) -->
+        <div class="bottom-sheet" id="bottomSheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-title" id="sheetTitle">Generation 5</div>
+            <div class="sheet-subtitle" id="sheetSubtitle">5th Great-Grandparents (births c. 1796–1824)</div>
+
+            <div id="sheetContent">
+                <!-- Generated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Generate segmented bars for each generation
+        const generations = [
+            { id: 'gen1', count: 2, verified: 2, filled: 2 },
+            { id: 'gen2', count: 2, verified: 2, filled: 2 },
+            { id: 'gen3', count: 4, verified: 4, filled: 4 },
+            { id: 'gen4', count: 8, verified: 8, filled: 8 },
+            { id: 'gen5', count: 16, verified: 14, filled: 16 },
+            { id: 'gen6', count: 32, verified: 18, filled: 28 },
+            { id: 'gen7', count: 64, verified: 12, filled: 18 },
+            { id: 'gen8', count: 128, verified: 2, filled: 6 },
+        ];
+
+        generations.forEach(gen => {
+            const bar = document.getElementById(gen.id + '-bar');
+            let beaconPlaced = false;
+
+            for (let i = 0; i < gen.count; i++) {
+                const segment = document.createElement('div');
+                segment.className = 'segment';
+
+                if (i < gen.verified) {
+                    segment.classList.add('verified');
+                } else if (i < gen.filled) {
+                    segment.classList.add('unverified');
+                    if (!beaconPlaced && gen.id === 'gen8' && i === 5) {
+                        segment.classList.add('beacon');
+                        beaconPlaced = true;
+                    }
+                } else {
+                    segment.classList.add('empty');
+                }
+
+                segment.title = `Slot ${i + 1}`;
+                segment.addEventListener('click', () => showBottomSheet(gen.id));
+                bar.appendChild(segment);
+            }
+        });
+
+        // Bottom sheet interactions
+        function showBottomSheet(genId) {
+            const sheet = document.getElementById('bottomSheet');
+            const genNum = parseInt(genId.replace('gen', ''));
+            const relNames = ['', '', 'Parents', 'Grandparents', 'Great-Grandparents', '2nd Great-Grandparents', '3rd Great-Grandparents', '4th Great-Grandparents', '5th Great-Grandparents'];
+
+            document.getElementById('sheetTitle').textContent = `Generation ${genNum}`;
+            document.getElementById('sheetSubtitle').textContent = `${relNames[genNum]} (births c. 1796–1824)`;
+
+            const content = document.getElementById('sheetContent');
+            content.innerHTML = '';
+
+            const lines = ['Howe line', 'Field line', 'Fobes line', 'Smith line'];
+            lines.forEach(line => {
+                const row = document.createElement('div');
+                row.className = 'line-row';
+                row.innerHTML = `
+                    <div class="line-name">${line}</div>
+                    <div class="line-status">frontier gen 6 · 2 to verify · verified to gen 4</div>
+                `;
+                row.addEventListener('click', () => alert(`Navigate to ${line} frontier ancestor`));
+                content.appendChild(row);
+            });
+
+            sheet.classList.add('active');
+        }
+
+        // Close bottom sheet on outside click
+        document.addEventListener('click', (e) => {
+            const sheet = document.getElementById('bottomSheet');
+            if (!sheet.contains(e.target) && !e.target.closest('.segment')) {
+                sheet.classList.remove('active');
+            }
+        });
+
+        // Scroll to bottom on page load
+        const scrollContainer = document.getElementById('scrollContainer');
+        setTimeout(() => {
+            scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }, 100);
+
+        // Update header spy as user scrolls
+        scrollContainer.addEventListener('scroll', () => {
+            const scrolled = scrollContainer.scrollTop;
+            const totalScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+            const progress = scrolled / totalScroll;
+
+            if (progress > 0.8) {
+                document.querySelector('.header-spy').textContent = 'You · 1968';
+            } else if (progress > 0.6) {
+                document.querySelector('.header-spy').textContent = 'Gen 2 · Parents';
+            } else if (progress > 0.4) {
+                document.querySelector('.header-spy').textContent = 'Gen 4 · Great-Great-Grandparents';
+            } else {
+                document.querySelector('.header-spy').textContent = 'Gen 8 · 8th Great-Grandparents';
+            }
+        });
+
+        // Draw golden thread line
+        function drawGoldenThread() {
+            const svg = document.getElementById('threadContainer');
+            const bars = document.querySelectorAll('.segmented-bar');
+            
+            // Scott thread: gen-3 anchor index 3 (0-indexed), so band at 3/4 = 75%
+            const threadBandX = 0.75;
+
+            let prevY = null;
+            bars.forEach((bar, idx) => {
+                const barRect = bar.getBoundingClientRect();
+                const containerRect = document.querySelector('.container').getBoundingClientRect();
+                const barCenterY = barRect.top - containerRect.top + barRect.height / 2;
+                const barX = 16 + (threadBandX * (bar.offsetWidth - 8)); // Account for padding
+
+                if (prevY !== null) {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', barX);
+                    line.setAttribute('y1', prevY);
+                    line.setAttribute('x2', barX);
+                    line.setAttribute('y2', barCenterY);
+                    line.setAttribute('class', 'thread-line');
+                    svg.appendChild(line);
+                }
+                prevY = barCenterY;
+            });
+        }
+
+        // Draw threads after layout settles
+        setTimeout(drawGoldenThread, 200);
+        window.addEventListener('resize', drawGoldenThread);
+    </script>
+</body>
+</html>
