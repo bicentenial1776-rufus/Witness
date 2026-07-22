@@ -1,5 +1,6 @@
 {
   "rewrites": [
-    { "source": "/privacy", "destination": "/docs/preview-site/privacy.html" }
+    { "source": "/privacy", "destination": "/docs/preview-site/privacy.html" },
+    { "source": "/terms", "destination": "/docs/preview-site/terms.html" }
   ]
 }
