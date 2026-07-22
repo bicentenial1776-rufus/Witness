@@ -153,6 +153,8 @@ export interface GedcomMetadata {
   specVersion: '5.5.1' | '7.0' | 'unknown';
   charset?: string;
   treeName?: string;
+  /** Ancestry's numeric tree id (HEAD.SOUR._TREE.RIN); only in Ancestry exports. */
+  ancestryTreeId?: string;
   exportDate?: string;
   individualCount: number;
   familyCount: number;

@@ -753,6 +753,7 @@ export type Database = {
       }
       trees: {
         Row: {
+          ancestry_tree_id: string | null
           charset: string | null
           export_date: string | null
           family_count: number
@@ -768,6 +769,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ancestry_tree_id?: string | null
           charset?: string | null
           export_date?: string | null
           family_count?: number
@@ -783,6 +785,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ancestry_tree_id?: string | null
           charset?: string | null
           export_date?: string | null
           family_count?: number

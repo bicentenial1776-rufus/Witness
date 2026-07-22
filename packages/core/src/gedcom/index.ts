@@ -45,6 +45,10 @@ export function parseGedcom(text: string, sourceFile?: string): ParsedGedcom {
   const gedcomVersion = value(child(head, 'GEDC'), 'VERS');
   const charset = value(head, 'CHAR');
   const treeName = value(child(head, 'SOUR'), '_TREE');
+  // Ancestry exports carry the tree's numeric id as RIN under SOUR._TREE;
+  // together with each INDI xref (@I<personId>@) it reconstructs the
+  // person's URL on ancestry.com. Absent in other vendors' exports.
+  const ancestryTreeId = value(child(child(head, 'SOUR'), '_TREE'), 'RIN');
   const exportDate = value(head, 'DATE');
   const specVersion = detectSpecVersion(gedcomVersion);
   if (specVersion === 'unknown') {
@@ -93,6 +97,7 @@ export function parseGedcom(text: string, sourceFile?: string): ParsedGedcom {
       specVersion,
       charset,
       treeName,
+      ancestryTreeId,
       exportDate,
       individualCount: individuals.size,
       familyCount: families.size,

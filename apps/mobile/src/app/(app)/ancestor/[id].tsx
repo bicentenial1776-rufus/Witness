@@ -28,6 +28,21 @@ interface Person {
   birth_year: number | null;
   death_year: number | null;
   living: boolean;
+  gedcom_xref: string;
+}
+
+/**
+ * Deep link to this person's page on ancestry.com. Ancestry GEDCOM exports
+ * carry the tree's numeric id in the header (stored as trees.ancestry_tree_id)
+ * and each person's Ancestry id as the INDI xref (I<digits>). Both must be
+ * present — trees from FamilySearch or other software simply get no link.
+ * On a device with the Ancestry app installed, the https URL universal-links
+ * straight into the app.
+ */
+function ancestryPersonUrl(ancestryTreeId: string | null, xref: string): string | null {
+  const match = /^I(\d+)$/.exec(xref);
+  if (!ancestryTreeId || !match) return null;
+  return `https://www.ancestry.com/family-tree/person/tree/${ancestryTreeId}/person/${match[1]}/facts`;
 }
 
 interface EventRow {
@@ -206,6 +221,7 @@ export default function AncestorScreen() {
   const [tags, setTags] = useState<LivedThroughTag[]>([]);
   const [sources, setSources] = useState<SourceGroup[]>([]);
   const [relationship, setRelationship] = useState<string | null>(null);
+  const [ancestryUrl, setAncestryUrl] = useState<string | null>(null);
   const [tab, setTab] = useState<SectionTab>('story');
   const [briefBusy, setBriefBusy] = useState(false);
   const [briefError, setBriefError] = useState<string | null>(null);
@@ -222,12 +238,13 @@ export default function AncestorScreen() {
     setTags([]);
     setSources([]);
     setRelationship(null);
+    setAncestryUrl(null);
     setTab('story');
     (async () => {
       const [{ data: personRow }, { data: eventRows }] = await Promise.all([
         supabase
           .from('individuals')
-          .select('id, tree_id, full_name, sex, birth_year, death_year, living')
+          .select('id, tree_id, full_name, sex, birth_year, death_year, living, gedcom_xref')
           .eq('id', id)
           .maybeSingle(),
         supabase
@@ -240,6 +257,21 @@ export default function AncestorScreen() {
       if (cancelled) return;
       setPerson(personRow);
       setEvents(eventRows ?? []);
+
+      // The Ancestry deep link needs the tree's Ancestry id alongside this
+      // person's xref; both absent for non-Ancestry trees, hiding the link.
+      if (personRow) {
+        supabase
+          .from('trees')
+          .select('ancestry_tree_id')
+          .eq('id', personRow.tree_id)
+          .single()
+          .then(({ data }) => {
+            if (!cancelled && data) {
+              setAncestryUrl(ancestryPersonUrl(data.ancestry_tree_id, personRow.gedcom_xref));
+            }
+          });
+      }
 
       // "Lived through" tags: the 5 events that best frame this life,
       // ranked by tier and boosted by this person's own geography — all
@@ -521,6 +553,16 @@ export default function AncestorScreen() {
               </Card>
             ))}
           </>
+        )}
+
+        {ancestryUrl && (
+          <ThemedText
+            type="link"
+            style={{ marginTop: 16 }}
+            onPress={() => Linking.openURL(ancestryUrl)}
+          >
+            View {person.full_name.split(' ')[0]} on Ancestry ›
+          </ThemedText>
         )}
 
       </ScrollView>

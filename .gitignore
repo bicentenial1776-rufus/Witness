@@ -5,3 +5,7 @@ dist/
 **/fixtures/*.ged
 !**/fixtures/*sample*.ged
 .env
+
+.claude/settings.local.json
+.vercel
+.env*

@@ -88,6 +88,7 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
     source_file: parsed.metadata.sourceFile ?? null,
     gedcom_version: parsed.metadata.gedcomVersion ?? null,
     charset: parsed.metadata.charset ?? null,
+    ancestry_tree_id: parsed.metadata.ancestryTreeId ?? null,
     export_date: parsed.metadata.exportDate ?? null,
     individual_count: parsed.metadata.individualCount,
     family_count: parsed.metadata.familyCount,
