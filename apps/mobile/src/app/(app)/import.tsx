@@ -1,8 +1,8 @@
 import { randomUUID } from 'expo-crypto';
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert } from 'react-native';
 
 import type { ParsedGedcom } from '@witness/core/gedcom';
@@ -25,31 +25,46 @@ type Step =
 
 export default function ImportGedcom() {
   const { session } = useSession();
+  const { fileUri } = useLocalSearchParams<{ fileUri?: string }>();
   const [step, setStep] = useState<Step>({ name: 'pick' });
+
+  async function parseAndSet(uri: string, fileName: string) {
+    setStep({ name: 'parsing', fileName });
+    try {
+      // Bytes, not text: FamilySearch .gdz exports are zip archives and
+      // extractGedcomText handles both those and plain .ged files.
+      const bytes = await new File(uri).bytes();
+      const text = extractGedcomText(bytes);
+      const parsed = parseGedcom(text, fileName);
+      if (parsed.metadata.individualCount === 0) {
+        Alert.alert('Not a GEDCOM file', `No individuals found in ${fileName}. Is this a GEDCOM export?`);
+        setStep({ name: 'pick' });
+        return;
+      }
+      setStep({ name: 'ready', fileName, parsed });
+    } catch (error) {
+      Alert.alert('Could not read file', error instanceof Error ? error.message : String(error));
+      setStep({ name: 'pick' });
+    }
+  }
 
   async function pickAndParse() {
     const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
     if (result.canceled) return;
 
     const asset = result.assets[0];
-    setStep({ name: 'parsing', fileName: asset.name });
-    try {
-      // Bytes, not text: FamilySearch .gdz exports are zip archives and
-      // extractGedcomText handles both those and plain .ged files.
-      const bytes = await new File(asset.uri).bytes();
-      const text = extractGedcomText(bytes);
-      const parsed = parseGedcom(text, asset.name);
-      if (parsed.metadata.individualCount === 0) {
-        Alert.alert('Not a GEDCOM file', `No individuals found in ${asset.name}. Is this a GEDCOM export?`);
-        setStep({ name: 'pick' });
-        return;
-      }
-      setStep({ name: 'ready', fileName: asset.name, parsed });
-    } catch (error) {
-      Alert.alert('Could not read file', error instanceof Error ? error.message : String(error));
-      setStep({ name: 'pick' });
-    }
+    await parseAndSet(asset.uri, asset.name);
   }
+
+  // Arrived via "Open in Witness" on a .ged/.gdz (see +native-intent.ts) —
+  // skip the picker entirely and go straight to reading the file.
+  useEffect(() => {
+    if (fileUri && step.name === 'pick') {
+      const fileName = decodeURIComponent(fileUri.split('/').pop() ?? 'your file');
+      parseAndSet(fileUri, fileName);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileUri]);
 
   async function runImport(fileName: string, parsed: ParsedGedcom) {
     if (!session) return;
@@ -78,6 +93,10 @@ export default function ImportGedcom() {
             Choose a GEDCOM file exported from Ancestry, FamilySearch, or any genealogy platform.
           </ThemedText>
           <Button title="Choose GEDCOM file" onPress={pickAndParse} />
+          <ThemedText type="small">
+            Easier: wherever your file ended up — Downloads, Mail, Files — tap it, tap Share, and
+            choose Witness. It’ll open right here, ready to import.
+          </ThemedText>
           <ThemedText type="link" onPress={() => router.push('/import-guide')}>
             Don’t have your file yet? See how to get it ›
           </ThemedText>

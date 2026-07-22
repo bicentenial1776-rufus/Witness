@@ -175,19 +175,19 @@ export function getPlatformGuide(id: string): PlatformGuide | undefined {
 /** The shared "get the file onto this device" coda shown on every platform. */
 export const TRANSFER_TIPS: { title: string; text: string }[] = [
   {
-    title: 'AirDrop (Mac users — fastest)',
-    text: 'Right-click the file on your Mac, choose Share → AirDrop, and send it to this device. Then import below.',
+    title: 'Exported on this device? This is the easiest way',
+    text: 'Wherever the file landed — Downloads, Mail, Files — tap it, tap Share, and choose Witness from the list. It opens right inside the app, ready to import. No picker, no folders.',
+  },
+  {
+    title: 'AirDrop (Mac users)',
+    text: 'Right-click the file on your Mac, choose Share → AirDrop, and send it to this device. When it arrives, tap it and choose Witness — or use the import picker below.',
   },
   {
     title: 'iCloud Drive',
-    text: 'Save the file to iCloud Drive on your computer. In the import picker, browse to iCloud Drive.',
+    text: 'Save the file to iCloud Drive on your computer. On this device, open the Files app, find it in iCloud Drive, tap it, and choose Witness.',
   },
   {
     title: 'Email it to yourself',
-    text: 'Attach the .ged file to an email, open it on this device, tap and hold the attachment, and save to Files.',
-  },
-  {
-    title: 'Exported on this device?',
-    text: 'If you used Safari here, the file is in Downloads — the import picker will find it.',
+    text: 'Attach the .ged file to an email, open the email on this device, tap and hold the attachment, and choose Witness.',
   },
 ];

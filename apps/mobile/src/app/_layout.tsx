@@ -16,10 +16,11 @@ import * as Notifications from 'expo-notifications';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import { AppState, useColorScheme } from 'react-native';
 
 import { SessionProvider, useSession } from '@/auth/session-provider';
 import { ActiveTreeProvider } from '@/lib/active-tree';
+import { consumePendingImportUri } from '@/lib/pending-import';
 import { ProfileProvider, useProfile } from '@/lib/profile';
 import { PurchasesProvider, usePurchases } from '@/lib/purchases';
 import { SuperwallGate } from '@/lib/superwall';
@@ -70,6 +71,28 @@ function RootNavigator() {
     });
     return () => subscription.remove();
   }, []);
+
+  // "Open in Witness" on a .ged/.gdz (see +native-intent.ts) stashes the file
+  // before the router knows whether the reader can reach /import. Once
+  // they're fully through the gauntlet, pick it up — on this render and
+  // again whenever the app returns to the foreground, since the OS brings
+  // Witness forward for "Open In" without necessarily remounting anything.
+  const isReady = Boolean(session) && onboardingCompleted && isEntitled;
+  useEffect(() => {
+    if (isLoading || !isReady) return;
+
+    function checkPendingImport() {
+      consumePendingImportUri().then((uri) => {
+        if (uri) router.push({ pathname: '/import', params: { fileUri: uri } });
+      });
+    }
+
+    checkPendingImport();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') checkPendingImport();
+    });
+    return () => subscription.remove();
+  }, [isLoading, isReady]);
 
   if (isLoading) return null;
 
