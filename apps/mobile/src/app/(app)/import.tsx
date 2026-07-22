@@ -21,7 +21,8 @@ type Step =
   | { name: 'parsing'; fileName: string }
   | { name: 'ready'; fileName: string; parsed: ParsedGedcom }
   | { name: 'importing'; fileName: string; parsed: ParsedGedcom; progress: ImportProgress | null }
-  | { name: 'done'; treeId: string; parsed: ParsedGedcom };
+  | { name: 'done'; treeId: string; parsed: ParsedGedcom }
+  | { name: 'error'; fileName: string; kind: 'not-gedcom' | 'unreadable' };
 
 export default function ImportGedcom() {
   const { session } = useSession();
@@ -37,14 +38,21 @@ export default function ImportGedcom() {
       const text = extractGedcomText(bytes);
       const parsed = parseGedcom(text, fileName);
       if (parsed.metadata.individualCount === 0) {
-        Alert.alert('Not a GEDCOM file', `No individuals found in ${fileName}. Is this a GEDCOM export?`);
-        setStep({ name: 'pick' });
+        setStep({ name: 'error', fileName, kind: 'not-gedcom' });
         return;
+      }
+      // Non-fatal per-line oddities in the export — not something a reader
+      // can act on, so it's logged for us rather than shown as a scary count.
+      if (parsed.metadata.parseWarnings.length > 0) {
+        console.warn(
+          `${parsed.metadata.parseWarnings.length} GEDCOM parse warnings in ${fileName}`,
+          parsed.metadata.parseWarnings,
+        );
       }
       setStep({ name: 'ready', fileName, parsed });
     } catch (error) {
-      Alert.alert('Could not read file', error instanceof Error ? error.message : String(error));
-      setStep({ name: 'pick' });
+      console.warn('GEDCOM read failed', error);
+      setStep({ name: 'error', fileName, kind: 'unreadable' });
     }
   }
 
@@ -112,17 +120,19 @@ export default function ImportGedcom() {
 
       {step.name === 'ready' && (
         <>
-          <ThemedText type="subtitle">{step.parsed.metadata.treeName ?? step.fileName}</ThemedText>
+          <ThemedText type="subtitle">We found your family.</ThemedText>
           <ThemedText>
-            {step.parsed.metadata.individualCount.toLocaleString()} people ·{' '}
-            {step.parsed.metadata.familyCount.toLocaleString()} families ·{' '}
-            {step.parsed.metadata.placeCount.toLocaleString()} places
+            {step.parsed.metadata.treeName ? `“${step.parsed.metadata.treeName}” — ` : ''}
+            {step.parsed.metadata.individualCount.toLocaleString()} people,{' '}
+            {step.parsed.metadata.familyCount.toLocaleString()} families,{' '}
+            {step.parsed.metadata.placeCount.toLocaleString()} places.
           </ThemedText>
-          {step.parsed.metadata.parseWarnings.length > 0 && (
-            <ThemedText>{step.parsed.metadata.parseWarnings.length} parse warnings (non-fatal)</ThemedText>
-          )}
-          <Button title="Import to Witness" onPress={() => runImport(step.fileName, step.parsed)} />
-          <Button variant="secondary" title="Choose a different file" onPress={pickAndParse} />
+          <ThemedText type="small">
+            This makes a copy inside Witness. Nothing changes on Ancestry, or wherever this file
+            came from — your original tree stays exactly as it is.
+          </ThemedText>
+          <Button title="Bring them into Witness" onPress={() => runImport(step.fileName, step.parsed)} />
+          <Button variant="secondary" title="This isn’t my file" onPress={pickAndParse} />
         </>
       )}
 
@@ -140,11 +150,14 @@ export default function ImportGedcom() {
 
       {step.name === 'done' && (
         <>
-          <ThemedText type="subtitle">Your tree is in.</ThemedText>
+          <ThemedText type="subtitle">Your family is in Witness.</ThemedText>
           <ThemedText>
-            {step.parsed.metadata.individualCount.toLocaleString()} people are now part of Witness.
-            One more thing: tell us who you are in this tree, and every ancestor gets a
-            relationship to you.
+            {step.parsed.metadata.individualCount.toLocaleString()} people, safe inside the app
+            now. Nothing on Ancestry changed — this is your own copy.
+          </ThemedText>
+          <ThemedText>
+            One quick thing: point out which person in the tree is you, and every ancestor gets
+            connected — exactly how they relate to you.
           </ThemedText>
           <Button
             title="Find me in the tree"
@@ -152,11 +165,34 @@ export default function ImportGedcom() {
               router.replace({ pathname: '/home-person', params: { treeId: step.treeId } })
             }
           />
-          <Button variant="secondary" title="Skip for now" onPress={() => router.back()} />
+          <Button variant="secondary" title="I’ll do this later" onPress={() => router.back()} />
         </>
       )}
 
-      {(step.name === 'pick' || step.name === 'ready') && (
+      {step.name === 'error' && (
+        <>
+          <ThemedText type="subtitle">
+            {step.kind === 'not-gedcom'
+              ? 'That doesn’t look like a family tree file'
+              : 'We couldn’t read that file'}
+          </ThemedText>
+          <ThemedText>
+            {step.kind === 'not-gedcom'
+              ? `${step.fileName} opened fine, but there’s no family tree information in it — it may be the wrong file, or something got mixed up along the way.`
+              : `${step.fileName} didn’t open the way we expected. Nothing was lost — the original file is untouched, wherever it came from.`}
+          </ThemedText>
+          <Button title="Try a different file" onPress={pickAndParse} />
+          <ThemedText type="link" onPress={() => router.push('/import-guide')}>
+            See how to export your file again ›
+          </ThemedText>
+          <ThemedText type="small">
+            Still stuck? Write to support@witnesslives.com — a real person will help you get your
+            tree in.
+          </ThemedText>
+        </>
+      )}
+
+      {(step.name === 'pick' || step.name === 'ready' || step.name === 'error') && (
         <Button variant="secondary" title="Cancel" onPress={() => router.back()} />
       )}
     </ThemedView>
