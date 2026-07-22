@@ -751,6 +751,60 @@ export type Database = {
           },
         ]
       }
+      library_pins: {
+        Row: {
+          created_at: string
+          query_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          query_id: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          query_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      query_catalog: {
+        Row: {
+          category: string
+          created_at: string
+          detail: string | null
+          id: string
+          keywords: string[]
+          kind: string
+          params: Json
+          sort_order: number
+          title: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          detail?: string | null
+          id: string
+          keywords?: string[]
+          kind: string
+          params?: Json
+          sort_order?: number
+          title: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          keywords?: string[]
+          kind?: string
+          params?: Json
+          sort_order?: number
+          title?: string
+        }
+        Relationships: []
+      }
       trees: {
         Row: {
           ancestry_tree_id: string | null

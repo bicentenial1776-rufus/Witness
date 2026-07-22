@@ -172,6 +172,20 @@ export default function ExploreTab() {
               ))}
 
               <ThemedText type="subtitle" style={{ marginTop: 12 }}>
+                The Library
+              </ThemedText>
+              <Card onPress={() => router.push('/library')}>
+                <ThemedText type="subtitle">Every question, with your answers</ThemedText>
+                <ThemedText type="small">
+                  Lives in wartime, the world&rsquo;s great events, long lives &amp; short, where
+                  they lived — each question counted against your own tree.
+                </ThemedText>
+                <ThemedText type="smallBold" themeColor="accent">
+                  Browse the Library ›
+                </ThemedText>
+              </Card>
+
+              <ThemedText type="subtitle" style={{ marginTop: 12 }}>
                 Ways in
               </ThemedText>
               <Card onPress={() => router.push('/ascent')}>

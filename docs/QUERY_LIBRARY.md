@@ -7,7 +7,7 @@
 
 ## Implementation Architecture — The Three Surfaces
 
-The library below is a catalog of what Witness can answer, not a menu the user browses. **Nowhere in the product does a user scroll a complete list of events or queries.** If a design produces a browsable "all events" catalog, the design is wrong. Every query reaches the user through one of three surfaces, and the surfaces feed each other.
+The library below is a catalog of what Witness can answer. The original doctrine — *"nowhere in the product does a user scroll a complete list of events or queries"* — was amended in July 2026 when the Query Library shipped as a **fourth surface**: a browsable, searchable catalog on Explore. The rule that made it compatible with the doctrine's intent: **every entry is always shown with its live result count for the user's tree** ("Who was alive during the Revolution? — 1,106 ancestors"), answered questions lead, and unanswerable ones sink, grayed, framed as research motivation. The user browses their family's answers, never a generic menu — which is what the original rule was actually protecting. The catalog lives server-side (`query_catalog`), evaluated client-side (`core/query/library.ts`), and grows without app releases. Users pin questions; freshness badges and auto-archive of stale pins are the planned Phase B. The three original surfaces below stand unchanged, and the shelf remains Explore's front porch.
 
 ### The substrate: `historical_events`
 

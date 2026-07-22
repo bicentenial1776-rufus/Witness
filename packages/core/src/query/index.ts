@@ -7,3 +7,4 @@ export * from './treeIndex.js';
 export * from './milestones.js';
 export * from './placeDiscovery.js';
 export * from './structure.js';
+export * from './library.js';
