@@ -70,6 +70,29 @@ export const Spacing = {
   six: 64,
 } as const;
 
+/**
+ * Brand display faces for the onboarding + paywall flow (witness-onboarding-
+ * screens.md: "Playfair Display for headlines, Inter for body"). Loaded via
+ * expo-font in the root layout — RootLayout gates rendering on them the same
+ * way it gates on session/profile/purchases, so these names are always
+ * resolvable wherever they're used.
+ */
+export const BrandFonts = {
+  serif: {
+    regular: 'PlayfairDisplay_400Regular',
+    medium: 'PlayfairDisplay_500Medium',
+    semiBold: 'PlayfairDisplay_600SemiBold',
+    bold: 'PlayfairDisplay_700Bold',
+    italic: 'PlayfairDisplay_400Regular_Italic',
+  },
+  sans: {
+    regular: 'Inter_400Regular',
+    medium: 'Inter_500Medium',
+    semiBold: 'Inter_600SemiBold',
+    bold: 'Inter_700Bold',
+  },
+} as const;
+
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
 

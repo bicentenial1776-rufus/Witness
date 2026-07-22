@@ -19,9 +19,41 @@
           "UIInterfaceOrientationLandscapeRight"
         ],
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Witness uses your location to show which of your ancestors lived near where you are standing."
+        "LSSupportsOpeningDocumentsInPlace": false,
+        "NSLocationWhenInUseUsageDescription": "Witness uses your location to show which of your ancestors lived near where you are standing.",
+        "UTImportedTypeDeclarations": [
+          {
+            "UTTypeIdentifier": "com.witnesslives.witness.gedcom",
+            "UTTypeDescription": "GEDCOM Family Tree",
+            "UTTypeConformsTo": ["public.data", "public.text"],
+            "UTTypeTagSpecification": {
+              "public.filename-extension": ["ged"],
+              "public.mime-type": ["application/x-gedcom", "text/vnd.familysearch.gedcom"]
+            }
+          },
+          {
+            "UTTypeIdentifier": "com.witnesslives.witness.gedcom-archive",
+            "UTTypeDescription": "FamilySearch GEDCOM Archive",
+            "UTTypeConformsTo": ["public.zip-archive"],
+            "UTTypeTagSpecification": {
+              "public.filename-extension": ["gdz"],
+              "public.mime-type": ["application/zip"]
+            }
+          }
+        ],
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "GEDCOM Family Tree",
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "com.witnesslives.witness.gedcom",
+              "com.witnesslives.witness.gedcom-archive"
+            ]
+          }
+        ]
       },
-      "buildNumber": "1",
+      "buildNumber": "5",
       "appleTeamId": "SLD65K94V7"
     },
     "android": {
@@ -47,7 +79,8 @@
           "imageWidth": 320
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "./plugins/with-gedcom-guard.js"
     ],
     "experiments": {
       "typedRoutes": true,

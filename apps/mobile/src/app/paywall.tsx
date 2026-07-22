@@ -7,6 +7,7 @@ import type { PurchasesError } from 'react-native-purchases';
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { BrandFonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { usePurchases } from '@/lib/purchases';
 
@@ -17,6 +18,16 @@ const UNLOCKED = [
   'Weekly digest of anniversaries and discoveries in your family',
   'Full research brief generator for your hardest genealogy gaps',
 ];
+
+// Screens 7 and 8 of the onboarding flow (witness-onboarding-screens.md) are
+// meant to feel like one continuous moment, not a separate swipe the reader
+// can skip past — so the trial timeline lives directly on the paywall
+// itself, not behind another screen.
+const TIMELINE = [
+  { day: 'TODAY', body: 'Full access, nothing charged' },
+  { day: 'DAY 5', body: 'We’ll remind you before your trial ends' },
+  { day: 'DAY 7', body: 'Your subscription starts, unless you’ve canceled' },
+] as const;
 
 export default function Paywall() {
   const theme = useTheme();
@@ -70,9 +81,11 @@ export default function Paywall() {
       <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
         <ScrollView contentContainerStyle={styles.content}>
           <ThemedText type="small" themeColor="accent" style={styles.eyebrow}>
-            FULL ACCESS
+            GET FULL ACCESS
           </ThemedText>
-          <ThemedText type="title">Witness, unlocked.</ThemedText>
+          <ThemedText style={[styles.headline, { color: theme.text }]}>
+            Try Witness free for 7 days.
+          </ThemedText>
 
           <View style={{ gap: 14 }}>
             {UNLOCKED.map((line) => (
@@ -85,16 +98,47 @@ export default function Paywall() {
             ))}
           </View>
 
+          <View style={[styles.timelineCard, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
+            <View style={styles.timelineDotsRow}>
+              <View style={[styles.timelineTrackLine, { backgroundColor: theme.border }]} />
+              {TIMELINE.map((step) => (
+                <View key={step.day} style={[styles.timelineDot, { backgroundColor: theme.accent }]} />
+              ))}
+            </View>
+            <View style={styles.timelineLabelsRow}>
+              {TIMELINE.map((step, i) => {
+                const align = i === 0 ? 'left' : i === TIMELINE.length - 1 ? 'right' : 'center';
+                return (
+                  <View
+                    key={step.day}
+                    style={[
+                      styles.timelineCol,
+                      { alignItems: i === 0 ? 'flex-start' : i === TIMELINE.length - 1 ? 'flex-end' : 'center' },
+                    ]}
+                  >
+                    <ThemedText type="smallBold" themeColor="accent" style={{ textAlign: align }}>
+                      {step.day}
+                    </ThemedText>
+                    <ThemedText type="small" style={[styles.timelineBody, { textAlign: align }]}>
+                      {step.body}
+                    </ThemedText>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+
           <View style={[styles.priceCard, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
             <ThemedText type="subtitle">{pkg?.product.priceString ?? '$19.99'} / year</ThemedText>
-            <ThemedText type="small">
-              Includes a free trial. Cancel anytime before it ends and you won’t be charged.
-            </ThemedText>
+            <ThemedText type="small">Charged on Day 7 unless you cancel before then.</ThemedText>
           </View>
         </ScrollView>
 
         <View style={styles.footer}>
-          <Button title="Start free trial" busy={isPurchasing} onPress={handlePurchase} />
+          <Button title="Start Free Trial" busy={isPurchasing} onPress={handlePurchase} />
+          <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
+            Cancel anytime in Settings. No charge until Day 7.
+          </ThemedText>
           <ThemedText
             type="link"
             style={styles.center}
@@ -131,9 +175,23 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { padding: 24, gap: 20 },
   eyebrow: { letterSpacing: 3 },
+  headline: { fontFamily: BrandFonts.serif.semiBold, fontSize: 30, lineHeight: 36 },
   row: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   bullet: { fontSize: 17, lineHeight: 25 },
   rowText: { flex: 1 },
+  timelineCard: { borderWidth: 1, borderRadius: 15, padding: 20, gap: 12 },
+  timelineDotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    height: 10,
+    paddingHorizontal: 3,
+  },
+  timelineTrackLine: { position: 'absolute', left: 8, right: 8, height: 1 },
+  timelineDot: { width: 10, height: 10, borderRadius: 5 },
+  timelineLabelsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  timelineCol: { flex: 1, gap: 3 },
+  timelineBody: { textAlign: 'left' },
   priceCard: { borderWidth: 1, borderRadius: 15, padding: 20, gap: 6, alignItems: 'center' },
   footer: { padding: 24, gap: 14 },
   center: { textAlign: 'center' },

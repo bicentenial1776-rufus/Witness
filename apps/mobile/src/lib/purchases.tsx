@@ -12,6 +12,7 @@ import Purchases, {
 } from 'react-native-purchases';
 
 import { useSession } from '@/auth/session-provider';
+import { syncTrialReminder } from '@/lib/trial-reminder';
 
 /** The single subscription tier — $19.99/year, no feature gating (BRIEF.md). */
 export const ENTITLEMENT_ID = process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID ?? 'premium';
@@ -88,6 +89,16 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
   // Render-time so RevenueCat is configured before any child (Superwall) mounts.
   const purchasesActive = ensurePurchasesConfigured();
 
+  // Keeps the Day-5 trial reminder (see lib/trial-reminder.ts) in step with
+  // whatever RevenueCat reports, from whichever path reported it — initial
+  // load, listener push, login/logout, or a purchase/restore in this tab.
+  function applyCustomerInfo(info: CustomerInfo) {
+    setCustomerInfo(info);
+    syncTrialReminder(info.entitlements.active[ENTITLEMENT_ID]).catch((error) =>
+      console.warn('Trial reminder sync failed', error),
+    );
+  }
+
   useEffect(() => {
     if (!purchasesActive) {
       // Key missing, or a Test Store key in a release build (see above) —
@@ -98,19 +109,30 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    const listener = (info: CustomerInfo) => setCustomerInfo(info);
+    const listener = (info: CustomerInfo) => applyCustomerInfo(info);
     Purchases.addCustomerInfoUpdateListener(listener);
 
+    // On a fresh install getCustomerInfo can hang indefinitely behind
+    // StoreKit's first-launch queries, and the router gates the whole UI on
+    // isLoading — without a ceiling the app sits on a blank screen forever.
+    // Fail closed instead: stop blocking, leave isEntitled false, and let the
+    // customer-info listener above flip entitlement whenever StoreKit answers.
+    const loadingCeiling = setTimeout(() => setIsLoading(false), 5000);
+
     Purchases.getCustomerInfo()
-      .then(setCustomerInfo)
+      .then(applyCustomerInfo)
       .catch((error) => console.warn('Failed to load RevenueCat customer info', error))
-      .finally(() => setIsLoading(false));
+      .finally(() => {
+        clearTimeout(loadingCeiling);
+        setIsLoading(false);
+      });
 
     Purchases.getOfferings()
       .then((offerings) => setOffering(offerings.current))
       .catch((error) => console.warn('Failed to load RevenueCat offerings', error));
 
     return () => {
+      clearTimeout(loadingCeiling);
       Purchases.removeCustomerInfoUpdateListener(listener);
     };
   }, []);
@@ -120,15 +142,22 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (!apiKey) return;
     if (session) {
-      Purchases.logIn(session.user.id).then(({ customerInfo: info }) => setCustomerInfo(info));
+      Purchases.logIn(session.user.id)
+        .then(({ customerInfo: info }) => applyCustomerInfo(info))
+        .catch((error) => console.warn('RevenueCat logIn failed', error));
     } else {
-      Purchases.logOut().then(setCustomerInfo);
+      // logOut rejects when RevenueCat is already anonymous — the normal
+      // state on a fresh install, where this effect first runs with no
+      // session. There is nothing to undo in that case.
+      Purchases.logOut()
+        .then(applyCustomerInfo)
+        .catch(() => {});
     }
   }, [session]);
 
   async function restore(): Promise<boolean> {
     const info = await Purchases.restorePurchases();
-    setCustomerInfo(info);
+    applyCustomerInfo(info);
     return isEntitled(info);
   }
 
@@ -136,7 +165,7 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
     pkg: PurchasesOffering['availablePackages'][number],
   ): Promise<boolean> {
     const { customerInfo: info } = await Purchases.purchasePackage(pkg);
-    setCustomerInfo(info);
+    applyCustomerInfo(info);
     return isEntitled(info);
   }
 

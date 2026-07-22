@@ -1,8 +1,10 @@
+import { type SFSymbol, SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
+import { BrandFonts } from '@/constants/theme';
 import { useProfile } from '@/lib/profile';
 import { useOnboardingPlacement } from '@/lib/superwall';
 
@@ -16,167 +18,403 @@ const PARCHMENT_MUTED = 'rgba(247,243,238,0.72)';
 const AMBER = '#B45309';
 const AMBER_LIGHT = '#E0913A';
 const STONE = '#57534E';
+const CARD = '#FBF8F3';
+const CARD_BORDER = '#E2D9CC';
+const CLINICAL_BG = '#DDD8D0';
+const CLINICAL_TEXT = '#57534E';
+
+type Palette = {
+  fg: string;
+  muted: string;
+  amber: string;
+};
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   progress: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingTop: 12 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   content: { flexGrow: 1, justifyContent: 'center', padding: 28, gap: 20 },
-  eyebrow: { fontSize: 13, letterSpacing: 3, fontWeight: '600', textTransform: 'uppercase' },
-  headline: { fontSize: 32, fontWeight: '700', lineHeight: 38 },
-  body: { fontSize: 17, lineHeight: 25 },
+  headline: { fontFamily: BrandFonts.serif.semiBold, fontSize: 30, lineHeight: 37 },
+  subhead: { fontFamily: BrandFonts.sans.regular, fontSize: 18, lineHeight: 26 },
+  body: { fontFamily: BrandFonts.sans.regular, fontSize: 16, lineHeight: 24 },
+  micro: { fontFamily: BrandFonts.sans.medium, fontSize: 13, lineHeight: 18 },
   footer: { padding: 24, gap: 12 },
-  skip: { textAlign: 'center', fontSize: 15, fontWeight: '500' },
-  queryCard: { backgroundColor: '#FBF8F3', borderRadius: 15, padding: 20, gap: 12 },
-  queryResult: { fontSize: 26, fontWeight: '700', color: AMBER },
-  queryDivider: { height: 1, backgroundColor: '#E2D9CC' },
-  queryDetail: { fontSize: 15, lineHeight: 21, color: STONE },
-  pingWrap: { alignSelf: 'center', width: 96, height: 96, alignItems: 'center', justifyContent: 'center' },
-  pingOuter: { position: 'absolute', width: 96, height: 96, borderRadius: 48, backgroundColor: 'rgba(224,145,47,0.18)' },
-  pingInner: { width: 20, height: 20, borderRadius: 10, backgroundColor: AMBER_LIGHT },
+  skip: { textAlign: 'center', fontFamily: BrandFonts.sans.medium, fontSize: 15 },
+
+  // Screen 1 — Hook. Floats fully above the headline block — at lower
+  // offsets it lies over the text and hides words behind the card.
+  photoCorner: {
+    position: 'absolute',
+    top: -112,
+    right: 8,
+    width: 76,
+    height: 96,
+    backgroundColor: '#EFE6D6',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(28,25,23,0.15)',
+    transform: [{ rotate: '9deg' }],
+    opacity: 0.9,
+  },
+  photoCornerLine: { height: 1, backgroundColor: 'rgba(28,25,23,0.14)', marginHorizontal: 10 },
+
+  // Screen 2 — split comparison
+  splitRow: { flexDirection: 'row', gap: 12 },
+  splitCard: { flex: 1, borderRadius: 14, padding: 14, gap: 6, minHeight: 118, justifyContent: 'center' },
+  splitLabel: { fontFamily: BrandFonts.sans.semiBold, fontSize: 15 },
+
+  // Screen 3 — mechanics
+  stepsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  step: { flex: 1, alignItems: 'center', gap: 8 },
+  stepIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepLabel: { fontFamily: BrandFonts.sans.semiBold, fontSize: 13, textAlign: 'center' },
+  stepArrow: { fontSize: 18, marginHorizontal: -2 },
+
+  // Screen 4 — proximity map
+  mapCard: {
+    height: 240,
+    borderRadius: 18,
+    backgroundColor: 'rgba(247,243,238,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(247,243,238,0.16)',
+    overflow: 'hidden',
+  },
+  mapPin: { position: 'absolute', alignItems: 'center' },
+  mapPinDot: { width: 14, height: 14, borderRadius: 7 },
+  mapPinLabel: { fontFamily: BrandFonts.sans.semiBold, fontSize: 12, marginTop: 4 },
+  mapLine: { position: 'absolute', height: 1, backgroundColor: 'rgba(224,145,47,0.4)' },
+  teaserStrip: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(247,243,238,0.16)',
+    paddingTop: 12,
+  },
+
+  // Screen 5 — personalize
+  optionCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 18,
+  },
+  optionText: { fontFamily: BrandFonts.sans.medium, fontSize: 16, lineHeight: 22 },
+
+  // Screen 6 — trust
+  curiosityCard: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    padding: 18,
+    gap: 10,
+  },
+  curiosityEyebrow: {
+    alignSelf: 'flex-start',
+    fontFamily: BrandFonts.sans.semiBold,
+    fontSize: 11,
+    letterSpacing: 1.5,
+    color: AMBER,
+    backgroundColor: 'rgba(180,83,9,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
 });
 
-type Screen = {
-  eyebrow: string;
-  headline: string;
-  body: React.ReactNode;
-  dark: boolean;
-};
+function Divider({ color }: { color: string }) {
+  return <View style={{ height: 1, backgroundColor: color }} />;
+}
 
-const SCREENS: Screen[] = [
-  {
-    eyebrow: 'WITNESSES TO HISTORY',
-    dark: true,
-    headline: "You've built a tree of thousands.",
-    body: (
-      <>
-        <Text style={[styles.body, { color: PARCHMENT_MUTED }]}>
-          But you can't ask it the simplest questions. Who was alive when history happened around
-          them? Who's buried near where you're standing right now? Which of their lives was
-          extraordinary?
+function Screen1({ amber }: Palette) {
+  return (
+    <>
+      <View>
+        <Text style={[styles.headline, { color: PARCHMENT }]}>
+          Somewhere in a box, a drawer, a shoebox of photographs — your family has a story it
+          hasn&rsquo;t told yet.
         </Text>
-        <Text style={[styles.body, { color: PARCHMENT_MUTED }]}>
-          A tree that can't answer that isn't finished. It's just a list.
-        </Text>
-      </>
-    ),
-  },
-  {
-    eyebrow: 'ASK IT ANYTHING',
-    dark: false,
-    headline: 'Who was alive during the Civil War?',
-    body: (
-      <>
-        <View style={styles.queryCard}>
-          <Text style={styles.queryResult}>1,046 ancestors</Text>
-          <View style={styles.queryDivider} />
-          <Text style={styles.queryDetail}>
-            Catherine Marbury Scott, age 42 · Elijah Scott, age 17 · Mary Haskell, age 61 · and
-            1,043 more
+        <View style={styles.photoCorner}>
+          <View style={{ padding: 10, gap: 6 }}>
+            <View style={styles.photoCornerLine} />
+            <View style={styles.photoCornerLine} />
+            <View style={styles.photoCornerLine} />
+          </View>
+        </View>
+      </View>
+      <Text style={[styles.subhead, { color: amber }]}>Witness helps you find it.</Text>
+    </>
+  );
+}
+
+function Screen2() {
+  return (
+    <>
+      <Text style={[styles.headline, { color: INK }]}>Names and dates aren&rsquo;t a story.</Text>
+      <Text style={[styles.body, { color: STONE }]}>
+        Most family tree tools give you a chart. A list of who begat whom. Witness gives you{' '}
+        <Text style={{ fontStyle: 'italic' }}>context</Text> — the newspaper clipping, the
+        neighborhood, the world your ancestors actually lived in.
+      </Text>
+      <View style={styles.splitRow}>
+        <View style={[styles.splitCard, { backgroundColor: CLINICAL_BG }]}>
+          <Text style={[styles.splitLabel, { color: CLINICAL_TEXT }]}>James Whitfield</Text>
+          <Divider color="rgba(28,25,23,0.15)" />
+          <Text style={[styles.body, { fontSize: 14, lineHeight: 19, color: CLINICAL_TEXT }]}>
+            b. 1842 — d. 1901
           </Text>
         </View>
-        <Text style={[styles.body, { color: STONE }]}>
-          One question. A moment ago your tree couldn't answer it — now it can, instantly, for
-          anything you ask.
-        </Text>
-      </>
-    ),
-  },
-  {
-    eyebrow: 'STAND WHERE THEY STOOD',
-    dark: true,
-    headline: "You're standing near an ancestor's grave.",
-    body: (
-      <>
-        <View style={styles.pingWrap}>
-          <View style={styles.pingOuter} />
-          <View style={styles.pingInner} />
+        <View style={[styles.splitCard, { backgroundColor: CARD, borderWidth: 1, borderColor: CARD_BORDER }]}>
+          <Text style={[styles.splitLabel, { color: INK }]}>James Whitfield</Text>
+          <Divider color={CARD_BORDER} />
+          <Text style={[styles.body, { fontSize: 14, lineHeight: 19, color: STONE }]}>
+            Cooper by trade, three streets from where you live now. Buried the year the railroad
+            came to town.
+          </Text>
         </View>
-        <Text style={[styles.body, { color: PARCHMENT_MUTED }]}>
-          Witness knows where your ancestors lived, died, and were buried — and tells you the
-          moment you're near one, wherever you happen to be.
-        </Text>
-      </>
-    ),
-  },
-  {
-    eyebrow: 'MEET THEM',
-    dark: false,
-    headline: 'Meet Catherine Marbury Scott.',
-    body: (
+      </View>
+    </>
+  );
+}
+
+function Screen3() {
+  const steps: { icon: SFSymbol; label: string }[] = [
+    { icon: 'square.and.arrow.down', label: 'Import' },
+    { icon: 'doc.text.magnifyingglass', label: 'Cross-reference' },
+    { icon: 'sparkles', label: 'Discover' },
+  ];
+  return (
+    <>
+      <Text style={[styles.headline, { color: INK }]}>
+        Import what you have. Witness does the rest.
+      </Text>
       <Text style={[styles.body, { color: STONE }]}>
-        1621–1687. Half-sister of Anne Hutchinson, banished from Massachusetts Bay for her faith.
-        Catherine crossed an ocean, buried children, and outlived a war — one life among thousands
-        in a tree, and the most remarkable one in yours. Witness finds her without you ever having
-        to go looking.
+        Bring your GEDCOM file — from Ancestry, FamilySearch, or any tree software. Witness
+        cross-references it against historical records, digitized newspapers, and place data to
+        surface what&rsquo;s actually there.
       </Text>
-    ),
-  },
-  {
-    eyebrow: 'BY INVITATION',
-    dark: true,
-    headline: 'Import your GEDCOM and start discovering.',
-    body: (
+      <View style={styles.stepsRow}>
+        {steps.map((step, i) => (
+          <View key={step.label} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <View style={styles.step}>
+              <View style={[styles.stepIcon, { backgroundColor: CARD, borderWidth: 1, borderColor: CARD_BORDER }]}>
+                <SymbolView name={step.icon} size={24} tintColor={AMBER} />
+              </View>
+              <Text style={[styles.stepLabel, { color: INK }]}>{step.label}</Text>
+            </View>
+            {i < steps.length - 1 && <Text style={[styles.stepArrow, { color: STONE }]}>{'→'}</Text>}
+          </View>
+        ))}
+      </View>
+    </>
+  );
+}
+
+function Screen4({ amber }: Palette) {
+  const pins = [
+    { top: 40, left: 40, label: '14 miles · 1902', dot: PARCHMENT },
+    { top: 150, left: 210, label: '3 miles · 1954', dot: PARCHMENT },
+  ];
+  const you = { top: 110, left: 140 };
+  return (
+    <>
+      <Text style={[styles.headline, { color: PARCHMENT }]}>
+        See how close you&rsquo;ve always been.
+      </Text>
       <Text style={[styles.body, { color: PARCHMENT_MUTED }]}>
-        Bring the tree you've already built. Witness turns it into answers.
+        Witness maps where your ancestors lived — and how near they are to you right now. The
+        farm, the tenement, the town your family left. Some of them may be closer than you think.
       </Text>
-    ),
-  },
-];
+      <View style={styles.mapCard}>
+        {pins.map((pin) => {
+          const dx = pin.left - you.left;
+          const dy = pin.top - you.top;
+          const length = Math.sqrt(dx * dx + dy * dy);
+          const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+          return (
+            <View key={pin.label}>
+              <View
+                style={[
+                  styles.mapLine,
+                  {
+                    width: length,
+                    top: you.top + 7,
+                    left: you.left + 7,
+                    transform: [{ rotate: `${angle}deg` }],
+                    transformOrigin: 'left center',
+                  },
+                ]}
+              />
+              <View style={[styles.mapPin, { top: pin.top, left: pin.left }]}>
+                <View style={[styles.mapPinDot, { backgroundColor: pin.dot }]} />
+                <Text style={[styles.mapPinLabel, { color: PARCHMENT }]}>{pin.label}</Text>
+              </View>
+            </View>
+          );
+        })}
+        <View style={[styles.mapPin, { top: you.top, left: you.left }]}>
+          <SymbolView name="location.fill" size={22} tintColor={amber} />
+          <Text style={[styles.mapPinLabel, { color: amber }]}>You</Text>
+        </View>
+      </View>
+      <Text style={[styles.micro, { color: PARCHMENT_MUTED }]}>
+        You&rsquo;ll see this for your own family in your first week.
+      </Text>
+      <View style={styles.teaserStrip}>
+        <Text style={[styles.micro, { color: PARCHMENT_MUTED, fontStyle: 'italic' }]}>
+          Coming soon: walk the actual street your ancestors lived on, reconstructed in Family
+          Street View.
+        </Text>
+      </View>
+    </>
+  );
+}
+
+const PERSONA_OPTIONS = [
+  { id: 'gedcom-ready', label: 'I have a GEDCOM file ready to explore' },
+  { id: 'just-starting', label: "I'm just starting to research my family" },
+  { id: 'picking-up', label: "I'm picking up where a relative left off" },
+  { id: 'curious', label: "I'm curious what's possible" },
+] as const;
+
+function Screen5({ onSelect }: { onSelect: (id: string) => void }) {
+  return (
+    <>
+      <Text style={[styles.headline, { color: INK }]}>What brings you to Witness?</Text>
+      <View style={{ gap: 12 }}>
+        {PERSONA_OPTIONS.map((option) => (
+          <Pressable
+            key={option.id}
+            accessibilityRole="button"
+            onPress={() => onSelect(option.id)}
+            style={({ pressed }) => [
+              styles.optionCard,
+              { backgroundColor: pressed ? '#F2E9DC' : CARD, borderColor: CARD_BORDER },
+            ]}
+          >
+            <Text style={[styles.optionText, { color: INK }]}>{option.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={[styles.micro, { color: STONE }]}>We&rsquo;ll use this to shape what you see first.</Text>
+    </>
+  );
+}
+
+function Screen6() {
+  return (
+    <>
+      <Text style={[styles.headline, { color: INK }]}>
+        Witness shows you possibilities. You decide what&rsquo;s true.
+      </Text>
+      <Text style={[styles.body, { color: STONE }]}>
+        AI-assisted research means Witness will sometimes surface a match, a record, or a
+        connection that&rsquo;s <Text style={{ fontStyle: 'italic' }}>worth investigating</Text> —
+        not a fact carved in stone. Every finding is presented as a lead, never a claim. Your
+        family&rsquo;s history stays yours to interpret.
+      </Text>
+      <View style={[styles.curiosityCard, { backgroundColor: CARD, borderColor: CARD_BORDER }]}>
+        <Text style={styles.curiosityEyebrow}>POSSIBLE MATCH</Text>
+        <Text style={[styles.body, { color: INK }]}>
+          An Elizabeth Coyne appears in an 1861 shipping manifest — matching your family&rsquo;s
+          timeline, three years before your known record begins.
+        </Text>
+        <Text style={[styles.micro, { color: STONE }]}>Worth investigating — not yet confirmed.</Text>
+      </View>
+    </>
+  );
+}
+
+function Screen7() {
+  return (
+    <>
+      <Text style={[styles.headline, { color: PARCHMENT }]}>
+        Your family&rsquo;s story is waiting. Let&rsquo;s go find it.
+      </Text>
+      <Text style={[styles.body, { color: PARCHMENT_MUTED }]}>
+        Everything you just saw, built from your own tree.
+      </Text>
+    </>
+  );
+}
+
+const DARK_SCREENS = new Set([0, 3, 6]);
+const SCREEN_COUNT = 7;
 
 export default function Onboarding() {
   const { markOnboardingComplete } = useProfile();
   const registerOnboardingComplete = useOnboardingPlacement();
   const [index, setIndex] = useState(0);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [persona, setPersona] = useState<string | null>(null);
 
-  const isLast = index === SCREENS.length - 1;
-  const screen = SCREENS[index];
-  const bg = screen.dark ? INK : PARCHMENT;
-  const fg = screen.dark ? PARCHMENT : INK;
-  const muted = screen.dark ? PARCHMENT_MUTED : STONE;
-  const amber = screen.dark ? AMBER_LIGHT : AMBER;
-  const dotTrack = screen.dark ? 'rgba(247,243,238,0.2)' : 'rgba(28,25,23,0.15)';
+  const isLast = index === SCREEN_COUNT - 1;
+  const dark = DARK_SCREENS.has(index);
+  const bg = dark ? INK : PARCHMENT;
+  const muted = dark ? PARCHMENT_MUTED : STONE;
+  const amber = dark ? AMBER_LIGHT : AMBER;
+  const dotTrack = dark ? 'rgba(247,243,238,0.2)' : 'rgba(28,25,23,0.15)';
 
-  async function advance() {
-    if (!isLast) {
-      setIndex(index + 1);
-      return;
-    }
+  async function finish(selectedPersona: string | null) {
     setIsFinishing(true);
     await markOnboardingComplete();
     // The router's entitlement guard now shows the paywall screen; this
     // placement lets the Superwall dashboard present its paywall over it
-    // (trial + $19.99/yr) and run experiments without an app release.
-    await registerOnboardingComplete();
+    // (7-day trial + annual price) and run experiments without an app
+    // release. The persona param lets a dashboard audience segment on it.
+    await registerOnboardingComplete({ persona: selectedPersona ?? 'unspecified' });
   }
+
+  function advance() {
+    if (!isLast) {
+      setIndex(index + 1);
+      return;
+    }
+    finish(persona);
+  }
+
+  function choosePersona(id: string) {
+    setPersona(id);
+    setIndex(index + 1);
+  }
+
+  const isPersonalizeScreen = index === 4;
 
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: bg }]} edges={['top', 'bottom']}>
       <View style={styles.progress}>
-        {SCREENS.map((_, i) => (
+        {Array.from({ length: SCREEN_COUNT }, (_, i) => (
           <View key={i} style={[styles.dot, { backgroundColor: i <= index ? amber : dotTrack }]} />
         ))}
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[styles.eyebrow, { color: amber }]}>{screen.eyebrow}</Text>
-        <Text style={[styles.headline, { color: fg }]}>{screen.headline}</Text>
-        <View style={{ gap: 12 }}>{screen.body}</View>
+        {index === 0 && <Screen1 fg={bg === INK ? PARCHMENT : INK} muted={muted} amber={amber} />}
+        {index === 1 && <Screen2 />}
+        {index === 2 && <Screen3 />}
+        {index === 3 && <Screen4 fg={PARCHMENT} muted={muted} amber={amber} />}
+        {index === 4 && <Screen5 onSelect={choosePersona} />}
+        {index === 5 && <Screen6 />}
+        {index === 6 && <Screen7 />}
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Button
-          title={isLast ? 'Import your GEDCOM and start discovering' : 'Continue'}
-          busy={isFinishing}
-          onPress={advance}
-        />
-        {!isLast && (
-          <Text style={[styles.skip, { color: muted }]} onPress={() => setIndex(SCREENS.length - 1)}>
-            Skip
-          </Text>
-        )}
-      </View>
+      {!isPersonalizeScreen && (
+        <View style={styles.footer}>
+          <Button
+            title={isLast ? 'Start My Free Trial' : 'Continue'}
+            busy={isFinishing}
+            onPress={advance}
+          />
+          {!isLast && (
+            <Text style={[styles.skip, { color: muted }]} onPress={() => setIndex(SCREEN_COUNT - 1)}>
+              Skip
+            </Text>
+          )}
+        </View>
+      )}
     </SafeAreaView>
   );
 }
