@@ -78,7 +78,8 @@
           "imageWidth": 320
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "./plugins/with-gedcom-guard.js"
     ],
     "experiments": {
       "typedRoutes": true,
