@@ -287,7 +287,8 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
-  state = { unlocked: false, error: '' };
+  // Gate retired 2026-07: the preview is now the public witnesslives.com site.
+  state = { unlocked: true, error: '' };
 
   componentDidMount() {
     try {
