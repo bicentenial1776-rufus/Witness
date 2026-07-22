@@ -1,3 +1,17 @@
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
+import {
+  PlayfairDisplay_400Regular,
+  PlayfairDisplay_400Regular_Italic,
+  PlayfairDisplay_500Medium,
+  PlayfairDisplay_600SemiBold,
+  PlayfairDisplay_700Bold,
+} from '@expo-google-fonts/playfair-display';
+import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -26,10 +40,23 @@ function RootNavigator() {
   const { session, isLoading: isSessionLoading } = useSession();
   const { onboardingCompleted, isLoading: isProfileLoading } = useProfile();
   const { isEntitled, isLoading: isPurchasesLoading } = usePurchases();
+  const [fontsLoaded] = useFonts({
+    PlayfairDisplay_400Regular,
+    PlayfairDisplay_500Medium,
+    PlayfairDisplay_600SemiBold,
+    PlayfairDisplay_700Bold,
+    PlayfairDisplay_400Regular_Italic,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
 
   // Profile/entitlement only resolve once there's a session to key them on.
   const isLoading =
-    isSessionLoading || (Boolean(session) && (isProfileLoading || isPurchasesLoading));
+    !fontsLoaded ||
+    isSessionLoading ||
+    (Boolean(session) && (isProfileLoading || isPurchasesLoading));
 
   useEffect(() => {
     if (!isLoading) SplashScreen.hideAsync();

@@ -165,21 +165,26 @@ export const usePremiumGate = superwallKey ? usePremiumGateWithSuperwall : usePr
 /**
  * Fire-and-forget registration of the post-onboarding placement. The
  * Superwall dashboard decides whether a paywall presents; the router's
- * entitlement guard still owns access either way.
+ * entitlement guard still owns access either way. Params (e.g. the persona
+ * picked on the personalize screen) ride along so a dashboard audience can
+ * segment on them.
  */
-function useOnboardingPlacementWithSuperwall(): () => Promise<void> {
+function useOnboardingPlacementWithSuperwall(): (params?: Record<string, string>) => Promise<void> {
   const { registerPlacement } = usePlacement();
 
-  return useCallback(async () => {
-    try {
-      await registerPlacement({ placement: PLACEMENT_ONBOARDING_COMPLETE });
-    } catch (error) {
-      console.warn('Superwall onboarding placement failed', error);
-    }
-  }, [registerPlacement]);
+  return useCallback(
+    async (params) => {
+      try {
+        await registerPlacement({ placement: PLACEMENT_ONBOARDING_COMPLETE, params });
+      } catch (error) {
+        console.warn('Superwall onboarding placement failed', error);
+      }
+    },
+    [registerPlacement],
+  );
 }
 
-function useOnboardingPlacementFallback(): () => Promise<void> {
+function useOnboardingPlacementFallback(): (params?: Record<string, string>) => Promise<void> {
   return useCallback(async () => {}, []);
 }
 
