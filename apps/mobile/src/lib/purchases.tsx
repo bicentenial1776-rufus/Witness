@@ -112,16 +112,27 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
     const listener = (info: CustomerInfo) => applyCustomerInfo(info);
     Purchases.addCustomerInfoUpdateListener(listener);
 
+    // On a fresh install getCustomerInfo can hang indefinitely behind
+    // StoreKit's first-launch queries, and the router gates the whole UI on
+    // isLoading — without a ceiling the app sits on a blank screen forever.
+    // Fail closed instead: stop blocking, leave isEntitled false, and let the
+    // customer-info listener above flip entitlement whenever StoreKit answers.
+    const loadingCeiling = setTimeout(() => setIsLoading(false), 5000);
+
     Purchases.getCustomerInfo()
       .then(applyCustomerInfo)
       .catch((error) => console.warn('Failed to load RevenueCat customer info', error))
-      .finally(() => setIsLoading(false));
+      .finally(() => {
+        clearTimeout(loadingCeiling);
+        setIsLoading(false);
+      });
 
     Purchases.getOfferings()
       .then((offerings) => setOffering(offerings.current))
       .catch((error) => console.warn('Failed to load RevenueCat offerings', error));
 
     return () => {
+      clearTimeout(loadingCeiling);
       Purchases.removeCustomerInfoUpdateListener(listener);
     };
   }, []);
@@ -131,9 +142,16 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (!apiKey) return;
     if (session) {
-      Purchases.logIn(session.user.id).then(({ customerInfo: info }) => applyCustomerInfo(info));
+      Purchases.logIn(session.user.id)
+        .then(({ customerInfo: info }) => applyCustomerInfo(info))
+        .catch((error) => console.warn('RevenueCat logIn failed', error));
     } else {
-      Purchases.logOut().then(applyCustomerInfo);
+      // logOut rejects when RevenueCat is already anonymous — the normal
+      // state on a fresh install, where this effect first runs with no
+      // session. There is nothing to undo in that case.
+      Purchases.logOut()
+        .then(applyCustomerInfo)
+        .catch(() => {});
     }
   }, [session]);
 

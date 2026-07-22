@@ -16,6 +16,10 @@ import { useSession } from '@/auth/session-provider';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
 import { supabase } from '@/lib/supabase';
 
+function count(n: number, singular: string, plural: string): string {
+  return `${n.toLocaleString()} ${n === 1 ? singular : plural}`;
+}
+
 type Step =
   | { name: 'pick' }
   | { name: 'parsing'; fileName: string }
@@ -123,9 +127,9 @@ export default function ImportGedcom() {
           <ThemedText type="subtitle">We found your family.</ThemedText>
           <ThemedText>
             {step.parsed.metadata.treeName ? `“${step.parsed.metadata.treeName}” — ` : ''}
-            {step.parsed.metadata.individualCount.toLocaleString()} people,{' '}
-            {step.parsed.metadata.familyCount.toLocaleString()} families,{' '}
-            {step.parsed.metadata.placeCount.toLocaleString()} places.
+            {count(step.parsed.metadata.individualCount, 'person', 'people')},{' '}
+            {count(step.parsed.metadata.familyCount, 'family', 'families')},{' '}
+            {count(step.parsed.metadata.placeCount, 'place', 'places')}.
           </ThemedText>
           <ThemedText type="small">
             This makes a copy inside Witness. Nothing changes on Ancestry, or wherever this file
@@ -152,7 +156,7 @@ export default function ImportGedcom() {
         <>
           <ThemedText type="subtitle">Your family is in Witness.</ThemedText>
           <ThemedText>
-            {step.parsed.metadata.individualCount.toLocaleString()} people, safe inside the app
+            {count(step.parsed.metadata.individualCount, 'person', 'people')}, safe inside the app
             now. Nothing on Ancestry changed — this is your own copy.
           </ThemedText>
           <ThemedText>

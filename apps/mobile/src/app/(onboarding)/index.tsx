@@ -41,10 +41,11 @@ const styles = StyleSheet.create({
   footer: { padding: 24, gap: 12 },
   skip: { textAlign: 'center', fontFamily: BrandFonts.sans.medium, fontSize: 15 },
 
-  // Screen 1 — Hook
+  // Screen 1 — Hook. Floats fully above the headline block — at lower
+  // offsets it lies over the text and hides words behind the card.
   photoCorner: {
     position: 'absolute',
-    top: -18,
+    top: -112,
     right: 8,
     width: 76,
     height: 96,
