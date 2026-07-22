@@ -16,6 +16,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
 import { getEventLibrary } from '@/lib/event-library';
 import { getRelationshipMap } from '@/lib/relationship-cache';
+import { invokeError, openResearchBrief as fetchOrCreateResearchBrief } from '@/lib/research-brief';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
 
@@ -86,16 +87,6 @@ type SectionState =
   | { name: 'generating' }
   | { name: 'ready'; text: string }
   | { name: 'error'; message: string };
-
-async function invokeError(error: unknown): Promise<string> {
-  const fallback = error instanceof Error ? error.message : String(error);
-  try {
-    const body = await (error as { context?: Response }).context?.json?.();
-    return body?.error ?? fallback;
-  } catch {
-    return fallback;
-  }
-}
 
 /** One AI-enriched text section backed by a cache row + Edge Function. */
 function useEnrichment(
@@ -329,30 +320,9 @@ export default function AncestorScreen() {
   async function openResearchBrief() {
     setBriefBusy(true);
     setBriefError(null);
-    // An open brief for this ancestor already exists? Go there — the
-    // Edge Function would happily generate a duplicate.
-    const { data: existing } = await supabase
-      .from('research_briefs')
-      .select('id')
-      .eq('individual_id', id)
-      .neq('status', 'archived')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (existing) {
-      setBriefBusy(false);
-      router.push({ pathname: '/research/[briefId]', params: { briefId: existing.id } });
-      return;
-    }
-    const { data, error } = await supabase.functions.invoke('generate-research-brief', {
-      body: { individualId: id },
-    });
+    const error = await fetchOrCreateResearchBrief(id);
     setBriefBusy(false);
-    if (error) {
-      setBriefError(await invokeError(error));
-      return;
-    }
-    router.push({ pathname: '/research/[briefId]', params: { briefId: data.id } });
+    if (error) setBriefError(error);
   }
 
   if (!person) {

@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { router } from 'expo-router';
+import React, { useState } from 'react';
+import { ActivityIndicator, Alert, View, Text, StyleSheet, Pressable } from 'react-native';
 import type { Beacon } from '@witness/core/family';
 
+import { openResearchBrief } from '@/lib/research-brief';
 import { usePremiumGate } from '@/lib/superwall';
 
 const styles = StyleSheet.create({
@@ -97,6 +97,16 @@ interface PulseCardProps {
  */
 export function PulseCard({ headlineStats, topBeacon }: PulseCardProps) {
   const premiumGate = usePremiumGate();
+  const [busy, setBusy] = useState(false);
+
+  async function handleGetResearchBrief() {
+    const individualId = topBeacon?.individual?.id;
+    if (!individualId) return;
+    setBusy(true);
+    const error = await openResearchBrief(individualId);
+    setBusy(false);
+    if (error) Alert.alert('Could not prepare research brief', error);
+  }
 
   return (
     <View style={styles.card}>
@@ -127,9 +137,14 @@ export function PulseCard({ headlineStats, topBeacon }: PulseCardProps) {
             <Text style={styles.beaconWhy}>{topBeacon.whyStatement}</Text>
             <Pressable
               style={styles.button}
-              onPress={() => premiumGate(() => router.push('/research'))}
+              disabled={busy}
+              onPress={() => premiumGate(handleGetResearchBrief)}
             >
-              <Text style={styles.buttonText}>Get Research Brief</Text>
+              {busy ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Text style={styles.buttonText}>Get Research Brief</Text>
+              )}
             </Pressable>
           </View>
         </View>
