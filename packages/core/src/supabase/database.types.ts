@@ -815,7 +815,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      delete_tree_batch: {
+        Args: { p_tree_id: string }
+        Returns: Json
+      }
+      reuse_geocodes: {
+        Args: { p_tree_id: string }
+        Returns: number
+      }
     }
     Enums: {
       curiosity_type:

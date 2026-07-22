@@ -92,6 +92,15 @@ export async function importParsedGedcom(
     });
   }
 
+  // Copy coordinates for every place string any tree has already resolved —
+  // overlap is heavy, so most of the map lights up immediately. Whatever is
+  // left gets picked up by the geocode-pending worker within hours. Non-fatal:
+  // an import must never fail over geocoding.
+  const { error: reuseError } = await client.rpc('reuse_geocodes', {
+    p_tree_id: payload.tree.id as string,
+  });
+  if (reuseError) console.warn('Geocode reuse failed (worker will cover it):', reuseError.message);
+
   return { treeId: payload.tree.id as string };
 }
 

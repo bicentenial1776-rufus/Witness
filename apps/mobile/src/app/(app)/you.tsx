@@ -42,8 +42,21 @@ export default function YouTab() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const { error } = await supabase.from('trees').delete().eq('id', tree.id);
-            if (error) Alert.alert('Delete failed', error.message);
+            // A whole-tree cascade delete exceeds the API statement timeout
+            // on real trees, so the server deletes in bounded slices and we
+            // call until it reports done (see delete_tree_batch migration).
+            let error: string | null = null;
+            for (let i = 0; i < 200; i++) {
+              const { data, error: rpcError } = await supabase.rpc('delete_tree_batch', {
+                p_tree_id: tree.id,
+              });
+              if (rpcError) {
+                error = rpcError.message;
+                break;
+              }
+              if ((data as { done?: boolean } | null)?.done) break;
+            }
+            if (error) Alert.alert('Delete failed', error);
             else {
               invalidateGeographyCache();
               invalidateRelationshipCache();
