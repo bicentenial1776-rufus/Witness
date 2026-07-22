@@ -19,6 +19,7 @@
           "UIInterfaceOrientationLandscapeRight"
         ],
         "ITSAppUsesNonExemptEncryption": false,
+        "LSSupportsOpeningDocumentsInPlace": false,
         "NSLocationWhenInUseUsageDescription": "Witness uses your location to show which of your ancestors lived near where you are standing.",
         "UTImportedTypeDeclarations": [
           {
@@ -52,7 +53,7 @@
           }
         ]
       },
-      "buildNumber": "1",
+      "buildNumber": "5",
       "appleTeamId": "SLD65K94V7"
     },
     "android": {
