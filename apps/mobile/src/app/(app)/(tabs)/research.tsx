@@ -1,10 +1,13 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList } from 'react-native';
+import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 
+import { LedgerRow, Masthead, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { Card } from '@/components/card';
+import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Broadsheet, BrandFonts } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
 interface BriefRow {
@@ -23,6 +26,7 @@ export const STATUS_LABELS: Record<BriefRow['status'], string> = {
 
 export default function ResearchTab() {
   const [briefs, setBriefs] = useState<BriefRow[] | null>(null);
+  const broadsheet = useBroadsheet();
 
   useFocusEffect(
     useCallback(() => {
@@ -40,6 +44,57 @@ export default function ResearchTab() {
       };
     }, []),
   );
+
+  if (broadsheet) {
+    const C = Broadsheet.color;
+    const openCount = briefs?.filter((b) => b.status === 'open').length ?? 0;
+    return (
+      <PageShell
+        masthead={
+          <Masthead
+            title="Research"
+            metaMono={briefs ? `${briefs.length} BRIEFS · ${openCount} OPEN` : ''}
+            metaCaption="Your brick walls, and the briefs to break them"
+          />
+        }
+      >
+        {briefs === null ? (
+          <ActivityIndicator style={{ marginVertical: 40 }} />
+        ) : briefs.length === 0 ? (
+          <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 18, color: C.inkSecondary }}>
+            No open briefs. Start one from any ancestor whose record has gaps — the Research tab on
+            their page writes it for you.
+          </Text>
+        ) : (
+          <View>
+            {briefs.map((brief, i) => (
+              <LedgerRow
+                key={brief.id}
+                first={i === 0}
+                onPress={() =>
+                  router.push({ pathname: '/research/[briefId]', params: { briefId: brief.id } })
+                }
+              >
+                <Text
+                  style={{
+                    flex: 1,
+                    fontFamily: BrandFonts.serif.regular,
+                    fontSize: Broadsheet.type.ledgerName,
+                    color: C.ink,
+                  }}
+                >
+                  {brief.title}
+                </Text>
+                <RecordText accent={brief.status === 'open'} muted={brief.status !== 'open'}>
+                  {STATUS_LABELS[brief.status]} · {new Date(brief.created_at).toLocaleDateString()}
+                </RecordText>
+              </LedgerRow>
+            ))}
+          </View>
+        )}
+      </PageShell>
+    );
+  }
 
   return (
     <ThemedView style={{ flex: 1, padding: 24, paddingTop: 72, gap: 8 }}>

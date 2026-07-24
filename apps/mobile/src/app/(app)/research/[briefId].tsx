@@ -2,7 +2,9 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Share, View } from 'react-native';
 
+import { BriefMarkdown } from '@/components/brief-markdown';
 import { Button } from '@/components/button';
+import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { supabase } from '@/lib/supabase';
@@ -70,21 +72,27 @@ export default function BriefScreen() {
     <ThemedView style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 48, gap: 8 }}>
         <ThemedText type="title">{brief.title}</ThemedText>
-        <ThemedText type="small">
-          {brief.status.replace('_', ' ')} · generated {new Date(brief.created_at).toLocaleDateString()}
-        </ThemedText>
+        <RecordText>
+          {brief.status.replace('_', ' ')} · {new Date(brief.created_at).toLocaleDateString()}
+        </RecordText>
 
-        <Button
-          title="Share this brief"
-          onPress={() => Share.share({ message: `${brief.title}\n\n${brief.content}` })}
-        />
-        <View style={{ gap: 8 }}>
+        {/* One primary action; status changes are a small control group,
+            not a stack of full-width buttons (redesign §3.5). */}
+        <View style={{ marginTop: 6 }}>
+          <Button
+            title="Share this brief"
+            onPress={() => Share.share({ message: `${brief.title}\n\n${brief.content}` })}
+          />
+        </View>
+        <View style={{ flexDirection: 'row', gap: 22, marginTop: 2, marginBottom: 6 }}>
           {NEXT_STATUS[brief.status].map((action) => (
-            <Button key={action.to} variant="secondary" title={action.label} onPress={() => setStatus(action.to)} />
+            <ThemedText key={action.to} type="link" onPress={() => setStatus(action.to)}>
+              {action.label}
+            </ThemedText>
           ))}
         </View>
 
-        <ThemedText style={{ marginTop: 8 }}>{brief.content}</ThemedText>
+        <BriefMarkdown content={brief.content} />
       </ScrollView>
     </ThemedView>
   );
