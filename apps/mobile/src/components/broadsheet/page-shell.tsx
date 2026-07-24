@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
 import { RecordText } from '@/components/record-text';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
@@ -78,7 +78,7 @@ export function PageShell({
   const sideBySide = useMarginColumn();
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.paperBg }}>
+    <ScrollView style={{ flex: 1, backgroundColor: C.paperBg }}>
       <View style={{ paddingHorizontal: 44, paddingTop: 38, paddingBottom: 60, maxWidth: 1460, width: '100%', alignSelf: 'center' }}>
         {masthead}
         {sideBySide && margin ? (
@@ -103,7 +103,7 @@ export function PageShell({
           </View>
         )}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
