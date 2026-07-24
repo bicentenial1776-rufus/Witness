@@ -842,16 +842,22 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          digest_email_enabled: boolean
+          digest_email_last_sent_at: string | null
           id: string
           onboarding_completed_at: string | null
         }
         Insert: {
           created_at?: string
+          digest_email_enabled?: boolean
+          digest_email_last_sent_at?: string | null
           id: string
           onboarding_completed_at?: string | null
         }
         Update: {
           created_at?: string
+          digest_email_enabled?: boolean
+          digest_email_last_sent_at?: string | null
           id?: string
           onboarding_completed_at?: string | null
         }

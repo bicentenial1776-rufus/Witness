@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, Switch, View } from 'react-native';
+import { Alert, Platform, ScrollView, Switch, View } from 'react-native';
 
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
@@ -127,7 +127,9 @@ export default function YouTab() {
             <View style={{ flex: 1, paddingRight: 12 }}>
               <ThemedText>Weekly reminder</ThemedText>
               <ThemedText type="small">
-                A Sunday morning notification with the week’s anniversaries.
+                {Platform.OS === 'web'
+                  ? 'A Sunday morning email with the week’s anniversaries.'
+                  : 'A Sunday morning notification with the week’s anniversaries.'}
               </ThemedText>
             </View>
             <Switch
