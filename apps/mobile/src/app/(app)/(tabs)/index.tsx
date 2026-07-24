@@ -112,6 +112,7 @@ export default function Home() {
                 window.map((day) => ({
                   label: day.date
                     .toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' })
+                    .replace(',', '')
                     .toUpperCase(),
                   count: candidates.filter((c) => c.month === day.month && c.day === day.day).length,
                 })),

@@ -103,7 +103,7 @@ export function ThisWeekBroadsheet({
             </RecordText>
             {dayCounts.map((day) => (
               <View key={day.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <RecordText numberOfLines={1} style={{ width: 86 }}>{day.label}</RecordText>
+                <RecordText numberOfLines={1} style={{ width: 96, flexShrink: 0 }}>{day.label}</RecordText>
                 <DataBar value={day.count} max={maxDayCount} leader={day.count === maxDayCount} />
                 <RecordText muted style={{ width: 24, textAlign: 'right' }}>
                   {day.count}
