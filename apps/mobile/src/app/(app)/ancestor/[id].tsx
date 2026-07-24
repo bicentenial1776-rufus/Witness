@@ -16,6 +16,7 @@ import { NaraCandidateCard } from '@/components/nara-candidate-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { ancestryPersonUrl } from '@/lib/ancestry';
 import { getEventLibrary } from '@/lib/event-library';
 import { getRelationshipMap } from '@/lib/relationship-cache';
 import { invokeError, openResearchBrief as fetchOrCreateResearchBrief } from '@/lib/research-brief';
@@ -31,20 +32,6 @@ interface Person {
   death_year: number | null;
   living: boolean;
   gedcom_xref: string;
-}
-
-/**
- * Deep link to this person's page on ancestry.com. Ancestry GEDCOM exports
- * carry the tree's numeric id in the header (stored as trees.ancestry_tree_id)
- * and each person's Ancestry id as the INDI xref (I<digits>). Both must be
- * present — trees from FamilySearch or other software simply get no link.
- * On a device with the Ancestry app installed, the https URL universal-links
- * straight into the app.
- */
-function ancestryPersonUrl(ancestryTreeId: string | null, xref: string): string | null {
-  const match = /^I(\d+)$/.exec(xref);
-  if (!ancestryTreeId || !match) return null;
-  return `https://www.ancestry.com/family-tree/person/tree/${ancestryTreeId}/person/${match[1]}/facts`;
 }
 
 interface EventRow {

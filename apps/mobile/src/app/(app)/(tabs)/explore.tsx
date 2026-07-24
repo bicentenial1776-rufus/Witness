@@ -8,6 +8,7 @@ import {
   type HistoricalEvent,
   type ShelfEntry,
 } from '@witness/core/history';
+import { fetchNaraCounts, type NaraCounts } from '@witness/core/query';
 
 import { Card } from '@/components/card';
 import { TextField } from '@/components/text-field';
@@ -36,9 +37,10 @@ function eventYears(event: HistoricalEvent): string {
 /**
  * Explore = the curated shelf (3–5 events scored for this tree, this
  * month), the situation categories (places, migrations, kindred), and
- * general search over people and history. Deliberately no browsable
- * event catalog — events reach the user through the shelf, ancestor-card
- * tags, and search (docs/QUERY_LIBRARY.md, Implementation Architecture).
+ * general search over people and history. The full event catalog is
+ * browsable as the Library's century-grouped "Moments in history"
+ * timeline — every row personalized with a live alive-count
+ * (docs/QUERY_LIBRARY.md); search here remains the fast path.
  */
 export default function ExploreTab() {
   const { activeTree } = useActiveTree();
@@ -48,6 +50,24 @@ export default function ExploreTab() {
   const [shelfAttempt, setShelfAttempt] = useState(0);
   const [search, setSearch] = useState('');
   const [people, setPeople] = useState<PersonHit[]>([]);
+  const [naraCounts, setNaraCounts] = useState<NaraCounts | null>(null);
+
+  // Archive counts refresh on every focus: reviews happen deeper in the
+  // stack, and a stale "3 to review" badge undercuts the workflow.
+  useFocusEffect(
+    useCallback(() => {
+      if (!activeTree) return;
+      let cancelled = false;
+      fetchNaraCounts(supabase, activeTree.id)
+        .then((counts) => {
+          if (!cancelled) setNaraCounts(counts);
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }, [activeTree?.id]),
+  );
 
   // The full library backs search only; it is never listed outright.
   useEffect(() => {
@@ -188,6 +208,30 @@ export default function ExploreTab() {
               <ThemedText type="subtitle" style={{ marginTop: 12 }}>
                 Ways in
               </ThemedText>
+              <Card
+                onPress={() =>
+                  router.push({ pathname: '/archives', params: { treeId: activeTree.id } })
+                }
+              >
+                <ThemedText type="subtitle">In the National Archives</ThemedText>
+                <ThemedText type="small">
+                  Federal records matched to your ancestors — draft cards, naturalizations, and
+                  more, each awaiting your judgment
+                </ThemedText>
+                {naraCounts && (naraCounts.pending > 0 || naraCounts.confirmed > 0) && (
+                  <ThemedText type="smallBold" themeColor="accent">
+                    {[
+                      naraCounts.pending > 0 ? `${naraCounts.pending} to review` : null,
+                      naraCounts.confirmed > 0
+                        ? `${naraCounts.confirmed} confirmed`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}{' '}
+                    ›
+                  </ThemedText>
+                )}
+              </Card>
               <Card onPress={() => router.push('/ascent')}>
                 <ThemedText type="subtitle">The Ascent</ThemedText>
                 <ThemedText type="small">Climb your tree generation by generation — and see where the records thin</ThemedText>

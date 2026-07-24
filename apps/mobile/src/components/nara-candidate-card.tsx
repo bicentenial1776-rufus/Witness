@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import * as Clipboard from 'expo-clipboard';
+import { useEffect, useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 
 import {
@@ -11,7 +12,9 @@ import {
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+import { ancestryPersonUrl } from '@/lib/ancestry';
 import { supabase } from '@/lib/supabase';
+
 
 /**
  * One National Archives document that might belong to an ancestor.
@@ -30,6 +33,42 @@ export function NaraCandidateCard({
 }) {
   const theme = useTheme();
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [ancestryUrl, setAncestryUrl] = useState<string | null>(null);
+
+  // Not every tree came from Ancestry — trees.ancestry_tree_id is only
+  // backfilled from Ancestry GEDCOM exports, so the bridge appears only
+  // when this person actually has a page there. Other providers would get
+  // their own check here.
+  useEffect(() => {
+    if (candidate.status !== 'confirmed') return;
+    let cancelled = false;
+    supabase
+      .from('individuals')
+      .select('gedcom_xref, trees!individuals_tree_id_fkey(ancestry_tree_id)')
+      .eq('id', candidate.individualId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const tree = data.trees as { ancestry_tree_id: string | null } | null;
+        setAncestryUrl(ancestryPersonUrl(tree?.ancestry_tree_id ?? null, data.gedcom_xref));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [candidate.status, candidate.individualId]);
+
+  // Ancestry has no write API, so "ingestion" is a human bridge: put the
+  // record's permanent catalog URL on the clipboard (bare — Ancestry's
+  // web-link field validates a lone URL and rejects citation prose), then
+  // deep-link to the person's facts page for "Add source" + paste. Once
+  // saved, the link rides future GEDCOM exports back into Witness.
+  async function addToAncestry() {
+    if (!ancestryUrl) return;
+    await Clipboard.setStringAsync(naraCatalogUrl(candidate.naId));
+    setCopied(true);
+    Linking.openURL(ancestryUrl);
+  }
 
   async function resolve(status: 'confirmed' | 'dismissed') {
     setBusy(true);
@@ -61,9 +100,22 @@ export function NaraCandidateCard({
         View at the National Archives ›
       </ThemedText>
       {candidate.status === 'confirmed' ? (
-        <ThemedText type="small" themeColor="accent" style={{ fontWeight: 600 }}>
-          Confirmed — part of {showPerson ? `${candidate.individualName}'s` : 'their'} record
-        </ThemedText>
+        <>
+          <ThemedText type="small" themeColor="accent" style={{ fontWeight: 600 }}>
+            Confirmed — part of {showPerson ? `${candidate.individualName}'s` : 'their'} record
+          </ThemedText>
+          {ancestryUrl && (
+            <ThemedText type="link" onPress={addToAncestry}>
+              Add to Ancestry ›
+            </ThemedText>
+          )}
+          {copied && (
+            <ThemedText type="small">
+              Record link copied — on their Ancestry page, tap “Add source” and paste it as a web
+              link. (Sign in to ancestry.com if asked.)
+            </ThemedText>
+          )}
+        </>
       ) : (
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
           {(

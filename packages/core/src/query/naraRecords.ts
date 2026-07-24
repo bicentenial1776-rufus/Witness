@@ -117,6 +117,50 @@ export async function fetchNaraCandidatesForIndividual(
   return ((data ?? []) as unknown as CandidateRow[]).map(toCandidate);
 }
 
+/**
+ * Every live candidate in the tree — the consolidated National Archives
+ * view. Without this, finds are needles scattered across thousands of
+ * ancestor pages; here they queue for review and shelve once confirmed.
+ */
+export async function fetchNaraCandidatesForTree(
+  client: WitnessSupabaseClient,
+  treeId: string,
+): Promise<NaraCandidate[]> {
+  const { data, error } = await client
+    .from('nara_candidates')
+    .select(CANDIDATE_SELECT)
+    .eq('tree_id', treeId)
+    .neq('status', 'dismissed')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(`Fetching NARA candidates failed: ${error.message}`);
+  return ((data ?? []) as unknown as CandidateRow[]).map(toCandidate);
+}
+
+export interface NaraCounts {
+  pending: number;
+  confirmed: number;
+}
+
+/** Cheap badge counts for entry points into the archives view. */
+export async function fetchNaraCounts(
+  client: WitnessSupabaseClient,
+  treeId: string,
+): Promise<NaraCounts> {
+  const [pending, confirmed] = await Promise.all([
+    client
+      .from('nara_candidates')
+      .select('id', { count: 'exact', head: true })
+      .eq('tree_id', treeId)
+      .eq('status', 'pending'),
+    client
+      .from('nara_candidates')
+      .select('id', { count: 'exact', head: true })
+      .eq('tree_id', treeId)
+      .eq('status', 'confirmed'),
+  ]);
+  return { pending: pending.count ?? 0, confirmed: confirmed.count ?? 0 };
+}
+
 /** Confirm or dismiss a candidate. */
 export async function setNaraCandidateStatus(
   client: WitnessSupabaseClient,
