@@ -24,7 +24,15 @@ export default function SignUp() {
   async function handleSignUp() {
     Keyboard.dismiss();
     setIsSubmitting(true);
-    const { error } = await supabase.auth.signUp({ email, password });
+    // Without this, Supabase falls back to the project's dashboard-configured
+    // Site URL for the confirmation link — which is witnesslives.com's
+    // marketing homepage, not anything that tells the reader what to do
+    // next. This page just says "you're confirmed, go open the app."
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: 'https://witnesslives.com/confirmed' },
+    });
     setIsSubmitting(false);
     if (error) {
       Alert.alert('Sign up failed', error.message);

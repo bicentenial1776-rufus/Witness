@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>You're confirmed — Witness</title>
+<meta name="description" content="Your Witness account is confirmed. Open the app and sign in.">
+<style>
+  :root{
+    --ink:#1C1917;
+    --parchment:#F7F3EE;
+    --amber:#B45309;
+    --ink-60:rgba(28,25,23,.62);
+    --ink-15:rgba(28,25,23,.15);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--parchment);
+    color:var(--ink);
+    font:400 17px/1.7 Charter, 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  .masthead{
+    background:var(--ink);
+    color:var(--parchment);
+    padding:56px 24px 48px;
+    text-align:center;
+  }
+  .masthead .wordmark{
+    font-size:15px;
+    letter-spacing:.28em;
+    text-transform:uppercase;
+    opacity:.85;
+  }
+  .masthead .rule{width:48px;height:2px;background:var(--amber);margin:20px auto}
+  .masthead h1{font-size:clamp(28px,5vw,40px);font-weight:600;letter-spacing:-.01em}
+  main{max-width:520px;margin:0 auto;padding:48px 24px;flex:1;text-align:center}
+  .promise{
+    background:#fff;
+    border:1px solid var(--ink-15);
+    border-top:3px solid var(--amber);
+    border-radius:10px;
+    padding:28px;
+    box-shadow:0 1px 3px rgba(28,25,23,.06);
+    font-size:18px;
+    text-align:left;
+  }
+  .promise strong{font-weight:600}
+  p{margin-bottom:14px}
+  .cta{
+    display:inline-block;
+    margin-top:28px;
+    background:var(--amber);
+    color:var(--parchment);
+    text-decoration:none;
+    font-weight:600;
+    padding:14px 28px;
+    border-radius:10px;
+  }
+  .fine{margin-top:20px;font-size:14.5px;color:var(--ink-60)}
+  a{color:var(--amber)}
+  footer{
+    margin-top:auto;
+    background:var(--ink);
+    color:rgba(247,243,238,.65);
+    text-align:center;
+    padding:36px 24px;
+    font-size:14px;
+  }
+  footer a{color:var(--parchment)}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wordmark">Witness</div>
+  <div class="rule" aria-hidden="true"></div>
+  <h1>You're confirmed.</h1>
+</header>
+
+<main>
+  <div class="promise">
+    <p><strong>Your email is verified — this page's job is done.</strong></p>
+    <p>Head back to the Witness app on your phone and sign in with the email and password you used to create your account. That's it, you're in.</p>
+  </div>
+
+  <a class="cta" href="mobile://">Open Witness</a>
+  <p class="fine">If tapping that doesn't do anything, just find Witness on your Home Screen and open it yourself — then sign in from there.</p>
+</main>
+
+<footer>
+  <div>Witness — Family History Intelligence · <a href="https://witnesslives.com">witnesslives.com</a></div>
+</footer>
+
+</body>
+</html>
