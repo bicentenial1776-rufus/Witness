@@ -2,13 +2,19 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, View } from 'react-native';
 
+import { kindredCouples, type KindredCouple } from '@witness/core/family';
 import {
   HISTORICAL_EVENTS,
+  countAliveDuring,
   eventMatchesSearch,
   type HistoricalEvent,
   type ShelfEntry,
 } from '@witness/core/history';
-import { fetchNaraCounts, type NaraCounts } from '@witness/core/query';
+import { fetchNaraCounts, type GeographyIndex, type NaraCounts } from '@witness/core/query';
+
+import { useBroadsheet } from '@/components/broadsheet';
+import { ExploreBroadsheet, type EraCount } from '@/components/broadsheet/explore-broadsheet';
+import { getGeographyIndex } from '@/lib/geography-cache';
 
 import { Card } from '@/components/card';
 import { TextField } from '@/components/text-field';
@@ -51,6 +57,37 @@ export default function ExploreTab() {
   const [search, setSearch] = useState('');
   const [people, setPeople] = useState<PersonHit[]>([]);
   const [naraCounts, setNaraCounts] = useState<NaraCounts | null>(null);
+  const broadsheet = useBroadsheet();
+  const [geoIndex, setGeoIndex] = useState<GeographyIndex | null>(null);
+  const [kindred, setKindred] = useState<KindredCouple[]>([]);
+  const [eras, setEras] = useState<EraCount[]>([]);
+
+  // Broadsheet data: the geography index powers the self-previewing
+  // sections; kindred and era counts fill the rest.
+  useEffect(() => {
+    if (!broadsheet || !activeTree) return;
+    let cancelled = false;
+    (async () => {
+      const index = await getGeographyIndex(activeTree.id);
+      if (cancelled) return;
+      setGeoIndex(index);
+      const library = await getEventLibrary();
+      const majors = library.filter((e) => e.tier === 'major');
+      const step = Math.max(1, Math.floor(majors.length / 6));
+      const picks = majors.filter((_, i) => i % step === 0).slice(0, 6);
+      if (!cancelled) {
+        setEras(picks.map((event) => ({ event, aliveCount: countAliveDuring(index, event) })));
+      }
+      kindredCouples(supabase, activeTree.id)
+        .then((couples) => {
+          if (!cancelled) setKindred(couples.slice(0, 4));
+        })
+        .catch(() => {});
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [broadsheet, activeTree?.id]);
 
   // Archive counts refresh on every focus: reviews happen deeper in the
   // stack, and a stale "3 to review" badge undercuts the workflow.
@@ -142,6 +179,23 @@ export default function ExploreTab() {
 
   const searching = search.trim().length > 0;
   const filtered = searching ? events.filter((event) => eventMatchesSearch(event, search)) : [];
+
+  // Broadsheet layout (web ≥900px); phone/native rendering below untouched.
+  if (broadsheet && activeTree && geoIndex) {
+    return (
+      <ExploreBroadsheet
+        index={geoIndex}
+        kindred={kindred}
+        eras={eras}
+        naraCounts={naraCounts}
+        treeId={activeTree.id}
+        searchPeople={people}
+        searchMoments={filtered.slice(0, 8)}
+        search={search}
+        onSearch={setSearch}
+      />
+    );
+  }
 
   const header = (
     <View style={{ gap: 12, marginBottom: 12 }}>
