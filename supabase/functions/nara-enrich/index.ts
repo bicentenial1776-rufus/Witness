@@ -184,15 +184,32 @@ Deno.serve(async (req) => {
   const apiKey = Deno.env.get('NARA_API_KEY');
   if (!apiKey) return Response.json({ error: 'NARA_API_KEY not set' }, { status: 500 });
 
+  // Diagnostics: every swallowed error lands here and in the response, so a
+  // silently failing write can never again burn budget for hours unseen.
+  const errors: string[] = [];
+  const note = (label: string, error: { message?: string } | null) => {
+    if (error) errors.push(`${label}: ${error.message ?? JSON.stringify(error)}`);
+  };
+
+  let force = false;
+  try {
+    force = ((await req.json()) as { force?: boolean })?.force === true;
+  } catch {
+    // empty body — the normal cron case
+  }
+
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
-  // One worker per ten-minute bucket, even if invoked twice.
-  const bucket = new Date().toISOString().slice(0, 15);
-  const { error: tickError } = await supabase.from('nara_ticks').insert({ bucket });
-  if (tickError) return Response.json({ skipped: 'another worker owns this bucket' });
+  // One worker per ten-minute bucket, even if invoked twice. `force` skips
+  // the tick for manual diagnostic runs.
+  if (!force) {
+    const bucket = new Date().toISOString().slice(0, 15);
+    const { error: tickError } = await supabase.from('nara_ticks').insert({ bucket });
+    if (tickError) return Response.json({ skipped: 'another worker owns this bucket' });
+  }
 
   // Monthly quota ledger: create the month's row if needed, stop at budget.
   const month = new Date().toISOString().slice(0, 7);
@@ -219,7 +236,11 @@ Deno.serve(async (req) => {
       .select(
         'id, tree_id, user_id, full_name, surname, sex, birth_year, trees!individuals_tree_id_fkey!inner(imported_at), nara_enrichment_state!left(individual_id), individual_events(event_type, date_year, place_id, places(raw, parts))',
       )
-      .is('nara_enrichment_state.individual_id', null);
+      // Anti-join: the filter must be on the EMBED being null, not an
+      // embedded column — a column filter only empties the embed and lets
+      // the parent row through (the bug that once re-searched the same
+      // three men every ten minutes).
+      .is('nara_enrichment_state', null);
     if (eligibleOnly) {
       query = query.eq('sex', 'M').gte('birth_year', 1873).lte('birth_year', 1927);
     }
@@ -251,7 +272,7 @@ Deno.serve(async (req) => {
     // Trees of the same family overlap near-100%; even strangers' trees
     // share ancestors.
     if (person.surname && person.birth_year !== null) {
-      const { data: twin } = await supabase
+      const { data: twin, error: twinError } = await supabase
         .from('individuals')
         .select('id, nara_enrichment_state!inner(individual_id)')
         .eq('full_name', person.full_name)
@@ -260,6 +281,7 @@ Deno.serve(async (req) => {
         .neq('id', person.id)
         .limit(1)
         .maybeSingle();
+      note(`twin lookup for ${person.full_name}`, twinError);
       if (twin) {
         const { data: twinCandidates } = await supabase
           .from('nara_candidates')
@@ -285,13 +307,17 @@ Deno.serve(async (req) => {
         }
         reused++;
         candidates += cloned;
-        await supabase.from('nara_enrichment_state').insert({
-          individual_id: person.id,
-          tree_id: person.tree_id,
-          user_id: person.user_id,
-          calls_used: 0,
-          candidates_found: cloned,
-        });
+        const { error: reuseStateError } = await supabase.from('nara_enrichment_state').upsert(
+          {
+            individual_id: person.id,
+            tree_id: person.tree_id,
+            user_id: person.user_id,
+            calls_used: 0,
+            candidates_found: cloned,
+          },
+          { onConflict: 'individual_id', ignoreDuplicates: true },
+        );
+        note(`reuse state insert for ${person.full_name}`, reuseStateError);
         continue;
       }
     }
@@ -331,7 +357,7 @@ Deno.serve(async (req) => {
         .slice(0, CANDIDATES_PER_QUERY);
       if (plausible.length === 0) continue;
 
-      await supabase.from('nara_documents').upsert(
+      const { error: docsError } = await supabase.from('nara_documents').upsert(
         plausible.map((h) => ({
           na_id: h.naId,
           title: h.title,
@@ -345,6 +371,7 @@ Deno.serve(async (req) => {
         })),
         { onConflict: 'na_id' },
       );
+      note(`documents upsert for ${person.full_name}`, docsError);
 
       // Anchor the candidate to the person's busiest US place so the
       // place screen can show "papers of this place".
@@ -362,20 +389,30 @@ Deno.serve(async (req) => {
         })),
         { onConflict: 'individual_id,na_id', ignoreDuplicates: true },
       );
+      note(`candidates upsert for ${person.full_name}`, candidateError);
       if (!candidateError) personCandidates += plausible.length;
     }
 
     candidates += personCandidates;
-    await supabase.from('nara_enrichment_state').insert({
-      individual_id: person.id,
-      tree_id: person.tree_id,
-      user_id: person.user_id,
-      calls_used: personCalls,
-      candidates_found: personCandidates,
-    });
+    const { error: stateError } = await supabase.from('nara_enrichment_state').upsert(
+      {
+        individual_id: person.id,
+        tree_id: person.tree_id,
+        user_id: person.user_id,
+        calls_used: personCalls,
+        candidates_found: personCandidates,
+      },
+      { onConflict: 'individual_id', ignoreDuplicates: true },
+    );
+    note(`state insert for ${person.full_name}`, stateError);
   }
 
-  await supabase.from('nara_api_calls').update({ calls: monthCalls }).eq('month', month);
+  const { error: ledgerError } = await supabase
+    .from('nara_api_calls')
+    .update({ calls: monthCalls })
+    .eq('month', month);
+  note('ledger update', ledgerError);
 
-  return Response.json({ examined, reused, calls, candidates, monthCalls });
+  if (errors.length > 0) console.error('nara-enrich errors:', errors);
+  return Response.json({ examined, reused, calls, candidates, monthCalls, errors });
 });
