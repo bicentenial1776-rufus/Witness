@@ -13,7 +13,8 @@ import {
 } from '@witness/core/query';
 
 import { RecordText } from '@/components/record-text';
-import { Masthead, MarginPanel, PageShell, SectionBreak, useBroadsheet } from '@/components/broadsheet';
+import { Masthead, MarginPanel, PageShell, useBroadsheet } from '@/components/broadsheet';
+import { PlaceDrawer } from '@/components/broadsheet/place-drawer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useActiveTree } from '@/lib/active-tree';
@@ -223,6 +224,7 @@ export default function AncestorMapTab() {
   const { index, progress } = useGeography(treeId);
   const [eraIndex, setEraIndex] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const containerRef = useRef<View>(null);
 
   const markers = useMemo(() => {
@@ -311,6 +313,7 @@ export default function AncestorMapTab() {
   const placedPlaces = index ? [...index.places.values()].filter((p) => p.latitude !== null).length : 0;
 
   return (
+    <>
     <PageShell
       masthead={
         <Masthead
@@ -364,6 +367,47 @@ export default function AncestorMapTab() {
               );
             })}
           </View>
+          {selected && (
+            <View>
+              <RecordText eyebrow accent>
+                Selected place
+              </RecordText>
+              <Text style={{ fontFamily: BrandFonts.serif.bold, fontSize: 24, color: C.ink, marginTop: 6 }}>
+                {selected.place.parts[0] ?? selected.place.raw}
+              </Text>
+              <RecordText muted style={{ marginTop: 4 }}>
+                {selected.residents.length} PEOPLE · {selected.years[0] ?? '?'} – {selected.years[selected.years.length - 1] ?? '?'} · {selected.eventCount} EVENTS
+              </RecordText>
+              <View style={{ gap: 8, marginTop: 10 }}>
+                {([
+                  ['Earliest', selected.earliest],
+                  ['Most recorded', selected.byEvents[0]],
+                  ['Last recorded', selected.latest],
+                ] as const).map(([label, resident]) =>
+                  resident ? (
+                    <View key={label}>
+                      <RecordText eyebrow muted>{label}</RecordText>
+                      <Text
+                        style={{ fontFamily: BrandFonts.serif.regular, fontSize: 17, color: C.ink }}
+                        onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: resident.individual.id } })}
+                      >
+                        {resident.individual.full_name}{' '}
+                        <RecordText muted>
+                          {resident.individual.birth_year ?? '?'} – {resident.individual.death_year ?? '?'}
+                        </RecordText>
+                      </Text>
+                    </View>
+                  ) : null,
+                )}
+              </View>
+              <Text
+                style={{ fontFamily: BrandFonts.sans.semiBold, fontSize: 14.5, color: C.accent, marginTop: 12 }}
+                onPress={() => setDrawerOpen(true)}
+              >
+                The full record of this place →
+              </Text>
+            </View>
+          )}
           <MarginPanel>
             <RecordText eyebrow muted>
               Reading the map
@@ -415,72 +459,10 @@ export default function AncestorMapTab() {
         />
       )}
 
-      {selected && (
-        <>
-          <SectionBreak label="Selected place" />
-          <Text style={{ fontFamily: BrandFonts.serif.bold, fontSize: 38, color: C.ink }}>
-            {selected.place.parts[0] ?? selected.place.raw}
-          </Text>
-          <RecordText style={{ marginTop: 6 }}>
-            {selected.residents.length} PEOPLE · {selected.years[0] ?? '?'} –{' '}
-            {selected.years[selected.years.length - 1] ?? '?'} · {selected.eventCount} EVENTS
-          </RecordText>
-          <Text
-            style={{
-              fontFamily: BrandFonts.sans.regular,
-              fontSize: 17,
-              lineHeight: 27,
-              color: C.inkSecondary,
-              maxWidth: 620,
-              marginTop: 12,
-            }}
-          >
-            {selected.place.raw} holds {selected.eventCount} recorded events across{' '}
-            {selected.residents.length} of your family&rsquo;s people
-            {selected.years.length > 1
-              ? `, from ${selected.years[0]} to ${selected.years[selected.years.length - 1]}`
-              : ''}
-            .
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 44, marginTop: 18 }}>
-            {(
-              [
-                ['Earliest', selected.earliest],
-                ['Most recorded', selected.byEvents[0]],
-                ['Last recorded', selected.latest],
-              ] as const
-            ).map(
-              ([label, resident]) =>
-                resident && (
-                  <View key={label} style={{ gap: 3 }}>
-                    <RecordText eyebrow muted>
-                      {label}
-                    </RecordText>
-                    <Text
-                      style={{ fontFamily: BrandFonts.serif.regular, fontSize: 19, color: C.ink }}
-                      onPress={() =>
-                        router.push({ pathname: '/ancestor/[id]', params: { id: resident.individual.id } })
-                      }
-                    >
-                      {resident.individual.full_name}
-                    </Text>
-                    <RecordText muted>
-                      {resident.individual.birth_year ?? '?'} – {resident.individual.death_year ?? '?'}
-                    </RecordText>
-                  </View>
-                ),
-            )}
-          </View>
-          <Text
-            style={{ fontFamily: BrandFonts.sans.semiBold, fontSize: 16, color: C.accent, marginTop: 18 }}
-            onPress={() =>
-              router.push({ pathname: '/place/[placeId]', params: { placeId: selected.place.id, treeId } })
-            }
-          >
-            The full record of this place →
-          </Text>
-        </>
-      )}
     </PageShell>
+      {drawerOpen && selectedId && index && (
+        <PlaceDrawer placeId={selectedId} treeId={treeId} index={index} onClose={() => setDrawerOpen(false)} />
+      )}
+    </>
   );
 }

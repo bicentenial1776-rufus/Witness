@@ -1,5 +1,8 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import * as maplibregl from 'maplibre-gl';
+import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { nearbyAncestors, type GeographyIndex, type NearbyPlace } from '@witness/core/query';
@@ -24,7 +27,22 @@ import { useTheme } from '@/hooks/use-theme';
  * "whose ground am I on?" from a desk.
  */
 
+maplibregl.setWorkerUrl('/maplibre-gl-worker.mjs');
+
 const MILES_TO_KM = 1.60934;
+
+/** A 64-point circle polygon around a point, radius in km. */
+function ringCoords(lat: number, lng: number, radiusKm: number): [number, number][] {
+  const points: [number, number][] = [];
+  for (let i = 0; i <= 64; i++) {
+    const angle = (i / 64) * 2 * Math.PI;
+    points.push([
+      lng + (radiusKm / (111.32 * Math.cos((lat * Math.PI) / 180))) * Math.sin(angle),
+      lat + (radiusKm / 111.32) * Math.cos(angle),
+    ]);
+  }
+  return points;
+}
 const RADII = [1, 5, 10, 25, 50, 100];
 
 function distanceLabel(km: number): string {
@@ -73,6 +91,106 @@ function Chip({
       </ThemedText>
     </Pressable>
   );
+}
+
+/** The little Nearby map: dashed radius ring, you-dot, family places. */
+function useNearbyMap(
+  containerRef: React.RefObject<View | null>,
+  ready: boolean,
+  position: { latitude: number; longitude: number } | null,
+  radiusKm: number,
+  places: NearbyPlace[],
+) {
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+
+  useEffect(() => {
+    if (!ready || !position || mapRef.current) return;
+    const container = containerRef.current as unknown as HTMLElement | null;
+    if (!container) return;
+    container.style.filter = 'sepia(.32) saturate(.72) contrast(.94) brightness(1.04)';
+    const map = new maplibregl.Map({
+      container,
+      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+      center: [position.longitude, position.latitude],
+      zoom: 8,
+      attributionControl: { compact: true },
+    });
+    map.on('load', () => {
+      map.addSource('ring', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addSource('you', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addSource('spots', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addLayer({
+        id: 'ring-line',
+        type: 'line',
+        source: 'ring',
+        paint: { 'line-color': '#B4501A', 'line-width': 2, 'line-dasharray': [2, 2] },
+      });
+      map.addLayer({
+        id: 'spots-circles',
+        type: 'circle',
+        source: 'spots',
+        paint: {
+          'circle-color': '#B4501A',
+          'circle-radius': 6,
+          'circle-opacity': 0.9,
+          'circle-stroke-width': 1.5,
+          'circle-stroke-color': '#FCFAF6',
+        },
+      });
+      map.addLayer({
+        id: 'you-dot',
+        type: 'circle',
+        source: 'you',
+        paint: {
+          'circle-color': '#17140F',
+          'circle-radius': 7,
+          'circle-stroke-width': 2.5,
+          'circle-stroke-color': '#FCFAF6',
+        },
+      });
+      setMapReady(true);
+    });
+    mapRef.current = map;
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, position === null]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !position) return;
+    const ring = ringCoords(position.latitude, position.longitude, radiusKm);
+    (map.getSource('ring') as GeoJSONSource | undefined)?.setData({
+      type: 'Feature',
+      geometry: { type: 'LineString', coordinates: ring },
+      properties: {},
+    });
+    (map.getSource('you') as GeoJSONSource | undefined)?.setData({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [position.longitude, position.latitude] },
+      properties: {},
+    });
+    (map.getSource('spots') as GeoJSONSource | undefined)?.setData({
+      type: 'FeatureCollection',
+      features: places.map((hit) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [hit.place.longitude!, hit.place.latitude!] },
+        properties: {},
+      })),
+    });
+    const lngs = ring.map((c) => c[0]);
+    const lats = ring.map((c) => c[1]);
+    map.fitBounds(
+      [
+        [Math.min(...lngs), Math.min(...lats)],
+        [Math.max(...lngs), Math.max(...lats)],
+      ],
+      { padding: 36, duration: 600 },
+    );
+  }, [mapReady, position, radiusKm, places]);
 }
 
 export default function ProximityTab() {
@@ -147,6 +265,7 @@ export default function ProximityTab() {
 
   const broadsheet = useBroadsheet();
   const [town, setTown] = useState<string | null>(null);
+  const nearbyMapRef = useRef<View>(null);
 
   // Name where the reader is standing — one reverse geocode per position.
   useEffect(() => {
@@ -208,6 +327,8 @@ export default function ProximityTab() {
           : `about ${miles < 10 ? miles.toFixed(1) : Math.round(miles)} miles ${direction} of you`,
     };
   }, [nearby, position]);
+
+  useNearbyMap(nearbyMapRef, broadsheet && Boolean(index), position, radiusMiles * MILES_TO_KM, nearby ?? []);
 
   const BC = Broadsheet.color;
 
@@ -295,6 +416,14 @@ export default function ProximityTab() {
               })}
             </View>
 
+            <View style={{ flexDirection: 'row', gap: 30, marginTop: 26, alignItems: 'flex-start' }}>
+              <View style={{ width: 440 }}>
+                <View ref={nearbyMapRef} style={{ height: 460, borderWidth: 1, borderColor: BC.rule }} />
+                <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 13, color: BC.inkMuted, marginTop: 8 }}>
+                  The dashed ring is your {radiusMiles}-mile radius; the dark dot is you.
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
             {towns.map((group) => (
               <View key={group.town} style={{ marginTop: 30 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 14 }}>
@@ -359,6 +488,8 @@ export default function ProximityTab() {
                 No family places within {radiusMiles} miles — widen the radius.
               </Text>
             )}
+              </View>
+            </View>
           </>
         )}
       </PageShell>

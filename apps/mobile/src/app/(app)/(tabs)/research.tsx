@@ -1,8 +1,8 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 
-import { LedgerRow, Masthead, PageShell, useBroadsheet } from '@/components/broadsheet';
+import { Masthead, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { Card } from '@/components/card';
 import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
@@ -66,20 +66,31 @@ export default function ResearchTab() {
             their page writes it for you.
           </Text>
         ) : (
-          <View>
-            {briefs.map((brief, i) => (
-              <LedgerRow
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 20 }}>
+            {briefs.map((brief) => (
+              <Pressable
                 key={brief.id}
-                first={i === 0}
                 onPress={() =>
                   router.push({ pathname: '/research/[briefId]', params: { briefId: brief.id } })
                 }
+                style={{
+                  width: '31%',
+                  minWidth: 240,
+                  backgroundColor: C.paperRaised,
+                  borderWidth: 1,
+                  borderColor: C.rule,
+                  borderRadius: 3,
+                  padding: 18,
+                  gap: 10,
+                  minHeight: 130,
+                  justifyContent: 'space-between',
+                }}
               >
                 <Text
                   style={{
-                    flex: 1,
                     fontFamily: BrandFonts.serif.regular,
-                    fontSize: Broadsheet.type.ledgerName,
+                    fontSize: 20,
+                    lineHeight: 27,
                     color: C.ink,
                   }}
                 >
@@ -88,7 +99,7 @@ export default function ResearchTab() {
                 <RecordText accent={brief.status === 'open'} muted={brief.status !== 'open'}>
                   {STATUS_LABELS[brief.status]} · {new Date(brief.created_at).toLocaleDateString()}
                 </RecordText>
-              </LedgerRow>
+              </Pressable>
             ))}
           </View>
         )}
