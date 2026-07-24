@@ -89,9 +89,6 @@ function RootNavigator() {
   // until subscribed), then the app itself.
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      {/* Public: a shared story renders for anyone, signed in or not. */}
-      <Stack.Screen name="shared/[token]" />
-
       <Stack.Protected guard={Boolean(session) && !onboardingCompleted}>
         <Stack.Screen name="(onboarding)" />
       </Stack.Protected>
@@ -108,6 +105,11 @@ function RootNavigator() {
         <Stack.Screen name="sign-in" />
         <Stack.Screen name="sign-up" />
       </Stack.Protected>
+
+      {/* Public: a shared story renders for anyone, signed in or not.
+          Declared LAST — the first declared screen becomes the router's
+          initial route, and this one must never be it. */}
+      <Stack.Screen name="shared/[token]" />
     </Stack>
   );
 }
