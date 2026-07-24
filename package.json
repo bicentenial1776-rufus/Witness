@@ -2,7 +2,7 @@
   "name": "witness",
   "version": "0.1.0",
   "private": true,
-  "description": "Witness — Family History Intelligence. GEDCOM import, AI-powered analysis, temporal queries, geographic discovery.",
+  "description": "Witness \u2014 Family History Intelligence. GEDCOM import, AI-powered analysis, temporal queries, geographic discovery.",
   "workspaces": [
     "packages/*",
     "apps/*"
@@ -10,5 +10,6 @@
   "dependencies": {
     "expo-location": "~57.0.2",
     "react-native-maps": "1.27.2"
-  }
+  },
+  "scripts": {}
 }
