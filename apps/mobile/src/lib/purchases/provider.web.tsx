@@ -1,21 +1,30 @@
-import { Purchases } from '@revenuecat/purchases-js';
-import { useEffect, useState, type PropsWithChildren } from 'react';
+import {
+  ErrorCode,
+  Purchases,
+  PurchasesError,
+  type Package as WebPackage,
+} from '@revenuecat/purchases-js';
+import { useEffect, useRef, useState, type PropsWithChildren } from 'react';
+import type { PurchasesOffering } from 'react-native-purchases';
 
 import { useSession } from '@/auth/session-provider';
 
 import { ENTITLEMENT_ID, PurchasesContext } from './contract';
 
 /**
- * Web purchases provider (WEB_APP_DESIGN.md §2–4): entitlement read through
- * RevenueCat Web Billing, keyed by the same app_user_id (the Supabase user
- * id) the iOS app logs in with — so an App Store subscriber who signs in
- * here is entitled with no migration at all.
+ * Web purchases provider (WEB_APP_DESIGN.md §2–4): entitlement and checkout
+ * through RevenueCat Web Billing, keyed by the same app_user_id (the
+ * Supabase user id) the iOS app logs in with — an App Store subscriber who
+ * signs in here is entitled with no migration, and a web purchase unlocks
+ * the iOS app the same way.
  *
- * Checkout is not wired yet: `offering` stays null and purchase/restore
- * fail closed until the Web Billing product exists in the RevenueCat
- * dashboard and the paywall route grows its web checkout. Without a key
- * (EXPO_PUBLIC_REVENUECAT_WEB_API_KEY), entitlement simply reads false —
- * the same fail-closed posture as the native provider with a missing key.
+ * The contract speaks the native SDK's offering shape, so the paywall
+ * screen renders unchanged on both platforms; this provider adapts the
+ * Web Billing offering into that shape (just the fields the paywall
+ * reads) and keeps the real web packages aside for purchase() — which
+ * opens RevenueCat's hosted checkout in-page and resolves when Stripe
+ * confirms. Without a key (EXPO_PUBLIC_REVENUECAT_WEB_API_KEY),
+ * everything fails closed, the same posture as native with a missing key.
  */
 
 const apiKey = process.env.EXPO_PUBLIC_REVENUECAT_WEB_API_KEY;
@@ -39,10 +48,15 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
   const { session } = useSession();
   const [isEntitled, setIsEntitled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [offering, setOffering] = useState<PurchasesOffering | null>(null);
+  // The adapted offering carries only what the paywall renders; the real
+  // Web Billing packages wait here, keyed by package identifier.
+  const webPackages = useRef(new Map<string, WebPackage>());
 
   useEffect(() => {
     if (!apiKey || !session) {
       setIsEntitled(false);
+      setOffering(null);
       setIsLoading(false);
       return;
     }
@@ -53,8 +67,25 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
         const purchases = await instanceFor(session.user.id);
         const info = await purchases.getCustomerInfo();
         if (!cancelled) setIsEntitled(Boolean(info.entitlements.active[ENTITLEMENT_ID]));
+
+        const offerings = await purchases.getOfferings();
+        const current = offerings.current;
+        if (!cancelled && current) {
+          webPackages.current = new Map(
+            current.availablePackages.map((pkg) => [pkg.identifier, pkg]),
+          );
+          const adapt = (pkg: WebPackage) => ({
+            identifier: pkg.identifier,
+            product: { priceString: pkg.webBillingProduct.currentPrice.formattedPrice },
+          });
+          setOffering({
+            identifier: current.identifier,
+            availablePackages: current.availablePackages.map(adapt),
+            annual: current.annual ? adapt(current.annual) : null,
+          } as unknown as PurchasesOffering);
+        }
       } catch (error) {
-        console.warn('RevenueCat web entitlement check failed', error);
+        console.warn('RevenueCat web setup failed', error);
         if (!cancelled) setIsEntitled(false);
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -65,15 +96,44 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
     };
   }, [session?.user.id]);
 
+  /** Re-read entitlement; the "restore" concept is receipts, which web has none of. */
+  async function restore(): Promise<boolean> {
+    if (!apiKey || !session) return false;
+    const purchases = await instanceFor(session.user.id);
+    const info = await purchases.getCustomerInfo();
+    const entitled = Boolean(info.entitlements.active[ENTITLEMENT_ID]);
+    setIsEntitled(entitled);
+    return entitled;
+  }
+
+  async function purchasePackage(
+    pkg: PurchasesOffering['availablePackages'][number],
+  ): Promise<boolean> {
+    if (!apiKey || !session) return false;
+    const webPackage = webPackages.current.get(pkg.identifier);
+    if (!webPackage) return false;
+    const purchases = await instanceFor(session.user.id);
+    try {
+      const { customerInfo } = await purchases.purchase({
+        rcPackage: webPackage,
+        customerEmail: session.user.email ?? undefined,
+      });
+      const entitled = Boolean(customerInfo.entitlements.active[ENTITLEMENT_ID]);
+      setIsEntitled(entitled);
+      return entitled;
+    } catch (error) {
+      if (error instanceof PurchasesError && error.errorCode === ErrorCode.UserCancelledError) {
+        // Mirror the native SDK's cancellation contract so the paywall's
+        // error handling works unchanged on web.
+        throw Object.assign(new Error('Purchase cancelled'), { userCancelled: true });
+      }
+      throw error;
+    }
+  }
+
   return (
     <PurchasesContext.Provider
-      value={{
-        isLoading,
-        isEntitled,
-        offering: null,
-        restore: async () => false,
-        purchasePackage: async () => false,
-      }}
+      value={{ isLoading, isEntitled, offering, restore, purchasePackage }}
     >
       {children}
     </PurchasesContext.Provider>
