@@ -1,36 +1,34 @@
 import { router, useFocusEffect } from 'expo-router';
 import * as maplibregl from 'maplibre-gl';
 import type { GeoJSONSource, Map as MapLibreMap, MapLayerMouseEvent } from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, Text, View, useColorScheme } from 'react-native';
+
+import {
+  ancestorsAtPlace,
+  placesWithActivity,
+  type GeographyIndex,
+  type PlaceActivity,
+} from '@witness/core/query';
+
+import { RecordText } from '@/components/record-text';
+import { Masthead, MarginPanel, PageShell, SectionBreak, useBroadsheet } from '@/components/broadsheet';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { useActiveTree } from '@/lib/active-tree';
+import { getGeographyIndex, invalidateGeographyCache } from '@/lib/geography-cache';
+import { Broadsheet, BrandFonts } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
 
 // MapLibre v6 spawns its tile worker from import.meta.url, which Metro's
 // web bundle can't satisfy — the worker silently never starts and the map
 // renders no tiles. The worker module (and the shared chunk it imports)
 // are served from public/ instead, kept in sync by the postinstall script.
 maplibregl.setWorkerUrl('/maplibre-gl-worker.mjs');
-import 'maplibre-gl/dist/maplibre-gl.css';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, View, useColorScheme } from 'react-native';
 
-import { placesWithActivity, type GeographyIndex } from '@witness/core/query';
-
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { useActiveTree } from '@/lib/active-tree';
-import { getGeographyIndex, invalidateGeographyCache } from '@/lib/geography-cache';
-import { useTheme } from '@/hooks/use-theme';
-import { supabase } from '@/lib/supabase';
-
-/**
- * Web Ancestor Map (WEB_APP_DESIGN.md §5, Phase B): MapLibre GL over
- * CARTO's free basemaps (attribution required, no key), same geography
- * index and era filter as the native tab. Markers render as one GeoJSON
- * circle layer — hundreds of places stay cheap — sized by how much family
- * life happened there; clicking opens a popup that links into the place
- * screen. Satellite view stays native-only for now.
- */
-
+const C = Broadsheet.color;
 const MAX_MARKERS = 300;
-const AMBER = '#B45309';
 
 const ERAS: { label: string; range?: { startYear: number; endYear: number } }[] = [
   { label: 'All' },
@@ -43,18 +41,13 @@ const ERAS: { label: string; range?: { startYear: number; endYear: number } }[] 
 const STYLE_LIGHT = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 const STYLE_DARK = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
-export default function AncestorMapTab() {
-  const theme = useTheme();
-  const scheme = useColorScheme();
-  const { activeTree } = useActiveTree();
-  const treeId = activeTree?.id;
+/** The tile-warming filter from the redesign — paper, not laboratory. */
+const WARM_FILTER = 'sepia(.32) saturate(.72) contrast(.94) brightness(1.04)';
+
+function useGeography(treeId: string | undefined) {
   const [index, setIndex] = useState<GeographyIndex | null>(null);
-  const [eraIndex, setEraIndex] = useState(0);
   const [progress, setProgress] = useState<{ placed: number; total: number } | null>(null);
   const lastPlaced = useRef<number | null>(null);
-  const containerRef = useRef<View>(null);
-  const mapRef = useRef<MapLibreMap | null>(null);
-  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
     if (!treeId) return;
@@ -67,9 +60,6 @@ export default function AncestorMapTab() {
     };
   }, [treeId]);
 
-  // Geocoding runs server-side for hours after an import. Each visit checks
-  // how far along the tree is; when new places have landed since last look,
-  // the cached index is stale — refetch so the new pins actually show.
   useFocusEffect(
     useCallback(() => {
       if (!treeId) return;
@@ -98,22 +88,33 @@ export default function AncestorMapTab() {
     }, [treeId]),
   );
 
-  const markers = useMemo(() => {
-    if (!index) return [];
-    return placesWithActivity(index, ERAS[eraIndex]?.range).slice(0, MAX_MARKERS);
-  }, [index, eraIndex]);
+  return { index, progress };
+}
 
-  // Mount the map once the container exists (react-native-web refs are the
-  // underlying DOM elements).
+/** One MapLibre map bound to a marker set, selection-aware. */
+function useAncestorMap(
+  containerRef: React.RefObject<View | null>,
+  ready: boolean,
+  markers: PlaceActivity[],
+  treeId: string | undefined,
+  onSelect: (placeId: string) => void,
+) {
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const scheme = useColorScheme();
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
+
   useEffect(() => {
-    if (!treeId || index === null || mapRef.current) return;
+    if (!ready || mapRef.current) return;
     const container = containerRef.current as unknown as HTMLElement | null;
     if (!container) return;
+    container.style.filter = WARM_FILTER;
 
     const map = new maplibregl.Map({
       container,
       style: scheme === 'dark' ? STYLE_DARK : STYLE_LIGHT,
-      center: [-71.5, 42.5], // New England, pending data
+      center: [-71.5, 42.5],
       zoom: 4,
       attributionControl: { compact: true },
     });
@@ -121,45 +122,51 @@ export default function AncestorMapTab() {
 
     map.on('load', () => {
       map.addSource('places', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      // Pin diameter 22 + 26·√(count/max) px (redesign §2), count printed
+      // inside; place names label only the pins above ~35% of max.
       map.addLayer({
         id: 'places-circles',
         type: 'circle',
         source: 'places',
         paint: {
-          'circle-color': AMBER,
-          'circle-opacity': 0.85,
-          'circle-radius': ['interpolate', ['linear'], ['get', 'count'], 1, 5, 25, 9, 100, 13],
-          'circle-stroke-width': 1.5,
-          'circle-stroke-color': '#F7F3EE',
+          'circle-color': C.accent,
+          'circle-opacity': 0.92,
+          'circle-radius': ['+', 11, ['*', 13, ['sqrt', ['/', ['get', 'count'], ['get', 'max']]]]],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#FCFAF6',
         },
+      });
+      map.addLayer({
+        id: 'places-counts',
+        type: 'symbol',
+        source: 'places',
+        layout: {
+          'text-field': ['to-string', ['get', 'count']],
+          'text-size': 11,
+          'text-font': ['Montserrat Regular', 'Open Sans Regular'],
+          'text-allow-overlap': true,
+        },
+        paint: { 'text-color': '#FCFAF6' },
+      });
+      map.addLayer({
+        id: 'places-labels',
+        type: 'symbol',
+        source: 'places',
+        filter: ['>=', ['get', 'share'], 0.35],
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-size': 12,
+          'text-font': ['Montserrat Regular', 'Open Sans Regular'],
+          'text-offset': [0, 2.1],
+          'text-anchor': 'top',
+        },
+        paint: { 'text-color': '#4A443B', 'text-halo-color': '#FCFAF6', 'text-halo-width': 1.2 },
       });
       map.on('mouseenter', 'places-circles', () => (map.getCanvas().style.cursor = 'pointer'));
       map.on('mouseleave', 'places-circles', () => (map.getCanvas().style.cursor = ''));
       map.on('click', 'places-circles', (e: MapLayerMouseEvent) => {
         const feature = e.features?.[0];
-        if (!feature) return;
-        const { id, name, count, tree } = feature.properties as {
-          id: string;
-          name: string;
-          count: number;
-          tree: string;
-        };
-        const popup = new maplibregl.Popup({ offset: 12 })
-          .setLngLat(e.lngLat)
-          .setHTML(
-            `<div style="font-family: Inter, sans-serif; max-width: 220px;">
-              <div style="font-weight:600; margin-bottom:2px;">${name}</div>
-              <div style="color:#57534E; font-size:12px;">${count} event${count === 1 ? '' : 's'}</div>
-              <a data-place style="color:${AMBER}; font-size:13px; cursor:pointer;">View the ancestors here ›</a>
-            </div>`,
-          )
-          .addTo(map);
-        popup
-          .getElement()
-          .querySelector('[data-place]')
-          ?.addEventListener('click', () =>
-            router.push({ pathname: '/place/[placeId]', params: { placeId: id, treeId: tree } }),
-          );
+        if (feature) onSelectRef.current((feature.properties as { id: string }).id);
       });
       setMapReady(true);
     });
@@ -169,17 +176,15 @@ export default function AncestorMapTab() {
       map.remove();
       mapRef.current = null;
     };
-    // The basemap style is chosen at mount; a live theme flip re-renders on
-    // next visit rather than restyling a live map.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [treeId, index === null]);
+  }, [ready]);
 
-  // Feed the circle layer and reframe whenever the marker set changes.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || !treeId) return;
     const source = map.getSource('places') as GeoJSONSource | undefined;
     if (!source) return;
+    const max = Math.max(1, ...markers.map((m) => m.eventCount));
     source.setData({
       type: 'FeatureCollection',
       features: markers.map(({ place, eventCount }) => ({
@@ -189,7 +194,8 @@ export default function AncestorMapTab() {
           id: place.id,
           name: place.parts[0] ?? place.raw,
           count: eventCount,
-          tree: treeId,
+          max,
+          share: eventCount / max,
         },
       })),
     });
@@ -202,10 +208,64 @@ export default function AncestorMapTab() {
           [Math.min(...lngs), Math.min(...lats)],
           [Math.max(...lngs), Math.max(...lats)],
         ],
-        { padding: { top: 140, right: 60, bottom: 80, left: 60 }, maxZoom: 11, duration: 800 },
+        { padding: 70, maxZoom: 11, duration: 800 },
       );
     }
   }, [markers, mapReady, treeId]);
+
+  return mapRef;
+}
+
+export default function AncestorMapTab() {
+  const broadsheet = useBroadsheet();
+  const { activeTree } = useActiveTree();
+  const treeId = activeTree?.id;
+  const { index, progress } = useGeography(treeId);
+  const [eraIndex, setEraIndex] = useState(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const containerRef = useRef<View>(null);
+
+  const markers = useMemo(() => {
+    if (!index) return [];
+    return placesWithActivity(index, ERAS[eraIndex]?.range).slice(0, MAX_MARKERS);
+  }, [index, eraIndex]);
+
+  const eraCounts = useMemo(() => {
+    if (!index) return ERAS.map(() => 0);
+    return ERAS.map((era) =>
+      era.range
+        ? index.events.filter(
+            (e) => e.year !== null && e.year >= era.range!.startYear && e.year <= era.range!.endYear,
+          ).length
+        : index.events.length,
+    );
+  }, [index]);
+
+  const mapRef = useAncestorMap(containerRef, Boolean(index), markers, treeId, setSelectedId);
+
+  const selected = useMemo(() => {
+    if (!index || !selectedId) return null;
+    const place = index.places.get(selectedId);
+    if (!place) return null;
+    const residents = ancestorsAtPlace(index, selectedId);
+    const years = residents
+      .flatMap((r) => r.events.map((e) => e.year))
+      .filter((y): y is number => y !== null)
+      .sort((a, b) => a - b);
+    const byEvents = [...residents].sort((a, b) => b.events.length - a.events.length);
+    const eventCount = residents.reduce((n, r) => n + r.events.length, 0);
+    const earliest = residents.find((r) => r.events.some((e) => e.year === years[0]));
+    const latest = residents.find((r) => r.events.some((e) => e.year === years[years.length - 1]));
+    return { place, residents, years, byEvents, eventCount, earliest, latest };
+  }, [index, selectedId]);
+
+  const selectFromLedger = (placeId: string) => {
+    setSelectedId(placeId);
+    const place = index?.places.get(placeId);
+    if (place && place.longitude !== null && mapRef.current) {
+      mapRef.current.flyTo({ center: [place.longitude, place.latitude!], zoom: 9, duration: 900 });
+    }
+  };
 
   if (!treeId) {
     return (
@@ -217,64 +277,210 @@ export default function AncestorMapTab() {
     );
   }
 
-  return (
-    <ThemedView style={{ flex: 1 }}>
-      {index === null ? (
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <ActivityIndicator />
+  if (!broadsheet) {
+    // Narrow web keeps a plain full-bleed map with era chips.
+    return (
+      <ThemedView style={{ flex: 1 }}>
+        {index === null ? (
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <ActivityIndicator />
+          </View>
+        ) : (
+          <View ref={containerRef} style={{ flex: 1 }} />
+        )}
+        <View style={{ position: 'absolute', top: 60, left: 16, right: 16, flexDirection: 'row', gap: 8 }}>
+          {ERAS.map((era, i) => (
+            <Pressable
+              key={era.label}
+              onPress={() => setEraIndex(i)}
+              style={{
+                backgroundColor: eraIndex === i ? '#B45309' : '#FFFDF9',
+                borderRadius: 16,
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+              }}
+            >
+              <Text style={{ color: eraIndex === i ? '#FFFDF9' : '#1C1917', fontSize: 14 }}>{era.label}</Text>
+            </Pressable>
+          ))}
         </View>
-      ) : (
-        <View ref={containerRef} style={{ flex: 1 }} />
-      )}
+      </ThemedView>
+    );
+  }
 
-      <View style={{ position: 'absolute', top: 60, left: 0, right: 0, gap: 8, paddingHorizontal: 16 }}>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {ERAS.map((era, i) => {
-            const active = eraIndex === i;
-            return (
-              <Pressable
-                key={era.label}
-                onPress={() => setEraIndex(i)}
+  const placedPlaces = index ? [...index.places.values()].filter((p) => p.latitude !== null).length : 0;
+
+  return (
+    <PageShell
+      masthead={
+        <Masthead
+          title="The Map"
+          metaMono={index ? `${placedPlaces.toLocaleString()} PLACES · ${index.events.length.toLocaleString()} EVENTS` : ''}
+          metaCaption={
+            progress && progress.placed < progress.total
+              ? `${progress.placed.toLocaleString()} of ${progress.total.toLocaleString()} places located so far`
+              : 'Every located place in your tree'
+          }
+        />
+      }
+      margin={
+        <>
+          <View>
+            <RecordText eyebrow muted>
+              Busiest places · {ERAS[eraIndex].label}
+            </RecordText>
+            {markers.slice(0, 9).map(({ place, eventCount }) => {
+              const active = place.id === selectedId;
+              return (
+                <Pressable
+                  key={place.id}
+                  onPress={() => selectFromLedger(place.id)}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    paddingVertical: 8,
+                    paddingLeft: 10,
+                    borderLeftWidth: 3,
+                    borderLeftColor: active ? C.accent : 'transparent',
+                    backgroundColor: active ? C.paperRaised : 'transparent',
+                    borderBottomWidth: 1,
+                    borderBottomColor: C.ruleLight,
+                  }}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      fontFamily: BrandFonts.serif.regular,
+                      fontSize: 17,
+                      color: C.ink,
+                      flexShrink: 1,
+                    }}
+                  >
+                    {place.parts[0] ?? place.raw}
+                  </Text>
+                  <RecordText muted>{eventCount}</RecordText>
+                </Pressable>
+              );
+            })}
+          </View>
+          <MarginPanel>
+            <RecordText eyebrow muted>
+              Reading the map
+            </RecordText>
+            <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14.5, color: C.inkSecondary }}>
+              Pin size is how much recorded family life happened there; the number inside counts the
+              events. Click any pin or ledger row for the place&rsquo;s full record.
+            </Text>
+          </MarginPanel>
+        </>
+      }
+    >
+      {/* Era band: inline text tabs, active underlined in orange. */}
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 24, flexWrap: 'wrap' }}>
+        {ERAS.map((era, i) => {
+          const active = eraIndex === i;
+          return (
+            <Pressable key={era.label} onPress={() => setEraIndex(i)}>
+              <View
                 style={{
-                  backgroundColor: active ? theme.accent : theme.backgroundElement,
-                  borderWidth: 1,
-                  borderColor: active ? theme.accent : theme.border,
-                  borderRadius: 16,
-                  paddingHorizontal: 14,
-                  paddingVertical: 7,
+                  borderBottomWidth: 2,
+                  borderBottomColor: active ? C.accent : 'transparent',
+                  paddingBottom: 4,
                 }}
               >
-                <ThemedText
-                  type="small"
-                  style={{ color: active ? theme.onAccent : theme.text, fontWeight: 600 }}
+                <Text
+                  style={{
+                    fontFamily: active ? BrandFonts.sans.semiBold : BrandFonts.sans.regular,
+                    fontSize: 16,
+                    color: active ? C.ink : C.inkSecondary,
+                  }}
                 >
-                  {era.label}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </View>
-        {progress && progress.placed < progress.total && (
-          <View
+                  {era.label} <RecordText muted>{eraCounts[i]?.toLocaleString()}</RecordText>
+                </Text>
+              </View>
+            </Pressable>
+          );
+        })}
+        <View style={{ flex: 1 }} />
+        <RecordText muted>Pin size = life recorded there</RecordText>
+      </View>
+
+      {index === null ? (
+        <ActivityIndicator style={{ marginVertical: 80 }} />
+      ) : (
+        <View
+          ref={containerRef}
+          style={{ height: 560, marginTop: 16, borderWidth: 1, borderColor: C.rule }}
+        />
+      )}
+
+      {selected && (
+        <>
+          <SectionBreak label="Selected place" />
+          <Text style={{ fontFamily: BrandFonts.serif.bold, fontSize: 38, color: C.ink }}>
+            {selected.place.parts[0] ?? selected.place.raw}
+          </Text>
+          <RecordText style={{ marginTop: 6 }}>
+            {selected.residents.length} PEOPLE · {selected.years[0] ?? '?'} –{' '}
+            {selected.years[selected.years.length - 1] ?? '?'} · {selected.eventCount} EVENTS
+          </RecordText>
+          <Text
             style={{
-              backgroundColor: theme.backgroundElement,
-              borderRadius: 10,
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-              borderWidth: 1,
-              borderColor: theme.border,
+              fontFamily: BrandFonts.sans.regular,
+              fontSize: 17,
+              lineHeight: 27,
+              color: C.inkSecondary,
+              maxWidth: 620,
+              marginTop: 12,
             }}
           >
-            <ThemedText type="small">
-              Mapping your family&rsquo;s places — {progress.placed.toLocaleString()} of{' '}
-              {progress.total.toLocaleString()} placed so far. More appear as they&rsquo;re found.
-            </ThemedText>
+            {selected.place.raw} holds {selected.eventCount} recorded events across{' '}
+            {selected.residents.length} of your family&rsquo;s people
+            {selected.years.length > 1
+              ? `, from ${selected.years[0]} to ${selected.years[selected.years.length - 1]}`
+              : ''}
+            .
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 44, marginTop: 18 }}>
+            {(
+              [
+                ['Earliest', selected.earliest],
+                ['Most recorded', selected.byEvents[0]],
+                ['Last recorded', selected.latest],
+              ] as const
+            ).map(
+              ([label, resident]) =>
+                resident && (
+                  <View key={label} style={{ gap: 3 }}>
+                    <RecordText eyebrow muted>
+                      {label}
+                    </RecordText>
+                    <Text
+                      style={{ fontFamily: BrandFonts.serif.regular, fontSize: 19, color: C.ink }}
+                      onPress={() =>
+                        router.push({ pathname: '/ancestor/[id]', params: { id: resident.individual.id } })
+                      }
+                    >
+                      {resident.individual.full_name}
+                    </Text>
+                    <RecordText muted>
+                      {resident.individual.birth_year ?? '?'} – {resident.individual.death_year ?? '?'}
+                    </RecordText>
+                  </View>
+                ),
+            )}
           </View>
-        )}
-        {markers.length === MAX_MARKERS && (
-          <ThemedText type="small">Showing the {MAX_MARKERS} busiest places for this era.</ThemedText>
-        )}
-      </View>
-    </ThemedView>
+          <Text
+            style={{ fontFamily: BrandFonts.sans.semiBold, fontSize: 16, color: C.accent, marginTop: 18 }}
+            onPress={() =>
+              router.push({ pathname: '/place/[placeId]', params: { placeId: selected.place.id, treeId } })
+            }
+          >
+            The full record of this place →
+          </Text>
+        </>
+      )}
+    </PageShell>
   );
 }
