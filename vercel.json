@@ -5,6 +5,7 @@
     { "source": "/image-slot.js", "destination": "/docs/preview-site/image-slot.js" },
     { "source": "/assets/:path*", "destination": "/docs/preview-site/assets/:path*" },
     { "source": "/privacy", "destination": "/docs/preview-site/privacy.html" },
-    { "source": "/terms", "destination": "/docs/preview-site/terms.html" }
+    { "source": "/terms", "destination": "/docs/preview-site/terms.html" },
+    { "source": "/confirmed", "destination": "/docs/preview-site/confirmed.html" }
   ]
 }
