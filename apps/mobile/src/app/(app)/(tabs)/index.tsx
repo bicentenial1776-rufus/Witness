@@ -3,13 +3,26 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
-import { weeklyDigest, type DigestEntry, type WeeklyDigest } from '@witness/core/query';
+import {
+  digestWindow,
+  fetchWeekAnniversaries,
+  weeklyDigest,
+  type DigestEntry,
+  type WeeklyDigest,
+} from '@witness/core/query';
 
+import { useBroadsheet } from '@/components/broadsheet';
+import {
+  ThisWeekBroadsheet,
+  type DayCount,
+  type LivedThroughLine,
+} from '@/components/broadsheet/this-week';
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useActiveTree } from '@/lib/active-tree';
 import { armDigestNotification } from '@/lib/digest-notifications';
+import { getEventLibrary } from '@/lib/event-library';
 import { getRelationshipMap } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
@@ -39,9 +52,12 @@ function anniversaryLine(entry: DigestEntry): string {
  */
 export default function Home() {
   const { trees, activeTree, refresh } = useActiveTree();
+  const broadsheet = useBroadsheet();
   const [digest, setDigest] = useState<WeeklyDigest | null>(null);
   const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
   const [topNote, setTopNote] = useState<string | null>(null);
+  const [dayCounts, setDayCounts] = useState<DayCount[]>([]);
+  const [livedThrough, setLivedThrough] = useState<LivedThroughLine[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -85,6 +101,46 @@ export default function Home() {
             .eq('enrichment_type', 'digest_note')
             .maybeSingle();
           if (!cancelled) setTopNote(data?.content ?? null);
+
+          // Broadsheet margin data: the per-day candidate ledger and the
+          // "while they lived" world events for the featured life.
+          if (broadsheet) {
+            const window = digestWindow(new Date());
+            const candidates = await fetchWeekAnniversaries(supabase, activeTree.id, window);
+            if (!cancelled) {
+              setDayCounts(
+                window.map((day) => ({
+                  label: day.date
+                    .toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' })
+                    .toUpperCase(),
+                  count: candidates.filter((c) => c.month === day.month && c.day === day.day).length,
+                })),
+              );
+            }
+            if (top.birthYear !== null) {
+              const library = await getEventLibrary();
+              const lastYear = top.deathYear ?? top.birthYear + 80;
+              const inLife = library.filter(
+                (e) => e.startYear >= top.birthYear! && e.startYear <= lastYear,
+              );
+              const picks = [
+                ...inLife.filter((e) => e.tier === 'major'),
+                ...inLife.filter((e) => e.tier !== 'major'),
+              ]
+                .slice(0, 3)
+                .sort((a, b) => a.startYear - b.startYear);
+              if (!cancelled) {
+                setLivedThrough(
+                  picks.map((e) => ({
+                    eventId: e.id,
+                    year: e.startYear,
+                    name: e.name,
+                    age: e.startYear - top.birthYear!,
+                  })),
+                );
+              }
+            }
+          }
         } catch {
           // Home stays quiet on digest errors; the digest screen surfaces them.
         }
@@ -97,6 +153,21 @@ export default function Home() {
 
   const openWeek = () =>
     activeTree && router.push({ pathname: '/digest', params: { treeId: activeTree.id } });
+
+  // Broadsheet layout (web ≥900px) — the phone rendering below survives
+  // untouched for native and narrow viewports.
+  if (broadsheet && activeTree && digest) {
+    return (
+      <ThisWeekBroadsheet
+        digest={digest}
+        relationships={relationships}
+        topNote={topNote}
+        dayCounts={dayCounts}
+        livedThrough={livedThrough}
+        treeId={activeTree.id}
+      />
+    );
+  }
 
   return (
     <ThemedView style={{ flex: 1 }}>

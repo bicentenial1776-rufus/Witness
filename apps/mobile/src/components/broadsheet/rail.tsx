@@ -111,6 +111,13 @@ export function Rail() {
           ))}
         </View>
       )}
+
+      <View style={{ flex: 1 }} />
+      <Pressable onPress={() => router.push('/you')} style={{ paddingHorizontal: 18, paddingTop: 16 }}>
+        <RecordText eyebrow muted>
+          Account →
+        </RecordText>
+      </Pressable>
     </View>
   );
 }
