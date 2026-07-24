@@ -100,9 +100,12 @@ function useNearbyMap(
   position: { latitude: number; longitude: number } | null,
   radiusKm: number,
   places: NearbyPlace[],
+  onSelectTown: (town: string) => void,
 ) {
   const mapRef = useRef<MapLibreMap | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const onSelectRef = useRef(onSelectTown);
+  onSelectRef.current = onSelectTown;
 
   useEffect(() => {
     if (!ready || !position || mapRef.current) return;
@@ -137,6 +140,12 @@ function useNearbyMap(
           'circle-stroke-width': 1.5,
           'circle-stroke-color': '#FCFAF6',
         },
+      });
+      map.on('mouseenter', 'spots-circles', () => (map.getCanvas().style.cursor = 'pointer'));
+      map.on('mouseleave', 'spots-circles', () => (map.getCanvas().style.cursor = ''));
+      map.on('click', 'spots-circles', (e) => {
+        const town = e.features?.[0]?.properties?.town;
+        if (typeof town === 'string') onSelectRef.current(town);
       });
       map.addLayer({
         id: 'you-dot',
@@ -178,7 +187,7 @@ function useNearbyMap(
       features: places.map((hit) => ({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [hit.place.longitude!, hit.place.latitude!] },
-        properties: {},
+        properties: { town: hit.place.parts[0] ?? hit.place.raw },
       })),
     });
     const lngs = ring.map((c) => c[0]);
@@ -266,6 +275,14 @@ export default function ProximityTab() {
   const broadsheet = useBroadsheet();
   const [town, setTown] = useState<string | null>(null);
   const nearbyMapRef = useRef<View>(null);
+  const [selectedTown, setSelectedTown] = useState<string | null>(null);
+  const townRefs = useRef(new Map<string, View | null>());
+
+  const selectTownFromMap = (townName: string) => {
+    setSelectedTown(townName);
+    const node = townRefs.current.get(townName) as unknown as HTMLElement | null;
+    node?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  };
 
   // Name where the reader is standing — one reverse geocode per position.
   useEffect(() => {
@@ -328,7 +345,7 @@ export default function ProximityTab() {
     };
   }, [nearby, position]);
 
-  useNearbyMap(nearbyMapRef, broadsheet && Boolean(index), position, radiusMiles * MILES_TO_KM, nearby ?? []);
+  useNearbyMap(nearbyMapRef, broadsheet && Boolean(index), position, radiusMiles * MILES_TO_KM, nearby ?? [], selectTownFromMap);
 
   const BC = Broadsheet.color;
 
@@ -425,7 +442,19 @@ export default function ProximityTab() {
               </View>
               <View style={{ flex: 1 }}>
             {towns.map((group) => (
-              <View key={group.town} style={{ marginTop: 30 }}>
+              <View
+                key={group.town}
+                ref={(node) => {
+                  townRefs.current.set(group.town, node);
+                }}
+                style={{
+                  marginTop: 30,
+                  paddingLeft: selectedTown === group.town ? 12 : 0,
+                  borderLeftWidth: selectedTown === group.town ? 3 : 0,
+                  borderLeftColor: BC.accent,
+                  backgroundColor: selectedTown === group.town ? BC.paperRaised : 'transparent',
+                }}
+              >
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 14 }}>
                   <Text
                     style={{ fontFamily: BrandFonts.serif.regular, fontSize: 25, color: BC.ink }}
