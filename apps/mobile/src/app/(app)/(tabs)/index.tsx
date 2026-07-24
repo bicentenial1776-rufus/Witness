@@ -3,20 +3,10 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
-import {
-  digestWindow,
-  fetchWeekAnniversaries,
-  weeklyDigest,
-  type DigestEntry,
-  type WeeklyDigest,
-} from '@witness/core/query';
+import { weeklyDigest, type DigestEntry, type WeeklyDigest } from '@witness/core/query';
 
 import { useBroadsheet } from '@/components/broadsheet';
-import {
-  ThisWeekBroadsheet,
-  type DayCount,
-  type LivedThroughLine,
-} from '@/components/broadsheet/this-week';
+import { ThisWeekBroadsheet, type LivedThroughLine } from '@/components/broadsheet/this-week';
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -56,7 +46,6 @@ export default function Home() {
   const [digest, setDigest] = useState<WeeklyDigest | null>(null);
   const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
   const [topNote, setTopNote] = useState<string | null>(null);
-  const [dayCounts, setDayCounts] = useState<DayCount[]>([]);
   const [livedThrough, setLivedThrough] = useState<LivedThroughLine[]>([]);
 
   useFocusEffect(
@@ -105,19 +94,6 @@ export default function Home() {
           // Broadsheet margin data: the per-day candidate ledger and the
           // "while they lived" world events for the featured life.
           if (broadsheet) {
-            const window = digestWindow(new Date());
-            const candidates = await fetchWeekAnniversaries(supabase, activeTree.id, window);
-            if (!cancelled) {
-              setDayCounts(
-                window.map((day) => ({
-                  label: day.date
-                    .toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' })
-                    .replace(',', '')
-                    .toUpperCase(),
-                  count: candidates.filter((c) => c.month === day.month && c.day === day.day).length,
-                })),
-              );
-            }
             if (top.birthYear !== null) {
               const library = await getEventLibrary();
               const lastYear = top.deathYear ?? top.birthYear + 80;
@@ -163,7 +139,6 @@ export default function Home() {
         digest={digest}
         relationships={relationships}
         topNote={topNote}
-        dayCounts={dayCounts}
         livedThrough={livedThrough}
         treeId={activeTree.id}
       />

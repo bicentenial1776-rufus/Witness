@@ -6,7 +6,7 @@ import type { DigestEntry, WeeklyDigest } from '@witness/core/query';
 import { RecordText } from '@/components/record-text';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
 
-import { DataBar, LedgerRow, MarginPanel } from './ledger';
+import { LedgerRow, MarginPanel } from './ledger';
 import { Masthead, PageShell, SectionBreak } from './page-shell';
 
 const C = Broadsheet.color;
@@ -17,11 +17,6 @@ export interface LivedThroughLine {
   year: number;
   name: string;
   age: number;
-}
-
-export interface DayCount {
-  label: string;
-  count: number;
 }
 
 function mono(date: Date, opts: Intl.DateTimeFormatOptions): string {
@@ -66,21 +61,18 @@ export function ThisWeekBroadsheet({
   digest,
   relationships,
   topNote,
-  dayCounts,
   livedThrough,
   treeId,
 }: {
   digest: WeeklyDigest;
   relationships: Map<string, string>;
   topNote: string | null;
-  dayCounts: DayCount[];
   livedThrough: LivedThroughLine[];
   treeId: string;
 }) {
   const featured = digest.days[0];
   const rest = digest.days.slice(1);
   const featuredIds = new Set(digest.entries.map((e) => e.eventId));
-  const maxDayCount = Math.max(1, ...dayCounts.map((d) => d.count));
   const firstName = featured?.fullName.split(' ')[0];
 
   const open = (entry: DigestEntry) =>
@@ -97,21 +89,6 @@ export function ThisWeekBroadsheet({
       }
       margin={
         <>
-          <View style={{ gap: 9 }}>
-            <RecordText eyebrow muted>
-              The week&rsquo;s ledger
-            </RecordText>
-            {dayCounts.map((day) => (
-              <View key={day.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <RecordText numberOfLines={1} style={{ width: 96, flexShrink: 0 }}>{day.label}</RecordText>
-                <DataBar value={day.count} max={maxDayCount} leader={day.count === maxDayCount} />
-                <RecordText muted style={{ width: 24, textAlign: 'right' }}>
-                  {day.count}
-                </RecordText>
-              </View>
-            ))}
-          </View>
-
           {featured && livedThrough.length > 0 && (
             <MarginPanel>
               <RecordText eyebrow muted>
