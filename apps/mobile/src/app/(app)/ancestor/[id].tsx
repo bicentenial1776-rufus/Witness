@@ -16,8 +16,11 @@ import { NaraCandidateCard } from '@/components/nara-candidate-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import * as Clipboard from 'expo-clipboard';
+
 import { ancestryPersonUrl } from '@/lib/ancestry';
 import { getEventLibrary } from '@/lib/event-library';
+import { createAncestorShareLink } from '@/lib/share-links';
 import { getRelationshipMap } from '@/lib/relationship-cache';
 import { invokeError, openResearchBrief as fetchOrCreateResearchBrief } from '@/lib/research-brief';
 import { supabase } from '@/lib/supabase';
@@ -215,6 +218,7 @@ export default function AncestorScreen() {
   const [tab, setTab] = useState<SectionTab>('story');
   const [briefBusy, setBriefBusy] = useState(false);
   const [briefError, setBriefError] = useState<string | null>(null);
+  const [shareState, setShareState] = useState<'idle' | 'busy' | 'copied'>('idle');
 
   const biography = useEnrichment(id, 'biography', 'generate-biography', 'biography');
   const worldContext = useEnrichment(id, 'historical_context', 'generate-historical-context', 'context');
@@ -346,6 +350,33 @@ export default function AncestorScreen() {
     setTab(next);
     if (next === 'world' && worldContext.state.name === 'none') worldContext.generate();
     if (next === 'research' && !briefBusy) openResearchBrief();
+  }
+
+  // Share a snapshot card of this ancestor: 90-day tokenized link on the
+  // clipboard. Never offered for the living (the button renders inside the
+  // non-living branch below).
+  async function shareAncestor() {
+    if (!person || shareState === 'busy') return;
+    setShareState('busy');
+    try {
+      const lines = [
+        ...events
+          .slice(0, 2)
+          .map(
+            (e) =>
+              `${e.event_type.charAt(0).toUpperCase() + e.event_type.slice(1)}${
+                e.date_year ? ` ${e.date_year}` : ''
+              }${e.places?.raw ? ` · ${e.places.raw}` : ''}`,
+          ),
+        ...(tags[0] ? [`Lived through ${tags[0].event.name}`] : []),
+      ];
+      const url = await createAncestorShareLink(person, lines);
+      await Clipboard.setStringAsync(url);
+      setShareState('copied');
+    } catch (error) {
+      console.warn('Share failed', error);
+      setShareState('idle');
+    }
   }
 
   async function openResearchBrief() {
@@ -576,6 +607,20 @@ export default function AncestorScreen() {
               />
             ))}
           </>
+        )}
+
+        {!person.living && (
+          <ThemedText
+            type="link"
+            style={{ marginTop: 16 }}
+            onPress={shareState === 'busy' ? undefined : shareAncestor}
+          >
+            {shareState === 'copied'
+              ? 'Link copied — good for 90 days ✓'
+              : shareState === 'busy'
+                ? 'Creating link…'
+                : `Share ${person.full_name.split(' ')[0]}’s story ›`}
+          </ThemedText>
         )}
 
         {ancestryUrl && (

@@ -89,6 +89,9 @@ function RootNavigator() {
   // until subscribed), then the app itself.
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      {/* Public: a shared story renders for anyone, signed in or not. */}
+      <Stack.Screen name="shared/[token]" />
+
       <Stack.Protected guard={Boolean(session) && !onboardingCompleted}>
         <Stack.Screen name="(onboarding)" />
       </Stack.Protected>

@@ -1023,6 +1023,60 @@ export type Database = {
           },
         ]
       }
+      share_links: {
+        Row: {
+          created_at: string
+          expires_at: string
+          individual_id: string
+          kind: string
+          payload: Json
+          revoked_at: string | null
+          sharer_name: string | null
+          token: string
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          individual_id: string
+          kind?: string
+          payload: Json
+          revoked_at?: string | null
+          sharer_name?: string | null
+          token: string
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          individual_id?: string
+          kind?: string
+          payload?: Json
+          revoked_at?: string | null
+          sharer_name?: string | null
+          token?: string
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "share_links_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "share_links_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sources: {
         Row: {
           ancestry_apid: string | null
@@ -1129,6 +1183,7 @@ export type Database = {
     }
     Functions: {
       delete_tree_batch: { Args: { p_tree_id: string }; Returns: Json }
+      get_share: { Args: { p_token: string }; Returns: Json }
       reuse_geocodes: { Args: { p_tree_id: string }; Returns: number }
     }
     Enums: {
