@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import type { DigestEntry, WeeklyDigest } from '@witness/core/query';
@@ -8,6 +9,7 @@ import { Broadsheet, BrandFonts } from '@/constants/theme';
 
 import { LedgerRow, MarginPanel } from './ledger';
 import { Masthead, PageShell, SectionBreak } from './page-shell';
+import { QueryDrawer } from './query-drawer';
 
 const C = Broadsheet.color;
 const T = Broadsheet.type;
@@ -77,8 +79,10 @@ export function ThisWeekBroadsheet({
 
   const open = (entry: DigestEntry) =>
     router.push({ pathname: '/ancestor/[id]', params: { id: entry.individualId } });
+  const [drawerEvent, setDrawerEvent] = useState<string | null>(null);
 
   return (
+    <>
     <PageShell
       masthead={
         <Masthead
@@ -95,13 +99,7 @@ export function ThisWeekBroadsheet({
                 While {featured.sex === 'F' ? 'she' : featured.sex === 'M' ? 'he' : 'they'} lived
               </RecordText>
               {livedThrough.map((line) => (
-                <Pressable
-                  key={line.eventId}
-                  onPress={() =>
-                    router.push({ pathname: '/query/[eventId]', params: { eventId: line.eventId, treeId } })
-                  }
-                  style={{ gap: 1 }}
-                >
+                <Pressable key={line.eventId} onPress={() => setDrawerEvent(line.eventId)} style={{ gap: 1 }}>
                   <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 15, color: C.inkSecondary }}>
                     <RecordText>{line.year}</RecordText>
                     {'  '}
@@ -114,13 +112,7 @@ export function ThisWeekBroadsheet({
               ))}
               <Text
                 style={{ fontFamily: BrandFonts.sans.semiBold, fontSize: 14, color: C.accent, marginTop: 4 }}
-                onPress={() =>
-                  livedThrough[0] &&
-                  router.push({
-                    pathname: '/query/[eventId]',
-                    params: { eventId: livedThrough[0].eventId, treeId },
-                  })
-                }
+                onPress={() => livedThrough[0] && setDrawerEvent(livedThrough[0].eventId)}
               >
                 Who else was alive →
               </Text>
@@ -221,5 +213,9 @@ export function ThisWeekBroadsheet({
         </>
       )}
     </PageShell>
+      {drawerEvent && (
+        <QueryDrawer eventId={drawerEvent} treeId={treeId} onClose={() => setDrawerEvent(null)} />
+      )}
+    </>
   );
 }

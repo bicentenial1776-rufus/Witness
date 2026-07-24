@@ -12,6 +12,7 @@ import { Broadsheet, BrandFonts } from '@/constants/theme';
 
 import { DataBar, LedgerRow, MarginPanel } from './ledger';
 import { Masthead, PageShell, SectionBreak } from './page-shell';
+import { QueryDrawer } from './query-drawer';
 
 const C = Broadsheet.color;
 const T = Broadsheet.type;
@@ -75,6 +76,7 @@ export function ExploreBroadsheet({
   onSearch: (value: string) => void;
 }) {
   const [searchFocused, setSearchFocused] = useState(false);
+  const [drawerEvent, setDrawerEvent] = useState<string | null>(null);
   const searching = search.trim().length > 1;
 
   const topPlaces = useMemo(() => placesWithActivity(index).slice(0, 8), [index]);
@@ -113,6 +115,7 @@ export function ExploreBroadsheet({
   }, [index]);
 
   return (
+    <>
     <PageShell
       masthead={
         <Masthead
@@ -130,9 +133,7 @@ export function ExploreBroadsheet({
             {eras.map(({ event, aliveCount }) => (
               <Pressable
                 key={event.id}
-                onPress={() =>
-                  router.push({ pathname: '/query/[eventId]', params: { eventId: event.id, treeId } })
-                }
+                onPress={() => setDrawerEvent(event.id)}
                 style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}
               >
                 <RecordText style={{ width: 44, flexShrink: 0 }}>{event.startYear}</RecordText>
@@ -361,5 +362,9 @@ export function ExploreBroadsheet({
         </>
       )}
     </PageShell>
+      {drawerEvent && (
+        <QueryDrawer eventId={drawerEvent} treeId={treeId} onClose={() => setDrawerEvent(null)} />
+      )}
+    </>
   );
 }

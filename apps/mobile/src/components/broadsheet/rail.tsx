@@ -13,9 +13,10 @@ import { Broadsheet, BrandFonts } from '@/constants/theme';
 
 const C = Broadsheet.color;
 
+// "Home" is This Week for now; a true overview home page is a future
+// version (Rufus, 2026-07-24).
 const DESTINATIONS: { label: string; href: string; match: (p: string) => boolean }[] = [
-  { label: 'Home', href: '/', match: (p) => p === '/' || p === '/index' },
-  { label: 'This week', href: '/digest', match: (p) => p.startsWith('/digest') },
+  { label: 'This week', href: '/', match: (p) => p === '/' || p === '/index' || p.startsWith('/digest') },
   { label: 'Explore', href: '/explore', match: (p) => p.startsWith('/explore') },
   { label: 'Map', href: '/map', match: (p) => p.startsWith('/map') },
   { label: 'Nearby', href: '/proximity', match: (p) => p.startsWith('/proximity') },
