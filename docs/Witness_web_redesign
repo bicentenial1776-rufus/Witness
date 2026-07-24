@@ -1,0 +1,141 @@
+# Witness Lives — Web Redesign Handoff
+
+**Source of truth for visuals:** `Web Treatment.dc.html` in this project (open it and pan; ids `1a`, `1b`, `2a`, `3a`, `3b`).
+**Chosen direction:** **1a — "The Broadsheet."** `1b` (Archive Drawer) is rejected; keep it only as a reference for card-based fallbacks on narrow viewports.
+**Live map mock:** `map-canvas.html` (Leaflet + OpenStreetMap, `?mode=places` / `?mode=nearby`).
+
+---
+
+## 1. The diagnosis
+
+The current web app inherits the phone layout verbatim: every object is a rounded card of equal width and equal weight, stacked in one column at a phone measure, centered in a desktop viewport. Consequences:
+
+- **No hierarchy.** A featured 100-year life and a cousin's birthday are the same size, in the same box. The word "FEATURED" is doing work that typography should do.
+- **Entry points that describe themselves instead of previewing themselves.** Explore is four cards whose entire content is their own titles. The data *is* the picture — 613 places, 34 migration paths, 21 kindred couples — and none of it is visible until you tap.
+- **Phone measure on a desk.** ~1,100px of centered single column wastes the two things desktop actually gives you: a persistent rail and a margin.
+- **The map is a flat sheet of 300 identical pins** with a floating segmented control over it; equal-weight pins carry no information, and there is no ledger beside the map to read.
+- **Raw markdown in Research briefs** (`##`, `**`) — a straight credibility loss on the most "professional" screen in the app.
+
+None of this is a palette problem. The warm paper, the high-contrast serif, and the single burnt-orange accent are the brand's best asset. Keep all of it; change the architecture.
+
+---
+
+## 2. Design system
+
+### Color
+
+| Token | Value | Use |
+|---|---|---|
+| `--paper-bg` | `#F5F2EC` | Page background |
+| `--paper-raised` | `#FCFAF6` | Rail active item, inset panels, hover rows |
+| `--rail-bg` | `#F0ECE3` | Left navigation rail |
+| `--ink` | `#17140F` | Headlines, primary text, rules |
+| `--ink-secondary` | `#4A443B` | Body text in secondary position, nav idle |
+| `--ink-muted` | `#857C6F` | Metadata, captions |
+| `--ink-faint` | `#A0968A` | Placeholder text, small counts |
+| `--accent` | `#B4501A` | Kickers, links, primary bars, active marks |
+| `--accent-hover` | `#8E3D11` | Link hover, button hover |
+| `--rule` | `#DDD6C9` | Structural hairlines, borders |
+| `--rule-light` | `#E7E1D5` | Row separators inside ledgers |
+| `--bar-inactive` | `#D8CFC0` | Non-leading bars in charts |
+
+Two neutrals and one accent. **No second accent, no gradients, no shadows inside content** (frame-level shadow only). Orange is reserved for: kickers, links/actions, the leading bar in any chart, the active nav mark, and "featured" marks. If everything is orange nothing is.
+
+### Type
+
+- **Display / names / place names — Playfair Display** (700 for headlines, 400 for names in ledgers, 400 italic for relationships). Substitute the app's existing serif if it is already licensed; the important properties are high contrast and a true italic.
+- **UI & body — Source Sans 3** (300–700).
+- **Record data — IBM Plex Mono**, uppercase, `letter-spacing: 0.08–0.18em`, for *every* date, year, count, distance, era label and section eyebrow. This is the single cheapest move in the redesign: it makes the app read as an archive and it makes columns line up.
+
+Scale actually used (px): display 46 / 40; featured name 60; section head 30; ledger name 23–25; body 18–20 (line-height 1.6, max 60–62ch); UI 16–16.5; caption 14–15; mono eyebrow 11–12.5.
+
+### Structure rules
+
+1. **Left rail, 210px, persistent.** Wordmark + tree name, six destinations (Home, This week, Explore, Map, Nearby, Research), then a contextual block: open briefs, tree stats, or map layers depending on the section. Active item = `--paper-raised` background + `inset 3px 0 0 var(--accent)` + 600 weight. The phone tab bar disappears above 900px.
+2. **Every page opens with a masthead:** page title left (Playfair 46/700), two lines of mono + caption metadata right, closed by a `3px double var(--ink)` rule. The double rule is the app's signature; use it only for the masthead and for major section breaks.
+3. **Content grid is `1fr` + a 286–320px margin column**, separated by a `1px` rule with 30px padding. The margin holds ledgers, era charts, "reading the map" notes, loose threads — never primary content.
+4. **Cards are deleted from content.** Hierarchy comes from type size, rules, and whitespace. The only surviving boxes are small inset panels in the margin (`--paper-raised` + 1px rule, square-ish 0–4px radius) and the map container.
+5. **Lists are ledgers.** A repeating row grid (`date | subject | qualifier | number`), 1px `--rule-light` separators, hover = `--paper-raised`. No per-item borders, no per-item radius, no per-item padding boxes.
+6. **One dominant object per page.** The featured item gets ~3× the type size of the rest. The rest gets *smaller*, not equal.
+7. **Data as ornament.** Any count that exists should be drawn: a 5–6px bar, a century histogram, a lifespan band on a 1700–1900 axis. Bars are `--bar-inactive` except the leader, which is `--accent`.
+8. **No decorative imagery is required anywhere.** Imagery slots exist (portrait / gravestone / place photo, 4:5, striped placeholder with a mono caption) but every screen is designed to be complete and handsome with zero images.
+
+### Interaction
+
+- Hover: rows tint to `--paper-raised`; nav items tint to `#EAE5DA`; links go `--accent` → `--accent-hover` with a 3px-offset underline.
+- Links are always `--accent`, never blue; define `a` and `a:hover` globally.
+- Map pins: diameter `22 + 26 * sqrt(count/max)` px, `--accent` fill, 2px `--paper-raised` ring, the count printed inside in mono. Labels only for pins above ~35% of max.
+- Map tiles are warmed to match paper: `filter: sepia(.32) saturate(.72) contrast(.94) brightness(1.04)`.
+
+---
+
+## 3. Screen specs
+
+### 3.1 This Week in Your Family — `1a`
+
+- Masthead: "This Week in Your Family" / `JUL 6 – JUL 12, 2026` + "6 chosen from 83 anniversaries".
+- **Featured entry** (one per week, not one per day): mono orange kicker `FEATURED · MONDAY, JULY 6`; name at 60px Playfair; relationship in serif italic 21px; mono lifespan + "died N years ago"; place on a hairline; narrative at 20px/1.62 with a 62px orange drop cap; actions "Their full story →" and "See her on the map".
+- **"Also this week"** below a double rule: ledger rows of `DAY · DATE | name + event line | relationship (italic, right)`. Featured days carry a small `✦` in the mono date. Four to six rows, no cards.
+- **Margin column:** imagery slot + caption; "The week's ledger" — 7 mono day rows with count bars (the highest bar orange); "While she lived" inset panel — three world events with the subject's age at each, linking to "Who else was alive →".
+
+### 3.2 Explore — `2a`
+
+Replaces four self-describing cards. Every section previews its own contents.
+
+- **Search** as a broadsheet line, not an input box: mono `SEARCH` label + serif italic placeholder ("a name, a place, a year — 'Elizabeth Dane', 'Leyden', '1675'"), closed by a hairline. Focus turns it into a real field.
+- **Where your family lived** — two-column ranked bar list of the top 8 places with counts; "All 613 places →".
+- **Migration paths** — ledger rows: `England → Massachusetts` in Playfair 23, sub-line "peak c. 1679 · e.g. Jane Rossiter, arrived 1691", volume bar, mono count. Five rows + "All 34 paths →".
+- **Kindred couples** — one row per couple: two names joined by an orange `∞`, mono lifespans, and on the right the kinship label in mono uppercase orange plus "via <shared ancestor>".
+- **Margin column:** "Who was alive during…" — six eras as `YEAR | event | N of your people`; "People per century" histogram (18c leading, orange) with a one-sentence reading; "Loose threads" inset panel — 312 people with a year and no place, 9 orphan surnames, → "Turn one into a brief".
+
+### 3.3 Map — `3a`
+
+- Rail's contextual block becomes **Layers**: births & deaths (on), marriages, migration arrows, burial grounds.
+- Masthead "The Map" / `613 PLACES · 4,182 EVENTS`.
+- **Era band** as inline text tabs with mono counts (`All 4182 · 1600s 318 · 1700s 1190 …`), active underlined in orange — not a floating segmented pill over the map. Right side states the encoding: "Pin size = people recorded there".
+- **Map (1fr, 560px tall) + 286px ledger**: "Busiest places, <era>", nine rows, selected row highlighted with an orange inset bar and synced to the map. Below it a "Reading the map" panel with one interpretive sentence.
+- **Selected place spread** below a double rule: place name at 38px + mono `61 PEOPLE · 1660 – 1901 · 7 GENERATIONS`; a paragraph of interpretation; three stat columns (Earliest / Best known / Last recorded); actions. Margin: "Events here by century" histogram + a closing note.
+- Pins/markers: sized by count, count printed inside. Never 300 equal pins — cap the rendered set and cluster the tail.
+
+### 3.4 Nearby — `3b`
+
+A different question from Map: *how close is my family's history to where I am right now?*
+
+- Rail contextual block: "Your location — Hudson, New York" + "Change or set a trip →".
+- Masthead "Nearby" / `FROM HUDSON, NEW YORK` + "21 towns · 4 within an hour's drive".
+- **Headline is the answer:** "**109** of your family's people lived within **73 miles** of where you are" (40px Playfair, numbers in orange).
+- **Radius control** with a real mono scale (5 / 25 / 50 / 73 / 100 mi) and the value in a mono chip — the control, not the map, is the primary instrument.
+- Era band identical in behaviour to Map.
+- **Two equal columns:** left, the 470px map (73-mile dashed orange ring, dark "you are here" dot) + a caption + a "Closest of all" panel naming the single nearest person with a human distance ("a twenty-minute drive down Route 9"). Right, **grouped by town, nearest first**: town name in Playfair 25 with a leader rule and mono `10.0 MI · 3 PEOPLE`, then person rows `name + italic relationship | MONO EVENT YEAR`, with "5 more in <town> →" when a group is long. Never repeat a town heading per person (the current app repeats "Claverack · 14.4 mi" four times).
+
+### 3.5 Research (not yet designed — apply the same rules)
+
+- **Render the markdown.** Briefs currently show `##` and `**` literally. Headings → Playfair; questions → a numbered ledger; sources → mono.
+- Brief list: title in Playfair, mono `OPEN · 7/5/2026` status, ledger rows.
+- On a brief page, demote the three big buttons: one orange primary ("Share this brief"), the two status changes become a small mono control group, not stacked full-width buttons.
+
+### 3.6 Responsive
+
+- **≥1200px:** rail + `1fr` + margin column, as specified.
+- **900–1200px:** margin column collapses to the end of the main flow; rail stays.
+- **<900px:** rail becomes the existing bottom tab bar, margin content becomes trailing sections, ledger rows stack to two lines. Type scale drops one step; the featured name stays at least 34px. This is where `1b`'s card patterns are acceptable.
+
+---
+
+## 4. Prompt for Claude Code
+
+> You are re-orienting the front end of **Witness Lives** (`app.witnesslives.com`), a React web app for exploring a family tree. The visual brand — warm paper background, high-contrast serif headlines, a single burnt-orange accent — is correct and must be preserved. The problem is layout architecture: the web app is the phone layout scaled up. Every object is an equal-weight rounded card in one centered column, so nothing is featured, entry-point screens show only their own titles, and desktop space is wasted.
+>
+> Read `Witness Lives — Web Redesign Handoff.md` (design system, structure rules, per-screen specs) and open `Web Treatment.dc.html` in a browser as the visual target. Option **1a** is the chosen direction; sections `2a`, `3a`, `3b` are the Explore, Map and Nearby targets. `map-canvas.html` is the working Leaflet map mock, including the pin-sizing formula and the tile-warming filter.
+>
+> **Scope, in order:**
+> 1. **Shell.** Add a persistent 210px left rail for viewports ≥900px (wordmark, tree name, six destinations, a contextual slot per section). Keep the bottom tab bar below 900px. Introduce a page-shell component providing the masthead (title, right-aligned mono metadata, `3px double` closing rule) and the `1fr` + 286–320px margin grid.
+> 2. **Design tokens.** Add the color, type, and spacing tokens from the handoff to the theme layer and replace ad-hoc values. Add the three font families (Playfair Display, Source Sans 3, IBM Plex Mono). Define a single `RecordText`/`.mono` treatment and use it for every date, year, count, and distance in the app.
+> 3. **Kill the generic card.** Replace the shared card component in content areas with two primitives: `LedgerRow` (responsive column grid, hairline separator, hover tint) and `MarginPanel` (raised paper, 1px rule, small radius). Cards survive only under 900px.
+> 4. **This Week.** One featured entry per week at full display scale with drop cap; all other days as ledger rows; the day-count ledger, imagery slot, and "While she lived" panel in the margin.
+> 5. **Explore.** Delete the four navigation cards. Each section renders its own top-N data inline: ranked place bars, migration ledger with volume bars and peak decade, kindred couples with the `∞` spine and shared ancestor, plus the "Who was alive during…" list, century histogram, and "Loose threads" panel in the margin. All bars are CSS divs — no chart library.
+> 6. **Map.** Convert the floating segmented era control into inline text tabs with counts. Put the map in the content column with a synced "Busiest places" ledger in the margin, and a selected-place spread beneath. Size pins by `22 + 26*sqrt(count/max)`, print the count in the pin, label only pins above 35% of max, cluster the tail, and apply the tile warming filter. Keep the existing tile provider and its attribution.
+> 7. **Nearby.** Lead with the sentence answer and the radius control; group results by town (nearest first) with a mono `<distance> · <n> people` leader, and person rows beneath; never repeat a town heading. Include the "Closest of all" panel.
+> 8. **Research.** Render brief markdown properly (headings, numbered research questions, emphasis) — no raw `##`/`**` anywhere. Reduce the three stacked full-width buttons to one primary plus a small status control group.
+>
+> **Constraints:** no new accent colors, gradients, or content-level drop shadows; no decorative illustration — the app must look finished with zero photographs; imagery slots must degrade to a striped placeholder with a mono caption; keep all existing routes, data fetching, and analytics intact — this is a presentation-layer refactor; ship each numbered step as its own reviewable commit, starting with the shell and tokens.
