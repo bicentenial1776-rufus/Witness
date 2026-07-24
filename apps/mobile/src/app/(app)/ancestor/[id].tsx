@@ -415,6 +415,31 @@ export default function AncestorScreen() {
           {person.living ? ' · living' : ''}
         </ThemedText>
 
+        {/* The two ways this person travels: a public story card, and their
+            page on the platform the tree came from. Up top by request —
+            sharing shouldn't live below six screens of record. */}
+        {(!person.living || ancestryUrl) && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 18, marginTop: 4 }}>
+            {!person.living && (
+              <ThemedText
+                type="link"
+                onPress={shareState === 'busy' ? undefined : shareAncestor}
+              >
+                {shareState === 'copied'
+                  ? 'Link copied — good for 90 days ✓'
+                  : shareState === 'busy'
+                    ? 'Creating link…'
+                    : `Share ${person.full_name.split(' ')[0]}’s story ›`}
+              </ThemedText>
+            )}
+            {ancestryUrl && (
+              <ThemedText type="link" onPress={() => Linking.openURL(ancestryUrl)}>
+                View on Ancestry ›
+              </ThemedText>
+            )}
+          </View>
+        )}
+
         {tags.length > 0 && (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
             {tags.map((tag) => (
@@ -607,30 +632,6 @@ export default function AncestorScreen() {
               />
             ))}
           </>
-        )}
-
-        {!person.living && (
-          <ThemedText
-            type="link"
-            style={{ marginTop: 16 }}
-            onPress={shareState === 'busy' ? undefined : shareAncestor}
-          >
-            {shareState === 'copied'
-              ? 'Link copied — good for 90 days ✓'
-              : shareState === 'busy'
-                ? 'Creating link…'
-                : `Share ${person.full_name.split(' ')[0]}’s story ›`}
-          </ThemedText>
-        )}
-
-        {ancestryUrl && (
-          <ThemedText
-            type="link"
-            style={{ marginTop: 16 }}
-            onPress={() => Linking.openURL(ancestryUrl)}
-          >
-            View {person.full_name.split(' ')[0]} on Ancestry ›
-          </ThemedText>
         )}
 
       </ScrollView>
