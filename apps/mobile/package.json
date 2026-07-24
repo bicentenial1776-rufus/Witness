@@ -8,6 +8,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/slider": "5.2.0",
     "@react-native-segmented-control/segmented-control": "2.5.7",
+    "@revenuecat/purchases-js": "^1.48.1",
     "@supabase/supabase-js": "^2.109.0",
     "@witness/core": "*",
     "expo": "~57.0.1",

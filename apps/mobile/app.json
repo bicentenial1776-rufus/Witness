@@ -25,19 +25,33 @@
           {
             "UTTypeIdentifier": "com.witnesslives.witness.gedcom",
             "UTTypeDescription": "GEDCOM Family Tree",
-            "UTTypeConformsTo": ["public.data", "public.text"],
+            "UTTypeConformsTo": [
+              "public.data",
+              "public.text"
+            ],
             "UTTypeTagSpecification": {
-              "public.filename-extension": ["ged"],
-              "public.mime-type": ["application/x-gedcom", "text/vnd.familysearch.gedcom"]
+              "public.filename-extension": [
+                "ged"
+              ],
+              "public.mime-type": [
+                "application/x-gedcom",
+                "text/vnd.familysearch.gedcom"
+              ]
             }
           },
           {
             "UTTypeIdentifier": "com.witnesslives.witness.gedcom-archive",
             "UTTypeDescription": "FamilySearch GEDCOM Archive",
-            "UTTypeConformsTo": ["public.zip-archive"],
+            "UTTypeConformsTo": [
+              "public.zip-archive"
+            ],
             "UTTypeTagSpecification": {
-              "public.filename-extension": ["gdz"],
-              "public.mime-type": ["application/zip"]
+              "public.filename-extension": [
+                "gdz"
+              ],
+              "public.mime-type": [
+                "application/zip"
+              ]
             }
           }
         ],
@@ -66,7 +80,7 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [

@@ -12,7 +12,6 @@ import {
   PlayfairDisplay_700Bold,
 } from '@expo-google-fonts/playfair-display';
 import { useFonts } from 'expo-font';
-import * as Notifications from 'expo-notifications';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -20,6 +19,10 @@ import { AppState, useColorScheme } from 'react-native';
 
 import { SessionProvider, useSession } from '@/auth/session-provider';
 import { ActiveTreeProvider } from '@/lib/active-tree';
+import {
+  installNotificationHandler,
+  useNotificationDeepLinks,
+} from '@/lib/notification-routing';
 import { consumePendingImportUri } from '@/lib/pending-import';
 import { ProfileProvider, useProfile } from '@/lib/profile';
 import { PurchasesProvider, usePurchases } from '@/lib/purchases';
@@ -27,15 +30,7 @@ import { SuperwallGate } from '@/lib/superwall';
 
 SplashScreen.preventAutoHideAsync();
 
-// Show digest notifications even when the app is foregrounded.
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+installNotificationHandler();
 
 function RootNavigator() {
   const { session, isLoading: isSessionLoading } = useSession();
@@ -63,14 +58,7 @@ function RootNavigator() {
     if (!isLoading) SplashScreen.hideAsync();
   }, [isLoading]);
 
-  // Tapping a notification deep-links to the screen named in its data.
-  useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const url = response.notification.request.content.data?.url;
-      if (typeof url === 'string') router.push(url as never);
-    });
-    return () => subscription.remove();
-  }, []);
+  useNotificationDeepLinks();
 
   // "Open in Witness" on a .ged/.gdz (see +native-intent.ts) stashes the file
   // before the router knows whether the reader can reach /import. Once

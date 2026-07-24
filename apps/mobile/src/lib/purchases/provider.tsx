@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type PropsWithChildren } from 'react';
+import { useEffect, useState, type PropsWithChildren } from 'react';
 import { LogBox, Platform } from 'react-native';
 
 // The store isn't fully configured yet, so RevenueCat logs noisy (and
@@ -14,8 +14,7 @@ import Purchases, {
 import { useSession } from '@/auth/session-provider';
 import { syncTrialReminder } from '@/lib/trial-reminder';
 
-/** The single subscription tier — $19.99/year, no feature gating (BRIEF.md). */
-export const ENTITLEMENT_ID = process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID ?? 'premium';
+import { ENTITLEMENT_ID, PurchasesContext } from './contract';
 
 const rawApiKey = Platform.select({
   ios: process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY,
@@ -32,7 +31,7 @@ const apiKey = rawApiKey && (__DEV__ || !rawApiKey.startsWith('test_')) ? rawApi
  * Dev-only escape hatch: EXPO_PUBLIC_DEV_SKIP_PAYWALL=1 in apps/mobile/.env
  * (gitignored) grants entitlement without RevenueCat, so simulators and demo
  * recordings never block on store configuration. Compiled out of release
- * builds by the __DEV__ guard.
+ * builds by the __DEV__ guard, and native-only by design (WEB_APP_DESIGN.md).
  */
 const DEV_SKIP_PAYWALL = __DEV__ && process.env.EXPO_PUBLIC_DEV_SKIP_PAYWALL === '1';
 
@@ -58,22 +57,6 @@ export function ensurePurchasesConfigured(): boolean {
   }
   return true;
 }
-
-interface PurchasesContextValue {
-  isLoading: boolean;
-  isEntitled: boolean;
-  offering: PurchasesOffering | null;
-  restore: () => Promise<boolean>;
-  purchasePackage: (pkg: PurchasesOffering['availablePackages'][number]) => Promise<boolean>;
-}
-
-const PurchasesContext = createContext<PurchasesContextValue>({
-  isLoading: true,
-  isEntitled: false,
-  offering: null,
-  restore: async () => false,
-  purchasePackage: async () => false,
-});
 
 /**
  * Configures RevenueCat once and keeps entitlement state in sync with the
@@ -176,8 +159,4 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
       {children}
     </PurchasesContext.Provider>
   );
-}
-
-export function usePurchases(): PurchasesContextValue {
-  return useContext(PurchasesContext);
 }
