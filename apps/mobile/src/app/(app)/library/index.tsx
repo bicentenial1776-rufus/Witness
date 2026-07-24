@@ -120,6 +120,23 @@ export default function LibraryScreen() {
               </>
             )}
 
+            {activeTree && (
+              <Card
+                onPress={() =>
+                  router.push({ pathname: '/library/moments', params: { treeId: activeTree.id } })
+                }
+              >
+                <ThemedText type="subtitle">Moments in history</ThemedText>
+                <ThemedText type="small">
+                  The whole timeline, oldest first — wars, crossings, gold rushes — and who in
+                  your family was alive for each.
+                </ThemedText>
+                <ThemedText type="smallBold" themeColor="accent">
+                  Browse the timeline ›
+                </ThemedText>
+              </Card>
+            )}
+
             {catalog &&
               LIBRARY_CATEGORIES.map((category) => {
                 const entries = catalog.filter((e) => e.category === category.id);
@@ -137,10 +154,13 @@ export default function LibraryScreen() {
                   >
                     <ThemedText type="subtitle">{category.title}</ThemedText>
                     <ThemedText type="small">{category.blurb}</ThemedText>
-                    <ThemedText type="small" themeColor="accent">
-                      {counts
-                        ? `${answered} of ${entries.length} questions have answers in your tree ›`
-                        : `${entries.length} questions ›`}
+                    {counts && (
+                      <ThemedText type="small">
+                        {answered} of {entries.length} questions have answers in your tree
+                      </ThemedText>
+                    )}
+                    <ThemedText type="smallBold" themeColor="accent">
+                      Browse all {entries.length} questions ›
                     </ThemedText>
                   </Card>
                 );

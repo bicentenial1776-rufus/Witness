@@ -4,9 +4,10 @@
  * shelf and the "Lived Through" tags, ordered chronologically. Ranges use
  * inclusive years; single-year moments set startYear === endYear.
  *
- * Events are never shown as a browsable catalog (docs/QUERY_LIBRARY.md,
- * Implementation Architecture) — they reach the user through the shelf,
- * ancestor-card tags, and search.
+ * Events reach the user through the shelf, ancestor-card tags, search,
+ * and — since July 2026 — the browsable "Moments in history" timeline,
+ * where every row carries the tree's live alive-count so the catalog
+ * stays a family timeline, not a generic menu (docs/QUERY_LIBRARY.md).
  */
 
 /** How wide the event's reach was; ranking prefers major. */

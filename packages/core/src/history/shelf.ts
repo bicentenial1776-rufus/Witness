@@ -126,7 +126,7 @@ const LENS_BONUS = 3;
  * The same classification rule the results screen runs, so the card's
  * number and the tapped query's "Everyone" count agree.
  */
-function countAlive(index: GeographyIndex, event: HistoricalEvent): number {
+export function countAliveDuring(index: GeographyIndex, event: HistoricalEvent): number {
   let count = 0;
   for (const person of index.individuals.values()) {
     if (classifyAliveDuring({ ...person, sex: 'U' }, event)) count++;
@@ -160,7 +160,7 @@ export function curateShelf(
 
   const scored: { entry: ShelfEntry; eligible: boolean }[] = [];
   for (const event of events) {
-    const aliveCount = countAlive(index, event);
+    const aliveCount = countAliveDuring(index, event);
     if (aliveCount === 0) continue;
 
     const geoShare = (event.geoScope?.regions ?? []).reduce(
