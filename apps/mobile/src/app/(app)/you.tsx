@@ -141,6 +141,16 @@ export default function YouTab() {
         <ThemedText type="link" style={{ marginTop: 8 }} onPress={() => supabase.auth.signOut()}>
           Sign out
         </ThemedText>
+
+        {/* Attribution required by NARA's API terms — must remain visible in the app. */}
+        <ThemedText type="smallBold" style={{ marginTop: 24 }}>
+          CREDITS
+        </ThemedText>
+        <ThemedText type="small">
+          Our map is seeded with information from the National Archives Catalog. This product uses
+          the National Archives Catalog API but is not endorsed or certified by the National
+          Archives and Records Administration.
+        </ThemedText>
       </ScrollView>
     </ThemedView>
   );

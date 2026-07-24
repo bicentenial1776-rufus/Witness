@@ -376,6 +376,66 @@ export type Database = {
           },
         ]
       }
+      geocode_ticks: {
+        Row: {
+          created_at: string
+          minute: string
+        }
+        Insert: {
+          created_at?: string
+          minute: string
+        }
+        Update: {
+          created_at?: string
+          minute?: string
+        }
+        Relationships: []
+      }
+      historical_events: {
+        Row: {
+          created_at: string
+          end_year: number
+          geo_scope: Json | null
+          id: string
+          keywords: string[] | null
+          lens_affinity: string[] | null
+          name: string
+          region: string
+          sort_order: number
+          start_year: number
+          summary: string
+          tier: string
+        }
+        Insert: {
+          created_at?: string
+          end_year: number
+          geo_scope?: Json | null
+          id: string
+          keywords?: string[] | null
+          lens_affinity?: string[] | null
+          name: string
+          region: string
+          sort_order: number
+          start_year: number
+          summary: string
+          tier?: string
+        }
+        Update: {
+          created_at?: string
+          end_year?: number
+          geo_scope?: Json | null
+          id?: string
+          keywords?: string[] | null
+          lens_affinity?: string[] | null
+          name?: string
+          region?: string
+          sort_order?: number
+          start_year?: number
+          summary?: string
+          tier?: string
+        }
+        Relationships: []
+      }
       individual_events: {
         Row: {
           date_confidence: Database["public"]["Enums"]["date_confidence"] | null
@@ -527,6 +587,217 @@ export type Database = {
           },
         ]
       }
+      library_pins: {
+        Row: {
+          created_at: string
+          query_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          query_id: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          query_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "library_pins_query_id_fkey"
+            columns: ["query_id"]
+            isOneToOne: false
+            referencedRelation: "query_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nara_api_calls: {
+        Row: {
+          calls: number
+          month: string
+        }
+        Insert: {
+          calls?: number
+          month: string
+        }
+        Update: {
+          calls?: number
+          month?: string
+        }
+        Relationships: []
+      }
+      nara_candidates: {
+        Row: {
+          created_at: string
+          id: string
+          individual_id: string
+          match_reason: string | null
+          na_id: number
+          place_id: string | null
+          resolved_at: string | null
+          score: number | null
+          series: string
+          status: Database["public"]["Enums"]["nara_candidate_status"]
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          individual_id: string
+          match_reason?: string | null
+          na_id: number
+          place_id?: string | null
+          resolved_at?: string | null
+          score?: number | null
+          series: string
+          status?: Database["public"]["Enums"]["nara_candidate_status"]
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          individual_id?: string
+          match_reason?: string | null
+          na_id?: number
+          place_id?: string | null
+          resolved_at?: string | null
+          score?: number | null
+          series?: string
+          status?: Database["public"]["Enums"]["nara_candidate_status"]
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nara_candidates_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nara_candidates_na_id_fkey"
+            columns: ["na_id"]
+            isOneToOne: false
+            referencedRelation: "nara_documents"
+            referencedColumns: ["na_id"]
+          },
+          {
+            foreignKeyName: "nara_candidates_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nara_candidates_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nara_documents: {
+        Row: {
+          end_year: number | null
+          fetched_at: string
+          level_of_description: string | null
+          na_id: number
+          object_count: number
+          object_url: string | null
+          record_group: string | null
+          start_year: number | null
+          title: string
+          use_restriction: string | null
+        }
+        Insert: {
+          end_year?: number | null
+          fetched_at?: string
+          level_of_description?: string | null
+          na_id: number
+          object_count?: number
+          object_url?: string | null
+          record_group?: string | null
+          start_year?: number | null
+          title: string
+          use_restriction?: string | null
+        }
+        Update: {
+          end_year?: number | null
+          fetched_at?: string
+          level_of_description?: string | null
+          na_id?: number
+          object_count?: number
+          object_url?: string | null
+          record_group?: string | null
+          start_year?: number | null
+          title?: string
+          use_restriction?: string | null
+        }
+        Relationships: []
+      }
+      nara_enrichment_state: {
+        Row: {
+          calls_used: number
+          candidates_found: number
+          enriched_at: string
+          individual_id: string
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          calls_used?: number
+          candidates_found?: number
+          enriched_at?: string
+          individual_id: string
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          calls_used?: number
+          candidates_found?: number
+          enriched_at?: string
+          individual_id?: string
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nara_enrichment_state_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: true
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nara_enrichment_state_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nara_ticks: {
+        Row: {
+          bucket: string
+          created_at: string
+        }
+        Insert: {
+          bucket: string
+          created_at?: string
+        }
+        Update: {
+          bucket?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       places: {
         Row: {
           geocoded_at: string | null
@@ -583,6 +854,42 @@ export type Database = {
           created_at?: string
           id?: string
           onboarding_completed_at?: string | null
+        }
+        Relationships: []
+      }
+      query_catalog: {
+        Row: {
+          category: string
+          created_at: string
+          detail: string | null
+          id: string
+          keywords: string[]
+          kind: string
+          params: Json
+          sort_order: number
+          title: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          detail?: string | null
+          id: string
+          keywords?: string[]
+          kind: string
+          params?: Json
+          sort_order?: number
+          title: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          keywords?: string[]
+          kind?: string
+          params?: Json
+          sort_order?: number
+          title?: string
         }
         Relationships: []
       }
@@ -751,60 +1058,6 @@ export type Database = {
           },
         ]
       }
-      library_pins: {
-        Row: {
-          created_at: string
-          query_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          query_id: string
-          user_id?: string
-        }
-        Update: {
-          created_at?: string
-          query_id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      query_catalog: {
-        Row: {
-          category: string
-          created_at: string
-          detail: string | null
-          id: string
-          keywords: string[]
-          kind: string
-          params: Json
-          sort_order: number
-          title: string
-        }
-        Insert: {
-          category: string
-          created_at?: string
-          detail?: string | null
-          id: string
-          keywords?: string[]
-          kind: string
-          params?: Json
-          sort_order?: number
-          title: string
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          detail?: string | null
-          id?: string
-          keywords?: string[]
-          kind?: string
-          params?: Json
-          sort_order?: number
-          title?: string
-        }
-        Relationships: []
-      }
       trees: {
         Row: {
           ancestry_tree_id: string | null
@@ -869,14 +1122,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      delete_tree_batch: {
-        Args: { p_tree_id: string }
-        Returns: Json
-      }
-      reuse_geocodes: {
-        Args: { p_tree_id: string }
-        Returns: number
-      }
+      delete_tree_batch: { Args: { p_tree_id: string }; Returns: Json }
+      reuse_geocodes: { Args: { p_tree_id: string }; Returns: number }
     }
     Enums: {
       curiosity_type:
@@ -907,6 +1154,7 @@ export type Database = {
         | "occupation"
         | "custom"
         | "probate"
+      nara_candidate_status: "pending" | "confirmed" | "dismissed"
       research_brief_status: "open" | "in_progress" | "resolved" | "archived"
       sex_type: "M" | "F" | "U"
     }
@@ -1070,6 +1318,7 @@ export const Constants = {
         "custom",
         "probate",
       ],
+      nara_candidate_status: ["pending", "confirmed", "dismissed"],
       research_brief_status: ["open", "in_progress", "resolved", "archived"],
       sex_type: ["M", "F", "U"],
     },

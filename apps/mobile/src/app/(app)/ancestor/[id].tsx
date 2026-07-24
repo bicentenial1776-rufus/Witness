@@ -8,9 +8,11 @@ import {
   regionsFromPlaceParts,
   type LivedThroughTag,
 } from '@witness/core/history';
+import { fetchNaraCandidatesForIndividual, type NaraCandidate } from '@witness/core/query';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
+import { NaraCandidateCard } from '@/components/nara-candidate-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
@@ -220,6 +222,7 @@ export default function AncestorScreen() {
   const [parents, setParents] = useState<ParentRow[]>([]);
   const [tags, setTags] = useState<LivedThroughTag[]>([]);
   const [sources, setSources] = useState<SourceGroup[]>([]);
+  const [naraCandidates, setNaraCandidates] = useState<NaraCandidate[]>([]);
   const [relationship, setRelationship] = useState<string | null>(null);
   const [ancestryUrl, setAncestryUrl] = useState<string | null>(null);
   const [tab, setTab] = useState<SectionTab>('story');
@@ -237,6 +240,7 @@ export default function AncestorScreen() {
     setParents([]);
     setTags([]);
     setSources([]);
+    setNaraCandidates([]);
     setRelationship(null);
     setAncestryUrl(null);
     setTab('story');
@@ -294,6 +298,14 @@ export default function AncestorScreen() {
         .then(({ data }) => {
           if (!cancelled && data) setSources(groupCitations(data));
         });
+
+      // National Archives candidates for this person (pending asks +
+      // confirmed documents). Hidden while empty; enrichment is gradual.
+      fetchNaraCandidatesForIndividual(supabase, id)
+        .then((rows) => {
+          if (!cancelled) setNaraCandidates(rows.filter((c) => c.status !== 'dismissed'));
+        })
+        .catch(() => {});
 
       // Parents: the families this person is a child of, then both spouses.
       const { data: childLinks } = await supabase
@@ -551,6 +563,30 @@ export default function AncestorScreen() {
                   </ThemedText>
                 )}
               </Card>
+            ))}
+          </>
+        )}
+
+        {naraCandidates.length > 0 && (
+          <>
+            <ThemedText type="subtitle" style={{ marginTop: 16 }}>
+              In the National Archives
+            </ThemedText>
+            <ThemedText type="small">
+              Records that might be {person.full_name.split(' ')[0]} — you decide.
+            </ThemedText>
+            {naraCandidates.map((candidate) => (
+              <NaraCandidateCard
+                key={candidate.id}
+                candidate={candidate}
+                onResolved={(candidateId, status) =>
+                  setNaraCandidates((current) =>
+                    status === 'dismissed'
+                      ? current.filter((c) => c.id !== candidateId)
+                      : current.map((c) => (c.id === candidateId ? { ...c, status } : c)),
+                  )
+                }
+              />
             ))}
           </>
         )}

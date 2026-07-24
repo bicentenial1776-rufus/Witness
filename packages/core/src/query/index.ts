@@ -8,3 +8,4 @@ export * from './milestones.js';
 export * from './placeDiscovery.js';
 export * from './structure.js';
 export * from './library.js';
+export * from './naraRecords.js';
