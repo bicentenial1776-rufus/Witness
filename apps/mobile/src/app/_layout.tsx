@@ -1,4 +1,9 @@
 import {
+  IBMPlexMono_400Regular,
+  IBMPlexMono_500Medium,
+  IBMPlexMono_600SemiBold,
+} from '@expo-google-fonts/ibm-plex-mono';
+import {
   Inter_400Regular,
   Inter_500Medium,
   Inter_600SemiBold,
@@ -46,6 +51,9 @@ function RootNavigator() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    IBMPlexMono_400Regular,
+    IBMPlexMono_500Medium,
+    IBMPlexMono_600SemiBold,
   });
 
   // Profile/entitlement only resolve once there's a session to key them on.

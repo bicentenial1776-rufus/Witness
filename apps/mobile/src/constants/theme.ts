@@ -91,6 +91,51 @@ export const BrandFonts = {
     semiBold: 'Inter_600SemiBold',
     bold: 'Inter_700Bold',
   },
+  /** Record data — every date, year, count, distance, era label, eyebrow. */
+  mono: {
+    regular: 'IBMPlexMono_400Regular',
+    medium: 'IBMPlexMono_500Medium',
+    semiBold: 'IBMPlexMono_600SemiBold',
+  },
+} as const;
+
+/**
+ * The Broadsheet design system (docs/Witness_web_redesign) — the wide-canvas
+ * identity for web ≥900px. Two neutrals and one accent; orange is reserved
+ * for kickers, links, leading bars, and active marks. Native and narrow
+ * viewports keep the existing card system, so these tokens are consumed
+ * only by the broadsheet components.
+ */
+export const Broadsheet = {
+  color: {
+    paperBg: '#F5F2EC',
+    paperRaised: '#FCFAF6',
+    railBg: '#F0ECE3',
+    ink: '#17140F',
+    inkSecondary: '#4A443B',
+    inkMuted: '#857C6F',
+    inkFaint: '#A0968A',
+    accent: '#B4501A',
+    accentHover: '#8E3D11',
+    rule: '#DDD6C9',
+    ruleLight: '#E7E1D5',
+    barInactive: '#D8CFC0',
+  },
+  type: {
+    display: 46,
+    displaySmall: 40,
+    featuredName: 60,
+    sectionHead: 30,
+    ledgerName: 24,
+    body: 19,
+    ui: 16,
+    caption: 14,
+    monoEyebrow: 12,
+  },
+  railWidth: 210,
+  marginColumn: 300,
+  /** Broadsheet layout activates at and above this viewport width, web only. */
+  minWidth: 900,
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
