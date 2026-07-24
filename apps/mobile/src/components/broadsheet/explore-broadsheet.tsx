@@ -3,9 +3,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
 import type { GeographyIndex } from '@witness/core/query';
-import { migrationPaths, placesWithActivity } from '@witness/core/query';
-import type { KindredCouple } from '@witness/core/family';
-import type { HistoricalEvent } from '@witness/core/history';
+import type { HistoricalEvent, ShelfEntry } from '@witness/core/history';
 
 import { RecordText } from '@/components/record-text';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
@@ -37,26 +35,22 @@ function Serif({ size = T.ledgerName, color = C.ink, children, ...rest }: React.
   );
 }
 
-function SectionLink({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Text
-      onPress={onPress}
-      style={{ fontFamily: BrandFonts.sans.semiBold, fontSize: 15, color: C.accent, marginTop: 10 }}
-    >
-      {label}
-    </Text>
-  );
+function eventYears(event: HistoricalEvent): string {
+  return event.startYear === event.endYear
+    ? String(event.startYear)
+    : `${event.startYear}–${event.endYear}`;
 }
 
 /**
- * Explore as a broadsheet (redesign §3.2): every section previews its own
- * contents — ranked place bars, the migration ledger, kindred couples with
- * the ∞ spine — with eras, the century histogram, and loose threads in
- * the margin. The four self-describing cards are gone.
+ * Explore as a broadsheet, options mirroring the phone exactly (Rufus,
+ * 2026-07-24): the curated shelf, The Library, and the Ways In — in the
+ * broadsheet's clothes. Anything that answers with a list of people (a
+ * shelf moment, a searched moment, an era) opens the who-was-alive
+ * drawer; a person in the drawer goes to their page.
  */
 export function ExploreBroadsheet({
   index,
-  kindred,
+  shelf,
   eras,
   naraCounts,
   treeId,
@@ -66,7 +60,7 @@ export function ExploreBroadsheet({
   onSearch,
 }: {
   index: GeographyIndex;
-  kindred: KindredCouple[];
+  shelf: ShelfEntry[] | null;
   eras: EraCount[];
   naraCounts: { pending: number; confirmed: number } | null;
   treeId: string;
@@ -78,17 +72,6 @@ export function ExploreBroadsheet({
   const [searchFocused, setSearchFocused] = useState(false);
   const [drawerEvent, setDrawerEvent] = useState<string | null>(null);
   const searching = search.trim().length > 1;
-
-  const topPlaces = useMemo(() => placesWithActivity(index).slice(0, 8), [index]);
-  const maxPlace = topPlaces[0]?.eventCount ?? 1;
-  const totalPlaces = useMemo(
-    () => [...index.places.values()].filter((p) => p.latitude !== null).length,
-    [index],
-  );
-
-  const paths = useMemo(() => migrationPaths(index), [index]);
-  const topPaths = paths.slice(0, 5);
-  const maxPath = topPaths[0]?.count ?? 1;
 
   const centuries = useMemo(() => {
     const counts = new Map<number, number>();
@@ -114,6 +97,46 @@ export function ExploreBroadsheet({
     return { datedNoPlace, orphanSurnames };
   }, [index]);
 
+  const waysIn: { title: string; detail: string; path: string }[] = [
+    {
+      title: 'In the National Archives',
+      detail: naraCounts
+        ? `${naraCounts.pending} to review · ${naraCounts.confirmed} confirmed`
+        : 'Federal records matched to your ancestors, awaiting your judgment',
+      path: '/archives',
+    },
+    {
+      title: 'The Ascent',
+      detail: 'Climb your tree generation by generation — and see where the records thin',
+      path: '/ascent',
+    },
+    {
+      title: 'Where your family lived',
+      detail: 'Every state, province, and country in your tree',
+      path: '/places',
+    },
+    {
+      title: 'Where your family began',
+      detail: 'The earliest places your tree reaches back to',
+      path: '/origins',
+    },
+    {
+      title: 'Migration paths',
+      detail: 'The moves your family made, generation by generation',
+      path: '/migrations',
+    },
+    {
+      title: 'Ocean crossings',
+      detail: 'Ancestors who crossed the Atlantic or Pacific',
+      path: '/crossings',
+    },
+    {
+      title: 'Kindred couples',
+      detail: 'Spouses who shared an ancestor — however far back',
+      path: '/kindred',
+    },
+  ];
+
   return (
     <>
     <PageShell
@@ -121,7 +144,7 @@ export function ExploreBroadsheet({
         <Masthead
           title="Explore"
           metaMono={`${index.individuals.size.toLocaleString()} PEOPLE · ${index.events.length.toLocaleString()} EVENTS`}
-          metaCaption="Every section previews what it holds"
+          metaCaption="Your family's history, every way in"
         />
       }
       margin={
@@ -175,41 +198,13 @@ export function ExploreBroadsheet({
             <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14.5, color: C.inkSecondary }}>
               {looseThreads.orphanSurnames} surnames appear exactly once.
             </Text>
-            {naraCounts && (naraCounts.pending > 0 || naraCounts.confirmed > 0) && (
-              <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14.5, color: C.inkSecondary }}>
-                {naraCounts.pending} National Archives finds await your judgment.
-              </Text>
-            )}
             <Text
-              onPress={() => router.push({ pathname: '/archives', params: { treeId } })}
+              onPress={() => router.push({ pathname: '/research', params: { treeId } })}
               style={{ fontFamily: BrandFonts.sans.semiBold, fontSize: 14, color: C.accent, marginTop: 2 }}
             >
-              Open the archives →
+              Turn one into a brief →
             </Text>
           </MarginPanel>
-
-          <View style={{ gap: 7 }}>
-            <RecordText eyebrow muted>
-              Also
-            </RecordText>
-            {(
-              [
-                ['The Library', '/library'],
-                ['Moments in history', '/library/moments'],
-                ['The Ascent', '/ascent'],
-                ['Where your family began', '/origins'],
-                ['Ocean crossings', '/crossings'],
-              ] as const
-            ).map(([label, path]) => (
-              <Text
-                key={path}
-                onPress={() => router.push({ pathname: path as never, params: { treeId } } as never)}
-                style={{ fontFamily: BrandFonts.sans.regular, fontSize: 15, color: C.accent }}
-              >
-                {label} ›
-              </Text>
-            ))}
-          </View>
         </>
       }
     >
@@ -266,99 +261,71 @@ export function ExploreBroadsheet({
             </LedgerRow>
           ))}
           {searchMoments.map((event) => (
-            <LedgerRow
-              key={event.id}
-              onPress={() =>
-                router.push({ pathname: '/query/[eventId]', params: { eventId: event.id, treeId } })
-              }
-            >
+            <LedgerRow key={event.id} onPress={() => setDrawerEvent(event.id)}>
               <Serif size={19}>{event.name}</Serif>
               <View style={{ flex: 1 }} />
-              <RecordText muted>
-                {event.startYear === event.endYear ? event.startYear : `${event.startYear}–${event.endYear}`}
-              </RecordText>
+              <RecordText muted>{eventYears(event)}</RecordText>
             </LedgerRow>
           ))}
         </View>
       ) : (
         <>
-          <SectionBreak label="Where your family lived" />
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 40 }}>
-            {topPlaces.map(({ place, eventCount }) => (
-              <Pressable
-                key={place.id}
-                onPress={() =>
-                  router.push({ pathname: '/place/[placeId]', params: { placeId: place.id, treeId } })
-                }
-                style={{ width: '45%', minWidth: 260, marginBottom: 14 }}
-              >
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <Serif size={20}>{place.parts[0] ?? place.raw}</Serif>
-                  <RecordText muted>{eventCount}</RecordText>
-                </View>
-                <View style={{ marginTop: 5 }}>
-                  <DataBar value={eventCount} max={maxPlace} leader={eventCount === maxPlace} />
-                </View>
-              </Pressable>
-            ))}
-          </View>
-          <SectionLink
-            label={`All ${totalPlaces.toLocaleString()} places →`}
-            onPress={() => router.push({ pathname: '/places', params: { treeId } })}
-          />
+          <SectionBreak label="From your family’s history" />
+          {shelf === null ? (
+            <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 15, color: C.inkMuted }}>
+              Reading the tree…
+            </Text>
+          ) : (
+            <View>
+              {shelf.map((entry, i) => (
+                <LedgerRow key={entry.event.id} first={i === 0} onPress={() => setDrawerEvent(entry.event.id)}>
+                  <View style={{ flex: 1 }}>
+                    {entry.anniversaryLabel && (
+                      <RecordText eyebrow accent>
+                        {entry.anniversaryLabel}
+                      </RecordText>
+                    )}
+                    <Serif>{entry.event.name}</Serif>
+                    <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14, color: C.inkMuted, marginTop: 2 }}>
+                      {eventYears(entry.event)} · {entry.event.region} — {entry.event.summary}
+                    </Text>
+                  </View>
+                  <RecordText accent>{entry.aliveCount.toLocaleString()} ALIVE ›</RecordText>
+                </LedgerRow>
+              ))}
+            </View>
+          )}
 
-          <SectionBreak label="Migration paths" />
+          <SectionBreak label="The Library" />
+          <LedgerRow first onPress={() => router.push('/library')}>
+            <View style={{ flex: 1 }}>
+              <Serif>Every question, with your answers</Serif>
+              <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14, color: C.inkMuted, marginTop: 2 }}>
+                Lives in wartime, the world&rsquo;s great events, long lives &amp; short, where they
+                lived — each question counted against your own tree.
+              </Text>
+            </View>
+            <RecordText accent>BROWSE ›</RecordText>
+          </LedgerRow>
+
+          <SectionBreak label="Ways in" />
           <View>
-            {topPaths.map((path, i) => (
-              <LedgerRow key={`${path.from}-${path.to}`} first={i === 0}>
+            {waysIn.map((way, i) => (
+              <LedgerRow
+                key={way.path}
+                first={i === 0}
+                onPress={() => router.push({ pathname: way.path as never, params: { treeId } } as never)}
+              >
                 <View style={{ flex: 1 }}>
-                  <Serif>
-                    {path.from} → {path.to}
-                  </Serif>
+                  <Serif>{way.title}</Serif>
                   <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14, color: C.inkMuted, marginTop: 2 }}>
-                    {path.medianYear ? `peak c. ${path.medianYear}` : 'years unrecorded'}
-                    {path.movers[0] ? ` · e.g. ${path.movers[0].name}` : ''}
+                    {way.detail}
                   </Text>
                 </View>
-                <View style={{ width: 110 }}>
-                  <DataBar value={path.count} max={maxPath} leader={path.count === maxPath} />
-                </View>
-                <RecordText style={{ width: 34, textAlign: 'right' }}>{path.count}</RecordText>
+                <RecordText muted>›</RecordText>
               </LedgerRow>
             ))}
           </View>
-          <SectionLink
-            label={`All ${paths.length} paths →`}
-            onPress={() => router.push({ pathname: '/migrations', params: { treeId } })}
-          />
-
-          {kindred.length > 0 && (
-            <>
-              <SectionBreak label="Kindred couples" />
-              <View>
-                {kindred.map((couple, i) => (
-                  <LedgerRow key={`${couple.spouseA.id}-${couple.spouseB.id}`} first={i === 0}>
-                    <View style={{ flex: 1 }}>
-                      <Serif>
-                        {couple.spouseA.name} <Text style={{ color: C.accent }}>∞</Text> {couple.spouseB.name}
-                      </Serif>
-                      <RecordText muted style={{ marginTop: 3 }}>
-                        {couple.spouseA.birthYear ?? '?'}–{couple.spouseA.deathYear ?? '?'} ·{' '}
-                        {couple.spouseB.birthYear ?? '?'}–{couple.spouseB.deathYear ?? '?'}
-                      </RecordText>
-                    </View>
-                    <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                      <RecordText accent>{couple.label}</RecordText>
-                      <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 13.5, color: C.inkMuted }}>
-                        via {couple.commonAncestor.name}
-                      </Text>
-                    </View>
-                  </LedgerRow>
-                ))}
-              </View>
-              <SectionLink label="All kindred couples →" onPress={() => router.push({ pathname: '/kindred', params: { treeId } })} />
-            </>
-          )}
         </>
       )}
     </PageShell>

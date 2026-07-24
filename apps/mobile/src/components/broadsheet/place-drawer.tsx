@@ -17,12 +17,11 @@ const WIDTH = 420;
  */
 export function PlaceDrawer({
   placeId,
-  treeId,
   index,
   onClose,
 }: {
   placeId: string;
-  treeId: string;
+  treeId?: string;
   index: GeographyIndex;
   onClose: () => void;
 }) {
@@ -123,15 +122,6 @@ export function PlaceDrawer({
               </RecordText>
             </Pressable>
           ))}
-          <Text
-            onPress={() => {
-              onClose();
-              router.push({ pathname: '/place/[placeId]', params: { placeId, treeId } });
-            }}
-            style={{ fontFamily: BrandFonts.sans.semiBold, fontSize: 14.5, color: C.accent, marginTop: 22, marginBottom: 30 }}
-          >
-            Open the full page →
-          </Text>
         </ScrollView>
       </Animated.View>
     </View>

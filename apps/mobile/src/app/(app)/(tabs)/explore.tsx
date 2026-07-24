@@ -2,7 +2,6 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, View } from 'react-native';
 
-import { kindredCouples, type KindredCouple } from '@witness/core/family';
 import {
   HISTORICAL_EVENTS,
   countAliveDuring,
@@ -59,7 +58,6 @@ export default function ExploreTab() {
   const [naraCounts, setNaraCounts] = useState<NaraCounts | null>(null);
   const broadsheet = useBroadsheet();
   const [geoIndex, setGeoIndex] = useState<GeographyIndex | null>(null);
-  const [kindred, setKindred] = useState<KindredCouple[]>([]);
   const [eras, setEras] = useState<EraCount[]>([]);
 
   // Broadsheet data: the geography index powers the self-previewing
@@ -78,11 +76,6 @@ export default function ExploreTab() {
       if (!cancelled) {
         setEras(picks.map((event) => ({ event, aliveCount: countAliveDuring(index, event) })));
       }
-      kindredCouples(supabase, activeTree.id)
-        .then((couples) => {
-          if (!cancelled) setKindred(couples.slice(0, 4));
-        })
-        .catch(() => {});
     })();
     return () => {
       cancelled = true;
@@ -185,7 +178,7 @@ export default function ExploreTab() {
     return (
       <ExploreBroadsheet
         index={geoIndex}
-        kindred={kindred}
+        shelf={shelf}
         eras={eras}
         naraCounts={naraCounts}
         treeId={activeTree.id}
