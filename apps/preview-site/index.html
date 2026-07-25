@@ -21,29 +21,6 @@
 <script src="./image-slot.js"></script>
 </helmet>
 
-<sc-if value="{{ locked }}" hint-placeholder-val="{{ true }}">
-  <!-- ═══════════════ PASSWORD GATE ═══════════════ -->
-  <div style="min-height:100vh;background:#1C1917;font-family:'Inter',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;text-align:center;">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
-      <div style="display:flex;align-items:center;gap:13px;">
-        <span style="font-family:'Playfair Display',serif;color:#F7F3EE;font-size:38px;letter-spacing:0.28em;font-weight:600;">WITNESS</span>
-        <span style="width:6px;height:6px;border-radius:50%;background:#B45309;display:inline-block;"></span>
-      </div>
-      <div style="color:#E0913A;font-size:13px;letter-spacing:0.42em;text-transform:uppercase;">Witnesses to History</div>
-    </div>
-
-    <form onSubmit="{{ onSubmit }}" style="margin-top:52px;display:flex;flex-direction:column;align-items:center;gap:16px;width:100%;max-width:360px;">
-      <div style="color:rgba(247,243,238,0.5);font-size:13px;letter-spacing:0.16em;text-transform:uppercase;margin-bottom:4px;">By invitation</div>
-      <input ref="{{ setInputRef }}" type="password" placeholder="Enter password" aria-label="Password" style="width:100%;background:rgba(247,243,238,0.04);border:1px solid rgba(247,243,238,0.2);border-radius:10px;padding:15px 18px;color:#F7F3EE;font-family:'Inter',sans-serif;font-size:16px;letter-spacing:0.02em;outline:none;text-align:center;" style-focus="border-color:#B45309;" />
-      <button type="submit" style="width:100%;background:#B45309;border:none;border-radius:10px;padding:15px 18px;color:#F9F5F0;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;" style-hover="background:#9A4708;">Enter</button>
-      <sc-if value="{{ hasError }}" hint-placeholder-val="{{ false }}">
-        <div style="margin-top:8px;color:rgba(247,243,238,0.7);font-size:14.5px;line-height:1.55;max-width:340px;">This preview is by invitation. Contact <span style="color:#E0913A;">rufus@witnesslives.com</span> to request access.</div>
-      </sc-if>
-    </form>
-  </div>
-</sc-if>
-
-<sc-if value="{{ unlocked }}" hint-placeholder-val="{{ false }}">
 <div style="font-family:'Inter',sans-serif;background:#1C1917;animation:wv-fade 0.7s ease both;">
 
   <!-- ═══════════════ SECTION 1 — HERO ═══════════════ -->
@@ -234,91 +211,30 @@
     </div>
   </section>
 
-  <!-- ═══════════════ SECTION 6 — ABOUT THE PROJECT ═══════════════ -->
-  <section style="background:#F7F3EE;padding:clamp(72px,10vw,140px) clamp(24px,6vw,96px);">
-    <div style="max-width:1080px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:clamp(40px,5vw,72px);align-items:center;">
-      <div style="max-width:150px;justify-self:center;">
-        <image-slot id="rufus" style="width:150px;height:150px;" shape="circle" placeholder="Optional photo"></image-slot>
-      </div>
-      <div style="grid-column:span 2;min-width:0;">
-        <div style="color:#B45309;font-size:13px;letter-spacing:0.34em;text-transform:uppercase;font-weight:500;margin-bottom:24px;">About the Project</div>
-        <p style="margin:0;font-family:'Playfair Display',serif;font-size:clamp(1.35rem,2.4vw,2rem);line-height:1.4;color:#1C1917;font-weight:500;">I'm Rufus Howe. I've spent years building a family tree of over 5,000 people — and kept running into the same frustration: the tools are excellent for building, and poor for discovering.</p>
-        <p style="margin:22px 0 0;font-size:clamp(16px,1.3vw,18px);line-height:1.7;color:#57534E;">Witness is my attempt to fix that. It's built on my own family's GEDCOM file, validated against real data, and designed for people who take their family history seriously.</p>
-        <div style="margin-top:26px;color:#B45309;font-size:15px;letter-spacing:0.06em;">witnesslives.com</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══════════════ SECTION 7 — WHAT I'M LOOKING FOR ═══════════════ -->
-  <section style="background:#1C1917;padding:clamp(80px,10vw,148px) clamp(24px,6vw,96px);">
+  <!-- ═══════════════ FOOTER ═══════════════ -->
+  <section style="background:#1C1917;padding:clamp(56px,7vw,88px) clamp(24px,6vw,96px);">
     <div style="max-width:1120px;margin:0 auto;text-align:center;">
-      <div style="color:#E0913A;font-size:13px;letter-spacing:0.34em;text-transform:uppercase;font-weight:500;margin-bottom:26px;">What I'm Looking For</div>
-      <h2 style="font-family:'Playfair Display',serif;color:#F9F5F0;font-size:clamp(2.4rem,4.6vw,3.9rem);line-height:1.1;font-weight:500;margin:0;">I'd value your perspective.</h2>
-
-      <div style="margin-top:clamp(48px,6vw,72px);display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;text-align:left;">
-        <div style="background:#241E1A;border:1px solid rgba(224,145,58,0.3);border-radius:16px;padding:32px 30px;display:flex;flex-direction:column;gap:13px;">
-          <div style="font-family:'Playfair Display',serif;font-size:28px;color:#E0913A;font-weight:600;">01</div>
-          <h3 style="font-family:'Playfair Display',serif;font-size:22px;color:#F9F5F0;font-weight:600;margin:0;">Twenty minutes</h3>
-          <p style="margin:0;font-size:16px;line-height:1.6;color:rgba(247,243,238,0.7);">Honest feedback on whether this solves problems you actually encounter.</p>
-        </div>
-        <div style="background:#241E1A;border:1px solid rgba(224,145,58,0.3);border-radius:16px;padding:32px 30px;display:flex;flex-direction:column;gap:13px;">
-          <div style="font-family:'Playfair Display',serif;font-size:28px;color:#E0913A;font-weight:600;">02</div>
-          <h3 style="font-family:'Playfair Display',serif;font-size:22px;color:#F9F5F0;font-weight:600;margin:0;">Early access</h3>
-          <p style="margin:0;font-size:16px;line-height:1.6;color:rgba(247,243,238,0.7);">A seat in the beta, in exchange for your thoughts as it takes shape.</p>
-        </div>
-        <div style="background:#241E1A;border:1px solid rgba(224,145,58,0.3);border-radius:16px;padding:32px 30px;display:flex;flex-direction:column;gap:13px;">
-          <div style="font-family:'Playfair Display',serif;font-size:28px;color:#E0913A;font-weight:600;">03</div>
-          <h3 style="font-family:'Playfair Display',serif;font-size:22px;color:#F9F5F0;font-weight:600;margin:0;">Introductions</h3>
-          <p style="margin:0;font-size:16px;line-height:1.6;color:rgba(247,243,238,0.7);">To others in the genealogy community who might want to know about this.</p>
-        </div>
-      </div>
-
-      <p style="margin:clamp(44px,5vw,64px) auto 0;max-width:640px;font-family:'Playfair Display',serif;font-style:italic;font-size:clamp(17px,1.8vw,21px);line-height:1.5;color:rgba(247,243,238,0.82);">This preview is shared by invitation. Thank you for taking the time.</p>
-      <div style="margin-top:30px;font-size:clamp(17px,1.6vw,20px);color:#E0913A;letter-spacing:0.03em;">rufus@witnesslives.com</div>
-
-      <div style="margin-top:clamp(56px,7vw,88px);padding-top:32px;border-top:1px solid rgba(247,243,238,0.12);display:flex;align-items:center;justify-content:center;gap:11px;">
+      <div style="display:flex;align-items:center;justify-content:center;gap:11px;">
         <span style="font-family:'Playfair Display',serif;color:rgba(247,243,238,0.6);font-size:18px;letter-spacing:0.24em;font-weight:600;">WITNESS</span>
         <span style="width:4px;height:4px;border-radius:50%;background:#B45309;display:inline-block;"></span>
         <span style="color:rgba(247,243,238,0.4);font-size:14px;letter-spacing:0.16em;">witnesslives.com</span>
+      </div>
+      <div style="margin-top:22px;font-size:15px;color:#E0913A;letter-spacing:0.03em;">rufus@witnesslives.com</div>
+      <div style="margin-top:18px;font-size:13px;letter-spacing:0.08em;">
+        <a href="/privacy" style="color:rgba(247,243,238,0.55);text-decoration:none;">Privacy</a>
+        <span style="color:rgba(247,243,238,0.3);margin:0 10px;">·</span>
+        <a href="/terms" style="color:rgba(247,243,238,0.55);text-decoration:none;">Terms</a>
       </div>
     </div>
   </section>
 
 </div>
-</sc-if>
 </x-dc>
 <script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
-  // Gate retired 2026-07: the preview is now the public witnesslives.com site.
-  state = { unlocked: true, error: '' };
-
-  componentDidMount() {
-    try {
-      if (localStorage.getItem('witness_preview_unlocked') === '1') {
-        this.setState({ unlocked: true });
-      }
-    } catch (e) {}
-  }
-
+  // The invitation-era password gate is gone; this is the public site.
   renderVals() {
-    const PASSWORD = 'witnesses';
-    return {
-      unlocked: this.state.unlocked,
-      locked: !this.state.unlocked,
-      hasError: !!this.state.error,
-      setInputRef: (el) => { this._input = el; },
-      onSubmit: (e) => {
-        if (e && e.preventDefault) e.preventDefault();
-        const val = (this._input && this._input.value ? this._input.value : '').trim().toLowerCase();
-        if (val === PASSWORD) {
-          try { localStorage.setItem('witness_preview_unlocked', '1'); } catch (_) {}
-          this.setState({ unlocked: true, error: '' });
-          try { window.scrollTo(0, 0); } catch (_) {}
-        } else {
-          this.setState({ error: 'invalid' });
-        }
-      }
-    };
+    return {};
   }
 }
 </script>
