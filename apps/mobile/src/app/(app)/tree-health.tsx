@@ -54,6 +54,8 @@ const UPLOAD_NOTE = 'Corrected records will fall off this list on the next GEDCO
 interface CheckSection {
   key: string;
   title: string;
+  /** Full size of the category — data is emptied while collapsed. */
+  count: number;
   data: HealthFinding[];
 }
 
@@ -77,6 +79,9 @@ export default function TreeHealthScreen() {
   const [showRuled, setShowRuled] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [selectedPerson, setSelectedPerson] = useState<string | null>(null);
+  // Every category starts folded to its headline; reading 540 records is
+  // a choice, not a landing experience.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!treeId) return;
@@ -117,9 +122,14 @@ export default function TreeHealthScreen() {
       byCheck.get(finding.check)!.push(finding);
     }
     return [...byCheck.entries()]
-      .map(([check, data]) => ({ key: check, title: CHECK_TITLES[check], data }))
-      .sort((a, b) => b.data.length - a.data.length);
-  }, [report, ruled, people, showRuled]);
+      .map(([check, data]) => ({
+        key: check,
+        title: CHECK_TITLES[check],
+        count: data.length,
+        data: expanded.has(check) ? data : [],
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [report, ruled, people, showRuled, expanded]);
 
   async function toggleFixed(finding: HealthFinding) {
     if (!treeId) return;
@@ -252,11 +262,30 @@ export default function TreeHealthScreen() {
       renderSectionHeader={({ section }) => (
         // Sticky while its section scrolls, so the category stays named;
         // opaque background keeps cards from ghosting through.
-        <ThemedView style={{ paddingTop: 12, paddingBottom: 6 }}>
-          <ThemedText type="subtitle">
-            {section.title} · {section.data.length}
-          </ThemedText>
-        </ThemedView>
+        <Pressable
+          onPress={() =>
+            setExpanded((prev) => {
+              const next = new Set(prev);
+              if (next.has(section.key)) next.delete(section.key);
+              else next.add(section.key);
+              return next;
+            })
+          }
+        >
+          <ThemedView
+            style={{
+              paddingTop: 12,
+              paddingBottom: 6,
+              flexDirection: 'row',
+              alignItems: 'baseline',
+              gap: 8,
+            }}
+          >
+            <ThemedText type="subtitle" style={{ flex: 1 }}>
+              {expanded.has(section.key) ? '▾' : '▸'} {section.title} · {section.count}
+            </ThemedText>
+          </ThemedView>
+        </Pressable>
       )}
       renderItem={({ item }) => {
         const key = findingKey(item);
