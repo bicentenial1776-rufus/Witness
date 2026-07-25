@@ -106,11 +106,6 @@ export function ExploreBroadsheet({
       path: '/archives',
     },
     {
-      title: 'The Ascent',
-      detail: 'Climb your tree generation by generation — and see where the records thin',
-      path: '/ascent',
-    },
-    {
       title: 'Where your family lived',
       detail: 'Every state, province, and country in your tree',
       path: '/places',

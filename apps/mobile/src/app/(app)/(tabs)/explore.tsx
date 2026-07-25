@@ -279,10 +279,6 @@ export default function ExploreTab() {
                   </ThemedText>
                 )}
               </Card>
-              <Card onPress={() => router.push('/ascent')}>
-                <ThemedText type="subtitle">The Ascent</ThemedText>
-                <ThemedText type="small">Climb your tree generation by generation — and see where the records thin</ThemedText>
-              </Card>
               <Card
                 onPress={() => router.push({ pathname: '/places', params: { treeId: activeTree.id } })}
               >
