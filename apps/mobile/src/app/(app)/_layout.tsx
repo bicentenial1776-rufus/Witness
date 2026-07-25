@@ -43,7 +43,11 @@ function useWebResume() {
       if (!raw) return;
       const saved = JSON.parse(raw) as { path?: string; ts?: number };
       if (saved.path && saved.path !== '/' && Date.now() - (saved.ts ?? 0) < RESUME_TTL_MS) {
-        router.replace(saved.path as never);
+        // PUSH, never replace: replace swaps out the Home anchor beneath
+        // the restored screen, leaving no back-chevron, no rail, and no
+        // way out — every fresh entry at "/" resumed right back into the
+        // trap. Push keeps Home underneath, so back always works.
+        router.push(saved.path as never);
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
