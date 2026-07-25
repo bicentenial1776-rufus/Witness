@@ -51,7 +51,7 @@ Monorepo with npm workspaces (`packages/*`, `apps/*`); dependencies hoist to the
 | `apps/mobile` | The Expo app (SDK 57, React Native 0.86, expo-router ~57) |
 | `packages/core` (`@witness/core`) | Shared logic: GEDCOM parsing (`extractGedcomText`, `parseGedcom`), Supabase import (`importParsedGedcom`), generated `database.types.ts`. **Exports from `dist/` — run `npm run build` in `packages/core` after touching `src/` or the app's typecheck fails with stale types.** |
 | `supabase/` | Migrations (e.g. `profiles` table + signup trigger) and config; project is CLI-linked |
-| `docs/preview-site/` | The public witnesslives.com site (see Website below) |
+| `apps/preview-site/` | The public witnesslives.com site (see Website below) |
 | `docs/` | This document, design specs (`witness-onboarding-screens.md`), guides |
 | `apps/mobile/plugins/` | Local Expo config plugins (see build pipeline) |
 
@@ -128,8 +128,9 @@ Gotchas encoded in the repo:
 
 ## Website — witnesslives.com
 
-- **Hosting:** Vercel, project `witnesslives`, team `notata`. **Not git-integrated** — deploys are CLI-only and ship the *current working tree*: `npx vercel deploy --prod --yes --archive=tgz` (the archive flag is required; the repo exceeds Vercel's 15k file limit). **Check out `main` before deploying.**
-- **Content:** `docs/preview-site/index.html` (the former invitation preview — its client-side password gate was retired in July 2026 and the page now starts unlocked; the README in that folder describing the gate is historical). `vercel.json` rewrites: `/` → the page, `/assets/*` + `/support.js` + `/image-slot.js` → its relative assets, `/privacy` and `/terms` → their pages.
+- **Hosting:** Vercel, project `witnesslives`, team `notata`. The project's **Root Directory setting is `apps/preview-site`** — only that folder is served, and Vercel reads `vercel.json` from *inside* it (a repo-root `vercel.json` is ignored; one existed until July 2026 and was never honored by any live deployment).
+- **Git integration:** as of 2026-07-25 the project is connected to `bicentenial1776-rufus/witnesslives-site` — a stale, hand-uploaded mirror (frozen 2026-07-20) that has **never produced a live deployment** (that repo has no `apps/preview-site`, so its deploys can't resolve the Root Directory). Intended fix: connect the project to `bicentenial1776-rufus/Witness` (production branch `main`) so pushes auto-deploy; the mirror repo should then be archived. Until then, deploy via CLI from the repo root on `main`: `npx vercel deploy --prod --yes --archive=tgz` (archive flag required; the repo exceeds Vercel's 15k file limit — `.vercelignore` keeps the tarball lean). CLI deploys ship the *current working tree*; **check out `main` first.**
+- **Content:** `apps/preview-site/index.html` (the former invitation preview — its client-side password gate was retired in July 2026 and the page now starts unlocked; the README in that folder describing the gate is historical). Because files are served from the deploy root, `/`, `/assets/*`, `/support.js`, and `/image-slot.js` resolve natively; `apps/preview-site/vercel.json` adds the clean-URL rewrites `/privacy`, `/terms`, `/confirmed` → their `.html` files.
 - `/privacy` and `/terms` are load-bearing: the App Store listing's privacy-policy and support URLs point at this domain, and the in-app paywall links both pages. **Apple requires them to resolve.**
 - **DNS + inbound email:** Cloudflare. Email routing forwards `rufus@witnesslives.com` → Gmail. Resend's outbound-sending records (MX/TXT on `send.witnesslives.com`, DKIM at `resend._domainkey`) were added by Resend's Cloudflare auto-configure and coexist with the routing records.
 
@@ -154,4 +155,4 @@ Domain `witnesslives.com` verified (via Cloudflare auto-config). One API key (`s
 - Refresh App Store screenshots (current set predates the shipped UI).
 - Resend free tier is fine for launch; watch the 100/day ceiling as signups grow.
 - The Supabase confirmation email template is default-styled — worth branding.
-- The preview-site README (`docs/preview-site/README.md`) predates the gate removal; treat this document as current.
+- The preview-site README (`apps/preview-site/README.md`) predates the gate removal; treat this document as current.
