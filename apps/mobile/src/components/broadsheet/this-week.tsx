@@ -7,6 +7,7 @@ import type { DigestEntry, WeeklyDigest } from '@witness/core/query';
 import { RecordText } from '@/components/record-text';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
 
+import { FamilyStage } from './family-stage';
 import { LedgerRow, MarginPanel } from './ledger';
 import { Masthead, PageShell, SectionBreak } from './page-shell';
 import { QueryDrawer } from './query-drawer';
@@ -121,6 +122,8 @@ export function ThisWeekBroadsheet({
         </>
       }
     >
+      <FamilyStage treeId={treeId} />
+
       {featured ? (
         <View>
           <RecordText eyebrow accent>
