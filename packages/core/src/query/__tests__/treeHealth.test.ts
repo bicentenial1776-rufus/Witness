@@ -23,7 +23,7 @@ function person(overrides: Partial<HealthIndividual> & { id: string }): HealthIn
 }
 
 function birth(individual_id: string, y: number, m: number | null = null, d: number | null = null): HealthEvent {
-  return { individual_id, event_type: 'birth', date_year: y, date_month: m, date_day: d, date_qualifier: 'exact' };
+  return { individual_id, event_type: 'birth', date_year: y, date_month: m, date_day: d, date_qualifier: 'exact', place_id: null };
 }
 
 function family(overrides: Partial<HealthFamily> & { id: string }): HealthFamily {
@@ -68,10 +68,10 @@ describe('individual checks', () => {
 
   it('flags burial before death only with definite ordering', () => {
     const events: HealthEvent[] = [
-      { individual_id: 'a', event_type: 'death', date_year: 1900, date_month: 5, date_day: null, date_qualifier: 'exact' },
-      { individual_id: 'a', event_type: 'burial', date_year: 1900, date_month: 2, date_day: null, date_qualifier: 'exact' },
-      { individual_id: 'b', event_type: 'death', date_year: 1900, date_month: null, date_day: null, date_qualifier: 'exact' },
-      { individual_id: 'b', event_type: 'burial', date_year: 1900, date_month: null, date_day: null, date_qualifier: 'exact' },
+      { individual_id: 'a', event_type: 'death', date_year: 1900, date_month: 5, date_day: null, date_qualifier: 'exact', place_id: null },
+      { individual_id: 'a', event_type: 'burial', date_year: 1900, date_month: 2, date_day: null, date_qualifier: 'exact', place_id: null },
+      { individual_id: 'b', event_type: 'death', date_year: 1900, date_month: null, date_day: null, date_qualifier: 'exact', place_id: null },
+      { individual_id: 'b', event_type: 'burial', date_year: 1900, date_month: null, date_day: null, date_qualifier: 'exact', place_id: null },
     ];
     const r = audit({ individuals: [person({ id: 'a' }), person({ id: 'b' })], events });
     const flagged = r.findings.filter((f) => f.check === 'burial_before_death');
@@ -87,7 +87,7 @@ describe('individual checks', () => {
   it('flags residence outside the lifespan', () => {
     const events: HealthEvent[] = [
       birth('a', 1850),
-      { individual_id: 'a', event_type: 'residence', date_year: 1840, date_month: null, date_day: null, date_qualifier: null },
+      { individual_id: 'a', event_type: 'residence', date_year: 1840, date_month: null, date_day: null, date_qualifier: null, place_id: null },
     ];
     const r = audit({ individuals: [person({ id: 'a', birth_year: 1850 })], events });
     expect(checksIn(r)).toContain('fact_before_birth');
@@ -213,8 +213,8 @@ describe('family checks', () => {
 
   it('never convicts siblings on estimated dates', () => {
     const events: HealthEvent[] = [
-      { individual_id: 'a', event_type: 'birth', date_year: 1850, date_month: 1, date_day: 1, date_qualifier: 'estimated' },
-      { individual_id: 'b', event_type: 'birth', date_year: 1850, date_month: 3, date_day: 1, date_qualifier: 'exact' },
+      { individual_id: 'a', event_type: 'birth', date_year: 1850, date_month: 1, date_day: 1, date_qualifier: 'estimated', place_id: null },
+      { individual_id: 'b', event_type: 'birth', date_year: 1850, date_month: 3, date_day: 1, date_qualifier: 'exact', place_id: null },
     ];
     const r = audit({
       individuals: [person({ id: 'a' }), person({ id: 'b' })],

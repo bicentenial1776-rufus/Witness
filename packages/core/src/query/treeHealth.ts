@@ -106,6 +106,7 @@ export interface HealthEvent {
   date_month: number | null;
   date_day: number | null;
   date_qualifier: Database['public']['Enums']['date_qualifier'] | null;
+  place_id: string | null;
 }
 
 export interface HealthFamily {
@@ -532,7 +533,7 @@ export async function fetchTreeHealthData(
       (from, to) =>
         client
           .from('individual_events')
-          .select('individual_id, event_type, date_year, date_month, date_day, date_qualifier')
+          .select('individual_id, event_type, date_year, date_month, date_day, date_qualifier, place_id')
           .eq('tree_id', treeId)
           .order('id')
           .range(from, to),

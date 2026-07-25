@@ -336,6 +336,18 @@ export function ExploreBroadsheet({
             </View>
             <RecordText accent>RUN ›</RecordText>
           </LedgerRow>
+          <LedgerRow
+            onPress={() => router.push({ pathname: '/orphan-records' as never, params: { treeId } } as never)}
+          >
+            <View style={{ flex: 1 }}>
+              <Serif>Orphan records</Serif>
+              <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14, color: C.inkMuted, marginTop: 2 }}>
+                Records with no connection to your tree — islands, solo strays, and the
+                ancestors they might belong near
+              </Text>
+            </View>
+            <RecordText accent>TRACE ›</RecordText>
+          </LedgerRow>
         </>
       )}
     </PageShell>

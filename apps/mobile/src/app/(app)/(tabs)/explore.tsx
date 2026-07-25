@@ -331,6 +331,20 @@ export default function ExploreTab() {
                   Run the check ›
                 </ThemedText>
               </Card>
+              <Card
+                onPress={() =>
+                  router.push({ pathname: '/orphan-records' as never, params: { treeId: activeTree.id } } as never)
+                }
+              >
+                <ThemedText type="subtitle">Orphan records</ThemedText>
+                <ThemedText type="small">
+                  Records with no connection to your tree — islands, solo strays, and the
+                  ancestors they might belong near
+                </ThemedText>
+                <ThemedText type="smallBold" themeColor="accent">
+                  Trace the strays ›
+                </ThemedText>
+              </Card>
             </>
           )}
 
