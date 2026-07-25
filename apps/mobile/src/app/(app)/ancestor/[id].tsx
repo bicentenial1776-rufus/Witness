@@ -204,8 +204,11 @@ function Lifeline({ events }: { events: EventRow[] }) {
   );
 }
 
-export default function AncestorScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+export default function AncestorScreen({ personId }: { personId?: string } = {}) {
+  // Normally a route screen; Tree Health embeds it as the right-hand
+  // detail pane by passing personId directly.
+  const params = useLocalSearchParams<{ id: string }>();
+  const id = personId ?? params.id;
   const theme = useTheme();
   const [person, setPerson] = useState<Person | null>(null);
   const [events, setEvents] = useState<EventRow[]>([]);

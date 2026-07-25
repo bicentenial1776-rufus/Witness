@@ -53,6 +53,16 @@ export interface HealthFinding {
   detail: string;
 }
 
+/**
+ * Stable fingerprint for a finding within one tree: the check plus the
+ * sorted ids it accuses. Survives re-runs on the same tree (the data is
+ * static between imports), dies with the tree on re-upload — which is
+ * exactly the lifetime a "fixed" mark should have.
+ */
+export function findingKey(finding: Pick<HealthFinding, 'check' | 'individualIds'>): string {
+  return `${finding.check}:${[...finding.individualIds].sort().join(',')}`;
+}
+
 export interface TreeHealthReport {
   findings: HealthFinding[];
   /** Individuals examined — the denominator for any score. */

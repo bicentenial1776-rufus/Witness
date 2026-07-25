@@ -1118,6 +1118,38 @@ export type Database = {
           },
         ]
       }
+      tree_health_marks: {
+        Row: {
+          created_at: string
+          finding_key: string
+          id: string
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          finding_key: string
+          id?: string
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          finding_key?: string
+          id?: string
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_health_marks_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trees: {
         Row: {
           ancestry_tree_id: string | null

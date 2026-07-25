@@ -1,16 +1,19 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, SectionList, View } from 'react-native';
+import { ActivityIndicator, Pressable, SectionList, View } from 'react-native';
 
 import {
   fetchTreeHealthData,
+  findingKey,
   runTreeHealth,
   type HealthCheckId,
   type HealthFinding,
   type TreeHealthReport,
 } from '@witness/core/query';
 
+import AncestorScreen from '@/app/(app)/ancestor/[id]';
 import { Card } from '@/components/card';
+import { useBroadsheet } from '@/components/broadsheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useActiveTree } from '@/lib/active-tree';
@@ -45,34 +48,45 @@ const CHECK_TITLES: Record<HealthCheckId, string> = {
 const ATTRIBUTION =
   'Data-integrity checks adapted from FTAnalyzer (© Alexander Bisset, Apache License 2.0). GPL-related functionality not included.';
 
+const UPLOAD_NOTE = 'Corrected records will fall off this list on the next GEDCOM upload.';
+
 interface CheckSection {
   key: string;
   title: string;
-  severity: HealthFinding['severity'];
   data: HealthFinding[];
 }
 
 /**
- * The FTAnalyzer Tree Check: every finding from the Tree Health audit,
- * grouped by check, failures before cautions, each row landing on the
- * person it accuses. The audit runs fresh on entry — it reads the whole
- * tree once and everything after is local.
+ * The FTAnalyzer Tree Check. Phone: the grouped list, each record
+ * opening the ancestor's page. Broadsheet: a workbench — records on the
+ * left, the selected person's full detail on the right, so a fix in
+ * Ancestry is one glance away. "Fixed" marks persist per tree and die
+ * with it on the next upload (tree_health_marks cascades with trees).
  */
 export default function TreeHealthScreen() {
   const params = useLocalSearchParams<{ treeId?: string }>();
   const { activeTree } = useActiveTree();
   const treeId = params.treeId ?? activeTree?.id;
+  const broadsheet = useBroadsheet();
   const [report, setReport] = useState<TreeHealthReport | null>(null);
   const [failed, setFailed] = useState(false);
+  const [marked, setMarked] = useState<Set<string>>(new Set());
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [selectedPerson, setSelectedPerson] = useState<string | null>(null);
 
   useEffect(() => {
     if (!treeId) return;
     let cancelled = false;
     setReport(null);
     setFailed(false);
-    fetchTreeHealthData(supabase, treeId)
-      .then((data) => {
-        if (!cancelled) setReport(runTreeHealth(data, { currentYear: new Date().getFullYear() }));
+    Promise.all([
+      fetchTreeHealthData(supabase, treeId),
+      supabase.from('tree_health_marks').select('finding_key').eq('tree_id', treeId),
+    ])
+      .then(([data, marks]) => {
+        if (cancelled) return;
+        setReport(runTreeHealth(data, { currentYear: new Date().getFullYear() }));
+        setMarked(new Set((marks.data ?? []).map((m) => m.finding_key)));
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -90,85 +104,163 @@ export default function TreeHealthScreen() {
       byCheck.get(finding.check)!.push(finding);
     }
     return [...byCheck.entries()]
-      .map(([check, data]) => ({
-        key: check,
-        title: CHECK_TITLES[check],
-        severity: data[0]!.severity,
-        data,
-      }))
-      .sort((a, b) =>
-        a.severity !== b.severity ? (a.severity === 'fail' ? -1 : 1) : b.data.length - a.data.length,
-      );
+      .map(([check, data]) => ({ key: check, title: CHECK_TITLES[check], data }))
+      .sort((a, b) => b.data.length - a.data.length);
   }, [report]);
 
-  const fails = report?.findings.filter((f) => f.severity === 'fail').length ?? 0;
-  const cautions = (report?.findings.length ?? 0) - fails;
+  async function toggleFixed(finding: HealthFinding) {
+    if (!treeId) return;
+    const key = findingKey(finding);
+    const wasMarked = marked.has(key);
+    setMarked((prev) => {
+      const next = new Set(prev);
+      if (wasMarked) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+    if (wasMarked) {
+      await supabase.from('tree_health_marks').delete().eq('tree_id', treeId).eq('finding_key', key);
+    } else {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return;
+      await supabase
+        .from('tree_health_marks')
+        .upsert(
+          { tree_id: treeId, user_id: auth.user.id, finding_key: key },
+          { onConflict: 'tree_id,finding_key' },
+        );
+    }
+  }
 
-  return (
-    <ThemedView style={{ flex: 1 }}>
-      <SectionList
-        sections={sections}
-        keyExtractor={(item, index) => `${item.check}-${index}`}
-        stickySectionHeadersEnabled={false}
-        contentContainerStyle={{ ...WideContent, padding: 24, paddingTop: 72, paddingBottom: 48 }}
-        ListHeaderComponent={
-          <View style={{ gap: 8, marginBottom: 16 }}>
-            <ThemedText type="title">FTAnalyzer Tree Check</ThemedText>
-            {report ? (
-              <>
-                <ThemedText type="small">
-                  {report.individualsChecked.toLocaleString()} people and{' '}
-                  {report.familiesChecked.toLocaleString()} families examined.
-                </ThemedText>
-                <ThemedText type="smallBold">
-                  {fails.toLocaleString()} {fails === 1 ? 'failure' : 'failures'} ·{' '}
-                  {cautions.toLocaleString()} {cautions === 1 ? 'caution' : 'cautions'}
-                </ThemedText>
-                {report.findings.length === 0 && (
-                  <ThemedText>
-                    Nothing to report — every check passed at the precision your dates were
-                    recorded.
-                  </ThemedText>
-                )}
-              </>
-            ) : failed ? (
-              <ThemedText type="small">
-                Couldn’t reach your tree just now — leave and come back to retry.
-              </ThemedText>
-            ) : (
-              <>
-                <ThemedText type="small">Examining every person, family, and date…</ThemedText>
-                <ActivityIndicator style={{ marginVertical: 12 }} />
-              </>
-            )}
-          </View>
-        }
-        renderSectionHeader={({ section }) => (
-          <ThemedText type="subtitle" style={{ marginTop: 16, marginBottom: 6 }}>
-            {section.title} · {section.data.length}
+  function openFinding(finding: HealthFinding) {
+    const person = finding.individualIds[0];
+    if (!person) return;
+    if (broadsheet) {
+      setSelectedKey(findingKey(finding));
+      setSelectedPerson(person);
+    } else {
+      router.push({ pathname: '/ancestor/[id]', params: { id: person } });
+    }
+  }
+
+  const total = report?.findings.length ?? 0;
+  const fixedCount = report
+    ? report.findings.filter((f) => marked.has(findingKey(f))).length
+    : 0;
+
+  const header = (
+    <View style={{ gap: 8, marginBottom: 16 }}>
+      <View
+        style={{
+          flexDirection: broadsheet ? 'row' : 'column',
+          justifyContent: 'space-between',
+          alignItems: broadsheet ? 'flex-start' : 'stretch',
+          gap: 8,
+        }}
+      >
+        <ThemedText type="title">FTAnalyzer Tree Check</ThemedText>
+        <ThemedText
+          type="small"
+          style={broadsheet ? { maxWidth: 260, textAlign: 'right', opacity: 0.8 } : { opacity: 0.8 }}
+        >
+          {UPLOAD_NOTE}
+        </ThemedText>
+      </View>
+      <ThemedText type="small" style={{ opacity: 0.7 }}>
+        {ATTRIBUTION}
+      </ThemedText>
+      {report ? (
+        <>
+          <ThemedText type="smallBold">
+            {total.toLocaleString()} {total === 1 ? 'record' : 'records'} found
+            {fixedCount > 0 ? ` · ${fixedCount.toLocaleString()} marked fixed` : ''}
           </ThemedText>
-        )}
-        renderItem={({ item }) => (
-          <Card
-            onPress={() =>
-              router.push({ pathname: '/ancestor/[id]', params: { id: item.individualIds[0]! } })
-            }
-            style={{ marginBottom: 6, paddingVertical: 10 }}
-          >
-            <ThemedText type="smallBold" themeColor={item.severity === 'fail' ? 'accent' : undefined}>
-              {item.severity === 'fail' ? '✗ Failure' : '⚠ Caution'}
+          {total === 0 && (
+            <ThemedText>
+              Nothing to report — every check passed at the precision your dates were recorded.
             </ThemedText>
-            <ThemedText type="small">{item.detail}</ThemedText>
-          </Card>
-        )}
-        ListFooterComponent={
-          report ? (
-            <ThemedText type="small" style={{ marginTop: 24, opacity: 0.7 }}>
-              {ATTRIBUTION}
-            </ThemedText>
-          ) : null
-        }
-      />
-    </ThemedView>
+          )}
+        </>
+      ) : failed ? (
+        <ThemedText type="small">
+          Couldn’t reach your tree just now — leave and come back to retry.
+        </ThemedText>
+      ) : (
+        <>
+          <ThemedText type="small">Examining every person, family, and date…</ThemedText>
+          <ActivityIndicator style={{ marginVertical: 12 }} />
+        </>
+      )}
+    </View>
   );
+
+  const list = (
+    <SectionList
+      sections={sections}
+      keyExtractor={(item, index) => `${item.check}-${index}`}
+      stickySectionHeadersEnabled={false}
+      contentContainerStyle={
+        broadsheet
+          ? { padding: 24, paddingTop: 32, paddingBottom: 48 }
+          : { ...WideContent, padding: 24, paddingTop: 72, paddingBottom: 48 }
+      }
+      ListHeaderComponent={header}
+      renderSectionHeader={({ section }) => (
+        <ThemedText type="subtitle" style={{ marginTop: 16, marginBottom: 6 }}>
+          {section.title} · {section.data.length}
+        </ThemedText>
+      )}
+      renderItem={({ item }) => {
+        const key = findingKey(item);
+        const isFixed = marked.has(key);
+        const isSelected = broadsheet && selectedKey === key;
+        return (
+          <Card
+            onPress={() => openFinding(item)}
+            style={{
+              marginBottom: 6,
+              paddingVertical: 10,
+              opacity: isFixed ? 0.55 : 1,
+              ...(isSelected ? { borderWidth: 1.5 } : null),
+            }}
+          >
+            <ThemedText type="small">{item.detail}</ThemedText>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+              <Pressable onPress={() => toggleFixed(item)} hitSlop={8}>
+                <ThemedText type="smallBold" themeColor="accent">
+                  {isFixed ? '✓ Fixed — tap to undo' : 'Mark fixed'}
+                </ThemedText>
+              </Pressable>
+              {!broadsheet && <ThemedText type="small">›</ThemedText>}
+            </View>
+          </Card>
+        );
+      }}
+    />
+  );
+
+  // Broadsheet: the workbench split — records left, the person right.
+  if (broadsheet) {
+    return (
+      <ThemedView style={{ flex: 1, flexDirection: 'row' }}>
+        <View style={{ width: 520, borderRightWidth: 1, borderRightColor: 'rgba(120,110,95,0.25)' }}>
+          {list}
+        </View>
+        <View style={{ flex: 1 }}>
+          {selectedPerson ? (
+            <AncestorScreen key={selectedPerson} personId={selectedPerson} />
+          ) : (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 48 }}>
+              <ThemedText type="small" style={{ opacity: 0.6, textAlign: 'center', maxWidth: 360 }}>
+                Select a record to see that person’s full page here — then make the correction at
+                your source and mark it fixed.
+              </ThemedText>
+            </View>
+          )}
+        </View>
+      </ThemedView>
+    );
+  }
+
+  return <ThemedView style={{ flex: 1 }}>{list}</ThemedView>;
 }
