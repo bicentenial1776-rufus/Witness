@@ -12,6 +12,7 @@ const YEAR = 2026;
 function person(overrides: Partial<HealthIndividual> & { id: string }): HealthIndividual {
   return {
     full_name: overrides.id,
+    gedcom_xref: null,
     surname: null,
     sex: 'U',
     birth_year: null,

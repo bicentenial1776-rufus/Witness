@@ -1150,6 +1150,27 @@ export type Database = {
           },
         ]
       }
+      tree_health_rulings: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+          xref_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+          xref_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+          xref_key?: string
+        }
+        Relationships: []
+      }
       trees: {
         Row: {
           ancestry_tree_id: string | null

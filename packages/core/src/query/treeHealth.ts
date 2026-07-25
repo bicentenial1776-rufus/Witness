@@ -63,6 +63,21 @@ export function findingKey(finding: Pick<HealthFinding, 'check' | 'individualIds
   return `${finding.check}:${[...finding.individualIds].sort().join(',')}`;
 }
 
+/**
+ * Fingerprint that survives re-imports: the check plus the sorted GEDCOM
+ * INDI xrefs it accuses. This keys the permanent "not an error" ruling —
+ * a fresh upload of the same file re-derives the same key. Falls back to
+ * database ids for any person without an xref (ruling then lives only as
+ * long as that tree, which is the best available).
+ */
+export function findingXrefKey(
+  finding: Pick<HealthFinding, 'check' | 'individualIds'>,
+  people: Map<string, Pick<HealthIndividual, 'gedcom_xref'>>,
+): string {
+  const refs = finding.individualIds.map((id) => people.get(id)?.gedcom_xref ?? id);
+  return `${finding.check}:${refs.sort().join(',')}`;
+}
+
 export interface TreeHealthReport {
   findings: HealthFinding[];
   /** Individuals examined — the denominator for any score. */
@@ -74,6 +89,8 @@ export interface TreeHealthReport {
 
 export interface HealthIndividual {
   id: string;
+  /** GEDCOM INDI xref — stable across re-imports of the same file. */
+  gedcom_xref: string | null;
   full_name: string;
   surname: string | null;
   sex: 'M' | 'F' | 'U';
@@ -505,7 +522,7 @@ export async function fetchTreeHealthData(
       (from, to) =>
         client
           .from('individuals')
-          .select('id, full_name, surname, sex, birth_year, death_year, living')
+          .select('id, gedcom_xref, full_name, surname, sex, birth_year, death_year, living')
           .eq('tree_id', treeId)
           .order('id')
           .range(from, to),
