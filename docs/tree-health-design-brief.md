@@ -92,6 +92,52 @@ Tree Health" rather than silently omitting:
 - Platform carriers as before: swipeable page (iPhone/iPad), broadsheet carousel panel +
   drawer detail (web ≥900px).
 
+## Appendix: the FTAnalyzer check catalog
+
+FTAnalyzer (ShammyLevva/FTAnalyzer, Apache 2.0) is the genealogy community's most
+respected free GEDCOM auditor; its data-error catalog is the field-tested reference for
+Tier A. We are adopting it with attribution. Design against the full list — grouped here
+by what Witness can do with each check.
+
+**Computable in Witness today (23):**
+1. Birth after death/burial
+2. Birth after father aged 90+
+3. Birth after mother aged 60+
+4. Birth after mother's death
+5. Birth more than 9 months after father's death
+6. Birth before father aged 13
+7. Birth before mother aged 13
+8. Burial/cremation before death
+9. Implausibly old at death
+10. Facts dated before birth (sweep across all stored events)
+11. Facts dated after death
+12. Marriage after own death
+13. Marriage after spouse's death
+14. Marriage before aged 13
+15. Marriage before spouse aged 13
+16. Flagged as living but has a death date
+17. Duplicate fact (identical event recorded twice)
+18. Possible duplicate fact (near-identical events)
+19. Husband recorded female / wife recorded male
+20. Couples with the same birth surname (already exists as `sameSurnameMarriages`)
+21. Child born too soon after a sibling (caution severity)
+22. Child born impossibly soon after a sibling (fail severity)
+23. Any date in the future
+
+**Needs a small importer extension first (4):** birth after baptism/christening (baptism
+events aren't stored yet); residence-vs-census-date warnings and census date-range checks
+(need census-reference parsing from citations — planned); unknown/custom fact type
+surfacing (an import report listing GEDCOM facts Witness dropped — immigration,
+naturalization, probate — which doubles as the roadmap for storing them).
+
+**Not applicable to Witness (5):** the two Lost Cousins website-tag checks, the UK 1939
+Register birthdate check, GEDCOM children-status tally mismatch (fields not stored), and
+FTAnalyzer's internal "uncategorised error" bucket.
+
+Design note: the 23 computable checks are the expanded Tier A. They fold into the same
+category structure as the main brief (biological plausibility, logical consistency,
+identity, coverage); do not present them as a flat 23-row list.
+
 ## What to deliver
 
 - The Tree Health screen(s): category structure, how computed verdicts / review queue /
