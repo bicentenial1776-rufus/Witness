@@ -20,13 +20,98 @@ const USER_AGENT = 'Witness/1.0 (family history app; witnesslives.com; hello@wit
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Most to least specific: full raw string, then trailing parts. */
-function geocodeQueries(place: { raw: string; parts: string[] }): string[] {
-  const queries = [place.raw];
-  for (let i = 1; i < place.parts.length; i++) {
-    queries.push(place.parts.slice(i).join(', '));
+// Umbrella terms no modern gazetteer indexes; dropping them leaves the
+// resolvable anchors ("Wenham, Essex, Massachusetts Bay, British Colonial
+// America" → "Wenham, Essex, Massachusetts").
+const DROP_TERMS = new Set([
+  'colonial america',
+  'british colonial america',
+  'british america',
+  'north america',
+  'new england',
+  'new france',
+  'acadia',
+  'america',
+]);
+
+// Historical entities with a clean modern equivalent.
+const MODERN_NAME: Record<string, string> = {
+  'massachusetts bay': 'Massachusetts',
+  'massachusetts bay colony': 'Massachusetts',
+  'province of massachusetts': 'Massachusetts',
+  'province of massachusetts bay': 'Massachusetts',
+  'plymouth colony': 'Massachusetts',
+  'province of maine': 'Maine',
+  'province of new hampshire': 'New Hampshire',
+  'connecticut colony': 'Connecticut',
+  'colony of connecticut': 'Connecticut',
+  'province of new york': 'New York',
+  'new netherland': 'New York',
+  'province of pennsylvania': 'Pennsylvania',
+  'upper canada': 'Ontario',
+  'lower canada': 'Quebec',
+  'canada west': 'Ontario',
+  'canada east': 'Quebec',
+};
+
+// Misspellings observed in real GEDCOM place strings.
+const RESPELL: Record<string, string> = {
+  massachusettes: 'Massachusetts',
+  massachusets: 'Massachusetts',
+  worchester: 'Worcester',
+  conneticut: 'Connecticut',
+  pensylvania: 'Pennsylvania',
+  virgina: 'Virginia',
+  blddeford: 'Biddeford',
+  quebeck: 'Quebec',
+};
+
+function normalizePart(part: string): string | null {
+  let p = part.trim();
+  // Narrative tails: "United States. Arrived in New England in 1635".
+  // The length guard keeps abbreviations ("St. Gregoire") intact.
+  const sentences = p.split(/\.\s+/);
+  if (sentences.length > 1 && sentences[0].length >= 4) p = sentences[0];
+  p = p.replace(/\.+$/, '').trim();
+  for (const [typo, fix] of Object.entries(RESPELL)) {
+    p = p.replace(new RegExp(`\\b${typo}\\b`, 'gi'), fix);
   }
-  return [...new Set(queries.map((q) => q.trim()).filter(Boolean))];
+  const key = p.toLowerCase();
+  if (DROP_TERMS.has(key)) return null;
+  if (MODERN_NAME[key]) return MODERN_NAME[key];
+  return p || null;
+}
+
+/**
+ * Most to least specific: full string, then trailing parts — first on the
+ * string as written, and again on a normalized copy that strips colonial
+ * umbrella terms, modernizes historical entities, and fixes known typos.
+ * When normalization changed anything, its queries go first: a dirty raw
+ * string has already proven it won't match.
+ */
+function geocodeQueries(place: { raw: string; parts: string[] }): string[] {
+  const original = [place.raw];
+  for (let i = 1; i < place.parts.length; i++) {
+    original.push(place.parts.slice(i).join(', '));
+  }
+
+  const cleaned = (place.parts.length ? place.parts : [place.raw])
+    .map(normalizePart)
+    .filter((p): p is string => p !== null);
+  const rescue: string[] = [];
+  if (cleaned.length > 0) {
+    rescue.push(cleaned.join(', '));
+    // Town + region, skipping middle parts ("Portsmouth, Rockingham, New
+    // Hampshire" also as "Portsmouth, New Hampshire").
+    if (cleaned.length > 2) rescue.push(`${cleaned[0]}, ${cleaned[cleaned.length - 1]}`);
+    for (let i = 1; i < cleaned.length; i++) {
+      rescue.push(cleaned.slice(i).join(', '));
+    }
+  }
+
+  const changed = rescue.length > 0 && rescue[0] !== place.raw;
+  const ordered = changed ? [...rescue, ...original] : [...original, ...rescue];
+  return [...new Set(ordered.map((q) => q.trim()).filter(Boolean))].slice(0, 8);
 }
 
 Deno.serve(async (req) => {
@@ -72,7 +157,6 @@ Deno.serve(async (req) => {
   let looked = 0;
   let hits = 0;
   for (const place of pending) {
-    if (looked >= BATCH) break; // lookup budget, not place count — misses retry broader queries
     const cached = knownByRaw.get(place.raw);
     if (cached) {
       await supabase
@@ -87,8 +171,13 @@ Deno.serve(async (req) => {
       continue;
     }
 
+    // Defer rather than half-try: a miss is only stamped after the full
+    // query ladder, so it must fit inside this minute's lookup budget.
+    const queries = geocodeQueries(place);
+    if (looked + queries.length > BATCH) break;
+
     let coords: { latitude: number; longitude: number } | null = null;
-    for (const query of geocodeQueries(place)) {
+    for (const query of queries) {
       looked++;
       const url = `${NOMINATIM_URL}?q=${encodeURIComponent(query)}&format=jsonv2&limit=1`;
       try {
