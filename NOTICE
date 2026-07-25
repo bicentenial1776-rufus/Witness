@@ -1,0 +1,12 @@
+Witness — witnesslives.com
+
+This product includes data-integrity checks adapted from FTAnalyzer
+(https://github.com/ShammyLevva/FTAnalyzer), © Alexander Bisset and
+contributors, licensed under the Apache License, Version 2.0
+(http://www.apache.org/licenses/LICENSE-2.0).
+
+The adapted material is the catalog of genealogical data-error checks
+and their thresholds, reimplemented in TypeScript in
+packages/core/src/query/treeHealth.ts. No GPL-licensed components
+bundled with FTAnalyzer (such as the GINAP name-standardization data)
+are included in this product.
