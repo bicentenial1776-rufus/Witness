@@ -317,6 +317,24 @@ export default function ExploreTab() {
                 <ThemedText type="subtitle">Kindred couples</ThemedText>
                 <ThemedText type="small">Spouses who shared an ancestor — however far back</ThemedText>
               </Card>
+
+              <ThemedText type="subtitle" style={{ marginTop: 12 }}>
+                Your Tree Health
+              </ThemedText>
+              <Card
+                onPress={() =>
+                  router.push({ pathname: '/tree-health' as never, params: { treeId: activeTree.id } } as never)
+                }
+              >
+                <ThemedText type="subtitle">FTAnalyzer Tree Check</ThemedText>
+                <ThemedText type="small">
+                  Twenty-two data-integrity checks across your whole tree — impossible dates,
+                  merged generations, duplicate children, and more
+                </ThemedText>
+                <ThemedText type="smallBold" themeColor="accent">
+                  Run the check ›
+                </ThemedText>
+              </Card>
             </>
           )}
 

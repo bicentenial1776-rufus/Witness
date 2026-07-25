@@ -326,6 +326,21 @@ export function ExploreBroadsheet({
               </LedgerRow>
             ))}
           </View>
+
+          <SectionBreak label="Your Tree Health" />
+          <LedgerRow
+            first
+            onPress={() => router.push({ pathname: '/tree-health' as never, params: { treeId } } as never)}
+          >
+            <View style={{ flex: 1 }}>
+              <Serif>FTAnalyzer Tree Check</Serif>
+              <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14, color: C.inkMuted, marginTop: 2 }}>
+                Twenty-two data-integrity checks across your whole tree — impossible dates,
+                merged generations, duplicate children, and more
+              </Text>
+            </View>
+            <RecordText accent>RUN ›</RecordText>
+          </LedgerRow>
         </>
       )}
     </PageShell>
