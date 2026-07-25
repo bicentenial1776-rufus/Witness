@@ -1,7 +1,64 @@
-import { Stack } from 'expo-router';
+import { Stack, router, useGlobalSearchParams, usePathname } from 'expo-router';
+import { useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 
 import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+
+const RESUME_KEY = 'witness_last_route';
+const RESUME_TTL_MS = 6 * 60 * 60 * 1000; // a working session, not forever
+
+/**
+ * Web resume: browsers end SPA sessions without asking — tabs get
+ * jettisoned, closed and reopened, re-entered via bookmark — and every
+ * one of those cold-starts at "/" landed the user on Home, mid-task
+ * (the Tree Check → Ancestry → "mark fixed" round trip broke exactly
+ * this way). So the last route is saved on every navigation, and a
+ * fresh arrival at the front door within the TTL is put back where
+ * they were. A deliberate visit that ends on Home saves "/", which
+ * restores nothing. Native keeps its own state; this is web-only.
+ */
+function useWebResume() {
+  // The router hooks, not window.location: the browser URL is synced a
+  // beat AFTER navigation commits, so reading it from an effect records
+  // the route you just LEFT — the tracker ran one step behind until it
+  // switched to usePathname.
+  const pathname = usePathname();
+  const params = useGlobalSearchParams();
+  const search = new URLSearchParams(
+    Object.entries(params).flatMap(([key, value]) =>
+      value == null ? [] : (Array.isArray(value) ? value : [value]).map((v) => [key, String(v)]),
+    ),
+  ).toString();
+  const restoreChecked = useRef(false);
+
+  // Restore — declared before the tracker so it reads last session's
+  // route before this session's "/" overwrites it.
+  useEffect(() => {
+    if (restoreChecked.current || Platform.OS !== 'web') return;
+    restoreChecked.current = true;
+    try {
+      if (pathname !== '/') return;
+      const raw = localStorage.getItem(RESUME_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { path?: string; ts?: number };
+      if (saved.path && saved.path !== '/' && Date.now() - (saved.ts ?? 0) < RESUME_TTL_MS) {
+        router.replace(saved.path as never);
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    try {
+      localStorage.setItem(
+        RESUME_KEY,
+        JSON.stringify({ path: pathname + (search ? `?${search}` : ''), ts: Date.now() }),
+      );
+    } catch {}
+  }, [pathname, search]);
+}
 
 /**
  * Tabs carry the five destinations; everything else is a pushed detail
@@ -19,6 +76,7 @@ export const unstable_settings = {
 
 export default function AppLayout() {
   const theme = useTheme();
+  useWebResume();
 
   return (
     <Stack
