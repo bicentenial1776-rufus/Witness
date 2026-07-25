@@ -242,7 +242,7 @@ export default function TreeHealthScreen() {
     <SectionList
       sections={sections}
       keyExtractor={(item, index) => `${item.check}-${index}`}
-      stickySectionHeadersEnabled={false}
+      stickySectionHeadersEnabled
       contentContainerStyle={
         broadsheet
           ? { padding: 24, paddingTop: 32, paddingBottom: 48 }
@@ -250,9 +250,13 @@ export default function TreeHealthScreen() {
       }
       ListHeaderComponent={header}
       renderSectionHeader={({ section }) => (
-        <ThemedText type="subtitle" style={{ marginTop: 16, marginBottom: 6 }}>
-          {section.title} · {section.data.length}
-        </ThemedText>
+        // Sticky while its section scrolls, so the category stays named;
+        // opaque background keeps cards from ghosting through.
+        <ThemedView style={{ paddingTop: 12, paddingBottom: 6 }}>
+          <ThemedText type="subtitle">
+            {section.title} · {section.data.length}
+          </ThemedText>
+        </ThemedView>
       )}
       renderItem={({ item }) => {
         const key = findingKey(item);

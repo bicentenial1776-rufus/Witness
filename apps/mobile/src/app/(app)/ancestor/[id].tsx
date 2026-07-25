@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
 
 import { getRelationship } from '@witness/core/family';
 import {
@@ -72,6 +72,20 @@ interface SourceGroup {
  * most facts first. Facts keep one mention each; excerpts dedupe (the
  * same census line often backs several facts).
  */
+/**
+ * External links (Ancestry, source URLs) open in a NEW tab on web: a
+ * same-tab navigation unloads the SPA, so the browser's Back button
+ * cold-reloads Witness onto Home and loses the user's place. A new tab
+ * keeps this page alive — returning is a tab switch, not a restart.
+ */
+function openExternal(url: string) {
+  if (Platform.OS === 'web') {
+    window.open(url, '_blank', 'noopener');
+  } else {
+    Linking.openURL(url);
+  }
+}
+
 function groupCitations(rows: CitationRow[]): SourceGroup[] {
   const groups = new Map<string, SourceGroup>();
   for (const row of rows) {
@@ -436,7 +450,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               </ThemedText>
             )}
             {ancestryUrl && (
-              <ThemedText type="link" onPress={() => Linking.openURL(ancestryUrl)}>
+              <ThemedText type="link" onPress={() => openExternal(ancestryUrl)}>
                 View on Ancestry ›
               </ThemedText>
             )}
@@ -604,7 +618,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                   </ThemedText>
                 ))}
                 {source.url && (
-                  <ThemedText type="link" onPress={() => Linking.openURL(source.url!)}>
+                  <ThemedText type="link" onPress={() => openExternal(source.url!)}>
                     View the record ›
                   </ThemedText>
                 )}
