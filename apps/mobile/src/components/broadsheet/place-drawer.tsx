@@ -114,12 +114,6 @@ export function PlaceDrawer({
               >
                 {resident.individual.full_name}
               </Text>
-              <RecordText muted>
-                {resident.events
-                  .map((e) => `${e.eventType.slice(0, 1).toUpperCase()}${e.year ?? ''}`)
-                  .slice(0, 2)
-                  .join(' ')}
-              </RecordText>
             </Pressable>
           ))}
         </ScrollView>

@@ -47,7 +47,7 @@ const WARM_FILTER = 'sepia(.32) saturate(.72) contrast(.94) brightness(1.04)';
 
 function useGeography(treeId: string | undefined) {
   const [index, setIndex] = useState<GeographyIndex | null>(null);
-  const [progress, setProgress] = useState<{ placed: number; total: number } | null>(null);
+  const [progress, setProgress] = useState<{ placed: number; total: number; pending: number } | null>(null);
   const lastPlaced = useRef<number | null>(null);
 
   useEffect(() => {
@@ -66,16 +66,21 @@ function useGeography(treeId: string | undefined) {
       if (!treeId) return;
       let cancelled = false;
       (async () => {
-        const [{ count: total }, { count: placed }] = await Promise.all([
+        const [{ count: total }, { count: placed }, { count: pending }] = await Promise.all([
           supabase.from('places').select('id', { count: 'exact', head: true }).eq('tree_id', treeId),
           supabase
             .from('places')
             .select('id', { count: 'exact', head: true })
             .eq('tree_id', treeId)
             .not('latitude', 'is', null),
+          supabase
+            .from('places')
+            .select('id', { count: 'exact', head: true })
+            .eq('tree_id', treeId)
+            .is('geocoded_at', null),
         ]);
-        if (cancelled || total === null || placed === null) return;
-        setProgress({ placed, total });
+        if (cancelled || total === null || placed === null || pending === null) return;
+        setProgress({ placed, total, pending });
         if (lastPlaced.current !== null && placed > lastPlaced.current) {
           invalidateGeographyCache();
           const fresh = await getGeographyIndex(treeId);
@@ -320,9 +325,11 @@ export default function AncestorMapTab() {
           title="The Map"
           metaMono={index ? `${placedPlaces.toLocaleString()} PLACES · ${index.events.length.toLocaleString()} EVENTS` : ''}
           metaCaption={
-            progress && progress.placed < progress.total
-              ? `${progress.placed.toLocaleString()} of ${progress.total.toLocaleString()} places located so far`
-              : 'Every located place in your tree'
+            !progress
+              ? 'Every located place in your tree'
+              : progress.pending > 0
+                ? `${progress.placed.toLocaleString()} of ${progress.total.toLocaleString()} places located so far`
+                : 'All ancestors located.'
           }
         />
       }
