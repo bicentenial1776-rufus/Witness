@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, SectionList, View } from 'react-native';
 
 import {
   fetchOrphanBundle,
+  nameSlug,
   type HealthIndividual,
   type OrphanIsland,
   type OrphanReport,
@@ -90,15 +91,25 @@ export default function OrphanRecordsScreen() {
   const primaryId = (row: OrphanRow) =>
     row.kind === 'island' ? row.island.anchorId : row.solo.individualId;
   const fixedKey = (row: OrphanRow) => `orphan:${primaryId(row)}`;
+  // Name-fused so one file's @I12@ can't silence another file's (the
+  // 2026-07-26 audit); the legacy xref-only key keeps old rulings honored.
   const rulingKey = (row: OrphanRow) => {
+    const id = primaryId(row);
+    const person = people.get(id);
+    const slug = nameSlug(person?.full_name);
+    const ref = person?.gedcom_xref ?? id;
+    return `orphan:${slug ? `${ref}~${slug}` : ref}`;
+  };
+  const legacyRulingKey = (row: OrphanRow) => {
     const id = primaryId(row);
     return `orphan:${people.get(id)?.gedcom_xref ?? id}`;
   };
+  const rowRuled = (row: OrphanRow) => ruled.has(rulingKey(row)) || ruled.has(legacyRulingKey(row));
 
   const sections = useMemo<OrphanSection[]>(() => {
     if (!report) return [];
     const visible = (rows: OrphanRow[]) =>
-      showRuled ? rows : rows.filter((row) => !ruled.has(rulingKey(row)));
+      showRuled ? rows : rows.filter((row) => !rowRuled(row));
     const islands = visible(report.islands.map((island) => ({ kind: 'island' as const, island })));
     const solos = visible(report.solos.map((solo) => ({ kind: 'solo' as const, solo })));
     return [
@@ -144,15 +155,18 @@ export default function OrphanRecordsScreen() {
 
   async function toggleRuling(row: OrphanRow) {
     const key = rulingKey(row);
-    const wasRuled = ruled.has(key);
+    const legacy = legacyRulingKey(row);
+    const wasRuled = ruled.has(key) || ruled.has(legacy);
     setRuled((prev) => {
       const next = new Set(prev);
-      if (wasRuled) next.delete(key);
-      else next.add(key);
+      if (wasRuled) {
+        next.delete(key);
+        next.delete(legacy);
+      } else next.add(key);
       return next;
     });
     if (wasRuled) {
-      await supabase.from('tree_health_rulings').delete().eq('xref_key', key);
+      await supabase.from('tree_health_rulings').delete().in('xref_key', [key, legacy]);
     } else {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) return;
@@ -173,7 +187,7 @@ export default function OrphanRecordsScreen() {
       ...report.islands.map((island) => ({ kind: 'island' as const, island })),
       ...report.solos.map((solo) => ({ kind: 'solo' as const, solo })),
     ];
-    return all.filter((row) => ruled.has(rulingKey(row))).length;
+    return all.filter((row) => rowRuled(row)).length;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [report, ruled, people]);
 
@@ -237,7 +251,7 @@ export default function OrphanRecordsScreen() {
     const id = primaryId(row);
     const person = people.get(id);
     const isFixed = marked.has(fixedKey(row));
-    const isRuled = ruled.has(rulingKey(row));
+    const isRuled = rowRuled(row);
     const suggestion = row.kind === 'island' ? row.island.suggestion : row.solo.suggestion;
     return (
       <Card

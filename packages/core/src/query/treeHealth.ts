@@ -63,16 +63,45 @@ export function findingKey(finding: Pick<HealthFinding, 'check' | 'individualIds
   return `${finding.check}:${[...finding.individualIds].sort().join(',')}`;
 }
 
+/** A person's name reduced to a stable slug for key material. */
+export function nameSlug(name: string | null | undefined): string {
+  return (name ?? '')
+    .toLowerCase()
+    .replace(/[^a-z]+/g, '-')
+    .replace(/(^-+|-+$)/g, '');
+}
+
 /**
  * Fingerprint that survives re-imports: the check plus the sorted GEDCOM
- * INDI xrefs it accuses. This keys the permanent "not an error" ruling —
- * a fresh upload of the same file re-derives the same key. Falls back to
- * database ids for any person without an xref (ruling then lives only as
- * long as that tree, which is the best available).
+ * INDI xrefs it accuses, each fused with the person's name slug. Xrefs
+ * are file-LOCAL (@I12@ exists in nearly every export), so the name is
+ * what keeps a ruling from one file from silencing a different person's
+ * finding in another (2026-07-26 audit). A fresh upload of the same file
+ * re-derives the same key. Falls back to database ids for any person
+ * without an xref (ruling then lives only as long as that tree, which is
+ * the best available).
  */
 export function findingXrefKey(
   finding: Pick<HealthFinding, 'check' | 'individualIds'>,
-  people: Map<string, Pick<HealthIndividual, 'gedcom_xref'>>,
+  people: Map<string, Pick<HealthIndividual, 'gedcom_xref'> & { full_name?: string | null }>,
+): string {
+  const refs = finding.individualIds.map((id) => {
+    const person = people.get(id);
+    const ref = person?.gedcom_xref ?? id;
+    const slug = nameSlug(person?.full_name);
+    return slug ? `${ref}~${slug}` : ref;
+  });
+  return `${finding.check}:${refs.sort().join(',')}`;
+}
+
+/**
+ * The pre-2026-07-26 key format (xrefs only). Matching still honors it so
+ * rulings stored before the name-fused format keep working; new rulings
+ * are written with `findingXrefKey`.
+ */
+export function legacyFindingXrefKey(
+  finding: Pick<HealthFinding, 'check' | 'individualIds'>,
+  people: Map<string, Pick<HealthIndividual, 'gedcom_xref'> & { full_name?: string | null }>,
 ): string {
   const refs = finding.individualIds.map((id) => people.get(id)?.gedcom_xref ?? id);
   return `${finding.check}:${refs.sort().join(',')}`;

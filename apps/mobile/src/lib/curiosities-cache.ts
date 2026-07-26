@@ -2,6 +2,7 @@ import {
   fetchTreeHealthData,
   findingKey,
   findingXrefKey,
+  legacyFindingXrefKey,
   runTreeHealth,
   type HealthFinding,
   type TreeHealthData,
@@ -39,7 +40,7 @@ export interface CuriositySummary {
 interface AuditRun {
   data: TreeHealthData;
   report: TreeHealthReport;
-  people: Map<string, { gedcom_xref: string | null; surname: string | null }>;
+  people: Map<string, { gedcom_xref: string | null; surname: string | null; full_name: string }>;
 }
 
 const runs = new Map<string, Promise<AuditRun>>();
@@ -51,7 +52,10 @@ function getAuditRun(treeId: string): Promise<AuditRun> {
       data,
       report: runTreeHealth(data, { currentYear: new Date().getFullYear() }),
       people: new Map(
-        data.individuals.map((i) => [i.id, { gedcom_xref: i.gedcom_xref, surname: i.surname }]),
+        data.individuals.map((i) => [
+          i.id,
+          { gedcom_xref: i.gedcom_xref, surname: i.surname, full_name: i.full_name },
+        ]),
       ),
     }));
     pending.catch(() => runs.delete(treeId)); // don't cache failures
@@ -70,7 +74,10 @@ export async function getCuriosities(treeId: string, topCount = 3): Promise<Curi
   const ruled = new Set((rulings.data ?? []).map((r) => r.xref_key));
 
   const open = report.findings.filter(
-    (f) => !marked.has(findingKey(f)) && !ruled.has(findingXrefKey(f, people)),
+    (f) =>
+      !marked.has(findingKey(f)) &&
+      !ruled.has(findingXrefKey(f, people)) &&
+      !ruled.has(legacyFindingXrefKey(f, people)),
   );
 
   // The busiest line: findings grouped by the primary subject's surname.

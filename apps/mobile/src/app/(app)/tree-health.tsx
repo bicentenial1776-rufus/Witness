@@ -1,11 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, SectionList, View } from 'react-native';
 
 import {
   fetchTreeHealthData,
   findingKey,
   findingXrefKey,
+  legacyFindingXrefKey,
   runTreeHealth,
   type HealthCheckId,
   type HealthFinding,
@@ -72,7 +73,7 @@ export default function TreeHealthScreen() {
   const treeId = params.treeId ?? activeTree?.id;
   const broadsheet = useBroadsheet();
   const [report, setReport] = useState<TreeHealthReport | null>(null);
-  const [people, setPeople] = useState<Map<string, { gedcom_xref: string | null }>>(new Map());
+  const [people, setPeople] = useState<Map<string, { gedcom_xref: string | null; full_name?: string | null }>>(new Map());
   const [failed, setFailed] = useState(false);
   const [marked, setMarked] = useState<Set<string>>(new Set());
   const [ruled, setRuled] = useState<Set<string>>(new Set());
@@ -95,7 +96,7 @@ export default function TreeHealthScreen() {
     ])
       .then(([data, marks, rulings]) => {
         if (cancelled) return;
-        setPeople(new Map(data.individuals.map((i) => [i.id, { gedcom_xref: i.gedcom_xref }])));
+        setPeople(new Map(data.individuals.map((i) => [i.id, { gedcom_xref: i.gedcom_xref, full_name: i.full_name }])));
         setReport(runTreeHealth(data, { currentYear: new Date().getFullYear() }));
         setMarked(new Set((marks.data ?? []).map((m) => m.finding_key)));
         setRuled(new Set((rulings.data ?? []).map((r) => r.xref_key)));
@@ -108,16 +109,24 @@ export default function TreeHealthScreen() {
     };
   }, [treeId]);
 
+  // A finding is ruled under either key generation — the name-fused format
+  // or the pre-2026-07-26 xref-only one already stored in the table.
+  const isRuled = useCallback(
+    (finding: Pick<HealthFinding, 'check' | 'individualIds'>) =>
+      ruled.has(findingXrefKey(finding, people)) || ruled.has(legacyFindingXrefKey(finding, people)),
+    [ruled, people],
+  );
+
   const ruledCount = useMemo(
-    () => (report ? report.findings.filter((f) => ruled.has(findingXrefKey(f, people))).length : 0),
-    [report, ruled, people],
+    () => (report ? report.findings.filter((f) => isRuled(f)).length : 0),
+    [report, isRuled],
   );
 
   const sections = useMemo<CheckSection[]>(() => {
     if (!report) return [];
     const byCheck = new Map<HealthCheckId, HealthFinding[]>();
     for (const finding of report.findings) {
-      if (!showRuled && ruled.has(findingXrefKey(finding, people))) continue;
+      if (!showRuled && isRuled(finding)) continue;
       if (!byCheck.has(finding.check)) byCheck.set(finding.check, []);
       byCheck.get(finding.check)!.push(finding);
     }
@@ -157,15 +166,19 @@ export default function TreeHealthScreen() {
 
   async function toggleRuling(finding: HealthFinding) {
     const key = findingXrefKey(finding, people);
-    const wasRuled = ruled.has(key);
+    const legacy = legacyFindingXrefKey(finding, people);
+    const wasRuled = ruled.has(key) || ruled.has(legacy);
     setRuled((prev) => {
       const next = new Set(prev);
-      if (wasRuled) next.delete(key);
-      else next.add(key);
+      if (wasRuled) {
+        next.delete(key);
+        next.delete(legacy);
+      } else next.add(key);
       return next;
     });
     if (wasRuled) {
-      await supabase.from('tree_health_rulings').delete().eq('xref_key', key);
+      // Undo removes both generations of the key.
+      await supabase.from('tree_health_rulings').delete().in('xref_key', [key, legacy]);
     } else {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) return;
@@ -290,7 +303,7 @@ export default function TreeHealthScreen() {
       renderItem={({ item }) => {
         const key = findingKey(item);
         const isFixed = marked.has(key);
-        const isRuled = ruled.has(findingXrefKey(item, people));
+        const itemRuled = isRuled(item);
         const isSelected = broadsheet && selectedKey === key;
         return (
           <Card
@@ -298,14 +311,14 @@ export default function TreeHealthScreen() {
             style={{
               marginBottom: 6,
               paddingVertical: 10,
-              opacity: isFixed || isRuled ? 0.55 : 1,
+              opacity: isFixed || itemRuled ? 0.55 : 1,
               ...(isSelected ? { borderWidth: 1.5 } : null),
             }}
           >
             <ThemedText type="small">{item.detail}</ThemedText>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
               <View style={{ flexDirection: 'row', gap: 18 }}>
-                {isRuled ? (
+                {itemRuled ? (
                   <Pressable onPress={() => toggleRuling(item)} hitSlop={8}>
                     <ThemedText type="smallBold" themeColor="accent">
                       ✓ Not an error — tap to undo
