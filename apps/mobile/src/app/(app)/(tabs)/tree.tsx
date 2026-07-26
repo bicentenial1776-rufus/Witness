@@ -1,12 +1,14 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { treeGenerationSpan } from '@witness/core/query';
+import { buildFamilyStages, fetchNaraCounts, treeGenerationSpan, type NaraCounts } from '@witness/core/query';
 
 import { RecordText } from '@/components/record-text';
 import { BrandFonts, Letterpress, WideContent } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
+import { getCuriosities, type CuriositySummary } from '@/lib/curiosities-cache';
+import { supabase } from '@/lib/supabase';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
 const L = Letterpress;
@@ -43,34 +45,85 @@ function Row({ title, detail, onPress }: { title: string; detail?: string; onPre
   );
 }
 
+function Door({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderWidth: 1,
+        borderColor: L.deepAmber,
+        borderStyle: 'dashed' as never,
+        alignSelf: 'flex-start',
+      }}
+    >
+      <Text style={mono(10, L.deepAmber)}>{label.toUpperCase()}</Text>
+    </Pressable>
+  );
+}
+
 /**
  * The Tree tab — the "about your tree" home (docs/phone-ia-design-brief.md).
- * Never a tree drawing: header stats, then doors into the record — the
- * Family Stage and Register, research, and the forensic workbenches.
- * Research folded here from its old tab in the 2026-07-26 restructure.
+ * Never a tree drawing: header stats, curiosities in the gentle voice —
+ * a curiosity is a prompt, not a problem — the Family Stage's door, the
+ * research desk, and a look at what's coming. Research folded here from
+ * its old tab in the 2026-07-26 restructure.
  */
 export default function TreeTab() {
   const { activeTree, refresh } = useActiveTree();
   const [generations, setGenerations] = useState<number | null>(null);
+  const [households, setHouseholds] = useState<number | null>(null);
+  const [curiosities, setCuriosities] = useState<CuriositySummary | null>(null);
+  const [briefCounts, setBriefCounts] = useState<{ total: number; open: number } | null>(null);
+  const [naraCounts, setNaraCounts] = useState<NaraCounts | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       refresh();
-    }, [refresh]),
-  );
+      if (!activeTree) return;
+      let cancelled = false;
+      const treeId = activeTree.id;
 
-  useEffect(() => {
-    if (!activeTree) return;
-    let cancelled = false;
-    getTreeIndex(activeTree.id)
-      .then((index) => {
-        if (!cancelled) setGenerations(treeGenerationSpan(index));
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTree?.id]);
+      getTreeIndex(treeId)
+        .then((index) => {
+          if (cancelled) return;
+          setGenerations(treeGenerationSpan(index));
+          setHouseholds(buildFamilyStages(index, { currentYear: new Date().getFullYear() }).byKey.size);
+        })
+        .catch(() => {});
+
+      // Re-read on every focus: a "Mark fixed" on the workbench should
+      // reflect here on the way back (the heavy audit itself is cached).
+      getCuriosities(treeId)
+        .then((summary) => {
+          if (!cancelled) setCuriosities(summary);
+        })
+        .catch(() => {});
+
+      supabase
+        .from('research_briefs')
+        .select('status')
+        .neq('status', 'archived')
+        .then(({ data }) => {
+          if (cancelled || !data) return;
+          setBriefCounts({
+            total: data.length,
+            open: data.filter((b) => b.status !== 'resolved').length,
+          });
+        });
+
+      fetchNaraCounts(supabase, treeId)
+        .then((counts) => {
+          if (!cancelled) setNaraCounts(counts);
+        })
+        .catch(() => {});
+
+      return () => {
+        cancelled = true;
+      };
+    }, [activeTree?.id, refresh]),
+  );
 
   if (!activeTree) {
     return (
@@ -106,38 +159,101 @@ export default function TreeTab() {
         </Text>
         <Text style={{ ...mono(11, L.muted), marginTop: 8 }}>{stats.toUpperCase()}</Text>
 
+        <Section eyebrow="Curiosities">
+          {curiosities === null ? (
+            <Text style={mono(11, L.muted)}>READING THE RECORD…</Text>
+          ) : curiosities.total === 0 ? (
+            <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 17, color: L.ink }}>
+              The record reads clean — nothing curious to show.
+            </Text>
+          ) : (
+            <>
+              <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 17, lineHeight: 24, color: L.ink }}>
+                {curiosities.total.toLocaleString()} curiosities in the record
+                {curiosities.lineName ? `, most in the ${curiosities.lineName} line` : ''} — worth a
+                look, nothing urgent.
+              </Text>
+              {curiosities.top.map((curiosity) => (
+                <Pressable
+                  key={curiosity.key}
+                  onPress={() =>
+                    router.push({ pathname: '/ancestor/[id]', params: { id: curiosity.individualId } })
+                  }
+                  style={{ borderLeftWidth: 2, borderLeftColor: L.rule, paddingLeft: 10, paddingVertical: 2 }}
+                >
+                  <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15, lineHeight: 21, color: L.ink }}>
+                    {curiosity.prompt}
+                  </Text>
+                </Pressable>
+              ))}
+            </>
+          )}
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
+            <Door
+              label={
+                curiosities && curiosities.total > 0
+                  ? `The tree check — all ${curiosities.total.toLocaleString()} ›`
+                  : 'The tree check ›'
+              }
+              onPress={() => router.push('/tree-health' as never)}
+            />
+            <Door label="Orphan records ›" onPress={() => router.push('/orphan-records' as never)} />
+          </View>
+        </Section>
+
         <Section eyebrow="The family stage">
-          <Row
-            title="The Register"
-            detail="Every household, ordered by time, name, or place"
+          <Pressable
             onPress={() => router.push('/register' as never)}
-          />
+            style={{
+              borderWidth: 1,
+              borderColor: L.rule,
+              backgroundColor: '#ffffff',
+              padding: 16,
+              gap: 6,
+              shadowColor: L.ink,
+              shadowOpacity: 0.05,
+              shadowRadius: 4,
+              shadowOffset: { width: 0, height: 2 },
+            }}
+          >
+            <Text style={{ fontFamily: BrandFonts.serif.semiBold, fontSize: 21, color: L.ink }}>
+              The Family Stage
+            </Text>
+            <Text style={mono(10.5, L.muted)}>ONE HOUSEHOLD DRAWN AS A LENGTH OF TIME</Text>
+            <Text style={{ ...mono(10.5, L.deepAmber), marginTop: 4 }}>
+              {households !== null ? `THE REGISTER — ALL ${households.toLocaleString()} HOUSEHOLDS ›` : 'THE REGISTER ›'}
+            </Text>
+          </Pressable>
         </Section>
 
         <Section eyebrow="Research">
           <Row
             title="Research briefs"
-            detail="Your brick walls, and the briefs to break them"
+            detail={
+              briefCounts
+                ? `${briefCounts.total} briefs · ${briefCounts.open} open`
+                : 'Your brick walls, and the briefs to break them'
+            }
             onPress={() => router.push('/research' as never)}
           />
           <Row
             title="In the National Archives"
-            detail="Candidate records matched to your people"
+            detail={
+              naraCounts && (naraCounts.pending > 0 || naraCounts.confirmed > 0)
+                ? `${naraCounts.pending} awaiting review · ${naraCounts.confirmed} confirmed`
+                : 'Candidate records matched to your people'
+            }
             onPress={() => router.push('/archives' as never)}
           />
         </Section>
 
-        <Section eyebrow="The record">
-          <Row
-            title="Tree Check"
-            detail="The forensic register, adapted from FTAnalyzer"
-            onPress={() => router.push('/tree-health' as never)}
-          />
-          <Row
-            title="Orphan Records"
-            detail="Islands and strays, counted and pointed home"
-            onPress={() => router.push('/orphan-records' as never)}
-          />
+        <Section eyebrow="Visual views">
+          <View style={{ borderWidth: 1, borderColor: L.rule, borderStyle: 'dashed' as never, padding: 16, gap: 5 }}>
+            <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 19, color: L.inkUnrecorded }}>
+              Family Street View
+            </Text>
+            <Text style={mono(10.5, L.muted)}>COMING SOON — A WALK THROUGH THE PLACES THEY LIVED</Text>
+          </View>
         </Section>
       </ScrollView>
     </View>
