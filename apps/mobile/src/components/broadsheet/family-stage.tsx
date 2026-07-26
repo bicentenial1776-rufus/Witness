@@ -99,11 +99,15 @@ export function FamilyStage({ treeId }: { treeId: string }) {
   useEffect(() => stopSweep, [currentKey]);
 
   // The Register hands households here: arriving on Home with a pending
-  // key opens that stage.
+  // key opens that stage. Consume only once stages have loaded — on a
+  // cold arrival this effect fires before the index resolves, and an
+  // early consume destroyed the key the re-run needed (the handoff
+  // silently opened nothing).
   useFocusEffect(
     useCallback(() => {
+      if (!stages) return;
       const pending = consumePendingStage();
-      if (pending && stages?.byKey.has(pending)) {
+      if (pending && stages.byKey.has(pending)) {
         const next = stages.byKey.get(pending)!;
         setCurrentKey(pending);
         setYear(next.scrubStart);

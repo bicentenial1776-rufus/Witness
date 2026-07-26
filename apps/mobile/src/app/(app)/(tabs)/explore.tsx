@@ -314,37 +314,6 @@ export default function ExploreTab() {
                 <ThemedText type="small">Spouses who shared an ancestor — however far back</ThemedText>
               </Card>
 
-              <ThemedText type="subtitle" style={{ marginTop: 12 }}>
-                Your Tree Health
-              </ThemedText>
-              <Card
-                onPress={() =>
-                  router.push({ pathname: '/tree-health' as never, params: { treeId: activeTree.id } } as never)
-                }
-              >
-                <ThemedText type="subtitle">FTAnalyzer Tree Check</ThemedText>
-                <ThemedText type="small">
-                  Twenty-two data-integrity checks across your whole tree — impossible dates,
-                  merged generations, duplicate children, and more
-                </ThemedText>
-                <ThemedText type="smallBold" themeColor="accent">
-                  Run the check ›
-                </ThemedText>
-              </Card>
-              <Card
-                onPress={() =>
-                  router.push({ pathname: '/orphan-records' as never, params: { treeId: activeTree.id } } as never)
-                }
-              >
-                <ThemedText type="subtitle">Orphan records</ThemedText>
-                <ThemedText type="small">
-                  Records with no connection to your tree — islands, solo strays, and the
-                  ancestors they might belong near
-                </ThemedText>
-                <ThemedText type="smallBold" themeColor="accent">
-                  Trace the strays ›
-                </ThemedText>
-              </Card>
             </>
           )}
 

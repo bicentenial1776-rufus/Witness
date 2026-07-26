@@ -378,7 +378,7 @@ export default function Home() {
                       onPress={() =>
                         router.push({
                           pathname: '/query/[eventId]',
-                          params: { eventId: historicalToday.event.id },
+                          params: { eventId: historicalToday.event.id, treeId: activeTree.id },
                         })
                       }
                     >
@@ -442,7 +442,10 @@ export default function Home() {
                       <Pressable
                         key={entry.event.id}
                         onPress={() =>
-                          router.push({ pathname: '/query/[eventId]', params: { eventId: entry.event.id } })
+                          router.push({
+                            pathname: '/query/[eventId]',
+                            params: { eventId: entry.event.id, treeId: activeTree.id },
+                          })
                         }
                         style={{
                           width: 150,

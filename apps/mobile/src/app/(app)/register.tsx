@@ -9,6 +9,7 @@ import {
   type RegisterEntry,
 } from '@witness/core/query';
 
+import { useBroadsheet } from '@/components/broadsheet';
 import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -47,6 +48,7 @@ const mono = (size: number, color: string = INK) => ({
  */
 export default function RegisterScreen() {
   useLocalSearchParams(); // route param plumbing kept for future deep links
+  const broadsheet = useBroadsheet();
   const { activeTree } = useActiveTree();
   const treeId = activeTree?.id;
   const [register, setRegister] = useState<Register | null>(null);
@@ -126,9 +128,16 @@ export default function RegisterScreen() {
       }));
   }, [register, ordering]);
 
+  // Broadsheet: hand the household to the Family Stage on the home page.
+  // Phone: the stage's rotated carrier isn't built yet, so a row opens the
+  // household head's page — a real destination, not a silent dead end.
   function openStage(key: string) {
-    setPendingStage(key);
-    router.push('/' as never);
+    if (broadsheet) {
+      setPendingStage(key);
+      router.push('/' as never);
+    } else {
+      router.push({ pathname: '/ancestor/[id]', params: { id: key } });
+    }
   }
 
   const entryRow = (entry: RegisterEntry) => (

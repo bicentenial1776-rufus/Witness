@@ -7,6 +7,7 @@ import { fetchNaraCandidatesForTree, type NaraCandidate } from '@witness/core/qu
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useActiveTree } from '@/lib/active-tree';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
 
@@ -18,7 +19,12 @@ import { WideContent } from '@/constants/theme';
  * haystack turned inside out.
  */
 export default function ArchivesScreen() {
-  const { treeId } = useLocalSearchParams<{ treeId: string }>();
+  // treeId arrives as a param from deep links, but tab-era callers (the
+  // Tree tab) push bare — fall back to the active tree so the screen
+  // never spins forever waiting for a param nobody sends.
+  const { treeId: paramTreeId } = useLocalSearchParams<{ treeId?: string }>();
+  const { activeTree } = useActiveTree();
+  const treeId = paramTreeId ?? activeTree?.id;
   const [candidates, setCandidates] = useState<NaraCandidate[] | null>(null);
   const [failed, setFailed] = useState(false);
 
