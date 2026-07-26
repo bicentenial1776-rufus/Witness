@@ -195,3 +195,20 @@ cost. The near-term answer is better data instead: record what you know as
 facts on the source platform, re-export, re-import (the importer now carries
 occupations, custom events, and probate), and let research briefs point at
 archives rather than assert facts.
+
+## Parked Explore Cards (from the 2026-07-25 phone IA session)
+
+Rufus's rule: no cards in the UI without data behind them. These two mocked Explore cards
+are parked here until their capability exists:
+
+- **"Paper Trails — reading census discrepancies."** Requires per-census extracted facts
+  (ages, households) that Witness does not hold; the GEDCOM only carries census references
+  inside citations. Path: port FTAnalyzer's CensusReference regexes to parse census
+  citations, then a discrepancy view. Pairs with the Tree Health census-coverage inference.
+- **"Ellis Island & Beyond — immigration record types."** Requires immigration/naturalization
+  events. The importer keeps occupation/military/probate/custom but drops IMMI and NATU;
+  extending the importer (plus a backfill re-import) unlocks this card and the Tree Health
+  immigration-consistency checks.
+
+(Considered and rejected outright, not parked: a "% traced" completeness metric — dropped
+by Rufus 2026-07-25.)

@@ -68,9 +68,10 @@ Tree Health" rather than silently omitting:
   it as a pure attestation section clearly labeled as outside the app's data.
 - Census age-agreement across enumerations — requires per-census extracted ages Witness
   doesn't have.
-- Immigration/naturalization and probate/land date-ordering — the importer currently keeps
-  only birth, death, burial, and residence events; these event types aren't stored. (A
-  future import extension could add them; don't design UI that depends on it now.)
+- Immigration/naturalization date-ordering — IMMI/NATU events aren't imported. (Correction
+  2026-07-25: the importer DOES keep occupation, military, probate, and custom events —
+  so probate-vs-death ordering IS computable and belongs in Tier A; only the
+  immigration/naturalization checks remain excluded until the importer grows IMMI/NATU.)
 
 ## The score
 
