@@ -12,6 +12,7 @@ import {
   isDigestNotificationEnabled,
   setDigestNotificationEnabled,
 } from '@/lib/digest-notifications';
+import { invalidateCuriositiesCache } from '@/lib/curiosities-cache';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
 import { invalidateRelationshipCache } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
@@ -22,6 +23,9 @@ export default function YouTab() {
   const { trees, activeTree, refresh } = useActiveTree();
   const [notifyEnabled, setNotifyEnabled] = useState(false);
   const [notifyBusy, setNotifyBusy] = useState(false);
+  const [shareLinks, setShareLinks] = useState<
+    { token: string; payload: { fullName?: string }; expires_at: string }[] | null
+  >(null);
 
   useEffect(() => {
     isDigestNotificationEnabled().then(setNotifyEnabled);
@@ -30,8 +34,34 @@ export default function YouTab() {
   useFocusEffect(
     useCallback(() => {
       refresh();
+      let cancelled = false;
+      supabase
+        .from('share_links')
+        .select('token, payload, expires_at')
+        .is('revoked_at', null)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .then(({ data }) => {
+          if (!cancelled) {
+            setShareLinks(
+              (data ?? []) as { token: string; payload: { fullName?: string }; expires_at: string }[],
+            );
+          }
+        });
+      return () => {
+        cancelled = true;
+      };
     }, [refresh]),
   );
+
+  async function revokeLink(token: string) {
+    const { error } = await supabase
+      .from('share_links')
+      .update({ revoked_at: new Date().toISOString() })
+      .eq('token', token);
+    if (error) Alert.alert('Could not take the link back', error.message);
+    else setShareLinks((current) => current?.filter((link) => link.token !== token) ?? null);
+  }
 
   function confirmDelete(tree: TreeRow) {
     Alert.alert(
@@ -61,6 +91,7 @@ export default function YouTab() {
             else {
               invalidateGeographyCache();
               invalidateRelationshipCache();
+              invalidateCuriositiesCache();
               refresh();
             }
           },
@@ -140,6 +171,36 @@ export default function YouTab() {
             />
           </View>
         </Card>
+
+        {shareLinks !== null && shareLinks.length > 0 && (
+          <Card style={{ marginTop: 8 }}>
+            <ThemedText type="subtitle">Shared stories</ThemedText>
+            <ThemedText type="small">
+              Anyone with the link can see that card until it expires — or until you take it back.
+            </ThemedText>
+            {shareLinks.map((link) => (
+              <View
+                key={link.token}
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'baseline',
+                  marginTop: 8,
+                }}
+              >
+                <View style={{ flexShrink: 1 }}>
+                  <ThemedText>{link.payload.fullName ?? 'A family story'}</ThemedText>
+                  <ThemedText type="small">
+                    until {new Date(link.expires_at).toLocaleDateString()}
+                  </ThemedText>
+                </View>
+                <ThemedText type="smallBold" themeColor="accent" onPress={() => revokeLink(link.token)}>
+                  Take back
+                </ThemedText>
+              </View>
+            ))}
+          </Card>
+        )}
 
         <ThemedText
           type="link"
