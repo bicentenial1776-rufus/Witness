@@ -23,6 +23,7 @@ export interface ResumePoint {
 }
 
 const STATIC_TITLES: [prefix: string, title: string][] = [
+  ['/family-stage', 'The Family Stage'],
   ['/register', 'The Register'],
   ['/tree-health', 'The Tree Check'],
   ['/orphan-records', 'Orphan Records'],

@@ -129,14 +129,13 @@ export default function RegisterScreen() {
   }, [register, ordering]);
 
   // Broadsheet: hand the household to the Family Stage on the home page.
-  // Phone: the stage's rotated carrier isn't built yet, so a row opens the
-  // household head's page — a real destination, not a silent dead end.
+  // Phone: open the upright stage (panel 4h) on that household.
   function openStage(key: string) {
     if (broadsheet) {
       setPendingStage(key);
       router.push('/' as never);
     } else {
-      router.push({ pathname: '/ancestor/[id]', params: { id: key } });
+      router.push({ pathname: '/family-stage', params: { key } } as never);
     }
   }
 

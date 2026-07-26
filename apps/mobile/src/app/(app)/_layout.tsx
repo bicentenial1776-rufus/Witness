@@ -112,6 +112,7 @@ export default function AppLayout() {
       <Stack.Screen name="home-person" options={{ title: 'Who Are You?' }} />
       <Stack.Screen name="you" options={{ title: 'You' }} />
       <Stack.Screen name="register" options={{ title: 'The Register' }} />
+      <Stack.Screen name="family-stage" options={{ headerShown: false }} />
       <Stack.Screen name="faq" options={{ title: 'Questions & Answers' }} />
       <Stack.Screen name="ascent" options={{ title: 'The Ascent' }} />
       <Stack.Screen name="origins" options={{ title: 'Where It Began' }} />

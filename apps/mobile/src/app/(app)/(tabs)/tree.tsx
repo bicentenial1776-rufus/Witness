@@ -203,7 +203,7 @@ export default function TreeTab() {
 
         <Section eyebrow="The family stage">
           <Pressable
-            onPress={() => router.push('/register' as never)}
+            onPress={() => router.push('/family-stage' as never)}
             style={{
               borderWidth: 1,
               borderColor: L.rule,
@@ -220,9 +220,11 @@ export default function TreeTab() {
               The Family Stage
             </Text>
             <Text style={mono(10.5, L.muted)}>ONE HOUSEHOLD DRAWN AS A LENGTH OF TIME</Text>
-            <Text style={{ ...mono(10.5, L.deepAmber), marginTop: 4 }}>
-              {households !== null ? `THE REGISTER — ALL ${households.toLocaleString()} HOUSEHOLDS ›` : 'THE REGISTER ›'}
-            </Text>
+            <Pressable onPress={() => router.push('/register' as never)} hitSlop={8}>
+              <Text style={{ ...mono(10.5, L.deepAmber), marginTop: 4 }}>
+                {households !== null ? `THE REGISTER — ALL ${households.toLocaleString()} HOUSEHOLDS ›` : 'THE REGISTER ›'}
+              </Text>
+            </Pressable>
           </Pressable>
         </Section>
 
