@@ -30,6 +30,7 @@ export interface TreeFamily {
   husband_id: string | null;
   wife_id: string | null;
   marriage_year: number | null;
+  marriage_place_id: string | null;
   /** Child individual ids, in birth order where the GEDCOM recorded one. */
   children: string[];
 }
@@ -62,6 +63,7 @@ interface FamilyRow {
   husband_id: string | null;
   wife_id: string | null;
   marriage_date_year: number | null;
+  marriage_place_id: string | null;
 }
 
 interface FamilyChildRow {
@@ -108,6 +110,7 @@ export function buildTreeIndexFromRows(
       husband_id: row.husband_id,
       wife_id: row.wife_id,
       marriage_year: row.marriage_date_year,
+      marriage_place_id: row.marriage_place_id,
       children: links.map((l) => l.individual_id),
     };
   });
@@ -151,6 +154,7 @@ export function buildTreeIndexFromParsed(parsed: ParsedGedcom): TreeIndex {
       husband_id: row.husband_id ?? null,
       wife_id: row.wife_id ?? null,
       marriage_date_year: row.marriage_date_year ?? null,
+      marriage_place_id: row.marriage_place_id ?? null,
     })),
     payload.familyChildren.map((row) => ({
       family_id: row.family_id,
@@ -216,7 +220,7 @@ export async function fetchTreeIndex(client: WitnessSupabaseClient, treeId: stri
       (from, to) =>
         client
           .from('families')
-          .select('id, husband_id, wife_id, marriage_date_year')
+          .select('id, husband_id, wife_id, marriage_date_year, marriage_place_id')
           .eq('tree_id', treeId)
           .order('id')
           .range(from, to),

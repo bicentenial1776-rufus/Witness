@@ -74,6 +74,7 @@ export function buildIndex(
       husband_id: f.husband ?? null,
       wife_id: f.wife ?? null,
       marriage_date_year: f.married ?? null,
+      marriage_place_id: null,
     })),
     families.flatMap((f, i) =>
       (f.children ?? []).map((childId, order) => ({

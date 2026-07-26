@@ -28,6 +28,7 @@ function makeIndex(
       husband_id: f.husband_id ?? null,
       wife_id: f.wife_id ?? null,
       marriage_year: f.marriage_year,
+      marriage_place_id: null,
       children: f.children ?? [],
     })),
     events: [],

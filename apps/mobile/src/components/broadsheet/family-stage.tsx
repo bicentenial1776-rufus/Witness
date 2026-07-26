@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
 
 import { HISTORICAL_EVENTS, PRESIDENCIES } from '@witness/core/history';
@@ -12,6 +12,7 @@ import {
 
 import { RecordText } from '@/components/record-text';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
+import { consumePendingStage } from '@/lib/stage-handoff';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
 import { SectionBreak } from './page-shell';
@@ -96,6 +97,19 @@ export function FamilyStage({ treeId }: { treeId: string }) {
 
   // Clear the sweep on unmount and whenever the family changes.
   useEffect(() => stopSweep, [currentKey]);
+
+  // The Register hands households here: arriving on Home with a pending
+  // key opens that stage.
+  useFocusEffect(
+    useCallback(() => {
+      const pending = consumePendingStage();
+      if (pending && stages?.byKey.has(pending)) {
+        const next = stages.byKey.get(pending)!;
+        setCurrentKey(pending);
+        setYear(next.scrubStart);
+      }
+    }, [stages]),
+  );
 
   function toggleSweep() {
     if (sweeping) {
@@ -408,6 +422,12 @@ export function FamilyStage({ treeId }: { treeId: string }) {
             <Text style={mono(10, PAPER)}>{stage.label.toUpperCase()}</Text>
           </View>
         )}
+        <Pressable
+          onPress={() => router.push('/register' as never)}
+          style={{ paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: DEEP_AMBER, borderStyle: 'dashed' as never }}
+        >
+          <Text style={mono(10, DEEP_AMBER)}>THE REGISTER — ALL {stages.byKey.size} ›</Text>
+        </Pressable>
       </View>
 
       {/* The stage */}

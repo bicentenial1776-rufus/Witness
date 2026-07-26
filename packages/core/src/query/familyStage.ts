@@ -159,11 +159,24 @@ function buildStage(
 ): FamilyStage | null {
   const { head } = unit;
   if (head.birth_year === null) return null;
-  // Two marriages sandwich the head; more than two won't fit the layout —
-  // keep the earliest two, which carry the household story.
-  const marriages = [...unit.marriages]
-    .sort((a, b) => (a.family.marriage_year ?? 0) - (b.family.marriage_year ?? 0))
-    .slice(0, 2);
+  // Duplicate family records masquerade as remarriages ("and John Nurse,
+  // then John Nurse") — collapse same-spouse marriages, folding the
+  // duplicate's children into the kept one. Then: two marriages sandwich
+  // the head; more than two won't fit the layout — keep the earliest two.
+  const spouseKey = (m: Unit['marriages'][number]) => m.spouse?.full_name ?? `family:${m.family.id}`;
+  const keptBySpouse = new Map<string, Unit['marriages'][number]>();
+  const extraChildren = new Map<string, string[]>();
+  for (const m of [...unit.marriages].sort(
+    (a, b) => (a.family.marriage_year ?? 0) - (b.family.marriage_year ?? 0),
+  )) {
+    const key = spouseKey(m);
+    if (keptBySpouse.has(key)) {
+      extraChildren.set(key, [...(extraChildren.get(key) ?? []), ...m.family.children]);
+    } else {
+      keptBySpouse.set(key, m);
+    }
+  }
+  const marriages = [...keptBySpouse.values()].slice(0, 2);
   const first = marriages[0]!;
   if (first.family.marriage_year === null) return null;
 
@@ -227,7 +240,7 @@ function buildStage(
   const seenChildren = new Set<string>();
   for (let i = 0; i < marriages.length; i++) {
     const marriage = marriages[i]!;
-    const children = marriage.family.children
+    const children = [...marriage.family.children, ...(extraChildren.get(spouseKey(marriage)) ?? [])]
       .map((id) => people.get(id))
       .filter((child): child is TreeIndividual => Boolean(child && child.birth_year !== null))
       // GEDCOMs carry duplicate people (the Tree Check flags them); the
