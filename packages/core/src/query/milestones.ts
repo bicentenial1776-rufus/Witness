@@ -231,14 +231,25 @@ export interface MarriageCount {
 
 /** Who was married more than once? Most marriages first. */
 export function marriedMoreThanOnce(index: TreeIndex): MarriageCount[] {
-  const counts = new Map<string, number>();
+  // Count DISTINCT partners, not family records: real GEDCOMs carry the
+  // same marriage twice ("and John Nurse, then John Nurse" — see
+  // familyStage's collapse), and a duplicate row must not make a
+  // second marriage (2026-07-26 audit). A family with no recorded
+  // partner still counts once, keyed by its own id.
+  const partners = new Map<string, Set<string>>();
   for (const family of index.families) {
-    for (const spouseId of [family.husband_id, family.wife_id]) {
-      if (spouseId) counts.set(spouseId, (counts.get(spouseId) ?? 0) + 1);
+    for (const [selfId, spouseId] of [
+      [family.husband_id, family.wife_id],
+      [family.wife_id, family.husband_id],
+    ] as const) {
+      if (!selfId) continue;
+      if (!partners.has(selfId)) partners.set(selfId, new Set());
+      partners.get(selfId)!.add(spouseId ?? `?${family.id}`);
     }
   }
   const result: MarriageCount[] = [];
-  for (const [id, marriages] of counts) {
+  for (const [id, set] of partners) {
+    const marriages = set.size;
     if (marriages < 2) continue;
     const individual = index.individuals.get(id);
     if (individual) result.push({ individual, marriages });
@@ -304,8 +315,10 @@ export interface Widowing {
  * person's own (or this person has no recorded death).
  */
 export function widowings(index: TreeIndex): Widowing[] {
-  const spousesOf = new Map<string, string[]>();
-  const marriageYearsOf = new Map<string, number[]>();
+  // Distinct spouses and distinct marriage years — duplicate family
+  // records must not create a second widowhood (2026-07-26 audit).
+  const spousesOf = new Map<string, Set<string>>();
+  const marriageYearsOf = new Map<string, Set<number>>();
   for (const family of index.families) {
     for (const [selfId, spouseId] of [
       [family.husband_id, family.wife_id],
@@ -313,18 +326,19 @@ export function widowings(index: TreeIndex): Widowing[] {
     ] as const) {
       if (!selfId) continue;
       if (spouseId) {
-        if (!spousesOf.has(selfId)) spousesOf.set(selfId, []);
-        spousesOf.get(selfId)!.push(spouseId);
+        if (!spousesOf.has(selfId)) spousesOf.set(selfId, new Set());
+        spousesOf.get(selfId)!.add(spouseId);
       }
       if (family.marriage_year !== null) {
-        if (!marriageYearsOf.has(selfId)) marriageYearsOf.set(selfId, []);
-        marriageYearsOf.get(selfId)!.push(family.marriage_year);
+        if (!marriageYearsOf.has(selfId)) marriageYearsOf.set(selfId, new Set());
+        marriageYearsOf.get(selfId)!.add(family.marriage_year);
       }
     }
   }
 
   const result: Widowing[] = [];
-  for (const [selfId, spouseIds] of spousesOf) {
+  for (const [selfId, spouseIdSet] of spousesOf) {
+    const spouseIds = [...spouseIdSet];
     const individual = index.individuals.get(selfId);
     if (!individual) continue;
     const spouseDeaths: number[] = [];
@@ -339,7 +353,7 @@ export function widowings(index: TreeIndex): Widowing[] {
     // Remarriage needs a second family record; where every marriage is
     // dated, at least one must postdate a spouse's death — otherwise the
     // record order is trusted (marriage years are often absent).
-    const marriageYears = marriageYearsOf.get(selfId) ?? [];
+    const marriageYears = [...(marriageYearsOf.get(selfId) ?? [])];
     const remarried =
       spouseIds.length > 1 &&
       (marriageYears.length < spouseIds.length ||

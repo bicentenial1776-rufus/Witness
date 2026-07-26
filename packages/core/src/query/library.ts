@@ -64,7 +64,13 @@ export interface LibraryMatch {
 
 function aliveNote(match: AliveMatch): string {
   if (match.bornDuring) return `born during — ${match.individual.birth_year}`;
-  if (match.ageAtStart !== null) return `age ${match.ageAtStart} when it began`;
+  if (match.ageAtStart !== null) {
+    // A probable match must never wear documented-style wording — the
+    // hedge travels with the age (2026-07-26 audit).
+    return match.confidence === 'probable'
+      ? `likely alive · age ${match.ageAtStart} when it began`
+      : `age ${match.ageAtStart} when it began`;
+  }
   return match.confidence === 'probable' ? 'likely alive — years partly missing' : '';
 }
 
@@ -128,15 +134,17 @@ export function evaluateLibraryQuery(
       for (const person of people) {
         const alive = classifyAliveDuring(person, { startYear: year, endYear: year });
         if (!alive) continue;
-        if (person.death_year !== null && person.death_year <= past) continue;
+        // Survival is a positive claim: it needs a recorded death past the
+        // threshold or a living flag. A person with no death record may
+        // have died in the very event — they are not a survivor
+        // (2026-07-26 audit).
+        const survived =
+          person.living || (person.death_year !== null && person.death_year > past);
+        if (!survived) continue;
         matches.push({
           individual: person,
           note:
-            person.death_year !== null
-              ? `lived on to ${person.death_year}`
-              : person.living
-                ? 'still living'
-                : null,
+            person.death_year !== null ? `lived on to ${person.death_year}` : 'still living',
         });
       }
       return matches.sort(

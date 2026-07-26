@@ -35,7 +35,19 @@ async function cancelScheduled(): Promise<void> {
  * canceled, or expired). Safe to call on every customer-info refresh —
  * it only touches the OS scheduler when the expiration date actually changes.
  */
-export async function syncTrialReminder(
+// Startup fires this from up to three near-simultaneous paths (listener,
+// getCustomerInfo, logIn); overlapping runs both pass the stored-key check
+// and double-schedule. Serialize (2026-07-26 audit).
+let syncChain: Promise<void> = Promise.resolve();
+
+export function syncTrialReminder(
+  entitlement: PurchasesEntitlementInfo | undefined,
+): Promise<void> {
+  syncChain = syncChain.catch(() => {}).then(() => syncTrialReminderNow(entitlement));
+  return syncChain;
+}
+
+async function syncTrialReminderNow(
   entitlement: PurchasesEntitlementInfo | undefined,
 ): Promise<void> {
   if (!entitlement || entitlement.periodType !== 'TRIAL' || !entitlement.expirationDate) {

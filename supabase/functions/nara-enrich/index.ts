@@ -411,10 +411,12 @@ Deno.serve(async (req) => {
     note(`state insert for ${person.full_name}`, stateError);
   }
 
-  const { error: ledgerError } = await supabase
-    .from('nara_api_calls')
-    .update({ calls: monthCalls })
-    .eq('month', month);
+  // Report only THIS run's calls; the database adds them atomically, so
+  // concurrent runs can no longer clobber each other's counts.
+  const { error: ledgerError } = await supabase.rpc('bump_nara_calls', {
+    p_month: month,
+    p_calls: calls,
+  });
   note('ledger update', ledgerError);
 
   if (errors.length > 0) console.error('nara-enrich errors:', errors);

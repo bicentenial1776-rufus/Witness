@@ -44,8 +44,16 @@ interface AuditRun {
 }
 
 const runs = new Map<string, Promise<AuditRun>>();
+// A failed audit fetch is ~30 paginated requests; without a backoff every
+// Home/Tree focus on a flaky network re-fires the whole sweep.
+const failedAt = new Map<string, number>();
+const FAILURE_BACKOFF_MS = 60_000;
 
 function getAuditRun(treeId: string): Promise<AuditRun> {
+  const lastFailure = failedAt.get(treeId);
+  if (lastFailure && Date.now() - lastFailure < FAILURE_BACKOFF_MS) {
+    return Promise.reject(new Error('curiosities fetch backing off'));
+  }
   let pending = runs.get(treeId);
   if (!pending) {
     pending = fetchTreeHealthData(supabase, treeId).then((data) => ({
@@ -58,7 +66,11 @@ function getAuditRun(treeId: string): Promise<AuditRun> {
         ]),
       ),
     }));
-    pending.catch(() => runs.delete(treeId)); // don't cache failures
+    pending.catch(() => {
+      runs.delete(treeId); // don't cache failures…
+      failedAt.set(treeId, Date.now()); // …but don't storm retries either
+    });
+    pending.then(() => failedAt.delete(treeId)).catch(() => {});
     runs.set(treeId, pending);
   }
   return pending;

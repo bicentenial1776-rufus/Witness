@@ -48,12 +48,22 @@ async function cancelScheduled(): Promise<void> {
   }
 }
 
+// Concurrent arms both read the same stored id, both cancel it, both
+// schedule — two Sunday notifications, one orphaned forever. A promise
+// chain makes arming strictly sequential (2026-07-26 audit).
+let armChain: Promise<void> = Promise.resolve();
+
 /**
  * Compute next week's digest and (re)schedule the Sunday notification.
  * Quietly does nothing when disabled, when permissions are missing, or when
- * the coming week has no anniversaries.
+ * the coming week has no anniversaries. Calls are serialized.
  */
-export async function armDigestNotification(treeId: string): Promise<void> {
+export function armDigestNotification(treeId: string): Promise<void> {
+  armChain = armChain.catch(() => {}).then(() => armDigestNotificationNow(treeId));
+  return armChain;
+}
+
+async function armDigestNotificationNow(treeId: string): Promise<void> {
   if (!(await isDigestNotificationEnabled())) return;
   const permissions = await Notifications.getPermissionsAsync();
   if (!permissions.granted) return;
