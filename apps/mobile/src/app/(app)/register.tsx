@@ -128,12 +128,12 @@ export default function RegisterScreen() {
       }));
   }, [register, ordering]);
 
-  // Broadsheet: hand the household to the Family Stage on the home page.
+  // Broadsheet: hand the household to the Family Stage on the Tree tab.
   // Phone: open the upright stage (panel 4h) on that household.
   function openStage(key: string) {
     if (broadsheet) {
       setPendingStage(key);
-      router.push('/' as never);
+      router.push('/tree' as never);
     } else {
       router.push({ pathname: '/family-stage/[key]', params: { key } } as never);
     }

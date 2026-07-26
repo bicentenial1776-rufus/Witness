@@ -4,6 +4,8 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { buildFamilyStages, fetchNaraCounts, treeGenerationSpan, type NaraCounts } from '@witness/core/query';
 
+import { Masthead, PageShell, useBroadsheet } from '@/components/broadsheet';
+import { FamilyStage } from '@/components/broadsheet/family-stage';
 import { RecordText } from '@/components/record-text';
 import { BrandFonts, Letterpress, WideContent } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
@@ -72,6 +74,7 @@ function Door({ label, onPress }: { label: string; onPress: () => void }) {
  */
 export default function TreeTab() {
   const { activeTree, refresh } = useActiveTree();
+  const broadsheet = useBroadsheet();
   const [generations, setGenerations] = useState<number | null>(null);
   const [households, setHouseholds] = useState<number | null>(null);
   const [curiosities, setCuriosities] = useState<CuriositySummary | null>(null);
@@ -146,20 +149,8 @@ export default function TreeTab() {
     .filter(Boolean)
     .join(' · ');
 
-  return (
-    <View style={{ flex: 1, backgroundColor: L.paper }}>
-      <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingTop: 72, paddingBottom: 48 }}>
-        <RecordText eyebrow style={{ color: L.deepAmber }}>
-          The tree
-        </RecordText>
-        <Text
-          style={{ fontFamily: BrandFonts.serif.semiBold, fontSize: 28, lineHeight: 34, color: L.ink, marginTop: 8 }}
-        >
-          {activeTree.name}
-        </Text>
-        <Text style={{ ...mono(11, L.muted), marginTop: 8 }}>{stats.toUpperCase()}</Text>
-
-        <Section eyebrow="Curiosities">
+  const curiositiesSection = (
+    <Section eyebrow="Curiosities">
           {curiosities === null ? (
             <Text style={mono(11, L.muted)}>READING THE RECORD…</Text>
           ) : curiosities.total === 0 ? (
@@ -199,9 +190,11 @@ export default function TreeTab() {
             />
             <Door label="Orphan records ›" onPress={() => router.push('/orphan-records' as never)} />
           </View>
-        </Section>
+    </Section>
+  );
 
-        <Section eyebrow="The family stage">
+  const familyStageDoor = (
+    <Section eyebrow="The family stage">
           <Pressable
             onPress={() => router.push('/family-stage/root' as never)}
             style={{
@@ -226,9 +219,11 @@ export default function TreeTab() {
               </Text>
             </Pressable>
           </Pressable>
-        </Section>
+    </Section>
+  );
 
-        <Section eyebrow="Research">
+  const researchSection = (
+    <Section eyebrow="Research">
           <Row
             title="Research briefs"
             detail={
@@ -247,16 +242,63 @@ export default function TreeTab() {
             }
             onPress={() => router.push('/archives' as never)}
           />
-        </Section>
+    </Section>
+  );
 
-        <Section eyebrow="Visual views">
-          <View style={{ borderWidth: 1, borderColor: L.rule, borderStyle: 'dashed' as never, padding: 16, gap: 5 }}>
-            <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 19, color: L.inkUnrecorded }}>
-              Family Street View
-            </Text>
-            <Text style={mono(10.5, L.muted)}>COMING SOON — A WALK THROUGH THE PLACES THEY LIVED</Text>
+  const streetViewTeaser = (
+    <View style={{ borderWidth: 1, borderColor: L.rule, borderStyle: 'dashed' as never, padding: 16, gap: 5 }}>
+      <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 19, color: L.inkUnrecorded }}>
+        Family Street View
+      </Text>
+      <Text style={mono(10.5, L.muted)}>COMING SOON — A WALK THROUGH THE PLACES THEY LIVED</Text>
+    </View>
+  );
+
+  // Broadsheet carrier (web ≥900px): masthead from the tree itself, the
+  // stage drawn live in the main column where the phone shows its door,
+  // the coming-soon teaser in the margin.
+  if (broadsheet) {
+    return (
+      <PageShell
+        masthead={
+          <Masthead title={activeTree.name} metaMono={stats.toUpperCase()} metaCaption="The tree" />
+        }
+        margin={
+          <View style={{ gap: 10 }}>
+            <RecordText eyebrow muted>
+              Visual views
+            </RecordText>
+            {streetViewTeaser}
           </View>
-        </Section>
+        }
+      >
+        <View style={{ maxWidth: 680 }}>{curiositiesSection}</View>
+        <View style={{ marginTop: 36 }}>
+          <FamilyStage treeId={activeTree.id} />
+        </View>
+        <View style={{ maxWidth: 680 }}>{researchSection}</View>
+      </PageShell>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: L.paper }}>
+      <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingTop: 72, paddingBottom: 48 }}>
+        <RecordText eyebrow style={{ color: L.deepAmber }}>
+          The tree
+        </RecordText>
+        <Text
+          style={{ fontFamily: BrandFonts.serif.semiBold, fontSize: 28, lineHeight: 34, color: L.ink, marginTop: 8 }}
+        >
+          {activeTree.name}
+        </Text>
+        <Text style={{ ...mono(11, L.muted), marginTop: 8 }}>{stats.toUpperCase()}</Text>
+
+        {curiositiesSection}
+        {familyStageDoor}
+        {researchSection}
+
+        <Section eyebrow="Visual views">{streetViewTeaser}</Section>
       </ScrollView>
     </View>
   );

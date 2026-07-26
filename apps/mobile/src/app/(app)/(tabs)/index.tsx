@@ -6,8 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import type { ShelfEntry } from '@witness/core/history';
 import { treeGenerationSpan, weeklyDigest, type DigestEntry, type WeeklyDigest } from '@witness/core/query';
 
-import { useBroadsheet } from '@/components/broadsheet';
-import { ThisWeekBroadsheet, type LivedThroughLine } from '@/components/broadsheet/this-week';
+import { Masthead, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { Card } from '@/components/card';
 import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
@@ -15,7 +14,6 @@ import { BrandFonts, Letterpress, WideContent } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { getCuriosities, type CuriositySummary } from '@/lib/curiosities-cache';
 import { armDigestNotification } from '@/lib/digest-notifications';
-import { getEventLibrary } from '@/lib/event-library';
 import { getRelationshipMap } from '@/lib/relationship-cache';
 import { describeResumePoint, getResumePoint } from '@/lib/resume';
 import { getShelf } from '@/lib/shelf-cache';
@@ -74,16 +72,15 @@ function Feed({ eyebrow, children }: { eyebrow: string; children: ReactNode }) {
  * engine's pick with its cached record-grounded note — never a live call —
  * then the curiosities nudge, On This Day, the stat strip, resume, and the
  * Explore shelf. Nothing here waits on an external API. The broadsheet
- * carrier (web ≥900px) keeps This Week unchanged.
+ * carrier (web ≥900px) runs the same feed under a masthead — the phone-tab
+ * mirror of 2026-07-26; This Week lives on at /digest.
  */
 export default function Home() {
   const { trees, activeTree, refresh } = useActiveTree();
   const broadsheet = useBroadsheet();
   const [digest, setDigest] = useState<WeeklyDigest | null>(null);
   const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
-  const [topNote, setTopNote] = useState<string | null>(null);
   const [heroNote, setHeroNote] = useState<string | null>(null);
-  const [livedThrough, setLivedThrough] = useState<LivedThroughLine[]>([]);
   const [curiosities, setCuriosities] = useState<CuriositySummary | null>(null);
   const [shelf, setShelf] = useState<ShelfEntry[] | null>(null);
   const [generations, setGenerations] = useState<number | null>(null);
@@ -122,55 +119,15 @@ export default function Home() {
           setRelationships(relationshipMap);
           setDigest(result);
 
-          const top = result.days[0];
           const hero = result.entries[0] ?? result.days[0];
-          const noteFor = async (individualId: string) => {
+          if (hero) {
             const { data } = await supabase
               .from('enrichment_cache')
               .select('content')
-              .eq('individual_id', individualId)
+              .eq('individual_id', hero.individualId)
               .eq('enrichment_type', 'digest_note')
               .maybeSingle();
-            return data?.content ?? null;
-          };
-          if (top) {
-            const note = await noteFor(top.individualId);
-            if (cancelled) return;
-            setTopNote(note);
-            if (hero && hero.individualId !== top.individualId) {
-              const heroOwn = await noteFor(hero.individualId);
-              if (!cancelled) setHeroNote(heroOwn);
-            } else {
-              setHeroNote(note);
-            }
-          }
-
-          // Broadsheet margin data: the "while they lived" world events
-          // for the featured life.
-          if (broadsheet && top) {
-            if (top.birthYear !== null) {
-              const library = await getEventLibrary();
-              const lastYear = top.deathYear ?? top.birthYear + 80;
-              const inLife = library.filter(
-                (e) => e.startYear >= top.birthYear! && e.startYear <= lastYear,
-              );
-              const picks = [
-                ...inLife.filter((e) => e.tier === 'major'),
-                ...inLife.filter((e) => e.tier !== 'major'),
-              ]
-                .slice(0, 3)
-                .sort((a, b) => a.startYear - b.startYear);
-              if (!cancelled) {
-                setLivedThrough(
-                  picks.map((e) => ({
-                    eventId: e.id,
-                    year: e.startYear,
-                    name: e.name,
-                    age: e.startYear - top.birthYear!,
-                  })),
-                );
-              }
-            }
+            if (!cancelled) setHeroNote(data?.content ?? null);
           }
         } catch {
           // Home stays quiet on digest errors; the digest screen surfaces them.
@@ -179,14 +136,14 @@ export default function Home() {
       return () => {
         cancelled = true;
       };
-    }, [activeTree?.id, broadsheet]),
+    }, [activeTree?.id]),
   );
 
   // The rest of the feed — each block arrives independently, nothing
   // gates the first paint.
   useFocusEffect(
     useCallback(() => {
-      if (!activeTree || broadsheet) return;
+      if (!activeTree) return;
       let cancelled = false;
       const treeId = activeTree.id;
 
@@ -218,21 +175,8 @@ export default function Home() {
       return () => {
         cancelled = true;
       };
-    }, [activeTree?.id, broadsheet]),
+    }, [activeTree?.id]),
   );
-
-  // Broadsheet layout (web ≥900px) — This Week, unchanged by the phone feed.
-  if (broadsheet && activeTree && digest) {
-    return (
-      <ThisWeekBroadsheet
-        digest={digest}
-        relationships={relationships}
-        topNote={topNote}
-        livedThrough={livedThrough}
-        treeId={activeTree.id}
-      />
-    );
-  }
 
   const hero = digest ? (digest.entries[0] ?? digest.days[0] ?? null) : null;
   const heroRelationship = hero ? relationships.get(hero.individualId) : undefined;
@@ -244,25 +188,8 @@ export default function Home() {
   const historicalToday =
     !onThisDay && shelf && shelf.length > 0 ? shelf[dayOfYear % shelf.length] : null;
 
-  return (
-    <View style={{ flex: 1, backgroundColor: L.paper }}>
-      <ScrollView
-        contentContainerStyle={{ ...WideContent, padding: 24, paddingTop: 72, paddingBottom: 48 }}
-      >
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <RecordText eyebrow style={{ color: L.amber }}>
-            Witness
-          </RecordText>
-          <Pressable
-            onPress={() => router.push('/you')}
-            hitSlop={12}
-            accessibilityLabel="Your account and trees"
-          >
-            <SymbolView name="gearshape" size={24} tintColor={L.muted} />
-          </Pressable>
-        </View>
-
-        {trees === null ? (
+  const feedBody =
+    trees === null ? (
           <ActivityIndicator style={{ marginVertical: 24 }} />
         ) : trees.length === 0 ? (
           <Card onPress={() => router.push('/import-guide')} style={{ marginTop: 16 }}>
@@ -489,7 +416,47 @@ export default function Home() {
               )}
             </>
           )
-        )}
+        );
+
+  // Broadsheet carrier (web ≥900px): the same feed at a readable measure
+  // under a masthead — the rail carries the wordmark and Account.
+  if (broadsheet) {
+    return (
+      <PageShell
+        masthead={
+          <Masthead
+            title="Home"
+            metaMono={new Date()
+              .toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+              .toUpperCase()}
+            metaCaption={activeTree?.name}
+          />
+        }
+      >
+        <View style={{ maxWidth: 680 }}>{feedBody}</View>
+      </PageShell>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: L.paper }}>
+      <ScrollView
+        contentContainerStyle={{ ...WideContent, padding: 24, paddingTop: 72, paddingBottom: 48 }}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <RecordText eyebrow style={{ color: L.amber }}>
+            Witness
+          </RecordText>
+          <Pressable
+            onPress={() => router.push('/you')}
+            hitSlop={12}
+            accessibilityLabel="Your account and trees"
+          >
+            <SymbolView name="gearshape" size={24} tintColor={L.muted} />
+          </Pressable>
+        </View>
+
+        {feedBody}
       </ScrollView>
     </View>
   );

@@ -7,20 +7,22 @@ import { Broadsheet, BrandFonts } from '@/constants/theme';
 
 /**
  * The persistent left rail (redesign §2, structure rule 1): wordmark, tree
- * name, six destinations, and a contextual block. Rendered only under the
- * broadsheet layout — the phone tab bar takes over below 900px.
+ * name, the five phone-tab destinations, and a contextual block. Rendered
+ * only under the broadsheet layout — the phone tab bar takes over below 900px.
  */
 
 const C = Broadsheet.color;
 
-// "Home" is This Week for now; a true overview home page is a future
-// version (Rufus, 2026-07-24).
+// The five destinations mirror the phone tabs exactly (docs/
+// phone-ia-design-brief.md, decision 2): Home is the feed, This Week
+// lives behind it at /digest, and Research folds into Tree.
+const TREE_ROUTES = ['/tree', '/research', '/archives', '/register', '/family-stage', '/orphan-records'];
 const DESTINATIONS: { label: string; href: string; match: (p: string) => boolean }[] = [
-  { label: 'This week', href: '/', match: (p) => p === '/' || p === '/index' || p.startsWith('/digest') },
+  { label: 'Home', href: '/', match: (p) => p === '/' || p === '/index' || p.startsWith('/digest') },
+  { label: 'Tree', href: '/tree', match: (p) => TREE_ROUTES.some((route) => p.startsWith(route)) },
   { label: 'Explore', href: '/explore', match: (p) => p.startsWith('/explore') },
   { label: 'Map', href: '/map', match: (p) => p.startsWith('/map') },
   { label: 'Nearby', href: '/proximity', match: (p) => p.startsWith('/proximity') },
-  { label: 'Research', href: '/research', match: (p) => p.startsWith('/research') },
 ];
 
 export function Rail() {

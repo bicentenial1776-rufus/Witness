@@ -15,8 +15,6 @@ import { Broadsheet, BrandFonts, Letterpress } from '@/constants/theme';
 import { consumePendingStage } from '@/lib/stage-handoff';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
-import { SectionBreak } from './page-shell';
-
 const C = Broadsheet.color;
 
 // The letterpress system from design panel 4g — now the app-wide tokens.
@@ -98,8 +96,8 @@ export function FamilyStage({ treeId }: { treeId: string }) {
   // Clear the sweep on unmount and whenever the family changes.
   useEffect(() => stopSweep, [currentKey]);
 
-  // The Register hands households here: arriving on Home with a pending
-  // key opens that stage. Consume only once stages have loaded — on a
+  // The Register hands households here: arriving on the Tree tab with a
+  // pending key opens that stage. Consume only once stages have loaded — on a
   // cold arrival this effect fires before the index resolves, and an
   // early consume destroyed the key the re-run needed (the handoff
   // silently opened nothing).
@@ -142,7 +140,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
     setYear(next.scrubStart);
   }
 
-  if (failed) return null; // the home page carries on without the stage
+  if (failed) return null; // the Tree tab carries on without the stage
   if (!stages || !stage) {
     return (
       <View style={{ marginBottom: 28 }}>
@@ -683,10 +681,6 @@ export function FamilyStage({ treeId }: { treeId: string }) {
             <Text style={mono(10.5, DEEP_AMBER)}>Open {persons.find((p) => p.role === 'head')?.n.split(' ')[0]} ›</Text>
           </Pressable>
         </View>
-      </View>
-
-      <View style={{ marginTop: 22 }}>
-        <SectionBreak label="This week" />
       </View>
     </View>
   );

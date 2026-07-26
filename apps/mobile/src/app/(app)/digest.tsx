@@ -4,10 +4,13 @@ import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 import { weeklyDigest, type DigestEntry, type WeeklyDigest } from '@witness/core/query';
 
+import { useBroadsheet } from '@/components/broadsheet';
+import { ThisWeekBroadsheet, type LivedThroughLine } from '@/components/broadsheet/this-week';
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { armDigestNotification } from '@/lib/digest-notifications';
+import { getEventLibrary } from '@/lib/event-library';
 import { getRelationshipMap } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
@@ -35,10 +38,12 @@ function anniversaryLine(entry: DigestEntry): string {
 
 export default function DigestScreen() {
   const { treeId } = useLocalSearchParams<{ treeId: string }>();
+  const broadsheet = useBroadsheet();
   const [digest, setDigest] = useState<WeeklyDigest | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
   const [notes, setNotes] = useState<Record<string, NoteState>>({});
+  const [livedThrough, setLivedThrough] = useState<LivedThroughLine[]>([]);
 
   useEffect(() => {
     if (!treeId) return;
@@ -60,8 +65,15 @@ export default function DigestScreen() {
         setDigest(result);
 
         // Notes: cached ones load in one read; the rest generate one at a
-        // time so a thin budget still finishes the top of the digest.
-        const ids = result.entries.map((e) => e.individualId);
+        // time so a thin budget still finishes the top of the digest. The
+        // week's lead (days[0]) joins the cache read — the broadsheet
+        // features it — but only featured entries spend generation budget.
+        const entryIds = result.entries.map((e) => e.individualId);
+        const ids = [
+          ...new Set(
+            [result.days[0]?.individualId, ...entryIds].filter((id): id is string => Boolean(id)),
+          ),
+        ];
         if (ids.length === 0) return;
         const { data: cachedRows } = await supabase
           .from('enrichment_cache')
@@ -72,10 +84,13 @@ export default function DigestScreen() {
         const cached = new Map((cachedRows ?? []).map((r) => [r.individual_id, r.content]));
         setNotes(
           Object.fromEntries(
-            ids.map((id) => [id, { text: cached.get(id) ?? null, loading: !cached.has(id) }]),
+            ids.map((id) => [
+              id,
+              { text: cached.get(id) ?? null, loading: !cached.has(id) && entryIds.includes(id) },
+            ]),
           ),
         );
-        for (const id of ids) {
+        for (const id of entryIds) {
           if (cached.has(id)) continue;
           const { data } = await supabase.functions.invoke('generate-digest-note', {
             body: { individualId: id },
@@ -99,6 +114,53 @@ export default function DigestScreen() {
   useEffect(() => {
     if (treeId) armDigestNotification(treeId).catch(() => {});
   }, [treeId]);
+
+  // Broadsheet margin data: the "while they lived" world events for the
+  // week's featured life (carried here from Home in the phone-tab mirror).
+  useEffect(() => {
+    const top = digest?.days[0];
+    if (!broadsheet || !top || top.birthYear === null) return;
+    let cancelled = false;
+    (async () => {
+      const library = await getEventLibrary();
+      const lastYear = top.deathYear ?? top.birthYear! + 80;
+      const inLife = library.filter((e) => e.startYear >= top.birthYear! && e.startYear <= lastYear);
+      const picks = [
+        ...inLife.filter((e) => e.tier === 'major'),
+        ...inLife.filter((e) => e.tier !== 'major'),
+      ]
+        .slice(0, 3)
+        .sort((a, b) => a.startYear - b.startYear);
+      if (!cancelled) {
+        setLivedThrough(
+          picks.map((e) => ({
+            eventId: e.id,
+            year: e.startYear,
+            name: e.name,
+            age: e.startYear - top.birthYear!,
+          })),
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [digest, broadsheet]);
+
+  // Web ≥900px: This Week as the broadsheet page (redesign §3.1), reached
+  // from Home — the rail's Home destination keeps it under that section.
+  if (broadsheet && treeId && digest) {
+    const top = digest.days[0];
+    return (
+      <ThisWeekBroadsheet
+        digest={digest}
+        relationships={relationships}
+        topNote={top ? (notes[top.individualId]?.text ?? null) : null}
+        livedThrough={livedThrough}
+        treeId={treeId}
+      />
+    );
+  }
 
   return (
     <ThemedView style={{ flex: 1 }}>
