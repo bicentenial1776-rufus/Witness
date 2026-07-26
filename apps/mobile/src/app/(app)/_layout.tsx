@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 
 import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { trackResumePoint } from '@/lib/resume';
 
 const RESUME_KEY = 'witness_last_route';
 const RESUME_TTL_MS = 6 * 60 * 60 * 1000; // a working session, not forever
@@ -16,9 +17,10 @@ const RESUME_TTL_MS = 6 * 60 * 60 * 1000; // a working session, not forever
  * this way). So the last route is saved on every navigation, and a
  * fresh arrival at the front door within the TTL is put back where
  * they were. A deliberate visit that ends on Home saves "/", which
- * restores nothing. Native keeps its own state; this is web-only.
+ * restores nothing. Native never auto-restores: it tracks the last
+ * nameable detail screen for Home's "pick up where you left off" card.
  */
-function useWebResume() {
+function useResume() {
   // The router hooks, not window.location: the browser URL is synced a
   // beat AFTER navigation commits, so reading it from an effect records
   // the route you just LEFT — the tracker ran one step behind until it
@@ -54,7 +56,12 @@ function useWebResume() {
   }, [pathname]);
 
   useEffect(() => {
-    if (Platform.OS !== 'web') return;
+    if (Platform.OS !== 'web') {
+      // Native: no auto-restore — the last nameable detail screen is saved
+      // for the Home feed's "Pick up where you left off" card instead.
+      trackResumePoint(pathname + (search ? `?${search}` : '')).catch(() => {});
+      return;
+    }
     try {
       localStorage.setItem(
         RESUME_KEY,
@@ -80,7 +87,7 @@ export const unstable_settings = {
 
 export default function AppLayout() {
   const theme = useTheme();
-  useWebResume();
+  useResume();
 
   return (
     <Stack
