@@ -1,7 +1,6 @@
 import { Link } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   ScrollView,
@@ -13,6 +12,7 @@ import { Button } from '@/components/button';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { showAlert } from '@/lib/alert';
 import { supabase } from '@/lib/supabase';
 
 export default function SignUp() {
@@ -35,9 +35,9 @@ export default function SignUp() {
     });
     setIsSubmitting(false);
     if (error) {
-      Alert.alert('Sign up failed', error.message);
+      showAlert('Sign up failed', error.message);
     } else {
-      Alert.alert('Check your email', 'Confirm your account, then sign in.');
+      showAlert('Check your email', 'Confirm your account, then sign in.');
     }
   }
 

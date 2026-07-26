@@ -1,7 +1,6 @@
 import { Link } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   ScrollView,
@@ -13,6 +12,7 @@ import { Button } from '@/components/button';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { showAlert } from '@/lib/alert';
 import { supabase } from '@/lib/supabase';
 
 export default function SignIn() {
@@ -37,7 +37,7 @@ export default function SignIn() {
     setIsSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setIsSubmitting(false);
-    if (error) Alert.alert('Sign in failed', error.message);
+    if (error) showAlert('Sign in failed', error.message);
   }
 
   return (
