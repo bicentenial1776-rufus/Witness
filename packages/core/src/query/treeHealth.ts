@@ -116,6 +116,7 @@ export interface HealthFamily {
   marriage_date_year: number | null;
   marriage_date_month: number | null;
   marriage_date_day: number | null;
+  marriage_date_qualifier: Database['public']['Enums']['date_qualifier'] | null;
   children: string[];
 }
 
@@ -125,26 +126,56 @@ export interface TreeHealthData {
   families: HealthFamily[];
 }
 
-// ── Partial-date arithmetic ──────────────────────────────────────────
+// ── Qualified-date arithmetic ────────────────────────────────────────
+//
+// The conviction philosophy, made mechanical: every date is an interval.
+// An exact date is a point; BEF/AFT are one-sided bounds that can still
+// PROVE a violation in one direction; ABT/EST/CAL claim no precision at
+// all, and BET's stored year is a fabricated midpoint — none of those
+// four may ever convict. Month/day only refine comparisons when both
+// dates are exact.
 
-interface PartialDate {
+type Qualifier = HealthEvent['date_qualifier'];
+
+interface QualifiedDate {
   year: number;
   month: number | null;
   day: number | null;
+  q: Qualifier;
 }
 
-function partial(year: number | null, month?: number | null, day?: number | null): PartialDate | null {
+function partial(
+  year: number | null,
+  month?: number | null,
+  day?: number | null,
+  q: Qualifier = null,
+): QualifiedDate | null {
   if (year === null || year === undefined) return null;
-  return { year, month: month ?? null, day: day ?? null };
+  return { year, month: month ?? null, day: day ?? null, q };
 }
+
+/** Dates whose recorded precision can never prove anything. */
+const unusable = (d: QualifiedDate | null): boolean =>
+  d !== null &&
+  (d.q === 'about' || d.q === 'estimated' || d.q === 'calculated' || d.q === 'between' || d.q === 'unknown');
+
+const isExact = (q: Qualifier): boolean => q === null || q === 'exact';
+
+/** Earliest year the record allows. */
+const loYear = (d: QualifiedDate): number => (d.q === 'before' ? -Infinity : d.year);
+/** Latest year the record allows. */
+const hiYear = (d: QualifiedDate): number => (d.q === 'after' ? Infinity : d.year);
 
 /**
- * True only when `a` is after `b` under the loosest reading of what was
- * recorded: later year, or same year with both months known and later,
- * or same month with both days known and later.
+ * True only when `a` is PROVABLY after `b` under the recorded precision
+ * and qualifiers: a's earliest possible year beats b's latest, or the
+ * years agree exactly (both unqualified) and month/day prove it.
  */
-function definitelyAfter(a: PartialDate, b: PartialDate): boolean {
-  if (a.year !== b.year) return a.year > b.year;
+function definitelyAfter(a: QualifiedDate, b: QualifiedDate): boolean {
+  if (unusable(a) || unusable(b)) return false;
+  if (loYear(a) > hiYear(b)) return true;
+  if (!isExact(a.q) || !isExact(b.q)) return false; // a bound can't prove within-year order
+  if (a.year !== b.year) return false;
   if (a.month === null || b.month === null) return false;
   if (a.month !== b.month) return a.month > b.month;
   if (a.day === null || b.day === null) return false;
@@ -152,14 +183,21 @@ function definitelyAfter(a: PartialDate, b: PartialDate): boolean {
 }
 
 /** Days between two fully-specified dates (b - a). */
-function daysBetween(a: PartialDate, b: PartialDate): number | null {
+function daysBetween(a: QualifiedDate, b: QualifiedDate): number | null {
   if (a.month === null || a.day === null || b.month === null || b.day === null) return null;
   const ms = Date.UTC(b.year, b.month - 1, b.day) - Date.UTC(a.year, a.month - 1, a.day);
   return Math.round(ms / 86_400_000);
 }
 
-const isEstimate = (q: HealthEvent['date_qualifier']) =>
-  q === 'estimated' || q === 'calculated' || q === 'about' || q === 'before' || q === 'after' || q === 'between';
+const isEstimate = (q: Qualifier) => !isExact(q);
+
+/**
+ * Pre-1752 English/colonial records dual-date January–March (the old year
+ * ran to 24 March), so day arithmetic between such dates is off by a year
+ * as often as not — no sibling conviction may rest on one.
+ */
+const dualDatingRisk = (d: QualifiedDate): boolean =>
+  d.year <= 1752 && d.month !== null && d.month <= 3;
 
 // ── The audit ────────────────────────────────────────────────────────
 
@@ -184,17 +222,24 @@ export function runTreeHealth(data: TreeHealthData, options: { currentYear: numb
     if (!eventsByPerson.has(event.individual_id)) eventsByPerson.set(event.individual_id, []);
     eventsByPerson.get(event.individual_id)!.push(event);
   }
-  const eventDate = (personId: string, type: HealthEvent['event_type']): PartialDate | null => {
+  const eventDate = (personId: string, type: HealthEvent['event_type']): QualifiedDate | null => {
     for (const e of eventsByPerson.get(personId) ?? []) {
-      if (e.event_type === type && e.date_year !== null) return partial(e.date_year, e.date_month, e.date_day);
+      if (e.event_type === type && e.date_year !== null)
+        return partial(e.date_year, e.date_month, e.date_day, e.date_qualifier);
     }
     return null;
   };
+  // Denormalized years lose their qualifiers at import, but they are
+  // DERIVED from the events — so recover the qualifier from the event
+  // whenever one exists, and treat a bare fallback year as exact.
+  const vital = (person: HealthIndividual, type: 'birth' | 'death'): QualifiedDate | null =>
+    eventDate(person.id, type) ??
+    partial(type === 'birth' ? person.birth_year : person.death_year);
 
   // Individual-level checks
   for (const person of data.individuals) {
-    const birth = eventDate(person.id, 'birth') ?? partial(person.birth_year);
-    const death = eventDate(person.id, 'death') ?? partial(person.death_year);
+    const birth = vital(person, 'birth');
+    const death = vital(person, 'death');
     const burial = eventDate(person.id, 'burial');
 
     if (birth && death && definitelyAfter(birth, death)) {
@@ -215,14 +260,17 @@ export function runTreeHealth(data: TreeHealthData, options: { currentYear: numb
       });
     }
 
-    if (person.birth_year !== null && person.death_year !== null) {
-      const lifespan = person.death_year - person.birth_year;
-      if (lifespan > MAX_LIFESPAN) {
+    // The lifespan that must hold even under the bounds: latest possible
+    // birth to earliest possible death. ABT/EST/CAL/BET endpoints claim no
+    // precision and never convict.
+    if (birth && death && !unusable(birth) && !unusable(death)) {
+      const minLifespan = loYear(death) - hiYear(birth);
+      if (Number.isFinite(minLifespan) && minLifespan > MAX_LIFESPAN) {
         findings.push({
           check: 'implausible_lifespan',
           severity: 'fail',
           individualIds: [person.id],
-          detail: `${person.full_name} would have died aged ${lifespan} (${person.birth_year}–${person.death_year}).`,
+          detail: `${person.full_name} would have died aged ${minLifespan} (${birth.year}–${death.year}).`,
         });
       }
     }
@@ -240,7 +288,7 @@ export function runTreeHealth(data: TreeHealthData, options: { currentYear: numb
     // that must fall within it (burial rightly follows death).
     for (const event of eventsByPerson.get(person.id) ?? []) {
       if (event.event_type !== 'residence' || event.date_year === null) continue;
-      const when = partial(event.date_year, event.date_month, event.date_day)!;
+      const when = partial(event.date_year, event.date_month, event.date_day, event.date_qualifier)!;
       if (birth && definitelyAfter(birth, when)) {
         findings.push({
           check: 'fact_before_birth',
@@ -259,38 +307,49 @@ export function runTreeHealth(data: TreeHealthData, options: { currentYear: numb
     }
 
     // Duplicate and conflicting facts: birth and death should be singular.
+    // Two records conflict only when they disagree at their SHARED
+    // precision — "1850" and "15 JUN 1850" are the same fact twice, not
+    // two different dates.
     for (const type of ['birth', 'death'] as const) {
       const dated = (eventsByPerson.get(person.id) ?? []).filter(
         (e) => e.event_type === type && e.date_year !== null,
       );
       if (dated.length < 2) continue;
-      const keys = new Set(dated.map((e) => `${e.date_year}-${e.date_month}-${e.date_day}`));
-      if (keys.size === 1) {
-        findings.push({
-          check: 'duplicate_fact',
-          severity: 'caution',
-          individualIds: [person.id],
-          detail: `${person.full_name} has the same ${type} recorded ${dated.length} times.`,
-        });
-      } else {
-        const years = [...new Set(dated.map((e) => e.date_year))].sort().join(', ');
+      const disagree = (a: HealthEvent, b: HealthEvent): boolean => {
+        if (a.date_year !== b.date_year) return true;
+        if (a.date_month === null || b.date_month === null) return false;
+        if (a.date_month !== b.date_month) return true;
+        if (a.date_day === null || b.date_day === null) return false;
+        return a.date_day !== b.date_day;
+      };
+      const conflicting = dated.some((a, i) => dated.slice(i + 1).some((b) => disagree(a, b)));
+      if (conflicting) {
+        const years = [...new Set(dated.map((e) => e.date_year!))].sort((a, b) => a - b).join(', ');
         findings.push({
           check: 'conflicting_fact',
           severity: 'caution',
           individualIds: [person.id],
           detail: `${person.full_name} has ${dated.length} different ${type} dates recorded (${years}).`,
         });
+      } else {
+        findings.push({
+          check: 'duplicate_fact',
+          severity: 'caution',
+          individualIds: [person.id],
+          detail: `${person.full_name} has the same ${type} recorded ${dated.length} times.`,
+        });
       }
     }
 
-    // Future dates
-    for (const year of [person.birth_year, person.death_year]) {
-      if (year !== null && year > currentYear) {
+    // Future dates. A "BEF 2030" allows a past date, so only a date whose
+    // EARLIEST reading is still in the future convicts.
+    for (const date of [birth, death]) {
+      if (date && loYear(date) > currentYear) {
         findings.push({
           check: 'date_in_future',
           severity: 'fail',
           individualIds: [person.id],
-          detail: `${person.full_name} has a date recorded in the future (${year}).`,
+          detail: `${person.full_name} has a date recorded in the future (${date.year}).`,
         });
         break;
       }
@@ -301,7 +360,12 @@ export function runTreeHealth(data: TreeHealthData, options: { currentYear: numb
   for (const family of data.families) {
     const husband = family.husband_id ? people.get(family.husband_id) : undefined;
     const wife = family.wife_id ? people.get(family.wife_id) : undefined;
-    const marriage = partial(family.marriage_date_year, family.marriage_date_month, family.marriage_date_day);
+    const marriage = partial(
+      family.marriage_date_year,
+      family.marriage_date_month,
+      family.marriage_date_day,
+      family.marriage_date_qualifier,
+    );
 
     if (husband && husband.sex === 'F') {
       findings.push({
@@ -332,8 +396,8 @@ export function runTreeHealth(data: TreeHealthData, options: { currentYear: numb
       });
     }
 
-    if (marriage) {
-      if (marriage.year > currentYear) {
+    if (marriage && !unusable(marriage)) {
+      if (loYear(marriage) > currentYear) {
         findings.push({
           check: 'date_in_future',
           severity: 'fail',
@@ -344,104 +408,104 @@ export function runTreeHealth(data: TreeHealthData, options: { currentYear: numb
       }
       for (const spouse of [husband, wife]) {
         if (!spouse) continue;
-        if (spouse.death_year !== null && marriage.year > spouse.death_year) {
+        const spouseDeath = vital(spouse, 'death');
+        const spouseBirth = vital(spouse, 'birth');
+        if (spouseDeath && !unusable(spouseDeath) && loYear(marriage) > hiYear(spouseDeath)) {
           findings.push({
             check: 'marriage_after_death',
             severity: 'fail',
             individualIds: [spouse.id],
             familyId: family.id,
-            detail: `${spouse.full_name} is recorded as marrying in ${marriage.year}, after dying in ${spouse.death_year}.`,
+            detail: `${spouse.full_name} is recorded as marrying in ${marriage.year}, after dying in ${spouseDeath.year}.`,
           });
         }
-        if (spouse.birth_year !== null && marriage.year - spouse.birth_year <= MARRIAGE_MIN_AGE && marriage.year >= spouse.birth_year) {
-          findings.push({
-            check: 'marriage_before_13',
-            severity: 'fail',
-            individualIds: [spouse.id],
-            familyId: family.id,
-            detail: `${spouse.full_name} would have married aged ${marriage.year - spouse.birth_year} in ${marriage.year}.`,
-          });
+        if (spouseBirth && !unusable(spouseBirth)) {
+          // The age that must hold even at the extremes of the bounds.
+          const maxAge = hiYear(marriage) - loYear(spouseBirth);
+          if (Number.isFinite(maxAge) && maxAge <= MARRIAGE_MIN_AGE && maxAge >= 0) {
+            findings.push({
+              check: 'marriage_before_13',
+              severity: 'fail',
+              individualIds: [spouse.id],
+              familyId: family.id,
+              detail: `${spouse.full_name} would have married aged ${maxAge} in ${marriage.year}.`,
+            });
+          }
         }
       }
     }
 
-    // Parent-age and posthumous-birth checks
+    // Parent-age and posthumous-birth checks — every claim must survive
+    // the recorded bounds: the age that MUST hold is child's earliest
+    // birth minus parent's latest, and so on. Unusable qualifiers on
+    // either side stand the check down.
     for (const childId of family.children) {
       const child = people.get(childId);
-      if (!child || child.birth_year === null) continue;
+      if (!child) continue;
+      const childBirth = vital(child, 'birth');
+      if (!childBirth || unusable(childBirth)) continue;
 
-      if (wife?.birth_year != null) {
-        const motherAge = child.birth_year - wife.birth_year;
-        if (motherAge >= MOTHER_MAX_AGE) {
+      const parentAges = (parent: HealthIndividual, tooOld: HealthCheckId, tooYoung: HealthCheckId, maxAgeLimit: number) => {
+        const parentBirth = vital(parent, 'birth');
+        if (!parentBirth || unusable(parentBirth)) return;
+        const minAge = loYear(childBirth) - hiYear(parentBirth);
+        const maxAge = hiYear(childBirth) - loYear(parentBirth);
+        if (Number.isFinite(minAge) && minAge >= maxAgeLimit) {
           findings.push({
-            check: 'mother_too_old',
+            check: tooOld,
             severity: 'fail',
-            individualIds: [childId, wife.id],
+            individualIds: [childId, parent.id],
             familyId: family.id,
-            detail: `${wife.full_name} would have been ${motherAge} at the birth of ${child.full_name} (${child.birth_year}).`,
+            detail: `${parent.full_name} would have been ${minAge} at the birth of ${child.full_name} (${childBirth.year}).`,
           });
-        } else if (motherAge <= PARENT_MIN_AGE && motherAge >= 0) {
+        } else if (Number.isFinite(maxAge) && maxAge <= PARENT_MIN_AGE && maxAge >= 0) {
           findings.push({
-            check: 'mother_too_young',
+            check: tooYoung,
             severity: 'fail',
-            individualIds: [childId, wife.id],
+            individualIds: [childId, parent.id],
             familyId: family.id,
-            detail: `${wife.full_name} would have been ${motherAge} at the birth of ${child.full_name} (${child.birth_year}).`,
+            detail: `${parent.full_name} would have been ${maxAge} at the birth of ${child.full_name} (${childBirth.year}).`,
           });
         }
-      }
-      if (husband?.birth_year != null) {
-        const fatherAge = child.birth_year - husband.birth_year;
-        if (fatherAge >= FATHER_MAX_AGE) {
-          findings.push({
-            check: 'father_too_old',
-            severity: 'fail',
-            individualIds: [childId, husband.id],
-            familyId: family.id,
-            detail: `${husband.full_name} would have been ${fatherAge} at the birth of ${child.full_name} (${child.birth_year}).`,
-          });
-        } else if (fatherAge <= PARENT_MIN_AGE && fatherAge >= 0) {
-          findings.push({
-            check: 'father_too_young',
-            severity: 'fail',
-            individualIds: [childId, husband.id],
-            familyId: family.id,
-            detail: `${husband.full_name} would have been ${fatherAge} at the birth of ${child.full_name} (${child.birth_year}).`,
-          });
-        }
-      }
+      };
+      if (wife) parentAges(wife, 'mother_too_old', 'mother_too_young', MOTHER_MAX_AGE);
+      if (husband) parentAges(husband, 'father_too_old', 'father_too_young', FATHER_MAX_AGE);
 
-      if (wife?.death_year != null && child.birth_year > wife.death_year) {
+      const motherDeath = wife ? vital(wife, 'death') : null;
+      if (wife && motherDeath && !unusable(motherDeath) && loYear(childBirth) > hiYear(motherDeath)) {
         findings.push({
           check: 'born_after_mothers_death',
           severity: 'fail',
           individualIds: [childId, wife.id],
           familyId: family.id,
-          detail: `${child.full_name} is recorded as born in ${child.birth_year}, after the ${wife.death_year} death of mother ${wife.full_name}.`,
+          detail: `${child.full_name} is recorded as born in ${childBirth.year}, after the ${motherDeath.year} death of mother ${wife.full_name}.`,
         });
       }
       // A child conceived before the father's death can arrive up to ~10
       // months after it; with year-only dates, two clear years is proof.
-      if (husband?.death_year != null && child.birth_year >= husband.death_year + 2) {
+      const fatherDeath = husband ? vital(husband, 'death') : null;
+      if (husband && fatherDeath && !unusable(fatherDeath) && loYear(childBirth) >= hiYear(fatherDeath) + 2) {
         findings.push({
           check: 'born_long_after_fathers_death',
           severity: 'fail',
           individualIds: [childId, husband.id],
           familyId: family.id,
-          detail: `${child.full_name} is recorded as born in ${child.birth_year}, ${child.birth_year - husband.death_year} years after the death of father ${husband.full_name}.`,
+          detail: `${child.full_name} is recorded as born in ${childBirth.year}, ${childBirth.year - fatherDeath.year} years after the death of father ${husband.full_name}.`,
         });
       }
 
       // Facts before birth catches events, but a child born before either
       // parent is the merged-generations classic:
       for (const parent of [husband, wife]) {
-        if (parent?.birth_year != null && child.birth_year < parent.birth_year) {
+        if (!parent) continue;
+        const parentBirth = vital(parent, 'birth');
+        if (parentBirth && !unusable(parentBirth) && hiYear(childBirth) < loYear(parentBirth)) {
           findings.push({
             check: 'fact_before_birth',
             severity: 'fail',
             individualIds: [childId, parent.id],
             familyId: family.id,
-            detail: `${child.full_name} (b. ${child.birth_year}) is recorded as a child of ${parent.full_name}, born ${parent.birth_year}.`,
+            detail: `${child.full_name} (b. ${childBirth.year}) is recorded as a child of ${parent.full_name}, born ${parentBirth.year}.`,
           });
         }
       }
@@ -458,7 +522,7 @@ export function runTreeHealth(data: TreeHealthData, options: { currentYear: numb
           ? { id, date: partial(event.date_year, event.date_month, event.date_day)! }
           : null;
       })
-      .filter((c): c is { id: string; date: PartialDate } => c !== null)
+      .filter((c): c is { id: string; date: QualifiedDate } => c !== null)
       .sort(
         (a, b) =>
           Date.UTC(a.date.year, a.date.month! - 1, a.date.day!) -
@@ -468,6 +532,10 @@ export function runTreeHealth(data: TreeHealthData, options: { currentYear: numb
     for (let i = 1; i < datedChildren.length; i++) {
       const earlier = datedChildren[i - 1]!;
       const later = datedChildren[i]!;
+      // Old-style dual dating: a pre-1752 Jan–Mar date may carry the
+      // prior year's label, so the computed gap is a year off exactly
+      // where colonial trees live — no conviction may rest on one.
+      if (dualDatingRisk(earlier.date) || dualDatingRisk(later.date)) continue;
       const gap = daysBetween(earlier.date, later.date);
       if (gap === null || gap <= TWIN_WINDOW_DAYS) continue; // twins
       const pair = [earlier.id, later.id];
@@ -507,6 +575,7 @@ interface FamilyRow {
   marriage_date_year: number | null;
   marriage_date_month: number | null;
   marriage_date_day: number | null;
+  marriage_date_qualifier: Database['public']['Enums']['date_qualifier'] | null;
 }
 
 interface FamilyChildRow {
@@ -543,7 +612,7 @@ export async function fetchTreeHealthData(
       (from, to) =>
         client
           .from('families')
-          .select('id, husband_id, wife_id, marriage_date_year, marriage_date_month, marriage_date_day')
+          .select('id, husband_id, wife_id, marriage_date_year, marriage_date_month, marriage_date_day, marriage_date_qualifier')
           .eq('tree_id', treeId)
           .order('id')
           .range(from, to),

@@ -22,6 +22,7 @@ function family(overrides: Partial<HealthFamily> & { id: string }): HealthFamily
     marriage_date_year: null,
     marriage_date_month: null,
     marriage_date_day: null,
+    marriage_date_qualifier: null,
     children: [],
     ...overrides,
   };

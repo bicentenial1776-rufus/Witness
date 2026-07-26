@@ -33,6 +33,7 @@ function family(overrides: Partial<HealthFamily> & { id: string }): HealthFamily
     marriage_date_year: null,
     marriage_date_month: null,
     marriage_date_day: null,
+    marriage_date_qualifier: null,
     children: [],
     ...overrides,
   };
@@ -222,5 +223,115 @@ describe('family checks', () => {
       families: [family({ id: 'f1', children: ['a', 'b'] })],
     });
     expect(checksIn(r)).not.toContain('sibling_born_impossibly_soon');
+  });
+});
+
+// The conviction philosophy, enforced (2026-07-26 audit): a check fires
+// only if the violation holds at the recorded date precision. Estimated /
+// about / calculated / between dates never convict; BEF/AFT convict only
+// when the violation is provable under the bound.
+describe('qualified dates never falsely convict', () => {
+  const ev = (
+    individual_id: string,
+    event_type: HealthEvent['event_type'],
+    y: number,
+    q: HealthEvent['date_qualifier'],
+    m: number | null = null,
+    d: number | null = null,
+  ): HealthEvent => ({ individual_id, event_type, date_year: y, date_month: m, date_day: d, date_qualifier: q, place_id: null });
+
+  it('death BEF 1850 with an 1849 burial is consistent, not a conviction', () => {
+    const r = audit({
+      individuals: [person({ id: 'a' })],
+      events: [ev('a', 'death', 1850, 'before'), ev('a', 'burial', 1849, 'exact')],
+    });
+    expect(checksIn(r)).not.toContain('burial_before_death');
+  });
+
+  it('death AFT 1850 with an 1853 residence may be fine — no conviction', () => {
+    const r = audit({
+      individuals: [person({ id: 'a', birth_year: 1800 })],
+      events: [ev('a', 'death', 1850, 'after'), ev('a', 'residence', 1853, 'exact')],
+    });
+    expect(checksIn(r)).not.toContain('fact_after_death');
+  });
+
+  it('death BEF 1850 with an 1853 residence is still provably wrong', () => {
+    const r = audit({
+      individuals: [person({ id: 'a', birth_year: 1800 })],
+      events: [ev('a', 'death', 1850, 'before'), ev('a', 'residence', 1853, 'exact')],
+    });
+    expect(checksIn(r)).toContain('fact_after_death');
+  });
+
+  it('ABT lifespans never convict; AFT death that still proves >110 does', () => {
+    const r = audit({
+      individuals: [person({ id: 'abt' }), person({ id: 'aft' })],
+      events: [
+        ev('abt', 'birth', 1700, 'about'),
+        ev('abt', 'death', 1815, 'about'),
+        ev('aft', 'birth', 1700, 'exact'),
+        ev('aft', 'death', 1815, 'after'),
+      ],
+    });
+    const accused = r.findings.filter((f) => f.check === 'implausible_lifespan');
+    expect(accused.map((f) => f.individualIds[0])).toEqual(['aft']);
+  });
+
+  it('a mother born BET (stored midpoint) never convicts as too old', () => {
+    const r = audit({
+      individuals: [person({ id: 'mother' }), person({ id: 'child', birth_year: 1906 })],
+      events: [ev('mother', 'birth', 1845, 'between'), birth('child', 1906)],
+      families: [family({ id: 'f', wife_id: 'mother', children: ['child'] })],
+    });
+    expect(checksIn(r)).not.toContain('mother_too_old');
+  });
+
+  it('marriage ABT never convicts marriage_after_death', () => {
+    const r = audit({
+      individuals: [person({ id: 'h', death_year: 1800 })],
+      families: [
+        family({ id: 'f', husband_id: 'h', marriage_date_year: 1805, marriage_date_qualifier: 'about' }),
+      ],
+    });
+    expect(checksIn(r)).not.toContain('marriage_after_death');
+  });
+
+  it('a BEF future year is not a future date', () => {
+    const r = audit({
+      individuals: [person({ id: 'a' })],
+      events: [ev('a', 'death', YEAR + 4, 'before')],
+    });
+    expect(checksIn(r)).not.toContain('date_in_future');
+    const abt = audit({
+      individuals: [person({ id: 'b' })],
+      events: [ev('b', 'birth', 2917, 'about')],
+    });
+    expect(checksIn(abt)).toContain('date_in_future');
+  });
+
+  it('same year at different precisions is a duplicate, not a conflict', () => {
+    const r = audit({
+      individuals: [person({ id: 'a' })],
+      events: [ev('a', 'birth', 1850, 'exact'), ev('a', 'birth', 1850, 'exact', 6, 15)],
+    });
+    expect(checksIn(r)).toContain('duplicate_fact');
+    expect(checksIn(r)).not.toContain('conflicting_fact');
+  });
+
+  it('pre-1752 January–March sibling gaps never convict (dual dating)', () => {
+    const r = audit({
+      individuals: [person({ id: 'a' }), person({ id: 'b' })],
+      events: [birth('a', 1700, 4, 1), birth('b', 1700, 1, 1)],
+      families: [family({ id: 'f', children: ['a', 'b'] })],
+    });
+    expect(checksIn(r)).not.toContain('sibling_born_impossibly_soon');
+    // The same gap after 1752 still convicts.
+    const modern = audit({
+      individuals: [person({ id: 'a' }), person({ id: 'b' })],
+      events: [birth('a', 1900, 4, 1), birth('b', 1900, 1, 1)],
+      families: [family({ id: 'f', children: ['a', 'b'] })],
+    });
+    expect(checksIn(modern)).toContain('sibling_born_impossibly_soon');
   });
 });
