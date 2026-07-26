@@ -1,3 +1,5 @@
+import { getRandomBytes } from 'expo-crypto';
+
 import { supabase } from '@/lib/supabase';
 
 type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
@@ -17,8 +19,10 @@ export interface SharePayload {
 }
 
 function token(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
+  // expo-crypto, not global crypto: Hermes has no global `crypto`, so the
+  // web API silently killed sharing on iOS (same lesson as the importer's
+  // id generator).
+  const bytes = getRandomBytes(16);
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -28,6 +32,7 @@ export interface ShareSubject {
   full_name: string;
   birth_year: number | null;
   death_year: number | null;
+  living: boolean;
 }
 
 /**
@@ -39,6 +44,9 @@ export async function createAncestorShareLink(
   subject: ShareSubject,
   lines: string[],
 ): Promise<string> {
+  // The carried rule, enforced where the row is made — not only in the
+  // JSX that hides the button: living people are never shareable.
+  if (subject.living) throw new Error('Living people are never shared');
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error('Sign in to share');
 

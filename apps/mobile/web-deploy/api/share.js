@@ -22,20 +22,27 @@ function page(title, description, redirect) {
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:site_name" content="Witness">
 <meta property="og:type" content="article">
-<meta property="og:url" content="${redirect}">
+<meta property="og:url" content="${esc(redirect)}">
 <meta property="og:image" content="${APP_URL}/og-share.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="${APP_URL}/og-share.png">
-<meta http-equiv="refresh" content="0;url=${redirect}">
+<meta http-equiv="refresh" content="0;url=${esc(redirect)}">
 </head><body style="font-family: Georgia, serif; background: #F7F3EE; color: #1C1917; padding: 40px;">
-<p>${esc(description)}</p><p><a href="${redirect}">Continue to Witness &rsaquo;</a></p>
+<p>${esc(description)}</p><p><a href="${esc(redirect)}">Continue to Witness &rsaquo;</a></p>
 </body></html>`;
 }
 
 module.exports = async (req, res) => {
+  // Tokens are exactly 32 hex chars (128-bit, share-links.ts). Anything
+  // else is not a token — reject before the string ever reaches HTML,
+  // closing the reflected-XSS door on the app origin.
   const token = String(req.query.token ?? '');
+  if (!/^[0-9a-f]{32}$/.test(token)) {
+    res.status(404).send('Not found');
+    return;
+  }
 
   let share = null;
   try {

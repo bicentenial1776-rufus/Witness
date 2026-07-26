@@ -74,6 +74,17 @@ Deno.serve(async (req) => {
     // empty body — the cron case
   }
 
+  // The gateway only checks for A valid JWT, and the anon key is public —
+  // so force/only (guard bypass + targeted sends) must not be anonymous
+  // powers. Manual test runs pass x-cron-secret (CRON_SECRET in supabase
+  // secrets); the weekly cron body is {} and is untouched by this gate.
+  if (force || only) {
+    const secret = Deno.env.get('CRON_SECRET');
+    if (!secret || req.headers.get('x-cron-secret') !== secret) {
+      return new Response('force/only require x-cron-secret', { status: 403 });
+    }
+  }
+
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -135,7 +146,7 @@ Deno.serve(async (req) => {
         }),
       });
       if (!response.ok) {
-        errors.push(`${email}: resend ${response.status} ${(await response.text()).slice(0, 120)}`);
+        errors.push(`${profile.id.slice(0, 8)}: resend ${response.status} ${(await response.text()).slice(0, 120)}`);
         continue;
       }
 
@@ -145,10 +156,13 @@ Deno.serve(async (req) => {
         .eq('id', profile.id);
       sent++;
     } catch (err) {
-      errors.push(`${email}: ${err instanceof Error ? err.message : String(err)}`);
+      errors.push(`${profile.id.slice(0, 8)}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
+  // Errors carry profile-id prefixes, never email addresses, and the
+  // opted-in headcount stays server-side — this response reaches anyone
+  // holding the public anon key.
   if (errors.length) console.error('send-digest-emails errors:', errors);
-  return Response.json({ optedIn: optedIn?.length ?? 0, sent, skipped, errors });
+  return Response.json({ sent, skipped, errors: errors.length });
 });
