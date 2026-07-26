@@ -13,6 +13,8 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+import { requireCronSecret } from '../_shared/cron.ts';
+
 const BATCH = 40; // 40 lookups * 1.1s ≈ 44s — inside both the minute and the function wall clock
 const DELAY_MS = 1100;
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
@@ -116,6 +118,8 @@ function geocodeQueries(place: { raw: string; parts: string[] }): string[] {
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('POST only', { status: 405 });
+  const denied = requireCronSecret(req);
+  if (denied) return denied;
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -177,6 +181,11 @@ Deno.serve(async (req) => {
     if (looked + queries.length > BATCH) break;
 
     let coords: { latitude: number; longitude: number } | null = null;
+    // Only a lookup Nominatim actually ANSWERED can prove a miss. A thrown
+    // fetch or a non-2xx (outage, rate limit) leaves the place unstamped so
+    // a later run retries — an outage once burned a whole batch as
+    // permanent no-coordinate "successes."
+    let unanswered = false;
     for (const query of queries) {
       looked++;
       const url = `${NOMINATIM_URL}?q=${encodeURIComponent(query)}&format=jsonv2&limit=1`;
@@ -187,9 +196,11 @@ Deno.serve(async (req) => {
           if (Array.isArray(results) && results.length > 0) {
             coords = { latitude: Number(results[0].lat), longitude: Number(results[0].lon) };
           }
+        } else {
+          unanswered = true;
         }
       } catch {
-        // Network hiccup: leave geocoded_at null so a later run retries.
+        unanswered = true;
       }
       await sleep(DELAY_MS);
       if (coords) break;
@@ -199,11 +210,15 @@ Deno.serve(async (req) => {
       hits++;
       knownByRaw.set(place.raw, coords);
     }
-    // geocoded_at is set hit or miss, so unresolvable hamlets are not retried forever.
-    await supabase
-      .from('places')
-      .update({ ...(coords ?? {}), geocoded_at: new Date().toISOString() })
-      .eq('id', place.id);
+    // geocoded_at is set on a hit or an ANSWERED miss, so unresolvable
+    // hamlets are not retried forever — but an unanswered ladder stays
+    // pending for the next run.
+    if (coords || !unanswered) {
+      await supabase
+        .from('places')
+        .update({ ...(coords ?? {}), geocoded_at: new Date().toISOString() })
+        .eq('id', place.id);
+    }
   }
 
   return Response.json({ batch: pending.length, reused, lookups: looked, hits });

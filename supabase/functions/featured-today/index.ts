@@ -13,6 +13,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk@0.65.0';
 
+import { requireCronSecret } from '../_shared/cron.ts';
 import { weeklyDigest } from '../_shared/digest.ts';
 import { loadPersonFacts, type EnrichContext } from '../_shared/enrich.ts';
 
@@ -29,6 +30,8 @@ const SYSTEM = [
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('POST only', { status: 405 });
+  const denied = requireCronSecret(req);
+  if (denied) return denied;
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,

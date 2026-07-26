@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
   const familyIds = (familiesAsSpouse ?? []).map((f) => f.id);
 
   const { data: spouses } = spouseIds.length
-    ? await db.from('individuals').select('id, full_name, birth_year, death_year').in('id', spouseIds)
+    ? await db.from('individuals').select('id, full_name, birth_year, death_year, living').in('id', spouseIds)
     : { data: [] };
 
   const { data: childLinks } = familyIds.length
@@ -133,7 +133,13 @@ Deno.serve(async (req) => {
     if (spouse) {
       const when = family.marriage_date_year ? ` in ${family.marriage_date_year}` : '';
       const where = family.marriage_place?.raw ? ` at ${family.marriage_place.raw}` : '';
-      facts.push(`Married ${spouse.full_name} (${spouse.birth_year ?? '?'}–${spouse.death_year ?? '?'})${when}${where}`);
+      // Living spouses stay out of prompts and cached output — the same
+      // doctrine the children lines below already honor.
+      facts.push(
+        spouse.living
+          ? `Married${when}${where}`
+          : `Married ${spouse.full_name} (${spouse.birth_year ?? '?'}–${spouse.death_year ?? '?'})${when}${where}`,
+      );
     }
   }
   const nonLivingChildren = (children ?? []).filter((c) => !c.living);

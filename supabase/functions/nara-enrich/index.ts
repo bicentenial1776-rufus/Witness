@@ -13,6 +13,8 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+import { requireCronSecret } from '../_shared/cron.ts';
+
 const NARA_URL = 'https://catalog.archives.gov/api/v2/records/search';
 const MONTHLY_BUDGET = 7000; // of the 10k quota; the rest is reserved
 const MAX_CALLS_PER_RUN = 6;
@@ -180,6 +182,8 @@ function parseHits(payload: unknown): NaraHit[] {
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('POST only', { status: 405 });
+  const denied = requireCronSecret(req);
+  if (denied) return denied;
 
   const apiKey = Deno.env.get('NARA_API_KEY');
   if (!apiKey) return Response.json({ error: 'NARA_API_KEY not set' }, { status: 500 });

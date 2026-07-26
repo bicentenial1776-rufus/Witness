@@ -10,6 +10,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+import { requireCronSecret } from '../_shared/cron.ts';
 import { weeklyDigest, type DigestEntry } from '../_shared/digest.ts';
 
 const FROM = 'Witness <hello@witnesslives.com>';
@@ -60,6 +61,8 @@ function digestHtml(entries: DigestEntry[]): string {
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('POST only', { status: 405 });
+  const denied = requireCronSecret(req);
+  if (denied) return denied;
 
   const resendKey = Deno.env.get('RESEND_API_KEY');
   if (!resendKey) return Response.json({ error: 'RESEND_API_KEY not set' }, { status: 500 });
@@ -74,16 +77,9 @@ Deno.serve(async (req) => {
     // empty body — the cron case
   }
 
-  // The gateway only checks for A valid JWT, and the anon key is public —
-  // so force/only (guard bypass + targeted sends) must not be anonymous
-  // powers. Manual test runs pass x-cron-secret (CRON_SECRET in supabase
-  // secrets); the weekly cron body is {} and is untouched by this gate.
-  if (force || only) {
-    const secret = Deno.env.get('CRON_SECRET');
-    if (!secret || req.headers.get('x-cron-secret') !== secret) {
-      return new Response('force/only require x-cron-secret', { status: 403 });
-    }
-  }
+  // requireCronSecret above already gates every caller (the cron job and
+  // manual test runs both send x-cron-secret), so force/only need no
+  // second gate of their own.
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,

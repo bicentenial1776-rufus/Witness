@@ -38,8 +38,12 @@ async function instanceFor(userId: string): Promise<Purchases> {
   }
   const instance = Purchases.getSharedInstance();
   if (configuredUserId !== userId) {
-    configuredUserId = userId;
+    // Record the switch only AFTER it succeeds: setting it first meant a
+    // rejected changeUser left the module claiming user B while the SDK
+    // still held user A — and a later restore() then handed A's
+    // entitlement to B.
     await instance.changeUser(userId);
+    configuredUserId = userId;
   }
   return instance;
 }
