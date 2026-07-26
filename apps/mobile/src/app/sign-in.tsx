@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
+  Platform,
   ScrollView,
   TextInput,
   TouchableWithoutFeedback,
@@ -40,41 +41,54 @@ export default function SignIn() {
     if (error) showAlert('Sign in failed', error.message);
   }
 
+  const form = (
+    <ScrollView
+      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, gap: 12 }}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+    >
+      <ThemedText type="title">Witness</ThemedText>
+      <TextField
+        placeholder="Email"
+        autoCapitalize="none"
+        keyboardType="email-address"
+        returnKeyType="next"
+        submitBehavior="submit"
+        onSubmitEditing={() => passwordRef.current?.focus()}
+        value={email}
+        onChangeText={setEmail}
+      />
+      <TextField
+        ref={passwordRef}
+        placeholder="Password"
+        secureTextEntry
+        returnKeyType="go"
+        onSubmitEditing={handleSignIn}
+        value={password}
+        onChangeText={setPassword}
+      />
+      <Button title="Sign in" busy={isSubmitting} onPress={handleSignIn} />
+      <Link href="/sign-up">
+        <ThemedText type="link">Need an account? Sign up</ThemedText>
+      </Link>
+    </ScrollView>
+  );
+
   return (
     <ThemedView style={{ flex: 1 }}>
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <ScrollView
-            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, gap: 12 }}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="interactive"
-          >
-            <ThemedText type="title">Witness</ThemedText>
-            <TextField
-              placeholder="Email"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              returnKeyType="next"
-              submitBehavior="submit"
-              onSubmitEditing={() => passwordRef.current?.focus()}
-              value={email}
-              onChangeText={setEmail}
-            />
-            <TextField
-              ref={passwordRef}
-              placeholder="Password"
-              secureTextEntry
-              returnKeyType="go"
-              onSubmitEditing={handleSignIn}
-              value={password}
-              onChangeText={setPassword}
-            />
-            <Button title="Sign in" busy={isSubmitting} onPress={handleSignIn} />
-            <Link href="/sign-up">
-              <ThemedText type="link">Need an account? Sign up</ThemedText>
-            </Link>
-          </ScrollView>
-        </TouchableWithoutFeedback>
+        {Platform.OS === 'web' ? (
+          form
+        ) : (
+          // react-native-web has no real software keyboard to dismiss, and its
+          // TouchableWithoutFeedback doesn't exclude presses on nested focusable
+          // elements — tapping a TextField would focus it, then this handler's
+          // Keyboard.dismiss() (which blurs the focused field on web) would fire
+          // on the same click, making the fields untypable. Native-only.
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            {form}
+          </TouchableWithoutFeedback>
+        )}
       </KeyboardAvoidingView>
     </ThemedView>
   );
