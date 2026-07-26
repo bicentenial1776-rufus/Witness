@@ -61,13 +61,27 @@ export async function clearResumePoint(): Promise<void> {
   await AsyncStorage.removeItem(KEY).catch(() => {});
 }
 
+/**
+ * The Family Stage route moved from a query param to a path segment on
+ * 2026-07-26 (`/family-stage?key=X` → `/family-stage/X`). A resume entry
+ * saved by an older build still holds the old shape, and pushing it lands
+ * on the "Unmatched Route" screen — so migrate it on read.
+ */
+function normalizeResumePath(path: string): string {
+  if (path === '/family-stage') return '/family-stage/root';
+  const keyed = path.match(/^\/family-stage\?(?:.*&)?key=([^&]+)/);
+  if (keyed) return `/family-stage/${keyed[1]}`;
+  if (path.startsWith('/family-stage?')) return '/family-stage/root';
+  return path;
+}
+
 export async function getResumePoint(): Promise<ResumePoint | null> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
     if (!raw) return null;
     const point = JSON.parse(raw) as ResumePoint;
     if (!point.path || Date.now() - (point.ts ?? 0) > TTL_MS) return null;
-    return point;
+    return { ...point, path: normalizeResumePath(point.path) };
   } catch {
     return null;
   }
