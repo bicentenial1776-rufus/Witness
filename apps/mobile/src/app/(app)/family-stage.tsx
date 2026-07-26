@@ -51,11 +51,20 @@ const mono = (size: number, color: string = L.ink) => ({
 const sexInk = (s: StagePerson['s']) =>
   s === 'M' ? L.inkMen : s === 'F' ? L.inkWomen : L.inkUnrecorded;
 
-/** Ribbon end for drawing: recorded death, or "still open" to the current year. */
-function ribbonEnd(person: StagePerson, currentYear: number): number {
+/** True when a death is genuinely unrecorded (not living, no death year). */
+const deathUnknown = (person: StagePerson): boolean => person.d === null && !person.living;
+
+/**
+ * Ribbon end for drawing. Recorded death is itself; a living person runs
+ * open to the current year. An UNKNOWN death is not a lifespan we get to
+ * invent — draw it to the longest life we can see in this household (the
+ * `unknownTo` floor) and mark the end with a "?" rather than a fabricated
+ * birth+80 (Rufus, 2026-07-26). Never past the current year.
+ */
+function ribbonEnd(person: StagePerson, currentYear: number, unknownTo: number): number {
   if (person.d !== null) return person.d;
   if (person.living) return currentYear;
-  return Math.min(person.b + 80, currentYear); // unrecorded death — floor, not fact
+  return Math.min(Math.max(unknownTo, person.b + 1), currentYear);
 }
 
 interface BriefRow {
@@ -283,7 +292,15 @@ export default function FamilyStageScreen() {
   });
 
   const lineY = chartHeight * LINE_FRAC;
-  const membersAlive = people.filter((p) => p.b <= line && ribbonEnd(p, currentYear) >= line);
+  // The floor an unknown-death ribbon reaches: the longest life we can
+  // actually see in this household (any known death, else the marriage).
+  const unknownTo = Math.max(
+    ...people.filter((p) => p.d !== null).map((p) => p.d as number),
+    stage.marriage,
+  );
+  const membersAlive = people.filter(
+    (p) => p.b <= line && ribbonEnd(p, currentYear, unknownTo) >= line,
+  );
   const children = people.filter((p) => p.role === 'child');
   const atHome = children.filter(
     (c) => c.b <= line && line < c.b + 18 && (c.d === null || c.d > line),
@@ -319,7 +336,7 @@ export default function FamilyStageScreen() {
         }}
       >
         <Pressable onPress={() => router.push('/register' as never)} hitSlop={10}>
-          <Text style={mono(11, L.amber)}>← FAMILIES</Text>
+          <Text style={mono(12, L.amber)}>← FAMILIES</Text>
         </Pressable>
         <RecordText eyebrow style={{ color: L.muted }}>
           The family stage
@@ -329,11 +346,16 @@ export default function FamilyStageScreen() {
       <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
         <Text
           numberOfLines={2}
-          style={{ fontFamily: BrandFonts.serif.semiBold, fontSize: 24, lineHeight: 30, color: L.ink }}
+          style={{ fontFamily: BrandFonts.serif.semiBold, fontSize: 25, lineHeight: 31, color: L.ink }}
         >
           {stage.title}
         </Text>
-        <Text style={{ ...mono(9.5, L.muted), marginTop: 5 }}>{stage.sub.toUpperCase()}</Text>
+        <Text style={{ ...mono(10.5, L.muted), marginTop: 5 }}>{stage.sub.toUpperCase()}</Text>
+        {stage.scrubEnd > stage.marriage && (
+          <Text style={{ ...mono(10.5, L.deepAmber), marginTop: 3 }}>
+            THE FAMILY LASTED {stage.scrubEnd - stage.marriage} YEARS · {stage.marriage}–{stage.scrubEnd}
+          </Text>
+        )}
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
           {(
             [
@@ -345,7 +367,7 @@ export default function FamilyStageScreen() {
           ).map(([color, label]) => (
             <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <View style={{ width: 9, height: 9, backgroundColor: color, borderWidth: label === 'DIED BEFORE 18' ? 1 : 0, borderColor: L.rule }} />
-              <Text style={mono(8, L.muted)}>{label}</Text>
+              <Text style={mono(8.5, L.muted)}>{label}</Text>
             </View>
           ))}
         </View>
@@ -371,7 +393,7 @@ export default function FamilyStageScreen() {
                 return (
                   <View key={decade} style={{ position: 'absolute', left: 0, right: 0, top: dy }}>
                     <View style={{ position: 'absolute', left: GUTTER - 6, right: 0, height: 1, backgroundColor: L.rule, opacity: 0.6 }} />
-                    <Text style={{ ...mono(8.5, L.inkUnrecorded), position: 'absolute', left: 0, top: -4 }}>
+                    <Text style={{ ...mono(9.5, L.inkUnrecorded), position: 'absolute', left: 0, top: -4 }}>
                       {decade}
                     </Text>
                   </View>
@@ -424,12 +446,12 @@ export default function FamilyStageScreen() {
                   );
                 }
                 const person = slot.person!;
-                const end = ribbonEnd(person, currentYear);
+                const end = ribbonEnd(person, currentYear, unknownTo);
                 const top = y(person.b);
                 const bottom = y(end);
                 if (bottom < 0 || top > chartHeight) return null;
                 const diedYoung = person.d !== null && person.d - person.b < 18;
-                const unrecorded = person.d === null && !person.living;
+                const unrecorded = deathUnknown(person);
                 const ink = sexInk(person.s);
                 const given = person.n.split(' ')[0];
                 const age = person.b <= line && end >= line ? Math.floor(line - person.b) : null;
@@ -459,7 +481,7 @@ export default function FamilyStageScreen() {
                           top: nameTop,
                           width: 120,
                           fontFamily: BrandFonts.mono.medium,
-                          fontSize: 9.5,
+                          fontSize: 10.5,
                           letterSpacing: 1,
                           color: diedYoung ? L.ink : L.paper,
                           transform: [{ rotate: '90deg' }],
@@ -468,6 +490,23 @@ export default function FamilyStageScreen() {
                       >
                         {given.toUpperCase()}
                       </Text>
+                    )}
+                    {/* Unknown death: a "?" caps the speculative end so the
+                        faint ribbon never reads as a real lifespan. */}
+                    {unrecorded && bottom > 0 && bottom < chartHeight + 2 && (
+                      <View
+                        style={{
+                          position: 'absolute',
+                          alignSelf: 'center',
+                          top: Math.min(bottom, chartHeight) - 14,
+                          backgroundColor: L.paper,
+                          borderWidth: 1,
+                          borderColor: sexInk(person.s),
+                          paddingHorizontal: 3,
+                        }}
+                      >
+                        <Text style={mono(9.5, sexInk(person.s))}>?</Text>
+                      </View>
                     )}
                     {age !== null && (
                       <View
@@ -482,7 +521,7 @@ export default function FamilyStageScreen() {
                           borderColor: L.paper,
                         }}
                       >
-                        <Text style={mono(9, L.paper)}>{age}</Text>
+                        <Text style={mono(10, L.paper)}>{age}</Text>
                       </View>
                     )}
                   </View>

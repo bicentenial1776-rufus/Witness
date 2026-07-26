@@ -121,13 +121,15 @@ export const Broadsheet = {
     ruleLight: '#E7E1D5',
     barInactive: '#D8CFC0',
   },
+  // Calibrated down ~10% on 2026-07-26 (Rufus: web ran a little large);
+  // one edit, uniform across every broadsheet component that reads the scale.
   type: {
-    display: 46,
-    displaySmall: 40,
-    featuredName: 60,
-    sectionHead: 30,
-    ledgerName: 24,
-    body: 19,
+    display: 42,
+    displaySmall: 36,
+    featuredName: 52,
+    sectionHead: 27,
+    ledgerName: 22,
+    body: 18,
     ui: 16,
     caption: 14,
     monoEyebrow: 12,
