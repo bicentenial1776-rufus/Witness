@@ -52,6 +52,15 @@ export async function trackResumePoint(path: string): Promise<void> {
   await AsyncStorage.setItem(KEY, JSON.stringify(point));
 }
 
+/**
+ * Called on sign-out: a resume point is one account's trail, and the next
+ * signer-in must not be offered it (web's witness_last_route is cleared by
+ * the same handler).
+ */
+export async function clearResumePoint(): Promise<void> {
+  await AsyncStorage.removeItem(KEY).catch(() => {});
+}
+
 export async function getResumePoint(): Promise<ResumePoint | null> {
   try {
     const raw = await AsyncStorage.getItem(KEY);

@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useSession } from '@/auth/session-provider';
 import { useActiveTree, type TreeRow } from '@/lib/active-tree';
+import { clearResumePoint } from '@/lib/resume';
 import {
   isDigestNotificationEnabled,
   setDigestNotificationEnabled,
@@ -140,7 +141,21 @@ export default function YouTab() {
           </View>
         </Card>
 
-        <ThemedText type="link" style={{ marginTop: 8 }} onPress={() => supabase.auth.signOut()}>
+        <ThemedText
+          type="link"
+          style={{ marginTop: 8 }}
+          onPress={() => {
+            // One account's trail must not greet the next: drop both resume
+            // stores before the session ends (2026-07-26 audit).
+            clearResumePoint().catch(() => {});
+            if (Platform.OS === 'web') {
+              try {
+                localStorage.removeItem('witness_last_route');
+              } catch {}
+            }
+            supabase.auth.signOut();
+          }}
+        >
           Sign out
         </ThemedText>
 

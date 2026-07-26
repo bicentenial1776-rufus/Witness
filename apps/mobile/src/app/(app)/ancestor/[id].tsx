@@ -225,6 +225,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   const id = personId ?? params.id;
   const theme = useTheme();
   const [person, setPerson] = useState<Person | null>(null);
+  const [missing, setMissing] = useState(false);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [parents, setParents] = useState<ParentRow[]>([]);
   const [tags, setTags] = useState<LivedThroughTag[]>([]);
@@ -244,6 +245,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     if (!id) return;
     let cancelled = false;
     setPerson(null);
+    setMissing(false);
     setEvents([]);
     setParents([]);
     setTags([]);
@@ -268,6 +270,10 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
       ]);
       if (cancelled) return;
       setPerson(personRow);
+      // RLS answers null for a record outside the signed-in tree — a stale
+      // resume point after re-import or an account switch. Say so rather
+      // than spinning forever.
+      if (!personRow) setMissing(true);
       setEvents(eventRows ?? []);
 
       // The Ancestry deep link needs the tree's Ancestry id alongside this
@@ -406,8 +412,18 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
 
   if (!person) {
     return (
-      <ThemedView style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
-        <ActivityIndicator />
+      <ThemedView style={{ flex: 1, justifyContent: 'center', padding: 24, gap: 8 }}>
+        {missing ? (
+          <>
+            <ThemedText type="subtitle">This record isn’t here anymore</ThemedText>
+            <ThemedText type="small">
+              It may belong to a tree that was replaced by a new upload, or to a different
+              account. The tree tab has the current record.
+            </ThemedText>
+          </>
+        ) : (
+          <ActivityIndicator />
+        )}
       </ThemedView>
     );
   }

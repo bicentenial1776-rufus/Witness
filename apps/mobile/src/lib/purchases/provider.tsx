@@ -122,21 +122,36 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
 
   // Tie the RevenueCat identity to the Supabase account, so entitlement
   // follows the user across devices/reinstalls rather than the device.
+  // Keyed on the user id, not the session object — token refreshes must
+  // not re-run logIn. On an identity change the old customerInfo is
+  // dropped FIRST (fail closed while the switch is in flight: the previous
+  // account's entitlement must never admit the next), and a stale
+  // in-flight resolution from the prior identity is discarded.
   useEffect(() => {
     if (!apiKey) return;
+    let cancelled = false;
+    setCustomerInfo(null);
     if (session) {
       Purchases.logIn(session.user.id)
-        .then(({ customerInfo: info }) => applyCustomerInfo(info))
+        .then(({ customerInfo: info }) => {
+          if (!cancelled) applyCustomerInfo(info);
+        })
         .catch((error) => console.warn('RevenueCat logIn failed', error));
     } else {
       // logOut rejects when RevenueCat is already anonymous — the normal
       // state on a fresh install, where this effect first runs with no
       // session. There is nothing to undo in that case.
       Purchases.logOut()
-        .then(applyCustomerInfo)
+        .then((info) => {
+          if (!cancelled) applyCustomerInfo(info);
+        })
         .catch(() => {});
     }
-  }, [session]);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user.id]);
 
   async function restore(): Promise<boolean> {
     const info = await Purchases.restorePurchases();
