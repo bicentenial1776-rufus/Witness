@@ -135,7 +135,7 @@ export default function RegisterScreen() {
       setPendingStage(key);
       router.push('/' as never);
     } else {
-      router.push({ pathname: '/family-stage', params: { key } } as never);
+      router.push({ pathname: '/family-stage/[key]', params: { key } } as never);
     }
   }
 

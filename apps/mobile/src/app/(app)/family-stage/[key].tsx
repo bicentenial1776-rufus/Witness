@@ -38,6 +38,7 @@ const SWEEP_MS_PER_YEAR = 110;
 const PARENT_W = 46;
 const CHILD_W = 34;
 const THREAD_GAP = 12;
+const UNION_CHILD_GAP = 22; // extra room between the parents and their children
 const MIN_THREAD_W = 20;
 const GUTTER = 42; // year scale on the left edge
 
@@ -290,13 +291,20 @@ export default function FamilyStageScreen() {
   }
 
   // Thread slots in row order; a caption row becomes a slim divider slot.
+  // An extra gap sets the parents' union apart from the children it
+  // produced, so the brood reads as belonging to this marriage (Rufus).
   const slots: { person?: StagePerson; caption?: string; width: number; x: number }[] = [];
   let xCursor = 0;
+  let prevRole: StagePerson['role'] | null = null;
   for (const row of viewRows) {
     if (row.kind === 'person') {
+      if (row.role === 'child' && prevRole !== null && prevRole !== 'child') {
+        xCursor += UNION_CHILD_GAP;
+      }
       const width = row.role === 'child' ? CHILD_W : PARENT_W;
       slots.push({ person: row, width, x: xCursor });
       xCursor += width + THREAD_GAP;
+      prevRole = row.role;
     } else if (row.kind === 'caption') {
       slots.push({ caption: row.caption, width: 16, x: xCursor });
       xCursor += 16 + THREAD_GAP;
@@ -326,6 +334,17 @@ export default function FamilyStageScreen() {
     ...people.filter((p) => p.d !== null).map((p) => p.d as number),
     marriage.marriageYear,
   );
+  // The head's NEXT marriage, if any — a spouse who outlived this union
+  // was left at that point, not at death (Rufus, 2026-07-26). We have no
+  // divorce date in the record, so the next marriage is the honest cutoff.
+  const nextMarriageYear = stage.marriages[marriageIdx + 1]?.marriageYear ?? null;
+  /** Where a spouse's ribbon should stop: their death, but never past the
+      head's next marriage while they were still living. */
+  const spouseEnd = (spouse: StagePerson): number => {
+    const natural = ribbonEnd(spouse, currentYear, unknownTo);
+    if (nextMarriageYear !== null && natural > nextMarriageYear) return nextMarriageYear;
+    return natural;
+  };
   const membersAlive = people.filter(
     (p) => p.b <= line && ribbonEnd(p, currentYear, unknownTo) >= line,
   );
@@ -505,14 +524,26 @@ export default function FamilyStageScreen() {
                   );
                 }
                 const person = slot.person!;
-                const end = ribbonEnd(person, currentYear, unknownTo);
+                // A spouse who outlived this union is dropped at the head's
+                // next marriage; everyone else runs to their own end.
+                const end =
+                  person.role === 'spouse'
+                    ? spouseEnd(person)
+                    : ribbonEnd(person, currentYear, unknownTo);
+                // Truncated because the head remarried, not because they died.
+                const leftAtRemarriage =
+                  person.role === 'spouse' &&
+                  nextMarriageYear !== null &&
+                  ribbonEnd(person, currentYear, unknownTo) > nextMarriageYear;
                 const top = y(person.b);
                 const bottom = y(end);
                 if (bottom < 0 || top > chartHeight) return null;
                 const diedYoung = person.d !== null && person.d - person.b < 18;
-                const unrecorded = deathUnknown(person);
+                const unrecorded = deathUnknown(person) && !leftAtRemarriage;
                 const ink = sexInk(person.s);
-                const given = person.n.split(' ')[0];
+                // The head carries his full name (surname included) so the
+                // husband is identifiable in every set; others show given only.
+                const given = person.role === 'head' ? person.n : person.n.split(' ')[0];
                 const age = person.b <= line && end >= line ? Math.floor(line - person.b) : null;
                 // The name sticks to the top edge as the roll passes.
                 const nameTop = Math.max(top + 4, 4);
@@ -549,6 +580,21 @@ export default function FamilyStageScreen() {
                       >
                         {given.toUpperCase()}
                       </Text>
+                    )}
+                    {/* Left at the head's remarriage: an open cap (not a
+                        death) marks where this spouse leaves the stage. */}
+                    {leftAtRemarriage && bottom > 0 && bottom < chartHeight + 2 && (
+                      <View
+                        pointerEvents="none"
+                        style={{
+                          position: 'absolute',
+                          left: -2,
+                          right: -2,
+                          top: Math.min(bottom, chartHeight) - 1,
+                          height: 2,
+                          backgroundColor: L.deepAmber,
+                        }}
+                      />
                     )}
                     {/* Unknown death: a "?" caps the speculative end so the
                         faint ribbon never reads as a real lifespan. */}
@@ -719,7 +765,7 @@ export default function FamilyStageScreen() {
                     <Pressable
                       onPress={() => {
                         setSheet(null);
-                        router.push({ pathname: '/family-stage', params: { key: p.mfam } } as never);
+                        router.push({ pathname: '/family-stage/[key]', params: { key: p.mfam } } as never);
                       }}
                     >
                       <Text style={mono(9, L.amber)}>THEIR STAGE ›</Text>

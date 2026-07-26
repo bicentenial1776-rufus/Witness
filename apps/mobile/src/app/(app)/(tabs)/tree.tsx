@@ -203,7 +203,7 @@ export default function TreeTab() {
 
         <Section eyebrow="The family stage">
           <Pressable
-            onPress={() => router.push('/family-stage' as never)}
+            onPress={() => router.push('/family-stage/root' as never)}
             style={{
               borderWidth: 1,
               borderColor: L.rule,
