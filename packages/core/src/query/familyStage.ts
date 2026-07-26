@@ -45,6 +45,22 @@ export interface StageCaption {
 
 export type StageRow = StagePerson | StageBond | StageCaption;
 
+/**
+ * One marriage as a switchable unit: the head is shared, each marriage
+ * brings its own spouse, bond, children, and self-contained time span so
+ * the phone can re-scale the axis when the reader switches sets.
+ */
+export interface StageMarriage {
+  spouse: StagePerson | null;
+  bond: StageBond;
+  children: StagePerson[];
+  marriageYear: number;
+  spouseName: string;
+  scrubEnd: number;
+  domainStart: number;
+  domainEnd: number;
+}
+
 export interface FamilyStage {
   key: string;
   label: string;
@@ -53,6 +69,9 @@ export interface FamilyStage {
   sub: string;
   marriage: number;
   rows: StageRow[];
+  /** The shared head, and every marriage as a switchable set (phone). */
+  head: StagePerson;
+  marriages: StageMarriage[];
   /** Scrub: marriage year → death of the last SURVIVING child (never the
       last-born — that bug shipped once), or the current year while any
       child's ribbon still runs. */
@@ -176,9 +195,14 @@ function buildStage(
       keptBySpouse.set(key, m);
     }
   }
-  const marriages = [...keptBySpouse.values()].slice(0, 2);
-  const first = marriages[0]!;
-  if (first.family.marriage_year === null) return null;
+  // ALL distinct marriages, earliest first — no cap. The web carrier
+  // still sandwiches the first two into `rows`; the phone offers a
+  // set-switcher across every marriage (Rufus, 2026-07-26).
+  const allMarriages = [...keptBySpouse.values()].sort(
+    (a, b) => (a.family.marriage_year ?? 0) - (b.family.marriage_year ?? 0),
+  );
+  const first = allMarriages[0]!;
+  if (!first || first.family.marriage_year === null) return null;
 
   const rows: StageRow[] = [];
   const person = (individual: TreeIndividual, role: StagePerson['role']): StagePerson | null => {
@@ -221,31 +245,17 @@ function buildStage(
     };
   };
 
-  // [spouse1, bond1, head, bond2, spouse2]
-  const spouse1Row = first.spouse ? person(first.spouse, 'spouse') : null;
-  if (spouse1Row) rows.push(spouse1Row);
-  rows.push(bond(1, first.family, first.spouse));
   const headRow = person(head, 'head');
   if (!headRow) return null;
-  rows.push(headRow);
-  const second = marriages[1];
-  if (second?.spouse) {
-    rows.push(bond(2, second.family, second.spouse));
-    const spouse2Row = person(second.spouse, 'spouse');
-    if (spouse2Row) rows.push(spouse2Row);
-  }
 
-  // Children, grouped per marriage with captions when there are two.
-  const childRows: StageRow[] = [];
+  // The children of one marriage: enriched with each child's own marriage
+  // tick + the door into their stage; duplicates (same name+dates) drawn
+  // once across the whole household.
   const seenChildren = new Set<string>();
-  for (let i = 0; i < marriages.length; i++) {
-    const marriage = marriages[i]!;
-    const children = [...marriage.family.children, ...(extraChildren.get(spouseKey(marriage)) ?? [])]
+  const childrenOf = (marriage: Unit['marriages'][number]): StagePerson[] => {
+    const kids = [...marriage.family.children, ...(extraChildren.get(spouseKey(marriage)) ?? [])]
       .map((id) => people.get(id))
       .filter((child): child is TreeIndividual => Boolean(child && child.birth_year !== null))
-      // GEDCOMs carry duplicate people (the Tree Check flags them); the
-      // stage collapses identical name+dates into one ribbon rather than
-      // drawing the same child four times.
       .filter((child) => {
         const identity = `${child.full_name}|${child.birth_year}|${child.death_year}`;
         if (seenChildren.has(identity)) return false;
@@ -253,16 +263,10 @@ function buildStage(
         return true;
       })
       .sort((a, b) => (a.birth_year ?? 0) - (b.birth_year ?? 0));
-    if (children.length === 0) continue;
-    if (marriages.length > 1) {
-      childRows.push({ kind: 'caption', caption: `Children of the ${ordinal[i] ?? `${i + 1}th`} marriage` });
-    }
-    for (const child of children) {
+    const out: StagePerson[] = [];
+    for (const child of kids) {
       const row = person(child, 'child');
       if (!row) continue;
-      // The child's own marriage: a tick on their ribbon, and the door
-      // into their stage — the next generation is stepped into, never
-      // drawn inline.
       const ownFamily = allFamilies
         .filter(
           (family) =>
@@ -281,18 +285,77 @@ function buildStage(
         const stageKey = unitKeyByFamily.get(ownFamily.id);
         if (stageKey) row.mfam = stageKey;
       }
-      childRows.push(row);
+      out.push(row);
     }
+    return out;
+  };
+
+  // The per-marriage span the phone reads: head + this marriage's spouse
+  // and children, self-contained so switching sets re-scales the axis.
+  const marriageSpan = (spouse: StagePerson | null, kids: StagePerson[], marriageYear: number) => {
+    const persons = [headRow, ...(spouse ? [spouse] : []), ...kids];
+    const childEnds = kids
+      .map((child) => (child.living ? currentYear : child.d))
+      .filter((year): year is number => year !== null);
+    const scrubEnd =
+      childEnds.length > 0
+        ? Math.max(...childEnds, marriageYear)
+        : kids.length > 0
+          ? Math.min(Math.max(...kids.map((c) => c.b)) + 80, currentYear)
+          : marriageYear;
+    const ends = persons
+      .map((row) => (row.living ? currentYear : row.d))
+      .filter((year): year is number => year !== null);
+    const maxBirth = Math.max(...persons.map((row) => row.b));
+    return {
+      scrubEnd,
+      domainStart: Math.min(...persons.map((row) => row.b)) - 3,
+      domainEnd: Math.max(...ends, scrubEnd, maxBirth + 20) + 3,
+    };
+  };
+
+  // Every marriage as a switchable unit (uncapped).
+  const stageMarriages: StageMarriage[] = [];
+  for (let i = 0; i < allMarriages.length; i++) {
+    const m = allMarriages[i]!;
+    if (m.family.marriage_year === null) continue;
+    const spouse = m.spouse ? person(m.spouse, 'spouse') : null;
+    const kids = childrenOf(m);
+    if (kids.length === 0 && !spouse) continue;
+    const span = marriageSpan(spouse, kids, m.family.marriage_year);
+    stageMarriages.push({
+      spouse,
+      bond: bond(i + 1, m.family, m.spouse),
+      children: kids,
+      marriageYear: m.family.marriage_year,
+      spouseName: m.spouse?.full_name ?? 'a spouse unrecorded',
+      ...span,
+    });
   }
-  if (!childRows.some((row) => row.kind === 'person')) return null;
-  rows.push(...childRows);
+  if (stageMarriages.length === 0) return null;
+
+  // Web flat rows: sandwich the first two marriages with captions.
+  const shown = stageMarriages.slice(0, 2);
+  if (shown[0]!.spouse) rows.push(shown[0]!.spouse);
+  rows.push(shown[0]!.bond);
+  rows.push(headRow);
+  if (shown[1]?.spouse) {
+    rows.push(shown[1].bond);
+    rows.push(shown[1].spouse);
+  }
+  for (let i = 0; i < shown.length; i++) {
+    if (shown[i]!.children.length === 0) continue;
+    if (shown.length > 1) {
+      rows.push({ kind: 'caption', caption: `Children of the ${ordinal[i] ?? `${i + 1}th`} marriage` });
+    }
+    rows.push(...shown[i]!.children);
+  }
+  if (!rows.some((row) => row.kind === 'person' && row.role === 'child')) return null;
 
   const persons = rows.filter((row): row is StagePerson => row.kind === 'person');
   const children = persons.filter((row) => row.role === 'child');
 
-  // Scrub end: the last surviving child's death; today only while a child
-  // is RECORDED living. An unrecorded death is not "still alive" — a
-  // 1650s family must not appear to last until the present.
+  // Stage-level span (web): across the shown marriages.
   const knownChildEnds = children
     .map((child) => (child.living ? currentYear : child.d))
     .filter((year): year is number => year !== null);
@@ -309,17 +372,19 @@ function buildStage(
     Math.max(...knownEnds, scrubEnd, Math.max(...persons.map((row) => row.b)) + 20) + 3;
 
   const headName = head.full_name;
-  const wives = marriages.map((marriage) => marriage.spouse?.full_name ?? 'a spouse unrecorded');
+  const wives = stageMarriages.map((m) => m.spouseName);
   const title =
-    marriages.length > 1
+    stageMarriages.length > 1
       ? `The house of ${headName} and ${wives[0]}, then ${wives[1]}`
       : `The house of ${headName} and ${wives[0]}`;
   const surname = (individual: TreeIndividual | null | undefined) =>
     individual?.surname ?? individual?.full_name.split(' ').pop() ?? '?';
   const label = `${surname(head)} · ${surname(first.spouse)}`;
   const phTitle = `${surname(head)} & ${surname(first.spouse)}`;
-  const bornCount = children.length;
-  const lostYoung = children.filter(
+  // Counts across every marriage, not just the two the web sandwich draws.
+  const allChildren = stageMarriages.flatMap((m) => m.children);
+  const bornCount = allChildren.length;
+  const lostYoung = allChildren.filter(
     (child) => child.d !== null && child.d - child.b < 18,
   ).length;
   const sub = `Married ${first.family.marriage_year} · ${bornCount} ${bornCount === 1 ? 'child' : 'children'}${
@@ -334,6 +399,8 @@ function buildStage(
     sub,
     marriage: first.family.marriage_year,
     rows,
+    head: headRow,
+    marriages: stageMarriages,
     scrubStart: first.family.marriage_year,
     scrubEnd,
     domainStart,

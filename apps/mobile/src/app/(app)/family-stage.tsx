@@ -16,6 +16,7 @@ import {
   type FamilyStageIndex,
   type StageBond,
   type StagePerson,
+  type StageRow,
 } from '@witness/core/query';
 
 import { RecordText } from '@/components/record-text';
@@ -94,6 +95,7 @@ export default function FamilyStageScreen() {
   const [sweeping, setSweeping] = useState(false);
   const [sheet, setSheet] = useState<'group' | 'briefs' | null>(null);
   const [briefs, setBriefs] = useState<BriefRow[] | null>(null);
+  const [marriageIdx, setMarriageIdx] = useState(0);
 
   const sweepRaf = useRef<number | null>(null);
   const dragStartYear = useRef(0);
@@ -123,20 +125,44 @@ export default function FamilyStageScreen() {
 
   const stage: Stage | null = (currentKey && stages?.byKey.get(currentKey)) || null;
 
+  // One marriage shown at a time; the switcher picks the set. The head is
+  // shared across every marriage, so the view is [spouse, bond, head,
+  // children] for the selected set (Rufus, 2026-07-26).
+  const marriage = stage
+    ? stage.marriages[Math.min(marriageIdx, stage.marriages.length - 1)] ?? null
+    : null;
+
+  const viewRows = useMemo<StageRow[]>(
+    () =>
+      stage && marriage
+        ? [
+            ...(marriage.spouse ? [marriage.spouse] : []),
+            marriage.bond,
+            stage.head,
+            ...marriage.children,
+          ]
+        : [],
+    [stage, marriage],
+  );
   const people = useMemo(
-    () => (stage ? (stage.rows.filter((r) => r.kind === 'person') as StagePerson[]) : []),
-    [stage],
+    () => viewRows.filter((r): r is StagePerson => r.kind === 'person'),
+    [viewRows],
   );
   const bonds = useMemo(
-    () => (stage ? (stage.rows.filter((r) => r.kind === 'bond') as StageBond[]) : []),
-    [stage],
+    () => viewRows.filter((r): r is StageBond => r.kind === 'bond'),
+    [viewRows],
   );
 
-  // Open on the marriage year; a new household resets the line.
+  // A new household starts on its first marriage.
   useEffect(() => {
-    if (stage) setLineYear(stage.scrubStart);
-    setSweeping(false);
+    setMarriageIdx(0);
   }, [stage?.key]);
+
+  // Open on the shown marriage's year; switching sets re-anchors the line.
+  useEffect(() => {
+    if (marriage) setLineYear(marriage.marriageYear);
+    setSweeping(false);
+  }, [stage?.key, marriageIdx]);
 
   // Stop the sweep on unmount or stage change.
   useEffect(() => {
@@ -165,8 +191,10 @@ export default function FamilyStageScreen() {
   }, [sheet, stage?.key]);
 
   const pxPerYear = chartHeight > 0 ? chartHeight / WINDOW_YEARS : 0;
-  const domainStart = stage?.domainStart ?? 0;
-  const domainEnd = stage?.domainEnd ?? 1;
+  // Axis and slider follow the SELECTED marriage's span, not the whole
+  // household — switching sets re-scales the years.
+  const domainStart = marriage?.domainStart ?? 0;
+  const domainEnd = marriage?.domainEnd ?? 1;
   const line = lineYear ?? domainStart;
   const windowStart = line - WINDOW_YEARS * LINE_FRAC;
   const y = (year: number) => (year - windowStart) * pxPerYear;
@@ -182,7 +210,7 @@ export default function FamilyStageScreen() {
     if (!stage) return;
     setSweeping(true);
     let last = performance.now();
-    let year = lineYear ?? stage.scrubStart;
+    let year = lineYear ?? (marriage ? marriage.marriageYear : domainStart);
     if (year >= domainEnd - 0.5) year = domainStart; // a finished sweep restarts
     const step = (now: number) => {
       year += (now - last) / SWEEP_MS_PER_YEAR;
@@ -253,7 +281,7 @@ export default function FamilyStageScreen() {
     );
   }
 
-  if (!stage) {
+  if (!stage || !marriage) {
     return (
       <View style={{ flex: 1, backgroundColor: L.paper, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={mono(12, L.inkUnrecorded)}>SETTING THE STAGE…</Text>
@@ -264,7 +292,7 @@ export default function FamilyStageScreen() {
   // Thread slots in row order; a caption row becomes a slim divider slot.
   const slots: { person?: StagePerson; caption?: string; width: number; x: number }[] = [];
   let xCursor = 0;
-  for (const row of stage.rows) {
+  for (const row of viewRows) {
     if (row.kind === 'person') {
       const width = row.role === 'child' ? CHILD_W : PARENT_W;
       slots.push({ person: row, width, x: xCursor });
@@ -280,9 +308,9 @@ export default function FamilyStageScreen() {
   // Bond k spans the person rows on either side of it (row order is
   // [spouse, bond, head, bond, spouse, …]).
   const enclosures = bonds.map((bond) => {
-    const at = stage.rows.indexOf(bond);
-    const before = stage.rows[at - 1];
-    const after = stage.rows[at + 1];
+    const at = viewRows.indexOf(bond);
+    const before = viewRows[at - 1];
+    const after = viewRows[at + 1];
     const left = before?.kind === 'person' ? slotByPerson.get(before.id) : undefined;
     const right = after?.kind === 'person' ? slotByPerson.get(after.id) : undefined;
     if (!left || !right) return null;
@@ -296,7 +324,7 @@ export default function FamilyStageScreen() {
   // actually see in this household (any known death, else the marriage).
   const unknownTo = Math.max(
     ...people.filter((p) => p.d !== null).map((p) => p.d as number),
-    stage.marriage,
+    marriage.marriageYear,
   );
   const membersAlive = people.filter(
     (p) => p.b <= line && ribbonEnd(p, currentYear, unknownTo) >= line,
@@ -371,6 +399,37 @@ export default function FamilyStageScreen() {
             </View>
           ))}
         </View>
+
+        {/* Set-switcher — one chip per marriage when the head married more
+            than once (Rufus, 2026-07-26). Each set re-scales the axis. */}
+        {stage.marriages.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, paddingTop: 10, paddingRight: 12 }}
+          >
+            {stage.marriages.map((m, i) => {
+              const active = i === marriageIdx;
+              return (
+                <Pressable
+                  key={`${m.marriageYear}-${i}`}
+                  onPress={() => setMarriageIdx(i)}
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderWidth: 1,
+                    borderColor: active ? L.amber : L.rule,
+                    backgroundColor: active ? L.amber : 'transparent',
+                  }}
+                >
+                  <Text style={mono(9.5, active ? L.paper : L.ink)}>
+                    {m.spouseName.split(' ')[0].toUpperCase()} · {m.marriageYear}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
       </View>
 
       {/* The stage: threads against falling time. */}
@@ -618,8 +677,8 @@ export default function FamilyStageScreen() {
           />
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: -6 }}>
-          <Text style={mono(8, L.muted)}>{stage.marriage} · THE MARRIAGE</Text>
-          <Text style={mono(8, L.muted)}>{stage.scrubEnd} · THE LAST CHILD</Text>
+          <Text style={mono(8.5, L.muted)}>{marriage.marriageYear} · THE MARRIAGE</Text>
+          <Text style={mono(8.5, L.muted)}>{marriage.scrubEnd} · THE LAST CHILD</Text>
         </View>
 
         <Pressable
