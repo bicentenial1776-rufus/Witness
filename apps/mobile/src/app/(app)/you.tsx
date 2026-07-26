@@ -15,6 +15,7 @@ import {
 import { invalidateCuriositiesCache } from '@/lib/curiosities-cache';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
 import { invalidateRelationshipCache } from '@/lib/relationship-cache';
+import { invalidateTreeIndexCache } from '@/lib/tree-index-cache';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
 
@@ -92,6 +93,7 @@ export default function YouTab() {
               invalidateGeographyCache();
               invalidateRelationshipCache();
               invalidateCuriositiesCache();
+              invalidateTreeIndexCache();
               refresh();
             }
           },

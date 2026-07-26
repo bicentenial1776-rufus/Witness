@@ -8,6 +8,7 @@ import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
+import { useActiveTree } from '@/lib/active-tree';
 import { supabase } from '@/lib/supabase';
 
 interface BriefRow {
@@ -27,16 +28,21 @@ export const STATUS_LABELS: Record<BriefRow['status'], string> = {
 type BriefFilter = 'all' | 'open' | 'resolved';
 
 export default function ResearchTab() {
+  const { activeTree } = useActiveTree();
   const [briefs, setBriefs] = useState<BriefRow[] | null>(null);
   const [filter, setFilter] = useState<BriefFilter>('all');
   const broadsheet = useBroadsheet();
 
   useFocusEffect(
     useCallback(() => {
+      // Briefs belong to a tree — without the filter a second imported
+      // tree's briefs would interleave here unlabeled.
+      if (!activeTree) return;
       let cancelled = false;
       supabase
         .from('research_briefs')
         .select('id, title, status, created_at')
+        .eq('tree_id', activeTree.id)
         .neq('status', 'archived')
         .order('created_at', { ascending: false })
         .then(({ data }) => {
@@ -45,7 +51,7 @@ export default function ResearchTab() {
       return () => {
         cancelled = true;
       };
-    }, []),
+    }, [activeTree?.id]),
   );
 
   if (broadsheet) {

@@ -107,6 +107,7 @@ export default function TreeTab() {
       supabase
         .from('research_briefs')
         .select('status')
+        .eq('tree_id', treeId)
         .neq('status', 'archived')
         .then(({ data }) => {
           if (cancelled || !data) return;
