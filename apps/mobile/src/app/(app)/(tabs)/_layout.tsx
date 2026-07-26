@@ -36,15 +36,12 @@ export default function TabsLayout() {
           }}
         >
           <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: tabIcon('house.fill') }} />
+          <Tabs.Screen name="tree" options={{ title: 'Tree', tabBarIcon: tabIcon('tree.fill') }} />
           <Tabs.Screen name="explore" options={{ title: 'Explore', tabBarIcon: tabIcon('hourglass') }} />
           <Tabs.Screen name="map" options={{ title: 'Map', tabBarIcon: tabIcon('map.fill') }} />
           <Tabs.Screen
             name="proximity"
             options={{ title: 'Nearby', tabBarIcon: tabIcon('location.fill') }}
-          />
-          <Tabs.Screen
-            name="research"
-            options={{ title: 'Research', tabBarIcon: tabIcon('books.vertical.fill') }}
           />
         </Tabs>
       </View>

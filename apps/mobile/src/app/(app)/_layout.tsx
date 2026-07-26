@@ -119,6 +119,7 @@ export default function AppLayout() {
       <Stack.Screen name="library/index" options={{ title: 'The Library' }} />
       <Stack.Screen name="library/[category]" options={{ title: '' }} />
       <Stack.Screen name="library/results" options={{ title: '' }} />
+      <Stack.Screen name="research/index" options={{ title: 'Research' }} />
       <Stack.Screen name="research/[briefId]" options={{ title: 'Research Brief' }} />
       <Stack.Screen name="ancestor/[id]" options={{ title: '' }} />
       <Stack.Screen name="relationship/[individualId]" options={{ title: '' }} />

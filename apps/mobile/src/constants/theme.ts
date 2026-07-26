@@ -138,6 +138,28 @@ export const Broadsheet = {
   minWidth: 900,
 } as const;
 
+/**
+ * The letterpress system from design panel 4g (the Family Stage's palette),
+ * adopted 2026-07-25 as the one visual system everywhere (docs/
+ * phone-ia-design-brief.md, decision 1): paper, warm ink, amber — carried
+ * in the letterpress manner: hairline rules, squared corners, mono
+ * eyebrows, Playfair display. Phone screens build on these; the wider
+ * Broadsheet tokens above remain the web ≥900px carrier.
+ */
+export const Letterpress = {
+  paper: '#fbf9f5',
+  ink: '#1a1815',
+  amber: '#b0741f',
+  deepAmber: '#8a5a12',
+  muted: '#6f6a60',
+  /** Sex inks (grey for unrecorded — carried rule). */
+  inkMen: '#2f2c26',
+  inkWomen: '#8a5a12',
+  inkUnrecorded: '#6f6a60',
+  /** Hairline — same value as Broadsheet.color.rule so the two carriers share rules. */
+  rule: '#DDD6C9',
+} as const;
+
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
 

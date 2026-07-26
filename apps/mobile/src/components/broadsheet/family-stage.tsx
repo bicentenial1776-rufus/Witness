@@ -11,7 +11,7 @@ import {
 } from '@witness/core/query';
 
 import { RecordText } from '@/components/record-text';
-import { Broadsheet, BrandFonts } from '@/constants/theme';
+import { Broadsheet, BrandFonts, Letterpress } from '@/constants/theme';
 import { consumePendingStage } from '@/lib/stage-handoff';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
@@ -19,14 +19,14 @@ import { SectionBreak } from './page-shell';
 
 const C = Broadsheet.color;
 
-// The letterpress system from design panel 4g.
-const PAPER = '#fbf9f5';
-const INK = '#1a1815';
-const AMBER = '#b0741f';
-const DEEP_AMBER = '#8a5a12';
-const INK_MEN = '#2f2c26';
-const INK_WOMEN = '#8a5a12';
-const INK_UNRECORDED = '#6f6a60';
+// The letterpress system from design panel 4g — now the app-wide tokens.
+const PAPER = Letterpress.paper;
+const INK = Letterpress.ink;
+const AMBER = Letterpress.amber;
+const DEEP_AMBER = Letterpress.deepAmber;
+const INK_MEN = Letterpress.inkMen;
+const INK_WOMEN = Letterpress.inkWomen;
+const INK_UNRECORDED = Letterpress.inkUnrecorded;
 
 const NAME_GUTTER = 190;
 const PARENT_RIBBON = 22;

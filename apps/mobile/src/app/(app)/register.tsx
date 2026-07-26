@@ -12,17 +12,17 @@ import {
 import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Broadsheet, BrandFonts, WideContent } from '@/constants/theme';
+import { Broadsheet, BrandFonts, Letterpress, WideContent } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { setPendingStage } from '@/lib/stage-handoff';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
 const C = Broadsheet.color;
-const PAPER = '#fbf9f5';
-const INK = '#1a1815';
-const AMBER = '#b0741f';
-const DEEP_AMBER = '#8a5a12';
-const MUTED = '#6f6a60';
+const PAPER = Letterpress.paper;
+const INK = Letterpress.ink;
+const AMBER = Letterpress.amber;
+const DEEP_AMBER = Letterpress.deepAmber;
+const MUTED = Letterpress.muted;
 
 type Ordering = 'time' | 'name' | 'place';
 
