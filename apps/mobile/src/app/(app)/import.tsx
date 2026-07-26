@@ -3,7 +3,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Platform } from 'react-native';
+import { ActivityIndicator, Platform } from 'react-native';
 
 import type { ParsedGedcom } from '@witness/core/gedcom';
 import { extractGedcomText, parseGedcom } from '@witness/core/gedcom';
@@ -13,6 +13,7 @@ import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useSession } from '@/auth/session-provider';
+import { showAlert } from '@/lib/alert';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
 import { supabase } from '@/lib/supabase';
 
@@ -98,7 +99,7 @@ export default function ImportGedcom() {
       invalidateGeographyCache();
       setStep({ name: 'done', treeId, parsed });
     } catch (error) {
-      Alert.alert('Import failed', error instanceof Error ? error.message : String(error));
+      showAlert('Import failed', error instanceof Error ? error.message : String(error));
       setStep({ name: 'ready', fileName, parsed });
     }
   }

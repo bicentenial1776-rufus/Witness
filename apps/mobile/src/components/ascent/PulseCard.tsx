@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, View, Text, StyleSheet, Pressable } from 'react-native';
+import { ActivityIndicator, View, Text, StyleSheet, Pressable } from 'react-native';
 import type { Beacon } from '@witness/core/family';
 
+import { showAlert } from '@/lib/alert';
 import { openResearchBrief } from '@/lib/research-brief';
 import { usePremiumGate } from '@/lib/superwall';
 
@@ -105,7 +106,7 @@ export function PulseCard({ headlineStats, topBeacon }: PulseCardProps) {
     setBusy(true);
     const error = await openResearchBrief(individualId);
     setBusy(false);
-    if (error) Alert.alert('Could not prepare research brief', error);
+    if (error) showAlert('Could not prepare research brief', error);
   }
 
   return (

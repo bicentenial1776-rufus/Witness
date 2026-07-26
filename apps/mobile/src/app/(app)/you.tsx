@@ -1,11 +1,12 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, ScrollView, Switch, View } from 'react-native';
+import { Platform, ScrollView, Switch, View } from 'react-native';
 
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useSession } from '@/auth/session-provider';
+import { showAlert, showDestructiveConfirm } from '@/lib/alert';
 import { useActiveTree, type TreeRow } from '@/lib/active-tree';
 import { clearResumePoint } from '@/lib/resume';
 import {
@@ -60,45 +61,39 @@ export default function YouTab() {
       .from('share_links')
       .update({ revoked_at: new Date().toISOString() })
       .eq('token', token);
-    if (error) Alert.alert('Could not take the link back', error.message);
+    if (error) showAlert('Could not take the link back', error.message);
     else setShareLinks((current) => current?.filter((link) => link.token !== token) ?? null);
   }
 
   function confirmDelete(tree: TreeRow) {
-    Alert.alert(
+    showDestructiveConfirm(
       `Delete "${tree.name}"?`,
       `This removes the imported copy (${tree.individual_count.toLocaleString()} people) from Witness. Your GEDCOM file is untouched.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            // A whole-tree cascade delete exceeds the API statement timeout
-            // on real trees, so the server deletes in bounded slices and we
-            // call until it reports done (see delete_tree_batch migration).
-            let error: string | null = null;
-            for (let i = 0; i < 200; i++) {
-              const { data, error: rpcError } = await supabase.rpc('delete_tree_batch', {
-                p_tree_id: tree.id,
-              });
-              if (rpcError) {
-                error = rpcError.message;
-                break;
-              }
-              if ((data as { done?: boolean } | null)?.done) break;
-            }
-            if (error) Alert.alert('Delete failed', error);
-            else {
-              invalidateGeographyCache();
-              invalidateRelationshipCache();
-              invalidateCuriositiesCache();
-              invalidateTreeIndexCache();
-              refresh();
-            }
-          },
-        },
-      ],
+      'Delete',
+      async () => {
+        // A whole-tree cascade delete exceeds the API statement timeout
+        // on real trees, so the server deletes in bounded slices and we
+        // call until it reports done (see delete_tree_batch migration).
+        let error: string | null = null;
+        for (let i = 0; i < 200; i++) {
+          const { data, error: rpcError } = await supabase.rpc('delete_tree_batch', {
+            p_tree_id: tree.id,
+          });
+          if (rpcError) {
+            error = rpcError.message;
+            break;
+          }
+          if ((data as { done?: boolean } | null)?.done) break;
+        }
+        if (error) showAlert('Delete failed', error);
+        else {
+          invalidateGeographyCache();
+          invalidateRelationshipCache();
+          invalidateCuriositiesCache();
+          invalidateTreeIndexCache();
+          refresh();
+        }
+      },
     );
   }
 

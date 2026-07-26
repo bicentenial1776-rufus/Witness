@@ -1,6 +1,6 @@
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { PurchasesError } from 'react-native-purchases';
 
@@ -9,6 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BrandFonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { showAlert } from '@/lib/alert';
 import { usePurchases } from '@/lib/purchases';
 
 const UNLOCKED = [
@@ -39,7 +40,7 @@ export default function Paywall() {
 
   async function handlePurchase() {
     if (!pkg) {
-      Alert.alert(
+      showAlert(
         'Not available yet',
         'Subscriptions aren’t configured for this build. Try again once the RevenueCat product is live.',
       );
@@ -49,13 +50,13 @@ export default function Paywall() {
     try {
       const unlocked = await purchasePackage(pkg);
       if (!unlocked) {
-        Alert.alert('Purchase incomplete', 'That didn’t unlock full access. Please try again.');
+        showAlert('Purchase incomplete', 'That didn’t unlock full access. Please try again.');
       }
       // On success the router guard reacts to isEntitled and swaps to (app) itself.
     } catch (error) {
       const purchasesError = error as PurchasesError;
       if (!purchasesError.userCancelled) {
-        Alert.alert('Purchase failed', purchasesError.message ?? 'Something went wrong.');
+        showAlert('Purchase failed', purchasesError.message ?? 'Something went wrong.');
       }
     } finally {
       setIsPurchasing(false);
@@ -67,10 +68,10 @@ export default function Paywall() {
     try {
       const unlocked = await restore();
       if (!unlocked) {
-        Alert.alert('Nothing to restore', 'No active subscription was found for this account.');
+        showAlert('Nothing to restore', 'No active subscription was found for this account.');
       }
     } catch (error) {
-      Alert.alert('Restore failed', error instanceof Error ? error.message : String(error));
+      showAlert('Restore failed', error instanceof Error ? error.message : String(error));
     } finally {
       setIsRestoring(false);
     }

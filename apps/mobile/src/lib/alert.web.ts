@@ -4,3 +4,13 @@
 export function showAlert(title: string, message?: string): void {
   window.alert(message ? `${title}\n\n${message}` : title);
 }
+
+/** Cancel-or-confirm for destructive actions; runs onConfirm only on confirm. */
+export function showDestructiveConfirm(
+  title: string,
+  message: string,
+  _confirmLabel: string,
+  onConfirm: () => void,
+): void {
+  if (window.confirm(`${title}\n\n${message}`)) onConfirm();
+}
