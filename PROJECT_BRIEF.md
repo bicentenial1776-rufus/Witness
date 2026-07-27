@@ -1,9 +1,9 @@
 # Witness — Family History Intelligence
 ### *Witnesses to History*
 
-**Version:** 2.1 — Project Brief (living document)  
+**Version:** 2.2 — Project Brief (living document)  
 **Date:** July 2026  
-**Status:** In development — Phases 1–4 complete; Phase 5 (notifications, polish, beta prep) underway. Running on real devices. Build Status section below is authoritative.
+**Status:** In development — Phases 1–5 substantially complete: iOS running on real devices (TestFlight build 5), **web app launched** at app.witnesslives.com (RevenueCat Web Billing, own "Broadsheet" design system), onboarding + hard paywall live. Phase 6 (launch) prep underway — BillionGraves, proactive location notifications, and encrypted-GEDCOM-upload wiring remain open. Build Status section below is authoritative.
 
 ---
 
@@ -60,10 +60,10 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 
 ## Platform
 
-- **Launch:** iPhone + iPad (near-feature parity, adaptive layouts)
-- **V2:** Web browser
+- **Launch:** iPhone + iPad (near-feature parity, adaptive layouts) **+ web**, launched ahead of schedule (July 2026) at app.witnesslives.com
 - **iPad** is the primary canvas for deep research sessions
 - **iPhone** is the field device — cemetery GPS, "I'm Here" mode, sharing moments
+- **Web** runs its own "Broadsheet" design system (IBM Plex Mono, letterpress/newspaper aesthetic) on viewports ≥900px, gated by `useBroadsheet()`; below that it falls back to the phone's tab bar. Same five-tab IA as the phone (Home · Tree · Explore · Map · Nearby), billing via RevenueCat Web Billing (Stripe checkout in-page) instead of Apple IAP, browser geolocation instead of device GPS for Nearby, and an email digest (Resend) standing in for local push where native notifications aren't available.
 - Built with **React Native / Expo**
 
 ---
@@ -229,6 +229,36 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 
 ---
 
+## Shipped Beyond the Original V1 Plan
+
+Built during Phase 4–5 in response to what the real 5,495-person tree and field testing surfaced — not in the original feature list above, but live now:
+
+### Tree Health
+- 22 forensic checks ported from FTAnalyzer (Apache 2.0 license; GPL-licensed FTAnalyzer data explicitly not used — see `NOTICE`)
+- "Your Tree Health" workbench on Explore: 443 findings surfaced on the live tree after an audit pass corrected false convictions around estimated/`BET`/`BEF`/`AFT` date qualifiers and old-style dual dating (down from an initial 539, with 322 regression tests green)
+- Findings framed as research invitations, consistent with the "anomalies are curiosities" principle
+- Supersedes "The Ascent" (an earlier 8-generation ahnentafel health ladder with a scripted tutorial mode) — Ascent's screen still exists and is routable, but was pulled off the Explore shelf in favor of Tree Health
+
+### National Archives (NARA) Document Matching
+- pg_cron worker matches draft-registration and naturalization records to ancestors as confirm/dismiss candidates — never auto-attached
+- Consolidated "National Archives" screen; "Add to Ancestry" bridge for Ancestry-sourced trees
+- Hardened after launch: fixed a re-search bug that was re-querying the same men every ten minutes, made the monthly API quota ledger atomic
+
+### Query Library & Moments Browsing
+- The 329-query event library is now browsable and searchable directly, not just surfaced through AI prompt cards
+- Century-grouped Moments timeline with live counts
+
+### Story Sharing
+- Public share links with OG-tag unfurls so a shared story renders a preview card off-platform, with a bridge back into the app for non-users
+
+### Family Stage & Register (Phone + Web Navigation)
+- Five-tab IA replaced the original Home/Explore/Map/Research/You layout: **Home · Tree · Explore · Map · Nearby** (Research folded into Tree)
+- **Family Stage** — a household rendered as a lifeline (a length of time, not a static chart), with a set-switcher for people with multiple marriages, honest "?" for uncertain data
+- **Register** — table-of-contents navigation by time, name, and place, without ever drawing the full tree
+- Both ship identically on phone and web
+
+---
+
 ## Features Explicitly Deferred
 
 - **Tree editing** — Witness never modifies a GEDCOM. Read-only always.
@@ -242,11 +272,12 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 ## Technical Architecture
 
 ### Stack
-- **Frontend:** React Native / Expo (universal — iPhone, iPad, web in V2)
-- **Backend:** Supabase (Postgres + Storage + Auth + Real-time)
+- **Frontend:** React Native / Expo (universal — iPhone, iPad, and web, all shipped)
+- **Backend:** Supabase (Postgres + Storage + Auth + Real-time), pg_cron workers for geocoding, NARA matching, and digest generation
 - **AI:** Anthropic Claude Sonnet API (claude-sonnet-4-6)
-- **Subscriptions:** RevenueCat
-- **Maps:** Mapbox or Apple Maps
+- **Subscriptions:** RevenueCat (native IAP) + RevenueCat Web Billing via Stripe (web) + Superwall placements layered on top
+- **Maps:** Apple Maps (native, via `react-native-maps` default provider) / MapLibre GL over CARTO basemaps (web)
+- **Web hosting:** Vercel, deployed from `docs/preview-site` at witnesslives.com root; email digest fallback via Resend
 
 ### Build Status (July 2026)
 - ✅ GEDCOM parser — complete. Pure TypeScript, 24 tests, validated against real 11MB file. 5,495 individuals, 1,852 families, 3,808 places, parsed in 110ms.
@@ -267,7 +298,7 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 - ✅ "I'm Here" mode — GPS radius search (500m–50km) with century tabs and relationship labels. Milestone verified: at Sudbury's cemetery, 103 people found, town places 29m away
 - ✅ "This Week in Your Family" weekly digest — anniversary window query (month/day pushed down to Postgres) + editorial selection (max 3, variety across branches and event types, richness scoring, direct-ancestor and milestone boosts), digest screen with relationship labels, 2-sentence AI notes (new digest_note enrichment type, same cache/budget), Sunday-morning local notification named after the week's top entry, re-armed on every app open. Verified live: 81 candidates → 3 entries in ~120ms over the 5,495-person tree; screen verified in simulator. Phase 5 begun. digest_note migration + generate-digest-note Edge Function deployed and verified live (fresh note ~5s, cache hit ~0.5s, notes render in-app)
 - ✅ Standalone Release build — Release-configuration install on Rufus's iPhone with the JS bundle embedded (no Metro/laptop dependency; travel-ready). Dev auto-login credentials blanked from release bundles via .env.production
-- ✅ TestFlight — 1.0.0 build 1 archived (DEVELOPMENT_TEAM in app.json appleTeamId) and uploaded to App Store Connect via Xcode Organizer. dSYM warnings for RN prebuilt frameworks are expected and harmless. Awaiting ASC API key (Users and Access → Integrations) for headless uploads; external-tester prerequisites still open: privacy policy URL, support@ email route, branded Supabase auth emails
+- ✅ TestFlight — 1.0.0 build 1 archived (DEVELOPMENT_TEAM in app.json appleTeamId) and uploaded to App Store Connect via Xcode Organizer; bumped to **build 5** with onboarding + hard paywall (see below). dSYM warnings for RN prebuilt frameworks are expected and harmless. Privacy policy and Terms of Use are now live at witnesslives.com (previously open prerequisites); ASC API key for headless uploads still not set up
 - ✅ Second real user — Ruth's iPhone 12 mini running her own account with her own tree import; geocoded instantly by copying coordinates from Rufus's tree on matching place strings (validated the shared-place-cache design). Keyboard-flow fixes on the sign screens came out of her first-run testing
 - ✅ Richer GEDCOM facts — importer now captures occupations (OCCU), Ancestry custom events (EVEN + TYPE: draft registrations, citizenship, …), and probate (PROB) alongside the core five event types; label/detail columns feed all four AI prompts (bookkeeping noise like FamilySearch IDs filtered out). Backfills nothing: facts appear on next import
 - ✅ Kindred couples — full-depth sweep (any shared blood ancestor, not just grandparents), per-spouse ancestor labels ("William Haskell is Ruth's 8th great-grandfather and Rufus's 9th"), and an expandable side-by-side descent diagram per couple, every person tappable. Found Rufus ⚭ Ruth as sixth cousins 1× removed via Abigail Maxey — closer than the Haskell line the family knew about
@@ -278,11 +309,18 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 - ✅ Source citations — parser captures the GEDCOM's full evidence layer (980 source records, ~39,600 citations with fact labels, page locators, record-text excerpts, URLs, _APIDs); sources/citations tables live with RLS; tree re-imported 2026-07-06 as 47354505-… with home person carried over by xref and the July-1 tree deleted (staged, batched — a whole-tree cascade delete times out); ancestor screens show a Sources section ("cites their name, birth, residence", quoted excerpts, record links)
 - ✅ Running on real hardware — dev client installed on Rufus's iPhone via `expo run:ios --device` (Apple Development signing; distribution cert present for TestFlight later). Phone loads Metro via the Mac's .local hostname — raw-IP http is blocked by ATS. Standalone Release build refreshed 2026-07-06 (sources UI + new tree) for two weeks away from the Mac
 - ✅ Expo development build — native iOS dev client (expo-dev-client, bundle id com.witnesslives.witness) built via `npx expo run:ios` and verified on simulator; replaces Expo Go for development, prerequisite for push notifications, background location, and TestFlight. Native dirs are gitignored (CNG — regenerate with `npx expo prebuild`). Gotcha: CocoaPods needs LANG=en_US.UTF-8 in non-interactive shells
-- ✅ Design system + navigation — brand tokens implemented app-wide (parchment/ink worlds, amber accent, serif display type via iOS New York), Card primitive, five-tab architecture (Home / Explore / Map / Research / You) with SF Symbol icons, native headers with swipe-back on all detail screens, active-tree context (tab screens no longer need treeId params; deep links still param-driven). App renamed mobile → Witness, splash to ink. Light + dark mode verified in simulator across all tabs, digest, ancestor detail. Button + TextField primitives complete (no default iOS chrome remains). iPad tier 1 shipped: supportsTablet, all iPad orientations, capped content columns (native iPad app instead of compatibility mode). Remaining polish: lens section accents, iPad split-view + landscape layouts
+- ✅ Design system + navigation — brand tokens implemented app-wide (parchment/ink worlds, amber accent, serif display type via iOS New York), Card primitive, native headers with swipe-back on all detail screens, active-tree context (tab screens no longer need treeId params; deep links still param-driven). App renamed mobile → Witness, splash to ink. Light + dark mode verified in simulator across all tabs, digest, ancestor detail. Button + TextField primitives complete (no default iOS chrome remains). iPad tier 1 shipped: supportsTablet, all iPad orientations, capped content columns (native iPad app instead of compatibility mode). **Superseded 2026-07-25/26:** the five-tab layout is now Home · Tree · Explore · Map · Nearby (Research folded into Tree) — see Family Stage & Register below. Remaining polish: lens section accents, iPad split-view + landscape layouts
+- ✅ Onboarding + hard paywall — 7-screen onboarding narrative gates every signed-in user into RevenueCat entitlement (`e26e8ba`, `a3ca73e`), Superwall placements layered on top, 7-day trial with a local reminder notification 2 days before conversion. Witness registered as a `.ged`/`.gdz` file handler (Share Sheet / Files / Mail "Open in Witness" skips the picker), enforced by a build-time check that fails if the handler registration goes missing. Shipped as build 5. Terms of Use and a rewritten privacy policy are live at witnesslives.com
+- ✅ Tree Health — 22 forensic checks adapted from FTAnalyzer (Apache 2.0; GPL data not used, see `NOTICE`), audited down to 443 real findings with 322 regression tests green; live on Explore as "Your Tree Health." Supersedes the earlier Ascent health-ladder feature (screen still routable, un-featured)
+- ✅ National Archives (NARA) matching — pg_cron worker matches draft-registration/naturalization records to ancestors as confirm/dismiss candidates (never auto-attached); consolidated screen + "Add to Ancestry" bridge; re-search and quota-ledger bugs fixed post-launch
+- ✅ Family Stage & Register — household-as-lifeline visualization and time/name/place table-of-contents navigation, replacing tree-drawing UI; shipped identically on phone and web
+- ✅ Query Library + Moments browsing — the 329-query event library and a century-grouped Moments timeline are directly browsable/searchable, not gated behind AI prompt cards
+- ✅ Story sharing — public share links with OG-tag unfurls (preview card off-platform, bridge back into the app for non-users)
+- ✅ **Web app launched** (2026-07-24 to 07-26, ahead of the V2 schedule) — full "Broadsheet" redesign (IBM Plex Mono, letterpress aesthetic) mirrors the phone's five-tab IA on viewports ≥900px; RevenueCat Web Billing (Stripe checkout in-page) stands in for Apple IAP; Ancestor Map ported to MapLibre GL over CARTO basemaps; Nearby uses browser geolocation; weekly digest also sends by email (Resend) for browser/iPad users without local push; deployed via Vercel from `docs/preview-site` at the witnesslives.com root. Late-stage hardening: full IA parity pass, and an `Alert.alert` sweep since react-native-web stubs it to a silent no-op (`showAlert`/`showDestructiveConfirm` now used everywhere; native tree-delete confirm still native, web gets `window.confirm`)
 - ⬜ BillionGraves cemetery matching — deferred pending API access/outreach; radius search covers the cemetery case with tree data
 - ⬜ Proactive location notifications, iPad split-view layouts — remaining Phase 4
 - ⬜ Encrypted raw GEDCOM upload to Storage — bucket + RLS exist, upload not wired
-- ⬜ Remaining UI features (maps, notifications, iPad layouts, timeline/constellation views)
+- ⬜ Family Constellation View — no node-based visualization exists in the codebase; the Ancestor Timeline (per-ancestor vertical chronology) is also still unbuilt as a dedicated view, though Moments browsing (above) covers tree-wide chronology
 
 ### Data Storage — Option B Encryption
 - Raw GEDCOM file: encrypted client-side before upload, stored as opaque blob in Supabase Storage. Server cannot read it.
@@ -383,17 +421,17 @@ Temporal queries, geographic queries, structural analysis, curated historical ev
 Historical context generation, Wikidata + Chronicling America integration, ancestor biography, shareable discovery cards, Research Brief Generator.  
 *Milestone: Tap any ancestor, read an AI-generated biography. Generate and share a research brief.*
 
-### Phase 4 — Map + Field Features (Weeks 14–17)
+### Phase 4 — Map + Field Features (Weeks 14–17) ✅ mostly complete
 Ancestor map, cemetery GPS, "I'm Here" mode, proactive location notifications, iPad adaptive layouts.  
-*Milestone: Stand in a cemetery, open Witness, see matched ancestors within 500 meters.*
+*Milestone: Stand in a cemetery, open Witness, see matched ancestors within 500 meters.* ✅ met. BillionGraves and proactive location notifications remain open (see Build Status).
 
-### Phase 5 — Notifications + Polish (Weeks 18–21)
+### Phase 5 — Notifications + Polish (Weeks 18–21) ✅ substantially complete
 Weekly digest notifications, Annual Wrapped, onboarding flow, App Store assets, TestFlight beta.  
-*Milestone: TestFlight live. Family + 20 outside beta testers on real GEDCOMs.*
+*Milestone: TestFlight live. Family + 20 outside beta testers on real GEDCOMs.* ✅ TestFlight live (build 5, onboarding + hard paywall shipped). Beyond original scope: a full web app also launched in this window (Broadsheet redesign, Web Billing, MapLibre map), plus Tree Health, NARA document matching, and the Family Stage/Register navigation rework. Annual Wrapped still open; outside beta testers not yet recruited.
 
 ### Phase 6 — Launch (Weeks 22–24)
 USPTO filing, domain secured, marketing site, community seeding, press outreach, App Store submission.  
-*Milestone: Witness live on the App Store. Week 1 target: 200 downloads, 50 trial conversions.*
+*Milestone: Witness live on the App Store. Week 1 target: 200 downloads, 50 trial conversions.* Domain (witnesslives.com) live and already serving the web app; App Store submission still open.
 
 ---
 
@@ -403,11 +441,12 @@ Unscheduled ideas live in [docs/IDEAS.md](docs/IDEAS.md).
 
 - Natural language querying ("Who in my family would have known each other?")
 - FamilySearch read API integration for research brief sourcing
-- Web browser version
 - Family sharing / invite model
 - Family plan pricing ($34.99/year, up to 5 accounts)
 - Meteostat historical weather enrichment
 - Inheritance Transfer feature
+
+*Web browser version shipped ahead of schedule in Phase 5 (July 2026) — see Platform and Build Status above.*
 
 ## V3 Roadmap
 
