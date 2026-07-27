@@ -47,24 +47,6 @@ function Row({ title, detail, onPress }: { title: string; detail?: string; onPre
   );
 }
 
-function Door({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderWidth: 1,
-        borderColor: L.deepAmber,
-        borderStyle: 'dashed' as never,
-        alignSelf: 'flex-start',
-      }}
-    >
-      <Text style={mono(10, L.deepAmber)}>{label.toUpperCase()}</Text>
-    </Pressable>
-  );
-}
-
 /**
  * The Tree tab — the "about your tree" home (docs/phone-ia-design-brief.md).
  * Never a tree drawing: header stats, curiosities in the gentle voice —
@@ -180,17 +162,6 @@ export default function TreeTab() {
               ))}
             </>
           )}
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
-            <Door
-              label={
-                curiosities && curiosities.total > 0
-                  ? `The tree check — all ${curiosities.total.toLocaleString()} ›`
-                  : 'The tree check ›'
-              }
-              onPress={() => router.push('/tree-health' as never)}
-            />
-            <Door label="Orphan records ›" onPress={() => router.push('/orphan-records' as never)} />
-          </View>
     </Section>
   );
 
@@ -246,6 +217,21 @@ export default function TreeTab() {
     </Section>
   );
 
+  const treeHealthSection = (
+    <Section eyebrow="Your tree health">
+      <Row
+        title="FTAnalyzer Tree Check"
+        detail="Twenty-two data-integrity checks across your whole tree — impossible dates, merged generations, duplicate children, and more"
+        onPress={() => router.push('/tree-health' as never)}
+      />
+      <Row
+        title="Orphan records"
+        detail="Records with no connection to your tree — islands, solo strays, and the ancestors they might belong near"
+        onPress={() => router.push('/orphan-records' as never)}
+      />
+    </Section>
+  );
+
   const streetViewTeaser = (
     <View style={{ borderWidth: 1, borderColor: L.rule, borderStyle: 'dashed' as never, padding: 16, gap: 5 }}>
       <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 19, color: L.inkUnrecorded }}>
@@ -278,6 +264,7 @@ export default function TreeTab() {
           <FamilyStage treeId={activeTree.id} />
         </View>
         <View style={{ maxWidth: 680 }}>{researchSection}</View>
+        <View style={{ maxWidth: 680 }}>{treeHealthSection}</View>
       </PageShell>
     );
   }
@@ -298,6 +285,7 @@ export default function TreeTab() {
         {curiositiesSection}
         {familyStageDoor}
         {researchSection}
+        {treeHealthSection}
 
         <Section eyebrow="Visual views">{streetViewTeaser}</Section>
       </ScrollView>
