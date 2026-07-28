@@ -11,6 +11,7 @@ import { BrandFonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/alert';
 import { usePurchases } from '@/lib/purchases';
+import { supabase } from '@/lib/supabase';
 
 const UNLOCKED = [
   'Ask any temporal query — who was alive during any war, epidemic, or era',
@@ -146,6 +147,17 @@ export default function Paywall() {
             onPress={isRestoring ? undefined : handleRestore}
           >
             {isRestoring ? 'Restoring…' : 'Restore Purchase'}
+          </ThemedText>
+          {/* The only unsubscribed screen a signed-in reader can reach — without
+              this, an account mismatch (wrong email, shared computer, a test
+              account) leaves them trapped with no way back to sign-in. */}
+          <ThemedText
+            type="small"
+            themeColor="textSecondary"
+            style={styles.center}
+            onPress={() => supabase.auth.signOut()}
+          >
+            Sign out
           </ThemedText>
           <View style={styles.legalRow}>
             <ThemedText
