@@ -104,9 +104,11 @@ export default function SignIn() {
 
   return (
     <View style={styles.flex}>
+      {/* Not absoluteFill: react-native-web keeps the image's intrinsic
+          height under it, leaving a bare band below the hero. */}
       <Image
         source={require('@/assets/images/hero.png')}
-        style={StyleSheet.absoluteFill}
+        style={styles.hero}
         resizeMode="cover"
       />
       <View style={[StyleSheet.absoluteFill, styles.scrim]} />
@@ -132,6 +134,7 @@ export default function SignIn() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  hero: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' },
   scrim: { backgroundColor: 'rgba(20,17,15,0.62)' },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 16 },
   wordmarkRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
