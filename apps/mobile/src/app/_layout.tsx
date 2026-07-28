@@ -112,12 +112,17 @@ function RootNavigator() {
       <Stack.Protected guard={!session}>
         <Stack.Screen name="sign-in" />
         <Stack.Screen name="sign-up" />
+        <Stack.Screen name="forgot-password" />
       </Stack.Protected>
 
       {/* Public: a shared story renders for anyone, signed in or not.
-          Declared LAST — the first declared screen becomes the router's
-          initial route, and this one must never be it. */}
+          reset-password is here too — the emailed link lands while signed
+          out, but exchanging its tokens establishes a session mid-visit, so
+          it can't sit behind the !session guard above. Declared LAST — the
+          first declared screen becomes the router's initial route, and
+          neither of these must ever be it. */}
       <Stack.Screen name="shared/[token]" />
+      <Stack.Screen name="reset-password" />
     </Stack>
   );
 }

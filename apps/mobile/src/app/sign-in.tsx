@@ -1,20 +1,35 @@
 import { Link } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
+  Text,
   TextInput,
   TouchableWithoutFeedback,
+  View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { BrandFonts } from '@/constants/theme';
 import { showAlert } from '@/lib/alert';
 import { supabase } from '@/lib/supabase';
+
+// Fixed brand colors, not the device theme: this is the same hero image and
+// wordmark treatment as the marketing site (apps/preview-site/index.html),
+// so it should look like Witness everywhere rather than follow the reader's
+// light/dark preference. See (onboarding)/index.tsx for the same rationale.
+const INK = '#1C1917';
+const PARCHMENT = '#F7F3EE';
+const PARCHMENT_MUTED = 'rgba(247,243,238,0.78)';
+const AMBER = '#B45309';
 
 export default function SignIn() {
   const [email, setEmail] = useState('');
@@ -43,53 +58,101 @@ export default function SignIn() {
 
   const form = (
     <ScrollView
-      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, gap: 12 }}
+      contentContainerStyle={styles.scroll}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
     >
-      <ThemedText type="title">Witness</ThemedText>
-      <TextField
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        returnKeyType="next"
-        submitBehavior="submit"
-        onSubmitEditing={() => passwordRef.current?.focus()}
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextField
-        ref={passwordRef}
-        placeholder="Password"
-        secureTextEntry
-        returnKeyType="go"
-        onSubmitEditing={handleSignIn}
-        value={password}
-        onChangeText={setPassword}
-      />
-      <Button title="Sign in" busy={isSubmitting} onPress={handleSignIn} />
-      <Link href="/sign-up">
-        <ThemedText type="link">Need an account? Sign up</ThemedText>
-      </Link>
+      <View style={styles.wordmarkRow}>
+        <Text style={styles.wordmark}>WITNESS</Text>
+        <View style={styles.wordmarkDot} />
+      </View>
+      <Text style={styles.tagline}>
+        Your ancestors witnessed history. Witness helps you see them.
+      </Text>
+
+      <ThemedView type="backgroundElement" style={styles.card}>
+        <ThemedText type="subtitle">Sign in</ThemedText>
+        <TextField
+          placeholder="Email"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          returnKeyType="next"
+          submitBehavior="submit"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          value={email}
+          onChangeText={setEmail}
+        />
+        <TextField
+          ref={passwordRef}
+          placeholder="Password"
+          secureTextEntry
+          returnKeyType="go"
+          onSubmitEditing={handleSignIn}
+          value={password}
+          onChangeText={setPassword}
+        />
+        <Button title="Sign in" busy={isSubmitting} onPress={handleSignIn} />
+        <Link href="/forgot-password">
+          <ThemedText type="link">Forgot password?</ThemedText>
+        </Link>
+        <Link href="/sign-up">
+          <ThemedText type="link">Need an account? Sign up</ThemedText>
+        </Link>
+      </ThemedView>
     </ScrollView>
   );
 
   return (
-    <ThemedView style={{ flex: 1 }}>
-      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-        {Platform.OS === 'web' ? (
-          form
-        ) : (
-          // react-native-web has no real software keyboard to dismiss, and its
-          // TouchableWithoutFeedback doesn't exclude presses on nested focusable
-          // elements — tapping a TextField would focus it, then this handler's
-          // Keyboard.dismiss() (which blurs the focused field on web) would fire
-          // on the same click, making the fields untypable. Native-only.
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-            {form}
-          </TouchableWithoutFeedback>
-        )}
-      </KeyboardAvoidingView>
-    </ThemedView>
+    <View style={styles.flex}>
+      <Image
+        source={require('@/assets/images/hero.png')}
+        style={StyleSheet.absoluteFill}
+        resizeMode="cover"
+      />
+      <View style={[StyleSheet.absoluteFill, styles.scrim]} />
+      <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+        <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+          {Platform.OS === 'web' ? (
+            form
+          ) : (
+            // react-native-web has no real software keyboard to dismiss, and its
+            // TouchableWithoutFeedback doesn't exclude presses on nested focusable
+            // elements — tapping a TextField would focus it, then this handler's
+            // Keyboard.dismiss() (which blurs the focused field on web) would fire
+            // on the same click, making the fields untypable. Native-only.
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+              {form}
+            </TouchableWithoutFeedback>
+          )}
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  scrim: { backgroundColor: 'rgba(20,17,15,0.62)' },
+  scroll: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 16 },
+  wordmarkRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  wordmark: {
+    fontFamily: BrandFonts.serif.semiBold,
+    color: PARCHMENT,
+    fontSize: 26,
+    letterSpacing: 4,
+  },
+  wordmarkDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: AMBER },
+  tagline: {
+    fontFamily: BrandFonts.sans.regular,
+    color: PARCHMENT_MUTED,
+    fontSize: 16,
+    lineHeight: 23,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  card: {
+    borderRadius: 16,
+    padding: 20,
+    gap: 12,
+  },
+});
