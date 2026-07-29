@@ -31,6 +31,21 @@ interface PersonHit {
   birth_year: number | null;
   death_year: number | null;
   living: boolean;
+  /** Set when the person matched on a place rather than their name —
+      shown so it's clear why they surfaced ("· Worcester, Massachusetts"). */
+  place?: string;
+}
+
+/** An event row with its person + place embedded, for the place search. */
+interface PlaceEventRow {
+  individuals: {
+    id: string;
+    full_name: string;
+    birth_year: number | null;
+    death_year: number | null;
+    living: boolean;
+  } | null;
+  places: { raw: string } | null;
 }
 
 function eventYears(event: HistoricalEvent): string {
@@ -141,7 +156,10 @@ export default function ExploreTab() {
     }, [shelfFailed]),
   );
 
-  // People search: name match in the active tree, debounced a beat.
+  // People search, debounced a beat: match on name OR place, in one box.
+  // "Benjamin" or "Collins" hits the name; "Worcester" hits anyone with an
+  // event recorded there. Name matches lead; place-only matches follow,
+  // each tagged with the place that surfaced them.
   useEffect(() => {
     const q = search.trim();
     if (!q || q.length < 2 || !activeTree) {
@@ -150,14 +168,46 @@ export default function ExploreTab() {
     }
     let cancelled = false;
     const timer = setTimeout(async () => {
-      const { data } = await supabase
-        .from('individuals')
-        .select('id, full_name, birth_year, death_year, living')
-        .eq('tree_id', activeTree.id)
-        .ilike('full_name', `%${q}%`)
-        .order('birth_year', { ascending: true, nullsFirst: false })
-        .limit(20);
-      if (!cancelled) setPeople(data ?? []);
+      const treeId = activeTree.id;
+      const [nameRes, placeRes] = await Promise.all([
+        supabase
+          .from('individuals')
+          .select('id, full_name, birth_year, death_year, living')
+          .eq('tree_id', treeId)
+          .ilike('full_name', `%${q}%`)
+          .order('birth_year', { ascending: true, nullsFirst: false })
+          .limit(20),
+        // Every event whose place text matches, with the person embedded;
+        // deduped to distinct people client-side (no DISTINCT over a join).
+        supabase
+          .from('individual_events')
+          .select('individuals!inner(id, full_name, birth_year, death_year, living), places!inner(raw)')
+          .eq('tree_id', treeId)
+          .ilike('places.raw', `%${q}%`)
+          .limit(300)
+          .returns<PlaceEventRow[]>(),
+      ]);
+      if (cancelled) return;
+
+      const seen = new Set<string>();
+      const merged: PersonHit[] = [];
+      for (const person of nameRes.data ?? []) {
+        if (!seen.has(person.id)) {
+          seen.add(person.id);
+          merged.push(person);
+        }
+      }
+      const placeHits: PersonHit[] = [];
+      for (const row of placeRes.data ?? []) {
+        const person = row.individuals;
+        if (person && !seen.has(person.id)) {
+          seen.add(person.id);
+          placeHits.push({ ...person, place: row.places?.raw ?? undefined });
+        }
+      }
+      placeHits.sort((a, b) => (a.birth_year ?? Infinity) - (b.birth_year ?? Infinity));
+      merged.push(...placeHits);
+      if (!cancelled) setPeople(merged.slice(0, 25));
     }, 250);
     return () => {
       cancelled = true;
@@ -197,7 +247,7 @@ export default function ExploreTab() {
       {activeTree ? (
         <>
           <TextField
-            placeholder="Search people & history — “Elizabeth Dane”, “mayflower”…"
+            placeholder="Search people, places & history — “Elizabeth Dane”, “Worcester”…"
             returnKeyType="search"
             value={search}
             onChangeText={setSearch}
@@ -320,7 +370,7 @@ export default function ExploreTab() {
           {searching && people.length > 0 && (
             <>
               <ThemedText type="subtitle">
-                {people.length === 20 ? 'First 20 people' : `${people.length} ${people.length === 1 ? 'person' : 'people'}`}
+                {people.length === 25 ? 'First 25 people' : `${people.length} ${people.length === 1 ? 'person' : 'people'}`}
               </ThemedText>
               {people.map((person) => (
                 <Card
@@ -332,6 +382,7 @@ export default function ExploreTab() {
                   <ThemedText type="small">
                     {person.birth_year ?? '?'}–{person.living ? '' : (person.death_year ?? '?')}
                     {person.living ? ' · living' : ''}
+                    {person.place ? ` · ${person.place}` : ''}
                   </ThemedText>
                 </Card>
               ))}

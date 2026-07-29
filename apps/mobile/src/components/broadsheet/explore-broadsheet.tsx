@@ -25,6 +25,8 @@ interface PersonHit {
   full_name: string;
   birth_year: number | null;
   death_year: number | null;
+  /** Present when the person matched on a place rather than their name. */
+  place?: string;
 }
 
 function Serif({ size = T.ledgerName, color = C.ink, children, ...rest }: React.ComponentProps<typeof Text> & { size?: number; color?: string }) {
@@ -252,6 +254,7 @@ export function ExploreBroadsheet({
               <View style={{ flex: 1 }} />
               <RecordText muted>
                 {person.birth_year ?? '?'} – {person.death_year ?? '?'}
+                {person.place ? `  ·  ${person.place}` : ''}
               </RecordText>
             </LedgerRow>
           ))}
