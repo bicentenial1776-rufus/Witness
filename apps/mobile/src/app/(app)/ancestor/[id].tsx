@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { getRelationship } from '@witness/core/family';
 import {
@@ -22,9 +22,9 @@ import { ancestryPersonUrl } from '@/lib/ancestry';
 import { getEventLibrary } from '@/lib/event-library';
 import { createAncestorShareLink } from '@/lib/share-links';
 import { getRelationshipMap } from '@/lib/relationship-cache';
-import { invokeError, openResearchBrief as fetchOrCreateResearchBrief } from '@/lib/research-brief';
+import { invokeError } from '@/lib/research-brief';
 import { supabase } from '@/lib/supabase';
-import { WideContent } from '@/constants/theme';
+import { BrandFonts, Fonts, WideContent } from '@/constants/theme';
 
 interface Person {
   id: string;
@@ -44,11 +44,21 @@ interface EventRow {
   places: { raw: string; parts: string[] } | null;
 }
 
-interface ParentRow {
+/** A person on the family register — parent, sibling, spouse, or child. */
+interface RegisterPerson {
   id: string;
   full_name: string;
+  sex: 'M' | 'F' | 'U';
   birth_year: number | null;
   death_year: number | null;
+  living: boolean;
+}
+
+/** One marriage this person heads: the spouse and their children together. */
+interface Marriage {
+  year: number | null;
+  spouse: RegisterPerson | null;
+  children: RegisterPerson[];
 }
 
 interface CitationRow {
@@ -68,11 +78,6 @@ interface SourceGroup {
 }
 
 /**
- * Citations grouped per source, reading order: the source cited for the
- * most facts first. Facts keep one mention each; excerpts dedupe (the
- * same census line often backs several facts).
- */
-/**
  * External links (Ancestry, source URLs) open in a NEW tab on web: a
  * same-tab navigation unloads the SPA, so the browser's Back button
  * cold-reloads Witness onto Home and loses the user's place. A new tab
@@ -86,6 +91,11 @@ function openExternal(url: string) {
   }
 }
 
+/**
+ * Citations grouped per source, reading order: the source cited for the
+ * most facts first. Facts keep one mention each; excerpts dedupe (the
+ * same census line often backs several facts).
+ */
 function groupCitations(rows: CitationRow[]): SourceGroup[] {
   const groups = new Map<string, SourceGroup>();
   for (const row of rows) {
@@ -176,14 +186,6 @@ function EnrichmentBody({
   );
 }
 
-type SectionTab = 'story' | 'world' | 'research';
-
-const TABS: { key: SectionTab; label: string }[] = [
-  { key: 'story', label: 'Their story' },
-  { key: 'world', label: 'Their world' },
-  { key: 'research', label: 'Research' },
-];
-
 /** The record as a lifeline: amber moments on one vertical thread. */
 function Lifeline({ events }: { events: EventRow[] }) {
   const theme = useTheme();
@@ -218,6 +220,36 @@ function Lifeline({ events }: { events: EventRow[] }) {
   );
 }
 
+const firstName = (fullName: string) => fullName.split(' ')[0];
+
+const identityOf = (record: RegisterPerson) =>
+  `${record.full_name}|${record.birth_year}|${record.death_year}`;
+
+/**
+ * Birth order for display: by birth year (undated last). `birth_order` from
+ * the import can interleave when a person is linked into two duplicate
+ * parent-families, so the year is the surer key; the stable sort keeps the
+ * import order for undated ties.
+ */
+const byBirthYear = (a: RegisterPerson, b: RegisterPerson) =>
+  (a.birth_year ?? Infinity) - (b.birth_year ?? Infinity);
+
+/**
+ * Collapse duplicate records for the same person — this tree (like most
+ * imported ones) carries a few, and without this a father shows twice on
+ * the register. Insertion order is preserved; `preferId` wins its identity
+ * slot so a person never loses their own highlighted row to a twin record.
+ */
+function dedupeByIdentity(list: RegisterPerson[], preferId?: string): RegisterPerson[] {
+  const seen = new Map<string, RegisterPerson>();
+  for (const record of list) {
+    const key = identityOf(record);
+    const existing = seen.get(key);
+    if (!existing || (preferId && record.id === preferId)) seen.set(key, record);
+  }
+  return [...seen.values()];
+}
+
 export default function AncestorScreen({ personId }: { personId?: string } = {}) {
   // Normally a route screen; Tree Health embeds it as the right-hand
   // detail pane by passing personId directly.
@@ -227,15 +259,18 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   const [person, setPerson] = useState<Person | null>(null);
   const [missing, setMissing] = useState(false);
   const [events, setEvents] = useState<EventRow[]>([]);
-  const [parents, setParents] = useState<ParentRow[]>([]);
+  const [parents, setParents] = useState<RegisterPerson[]>([]);
+  const [siblings, setSiblings] = useState<RegisterPerson[]>([]);
+  const [marriages, setMarriages] = useState<Marriage[]>([]);
   const [tags, setTags] = useState<LivedThroughTag[]>([]);
   const [sources, setSources] = useState<SourceGroup[]>([]);
   const [naraCandidates, setNaraCandidates] = useState<NaraCandidate[]>([]);
   const [relationship, setRelationship] = useState<string | null>(null);
   const [ancestryUrl, setAncestryUrl] = useState<string | null>(null);
-  const [tab, setTab] = useState<SectionTab>('story');
-  const [briefBusy, setBriefBusy] = useState(false);
-  const [briefError, setBriefError] = useState<string | null>(null);
+  // Story / Their World open in place — one panel at a time, the family
+  // register below simply shifts down. Research left this card entirely
+  // (it belongs to Tree Health — a person can't tell a brief is needed).
+  const [openPanel, setOpenPanel] = useState<'story' | 'world' | null>(null);
   const [shareState, setShareState] = useState<'idle' | 'busy' | 'copied'>('idle');
 
   const biography = useEnrichment(id, 'biography', 'generate-biography', 'biography');
@@ -248,12 +283,14 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     setMissing(false);
     setEvents([]);
     setParents([]);
+    setSiblings([]);
+    setMarriages([]);
     setTags([]);
     setSources([]);
     setNaraCandidates([]);
     setRelationship(null);
     setAncestryUrl(null);
-    setTab('story');
+    setOpenPanel(null);
     (async () => {
       const [{ data: personRow }, { data: eventRows }] = await Promise.all([
         supabase
@@ -321,26 +358,123 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
         })
         .catch(() => {});
 
-      // Parents: the families this person is a child of, then both spouses.
+      // The family register — parents, the sibship this person sits in, and
+      // this person's own marriages + children. All from the family_children
+      // / families graph this person hangs on.
       const { data: childLinks } = await supabase
         .from('family_children')
         .select('family_id')
         .eq('individual_id', id);
-      const familyIds = (childLinks ?? []).map((l) => l.family_id);
-      if (familyIds.length && !cancelled) {
+      const parentFamilyIds = [...new Set((childLinks ?? []).map((l) => l.family_id))];
+
+      if (parentFamilyIds.length && !cancelled) {
+        // Parents: both spouses of the families this person is a child of.
         const { data: families } = await supabase
           .from('families')
           .select('husband_id, wife_id')
-          .in('id', familyIds);
+          .in('id', parentFamilyIds);
         const parentIds = [
           ...new Set((families ?? []).flatMap((f) => [f.husband_id, f.wife_id])),
         ].filter((pid): pid is string => Boolean(pid) && pid !== id);
-        if (parentIds.length) {
-          const { data: parentRows } = await supabase
+
+        // Siblings: every child of those families in birth order — this
+        // person included, shown highlighted, so their place is legible.
+        const { data: sibLinks } = await supabase
+          .from('family_children')
+          .select('individual_id, birth_order')
+          .in('family_id', parentFamilyIds)
+          .order('birth_order', { ascending: true });
+        const sibIdsOrdered: string[] = [];
+        for (const link of sibLinks ?? []) {
+          if (!sibIdsOrdered.includes(link.individual_id)) sibIdsOrdered.push(link.individual_id);
+        }
+
+        const wantIds = [...new Set([...parentIds, ...sibIdsOrdered])];
+        if (wantIds.length && !cancelled) {
+          const { data: rows } = await supabase
             .from('individuals')
-            .select('id, full_name, birth_year, death_year')
-            .in('id', parentIds);
-          if (!cancelled) setParents(parentRows ?? []);
+            .select('id, full_name, sex, birth_year, death_year, living')
+            .in('id', wantIds)
+            .returns<RegisterPerson[]>();
+          const byId = new Map((rows ?? []).map((r) => [r.id, r]));
+          if (!cancelled) {
+            setParents(
+              dedupeByIdentity(
+                parentIds.map((pid) => byId.get(pid)).filter((p): p is RegisterPerson => Boolean(p)),
+              ),
+            );
+            setSiblings(
+              dedupeByIdentity(
+                sibIdsOrdered.map((sid) => byId.get(sid)).filter((p): p is RegisterPerson => Boolean(p)),
+                id,
+              ).sort(byBirthYear),
+            );
+          }
+        }
+      }
+
+      // This person's own marriages: families they head, each with its
+      // spouse and children. tree_id scopes RLS (per-user, not per-tree).
+      if (personRow && !cancelled) {
+        const { data: ownFamilies } = await supabase
+          .from('families')
+          .select('id, husband_id, wife_id, marriage_date_year')
+          .eq('tree_id', personRow.tree_id)
+          .or(`husband_id.eq.${id},wife_id.eq.${id}`)
+          .order('marriage_date_year', { ascending: true });
+        if ((ownFamilies ?? []).length && !cancelled) {
+          const famIds = (ownFamilies ?? []).map((f) => f.id);
+          const { data: kidLinks } = await supabase
+            .from('family_children')
+            .select('family_id, individual_id, birth_order')
+            .in('family_id', famIds)
+            .order('birth_order', { ascending: true });
+          const spouseIds = (ownFamilies ?? [])
+            .map((f) => (f.husband_id === id ? f.wife_id : f.husband_id))
+            .filter((sid): sid is string => Boolean(sid));
+          const kidIds = [...new Set((kidLinks ?? []).map((l) => l.individual_id))];
+          const need = [...new Set([...spouseIds, ...kidIds])];
+          const { data: rows } = need.length
+            ? await supabase
+                .from('individuals')
+                .select('id, full_name, sex, birth_year, death_year, living')
+                .in('id', need)
+                .returns<RegisterPerson[]>()
+            : { data: [] as RegisterPerson[] };
+          const byId = new Map((rows ?? []).map((r) => [r.id, r]));
+          const built: Marriage[] = (ownFamilies ?? [])
+            .map((f) => {
+              const spouseId = f.husband_id === id ? f.wife_id : f.husband_id;
+              const childIdsOrdered: string[] = [];
+              for (const link of kidLinks ?? []) {
+                if (link.family_id === f.id && !childIdsOrdered.includes(link.individual_id)) {
+                  childIdsOrdered.push(link.individual_id);
+                }
+              }
+              return {
+                year: f.marriage_date_year,
+                spouse: spouseId ? byId.get(spouseId) ?? null : null,
+                children: dedupeByIdentity(
+                  childIdsOrdered.map((cid) => byId.get(cid)).filter((p): p is RegisterPerson => Boolean(p)),
+                ).sort(byBirthYear),
+              };
+            })
+            .filter((m) => m.spouse || m.children.length > 0);
+          // Duplicate family records name the same spouse twice — fold them
+          // into one marriage, merging (and re-deduping) the children.
+          const bySpouse = new Map<string, Marriage>();
+          let anon = 0;
+          for (const m of built) {
+            const key = m.spouse ? identityOf(m.spouse) : `__anon${anon++}`;
+            const existing = bySpouse.get(key);
+            if (!existing) {
+              bySpouse.set(key, { ...m, children: [...m.children] });
+            } else {
+              if (existing.year == null) existing.year = m.year;
+              existing.children = dedupeByIdentity([...existing.children, ...m.children]);
+            }
+          }
+          if (!cancelled) setMarriages([...bySpouse.values()]);
         }
       }
 
@@ -368,15 +502,14 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     };
   }, [id]);
 
-  // Tab selection initiates the section's action directly — no second tap.
-  function selectTab(next: SectionTab) {
-    setTab(next);
+  // One panel open at a time; opening Their World kicks off its lookup.
+  function togglePanel(next: 'story' | 'world') {
+    setOpenPanel((current) => (current === next ? null : next));
     if (next === 'world' && worldContext.state.name === 'none') worldContext.generate();
-    if (next === 'research' && !briefBusy) openResearchBrief();
   }
 
   // Share a snapshot card of this ancestor: 90-day tokenized link on the
-  // clipboard. Never offered for the living (the button renders inside the
+  // clipboard. Never offered for the living (the control renders inside the
   // non-living branch below).
   async function shareAncestor() {
     if (!person || shareState === 'busy') return;
@@ -402,14 +535,6 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     }
   }
 
-  async function openResearchBrief() {
-    setBriefBusy(true);
-    setBriefError(null);
-    const error = await fetchOrCreateResearchBrief(id);
-    setBriefBusy(false);
-    if (error) setBriefError(error);
-  }
-
   if (!person) {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', padding: 24, gap: 8 }}>
@@ -428,53 +553,292 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     );
   }
 
+  // Sex-ink, theme-aware: men in default ink, women in amber, unrecorded
+  // muted — the carried rule (light-mode Letterpress values map to these).
+  const sexInk = (sex: 'M' | 'F' | 'U') =>
+    sex === 'F' ? theme.accent : sex === 'M' ? theme.text : theme.textSecondary;
+
+  const spanYears = `${person.birth_year ?? '?'}–${person.living ? '' : (person.death_year ?? '?')}`;
+  const birthEvent =
+    events.find((e) => e.event_type === 'birth' && e.places?.raw) ??
+    events.find((e) => e.event_type === 'baptism' && e.places?.raw) ??
+    events.find((e) => e.places?.raw);
+  const birthPlace = birthEvent?.places?.raw ?? null;
+
+  // One register row: sex-inked serif name (tappable onward) + mono years.
+  // Self is highlighted and inert (you are already here); a life lost young
+  // greys out and carries a floor-age (`~` = not-a-fact, per the rules).
+  function RegisterRow({ record, isSelf = false }: { record: RegisterPerson; isSelf?: boolean }) {
+    const years = `${record.birth_year ?? '?'}–${record.living ? '' : (record.death_year ?? '?')}`;
+    const lostYoung =
+      record.birth_year != null &&
+      record.death_year != null &&
+      record.death_year - record.birth_year < 18;
+    const age = lostYoung ? record.death_year! - record.birth_year! : null;
+    const nameColor = isSelf ? theme.text : lostYoung ? theme.textSecondary : sexInk(record.sex);
+    const inner = (
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          gap: 12,
+          paddingVertical: 4,
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: Fonts.serif,
+            fontSize: 16,
+            fontWeight: isSelf ? '700' : '400',
+            color: nameColor,
+            flexShrink: 1,
+          }}
+        >
+          {record.full_name}
+          {isSelf ? '' : ' ›'}
+        </Text>
+        <Text
+          style={{
+            fontFamily: Fonts.mono,
+            fontSize: 11,
+            color: isSelf ? theme.accent : theme.textSecondary,
+          }}
+        >
+          {years}
+          {age != null ? `  ~${age}` : ''}
+        </Text>
+      </View>
+    );
+    if (isSelf) {
+      return (
+        <View
+          style={{
+            backgroundColor: theme.backgroundSelected,
+            borderRadius: 2,
+            marginHorizontal: -6,
+            paddingHorizontal: 6,
+          }}
+        >
+          {inner}
+        </View>
+      );
+    }
+    return (
+      <Pressable onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: record.id } })}>
+        {inner}
+      </Pressable>
+    );
+  }
+
+  const groupLabelStyle = {
+    fontFamily: Fonts.mono,
+    fontSize: 10,
+    letterSpacing: 1.8,
+    color: theme.textSecondary,
+    textTransform: 'uppercase' as const,
+    marginBottom: 6,
+  };
+  const hasRegister = parents.length > 0 || siblings.length > 0 || marriages.length > 0;
+
   return (
     <ThemedView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 48, gap: 8 }}>
+      <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 48, gap: 4 }}>
+        {/* Identity: name headline → mono span (sex · years · place) → the
+            relationship as a serif-italic lede when we can place them. */}
         <ThemedText type="title">{person.full_name}</ThemedText>
+        <Text
+          style={{
+            fontFamily: Fonts.mono,
+            fontSize: 12,
+            letterSpacing: 0.3,
+            color: theme.textSecondary,
+            marginTop: 10,
+          }}
+        >
+          <Text style={{ color: sexInk(person.sex) }}>
+            {person.sex === 'F' ? 'woman' : person.sex === 'M' ? 'man' : 'person'}
+          </Text>
+          {`  ·  ${spanYears}`}
+          {birthPlace ? `  ·  ${birthPlace}` : ''}
+          {person.living ? '  ·  living' : ''}
+        </Text>
         {relationship && (
           <Pressable
             onPress={() =>
               router.push({ pathname: '/relationship/[individualId]', params: { individualId: person.id } })
             }
           >
-            <ThemedText type="subtitle">
-              Your {relationship} <ThemedText type="link">›</ThemedText>
-            </ThemedText>
+            <Text
+              style={{
+                fontFamily: BrandFonts.serif.italic,
+                fontStyle: 'italic',
+                fontSize: 16,
+                lineHeight: 24,
+                color: theme.textSecondary,
+                marginTop: 12,
+              }}
+            >
+              Your {relationship} <Text style={{ color: theme.accent }}>›</Text>
+            </Text>
           </Pressable>
         )}
-        <ThemedText type="small">
-          {person.birth_year ?? '?'}–{person.living ? '' : (person.death_year ?? '?')}
-          {person.living ? ' · living' : ''}
-        </ThemedText>
 
-        {/* The two ways this person travels: a public story card, and their
-            page on the platform the tree came from. Up top by request —
-            sharing shouldn't live below six screens of record. */}
-        {(!person.living || ancestryUrl) && (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 18, marginTop: 4 }}>
+        {/* Controls: Story / Their World open in place; Ancestry and Share
+            are the per-person ways off this page, pushed to the right. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 18 }}>
+          {!person.living &&
+            (['story', 'world'] as const).map((panel) => {
+              const open = openPanel === panel;
+              return (
+                <Pressable
+                  key={panel}
+                  onPress={() => togglePanel(panel)}
+                  style={{
+                    paddingBottom: 4,
+                    borderBottomWidth: 2,
+                    borderBottomColor: open ? theme.accent : 'transparent',
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: Fonts.mono,
+                      fontSize: 12,
+                      letterSpacing: 0.8,
+                      textTransform: 'uppercase',
+                      color: open ? theme.text : theme.textSecondary,
+                    }}
+                  >
+                    {panel === 'story' ? 'Story' : 'Their World'}{' '}
+                    <Text style={{ fontSize: 9, color: open ? theme.accent : theme.textSecondary }}>▾</Text>
+                  </Text>
+                </Pressable>
+              );
+            })}
+          <View style={{ flexDirection: 'row', gap: 16, marginLeft: 'auto' }}>
+            {ancestryUrl && (
+              <Text
+                style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}
+                onPress={() => openExternal(ancestryUrl)}
+              >
+                Ancestry ›
+              </Text>
+            )}
             {!person.living && (
-              <ThemedText
-                type="link"
+              <Text
+                style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}
                 onPress={shareState === 'busy' ? undefined : shareAncestor}
               >
-                {shareState === 'copied'
-                  ? 'Link copied — good for 90 days ✓'
-                  : shareState === 'busy'
-                    ? 'Creating link…'
-                    : `Share ${person.full_name.split(' ')[0]}’s story ›`}
-              </ThemedText>
+                {shareState === 'copied' ? 'Copied ✓' : shareState === 'busy' ? 'Sharing…' : 'Share ›'}
+              </Text>
             )}
-            {ancestryUrl && (
-              <ThemedText type="link" onPress={() => openExternal(ancestryUrl)}>
-                View on Ancestry ›
-              </ThemedText>
+          </View>
+        </View>
+
+        {/* Inline expanders: the panel opens between the controls and the
+            register, which just shifts down — nothing navigates away. */}
+        {!person.living && openPanel === 'story' && (
+          <Panel
+            theme={theme}
+            label={`Story${
+              sources.length ? ` · drawn from ${sources.length} source${sources.length > 1 ? 's' : ''}` : ''
+            }`}
+          >
+            <EnrichmentBody
+              buttonTitle="Tell me their story"
+              generatingLabel="Writing their story from the record…"
+              state={biography.state}
+              onGenerate={biography.generate}
+            />
+          </Panel>
+        )}
+        {!person.living && openPanel === 'world' && (
+          <Panel theme={theme} label={`Their World${person.birth_year ? ` · ${person.birth_year}` : ''}`}>
+            {worldContext.state.name === 'ready' ? (
+              <ThemedText>{worldContext.state.text}</ThemedText>
+            ) : worldContext.state.name === 'error' ? (
+              <>
+                <ThemedText>{worldContext.state.message}</ThemedText>
+                <Button title="Try again" onPress={worldContext.generate} />
+              </>
+            ) : (
+              <View style={{ gap: 8, marginVertical: 4 }}>
+                <ActivityIndicator />
+                <ThemedText type="small">Searching the historical record…</ThemedText>
+              </View>
             )}
+          </Panel>
+        )}
+
+        {person.living && (
+          <ThemedText style={{ marginTop: 16 }}>
+            {firstName(person.full_name)} appears to be living, so Witness keeps their story private.
+          </ThemedText>
+        )}
+
+        {/* The family register: parents, the sibship (self lit), marriages. */}
+        {hasRegister && (
+          <View style={{ marginTop: 18, borderTopWidth: 1, borderTopColor: theme.border }}>
+            {parents.length > 0 && (
+              <View style={{ paddingTop: 14, paddingBottom: 4 }}>
+                <Text style={groupLabelStyle}>Parents</Text>
+                {parents.map((parent) => (
+                  <RegisterRow key={parent.id} record={parent} />
+                ))}
+              </View>
+            )}
+            {siblings.length > 0 && (
+              <View
+                style={{
+                  paddingTop: 14,
+                  paddingBottom: 4,
+                  borderTopWidth: parents.length > 0 ? 1 : 0,
+                  borderTopColor: theme.border,
+                }}
+              >
+                <Text style={groupLabelStyle}>Brothers &amp; sisters</Text>
+                {siblings.map((sibling) => (
+                  <RegisterRow key={sibling.id} record={sibling} isSelf={sibling.id === person.id} />
+                ))}
+              </View>
+            )}
+            {marriages.map((marriage, index) => {
+              const spouse = marriage.spouse;
+              const label = spouse
+                ? `Married ${spouse.full_name}${marriage.year ? `, ${marriage.year}` : ''}`
+                : marriage.year
+                  ? `Married ${marriage.year}`
+                  : 'Children';
+              return (
+                <View
+                  key={spouse?.id ?? index}
+                  style={{
+                    paddingTop: 14,
+                    paddingBottom: 4,
+                    borderTopWidth: index > 0 || parents.length > 0 || siblings.length > 0 ? 1 : 0,
+                    borderTopColor: theme.border,
+                  }}
+                >
+                  {spouse ? (
+                    <Pressable
+                      onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: spouse.id } })}
+                    >
+                      <Text style={groupLabelStyle}>{label} ›</Text>
+                    </Pressable>
+                  ) : (
+                    <Text style={groupLabelStyle}>{label}</Text>
+                  )}
+                  {marriage.children.map((child) => (
+                    <RegisterRow key={child.id} record={child} />
+                  ))}
+                </View>
+              );
+            })}
           </View>
         )}
 
         {tags.length > 0 && (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 18 }}>
             {tags.map((tag) => (
               <Pressable
                 key={tag.event.id}
@@ -501,109 +865,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           </View>
         )}
 
-        {parents.length > 0 && (
-          <View style={{ marginTop: 8, gap: 2 }}>
-            <ThemedText type="smallBold">PARENTS</ThemedText>
-            {parents.map((parent) => (
-              <Pressable
-                key={parent.id}
-                onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: parent.id } })}
-              >
-                <ThemedText type="link">
-                  {parent.full_name} ›{' '}
-                  <ThemedText type="small">
-                    {parent.birth_year ?? '?'}–{parent.death_year ?? '?'}
-                  </ThemedText>
-                </ThemedText>
-              </Pressable>
-            ))}
-          </View>
-        )}
-
-        {person.living ? (
-          <ThemedText style={{ marginTop: 16 }}>
-            {person.full_name.split(' ')[0]} appears to be living, so Witness keeps their story
-            private.
-          </ThemedText>
-        ) : (
-          <>
-            <View
-              style={{
-                flexDirection: 'row',
-                gap: 8,
-                marginTop: 16,
-              }}
-            >
-              {TABS.map(({ key, label }) => {
-                const active = tab === key;
-                return (
-                  <Pressable
-                    key={key}
-                    onPress={() => selectTab(key)}
-                    style={{
-                      backgroundColor: active ? theme.accent : theme.backgroundElement,
-                      borderWidth: 1,
-                      borderColor: active ? theme.accent : theme.border,
-                      borderRadius: 16,
-                      paddingHorizontal: 14,
-                      paddingVertical: 7,
-                    }}
-                  >
-                    <ThemedText
-                      type="small"
-                      style={{ color: active ? theme.onAccent : theme.text, fontWeight: 600 }}
-                    >
-                      {label}
-                    </ThemedText>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            <View style={{ marginTop: 8, gap: 8 }}>
-              {tab === 'story' && (
-                <EnrichmentBody
-                  buttonTitle="Tell me their story"
-                  generatingLabel="Writing their story from the record…"
-                  state={biography.state}
-                  onGenerate={biography.generate}
-                />
-              )}
-              {tab === 'world' &&
-                (worldContext.state.name === 'ready' ? (
-                  <ThemedText>{worldContext.state.text}</ThemedText>
-                ) : worldContext.state.name === 'error' ? (
-                  <>
-                    <ThemedText>{worldContext.state.message}</ThemedText>
-                    <Button title="Try again" onPress={worldContext.generate} />
-                  </>
-                ) : (
-                  <View style={{ gap: 8, marginVertical: 8 }}>
-                    <ActivityIndicator />
-                    <ThemedText type="small">Searching the historical record…</ThemedText>
-                  </View>
-                ))}
-              {tab === 'research' &&
-                (briefBusy ? (
-                  <View style={{ gap: 8, marginVertical: 8 }}>
-                    <ActivityIndicator />
-                    <ThemedText type="small">Preparing a research brief…</ThemedText>
-                  </View>
-                ) : briefError ? (
-                  <>
-                    <ThemedText>{briefError}</ThemedText>
-                    <Button title="Try again" onPress={openResearchBrief} />
-                  </>
-                ) : (
-                  <ThemedText type="link" onPress={openResearchBrief}>
-                    Open the research brief ›
-                  </ThemedText>
-                ))}
-            </View>
-          </>
-        )}
-
-        <ThemedText type="subtitle" style={{ marginTop: 16 }}>
+        <ThemedText type="subtitle" style={{ marginTop: 20 }}>
           The record
         </ThemedText>
         {events.length === 0 ? (
@@ -620,7 +882,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               Sources
             </ThemedText>
             <ThemedText type="small">
-              How the record knows {person.full_name.split(' ')[0]} —{' '}
+              How the record knows {firstName(person.full_name)} —{' '}
               {sources.length === 1 ? 'one source' : `${sources.length} sources`}, as cited in your
               tree.
             </ThemedText>
@@ -649,7 +911,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               In the National Archives
             </ThemedText>
             <ThemedText type="small">
-              Records that might be {person.full_name.split(' ')[0]} — you decide.
+              Records that might be {firstName(person.full_name)} — you decide.
             </ThemedText>
             {naraCandidates.map((candidate) => (
               <NaraCandidateCard
@@ -666,8 +928,47 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             ))}
           </>
         )}
-
       </ScrollView>
     </ThemedView>
+  );
+}
+
+/** The inline expander card: amber-edged tint panel that opens in place. */
+function Panel({
+  theme,
+  label,
+  children,
+}: {
+  theme: ReturnType<typeof useTheme>;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <View
+      style={{
+        backgroundColor: theme.backgroundElement,
+        borderWidth: 1,
+        borderColor: theme.border,
+        borderLeftWidth: 2,
+        borderLeftColor: theme.accent,
+        borderRadius: 2,
+        padding: 14,
+        marginTop: 14,
+        gap: 8,
+      }}
+    >
+      <Text
+        style={{
+          fontFamily: Fonts.mono,
+          fontSize: 10,
+          letterSpacing: 1.6,
+          textTransform: 'uppercase',
+          color: theme.accent,
+        }}
+      >
+        {label}
+      </Text>
+      {children}
+    </View>
   );
 }
