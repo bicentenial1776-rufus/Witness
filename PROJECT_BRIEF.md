@@ -257,6 +257,14 @@ Built during Phase 4–5 in response to what the real 5,495-person tree and fiel
 - **Register** — table-of-contents navigation by time, name, and place, without ever drawing the full tree
 - Both ship identically on phone and web
 
+### The Person View — "The Portrait"
+- The ancestor detail screen (`ancestor/[id]`, the universal destination every tap and search routes to) rebuilt to **lead with the family**: a serif name headline, a mono span (sex-inked word · years · birthplace), the relationship as a one-line serif lede, then a register of **Parents / Brothers & sisters / Marriage + children** — every name tappable onward, the person themselves highlighted and shown in true birth order among their siblings
+- Answers the plain relational questions a tree diagram is usually drawn for — *"does Patrick have siblings?"* — in one screen, without ever rendering a tree (the opinionated move over the me-too tree diagram)
+- **Story** and **Their World** (AI historical context) open as inline accordions in place — the register below simply shifts down, nothing navigates away; Research left this card entirely (a person can't tell whether a brief needs generating — that belongs to Tree Health)
+- Theme-aware sex-inks (men ink, women amber, unrecorded muted) so it reads in dark mode; collapses this tree's duplicate person/family records so a parent never shows twice
+- Reached by **name or place search** — Explore's people search now matches a place ("Worcester" → everyone with an event there), not only names, closing the loop from a search to a person's siblings and family
+- The more immersive reimagining (meeting a family "in their house" — see *Family Street View*) is parked for a dedicated design sprint; the Portrait is the shipped, everyday person view
+
 ---
 
 ## Features Explicitly Deferred
@@ -317,6 +325,9 @@ Built during Phase 4–5 in response to what the real 5,495-person tree and fiel
 - ✅ Query Library + Moments browsing — the 329-query event library and a century-grouped Moments timeline are directly browsable/searchable, not gated behind AI prompt cards
 - ✅ Story sharing — public share links with OG-tag unfurls (preview card off-platform, bridge back into the app for non-users)
 - ✅ **Web app launched** (2026-07-24 to 07-26, ahead of the V2 schedule) — full "Broadsheet" redesign (IBM Plex Mono, letterpress aesthetic) mirrors the phone's five-tab IA on viewports ≥900px; RevenueCat Web Billing (Stripe checkout in-page) stands in for Apple IAP; Ancestor Map ported to MapLibre GL over CARTO basemaps; Nearby uses browser geolocation; weekly digest also sends by email (Resend) for browser/iPad users without local push; deployed via Vercel from `docs/preview-site` at the witnesslives.com root. Late-stage hardening: full IA parity pass, and an `Alert.alert` sweep since react-native-web stubs it to a silent no-op (`showAlert`/`showDestructiveConfirm` now used everywhere; native tree-delete confirm still native, web gets `window.confirm`)
+- ✅ Person view "The Portrait" — `ancestor/[id]` rebuilt to lead with the family register (parents / siblings with self highlighted in birth order / marriage + children, all tappable), name headline + mono span + relationship lede, Story and Their World as inline accordions, Research removed (moved to Tree Health). Answers "does X have siblings?" without drawing a tree; theme-aware sex-inks, duplicate-record collapsing. Verified on device across deceased/living/dark. Slated for the release after 1.1
+- ✅ People search by name or place — Explore's search now runs the existing `full_name` match alongside a place query (`individual_events` joined to `places`, deduped to distinct people, each tagged with the matching place) and merges them; "Worcester" surfaces everyone with an event there, and every result taps into the Portrait. Same on the web Broadsheet ledger
+- ✅ Parallel tree paging — `fetchAllPages` fetches the first page alone, then fans the rest out in ordered concurrent batches instead of one-at-a-time; heavy screens on the ~8.6k-row tree drop from ~11s to ~4s (events fetch measured 11.3s → 4.3s), byte-identical rows and order, 322 tests green
 - ⬜ BillionGraves cemetery matching — deferred pending API access/outreach; radius search covers the cemetery case with tree data
 - ⬜ Proactive location notifications, iPad split-view layouts — remaining Phase 4
 - ⬜ Encrypted raw GEDCOM upload to Storage — bucket + RLS exist, upload not wired

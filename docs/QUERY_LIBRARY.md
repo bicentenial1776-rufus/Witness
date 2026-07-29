@@ -40,7 +40,7 @@ Regional and local events must earn their place through geographic or lens relev
 
 ### Surface 3 — Search and situation queries
 
-The general search field (people and history, on demand) and the situation categories (where your family lived, migration paths, kindred couples, "I'm here") remain their own Explore entries. Search surfaces events only when the user asks; it is not a browsing mode.
+The general search field (people and history, on demand) and the situation categories (where your family lived, migration paths, kindred couples, "I'm here") remain their own Explore entries. Search surfaces events only when the user asks; it is not a browsing mode. The **people** side of that field matches on **name or place** in one box — "Collins" finds the Collinses, "Worcester" finds everyone with an event recorded there (each place-matched person tagged with the place that surfaced them) — and every result taps through to that person's view.
 
 ### The flywheel
 
