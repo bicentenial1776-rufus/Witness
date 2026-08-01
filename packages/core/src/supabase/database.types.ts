@@ -1237,6 +1237,7 @@ export type Database = {
     Functions: {
       delete_tree_batch: { Args: { p_tree_id: string }; Returns: Json }
       get_share: { Args: { p_token: string }; Returns: Json }
+      recount_tree: { Args: { p_tree_id: string }; Returns: Json }
       reuse_geocodes: { Args: { p_tree_id: string }; Returns: number }
     }
     Enums: {

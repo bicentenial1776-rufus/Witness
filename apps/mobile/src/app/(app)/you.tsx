@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, ScrollView, Switch, View } from 'react-native';
 
 import { Card } from '@/components/card';
@@ -28,10 +28,45 @@ export default function YouTab() {
   const [shareLinks, setShareLinks] = useState<
     { token: string; payload: { fullName?: string }; expires_at: string }[] | null
   >(null);
+  const [deleting, setDeleting] = useState<{
+    treeId: string;
+    removed: number;
+    stage: string;
+  } | null>(null);
 
   useEffect(() => {
     isDigestNotificationEnabled().then(setNotifyEnabled);
   }, []);
+
+  // The counts on `trees` are written once at import and never revisited, so
+  // anything that removes rows behind their back leaves them lying — and they
+  // are not cosmetic: the largest individual_count decides which tree is
+  // active. Recompute them from the rows that actually exist whenever this
+  // screen has a tree list, and refresh only if something had drifted.
+  const recountedFor = useRef('');
+  useEffect(() => {
+    const ids = (trees ?? [])
+      .map((tree) => tree.id)
+      .sort()
+      .join(',');
+    if (!ids || recountedFor.current === ids) return;
+    recountedFor.current = ids;
+    let cancelled = false;
+    (async () => {
+      let drifted = false;
+      for (const tree of trees ?? []) {
+        const { data } = await supabase.rpc('recount_tree', { p_tree_id: tree.id });
+        const counted = data as { individuals?: number } | null;
+        if (counted?.individuals !== undefined && counted.individuals !== tree.individual_count) {
+          drifted = true;
+        }
+      }
+      if (!cancelled && drifted) refresh();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [trees, refresh]);
 
   useFocusEffect(
     useCallback(() => {
@@ -74,8 +109,17 @@ export default function YouTab() {
         // A whole-tree cascade delete exceeds the API statement timeout
         // on real trees, so the server deletes in bounded slices and we
         // call until it reports done (see delete_tree_batch migration).
+        //
+        // A tree of 5,495 people needs ~40 calls. Silence for that long reads
+        // as a dead button, and worse: this loop used to fall through to the
+        // success path when it ran out of iterations, so a delete that stopped
+        // half-way reported nothing at all. One did, and it left a tree
+        // claiming 5,495 people while holding 295 (2026-08-01).
         let error: string | null = null;
-        for (let i = 0; i < 200; i++) {
+        let done = false;
+        let removed = 0;
+        setDeleting({ treeId: tree.id, removed: 0, stage: 'starting' });
+        for (let i = 0; i < 400; i++) {
           const { data, error: rpcError } = await supabase.rpc('delete_tree_batch', {
             p_tree_id: tree.id,
           });
@@ -83,15 +127,32 @@ export default function YouTab() {
             error = rpcError.message;
             break;
           }
-          if ((data as { done?: boolean } | null)?.done) break;
+          const result = data as { done?: boolean; deleted?: number; stage?: string } | null;
+          removed += result?.deleted ?? 0;
+          setDeleting({ treeId: tree.id, removed, stage: result?.stage ?? '' });
+          if (result?.done) {
+            done = true;
+            break;
+          }
         }
-        if (error) showAlert('Delete failed', error);
-        else {
-          invalidateGeographyCache();
-          invalidateRelationshipCache();
-          invalidateCuriositiesCache();
-          invalidateTreeIndexCache();
-          refresh();
+        setDeleting(null);
+        invalidateGeographyCache();
+        invalidateRelationshipCache();
+        invalidateCuriositiesCache();
+        invalidateTreeIndexCache();
+        refresh();
+
+        if (error) {
+          showAlert(
+            'Delete failed',
+            `${error}\n\n${removed.toLocaleString()} records were removed before it stopped, so this tree is now incomplete. Delete it again to finish.`,
+          );
+        } else if (!done) {
+          // Never report success we did not observe.
+          showAlert(
+            'Delete unfinished',
+            `This tree is larger than expected and only partly removed (${removed.toLocaleString()} records). Delete it again to finish.`,
+          );
         }
       },
     );
@@ -133,10 +194,21 @@ export default function YouTab() {
               >
                 {tree.home_person ? `You are ${tree.home_person.full_name}` : 'Tell us who you are'}
               </ThemedText>
-              <ThemedText type="link" onPress={() => confirmDelete(tree)}>
+              <ThemedText
+                type="link"
+                onPress={() => {
+                  if (!deleting) confirmDelete(tree);
+                }}
+                style={deleting ? { opacity: 0.4 } : undefined}
+              >
                 Delete
               </ThemedText>
             </View>
+            {deleting?.treeId === tree.id && (
+              <ThemedText type="small">
+                {`Deleting ${deleting.stage} — ${deleting.removed.toLocaleString()} records removed. Keep this screen open.`}
+              </ThemedText>
+            )}
           </Card>
         ))}
         <ThemedText type="link" onPress={() => router.push('/import')}>
