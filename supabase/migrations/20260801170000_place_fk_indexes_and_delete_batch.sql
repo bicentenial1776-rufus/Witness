@@ -3,8 +3,10 @@
 --
 -- Postgres does not index foreign keys automatically. `places` is referenced by
 -- individual_events.place_id, families.marriage_place_id and
--- nara_documents.place_id, all `on delete set null` — so deleting one place
+-- nara_candidates.place_id, all `on delete set null` — so deleting one place
 -- forces a sequential scan of all three tables to find the rows to null out.
+-- (nara_candidates has nara_candidates_tree_place_idx, but its leading column
+-- is tree_id, so it cannot serve a lookup by place_id alone.)
 -- delete_tree_batch took 2,000 places per call, i.e. 2,000 x 3 table scans in a
 -- single statement, which blew the timeout every time. The earlier batching
 -- migration fixed exactly this problem for individuals and stopped short of
@@ -15,7 +17,7 @@
 
 create index if not exists individual_events_place_id_idx on individual_events (place_id);
 create index if not exists families_marriage_place_id_idx on families (marriage_place_id);
-create index if not exists nara_documents_place_id_idx on nara_documents (place_id);
+create index if not exists nara_candidates_place_id_idx on nara_candidates (place_id);
 
 -- Slice sizes now sit well inside the timeout even on the unindexed path, and
 -- families are drained BEFORE places: every family holds a marriage_place_id,
