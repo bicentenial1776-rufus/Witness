@@ -16,6 +16,7 @@ import { useSession } from '@/auth/session-provider';
 import { showAlert } from '@/lib/alert';
 import { useActiveTree } from '@/lib/active-tree';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
+import { getRecoveryCode, isVaultAvailable, storeOriginal } from '@/lib/gedcom-vault';
 import { supabase } from '@/lib/supabase';
 
 function count(n: number, singular: string, plural: string): string {
@@ -25,10 +26,57 @@ function count(n: number, singular: string, plural: string): string {
 type Step =
   | { name: 'pick' }
   | { name: 'parsing'; fileName: string }
-  | { name: 'ready'; fileName: string; parsed: ParsedGedcom }
-  | { name: 'importing'; fileName: string; parsed: ParsedGedcom; progress: ImportProgress | null }
-  | { name: 'done'; treeId: string; parsed: ParsedGedcom }
+  // `original` is the file exactly as picked, kept so the encrypted copy in
+  // Storage is the user's file rather than our re-rendering of it.
+  | { name: 'ready'; fileName: string; parsed: ParsedGedcom; original: Uint8Array }
+  | {
+      name: 'importing';
+      fileName: string;
+      parsed: ParsedGedcom;
+      original: Uint8Array;
+      progress: ImportProgress | null;
+    }
+  | { name: 'done'; treeId: string; parsed: ParsedGedcom; vault: VaultOutcome }
   | { name: 'error'; fileName: string; kind: 'not-gedcom' | 'unreadable' };
+
+interface VaultOutcome {
+  /** False on web, where there is no Keychain to hold a key — not a failure. */
+  available: boolean;
+  stored: boolean;
+  /** True when this import generated the device's key, so the code is worth showing. */
+  keyIsNew: boolean;
+}
+
+/**
+ * Encrypt the picked file and keep it in Storage, recording where it went.
+ * Never throws: by this point the tree is already imported and usable, and
+ * losing the backup copy is not a reason to tell someone their import failed.
+ */
+async function keepOriginal(
+  userId: string,
+  treeId: string,
+  original: Uint8Array,
+): Promise<VaultOutcome> {
+  if (!(await isVaultAvailable())) return { available: false, stored: false, keyIsNew: false };
+  try {
+    // Read before storing: storeOriginal mints a key if there isn't one, so
+    // afterwards there is no way to tell whether this import created it.
+    const hadKey = (await getRecoveryCode()) !== null;
+    const { path, bytes } = await storeOriginal(userId, treeId, original);
+    await supabase
+      .from('trees')
+      .update({
+        gedcom_path: path,
+        gedcom_bytes: bytes,
+        gedcom_uploaded_at: new Date().toISOString(),
+      })
+      .eq('id', treeId);
+    return { available: true, stored: true, keyIsNew: !hadKey };
+  } catch (error) {
+    console.warn('Encrypted original not stored', error);
+    return { available: true, stored: false, keyIsNew: false };
+  }
+}
 
 export default function ImportGedcom() {
   const { session } = useSession();
@@ -60,7 +108,7 @@ export default function ImportGedcom() {
           parsed.metadata.parseWarnings,
         );
       }
-      setStep({ name: 'ready', fileName, parsed });
+      setStep({ name: 'ready', fileName, parsed, original: bytes });
     } catch (error) {
       console.warn('GEDCOM read failed', error);
       setStep({ name: 'error', fileName, kind: 'unreadable' });
@@ -88,27 +136,34 @@ export default function ImportGedcom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileUri]);
 
-  async function runImport(fileName: string, parsed: ParsedGedcom) {
+  async function runImport(fileName: string, parsed: ParsedGedcom, original: Uint8Array) {
     if (!session) return;
-    setStep({ name: 'importing', fileName, parsed, progress: null });
+    setStep({ name: 'importing', fileName, parsed, original, progress: null });
     try {
       const { treeId } = await importParsedGedcom(supabase, parsed, {
         userId: session.user.id,
         // Hermes has no global `crypto`, so the id generator comes from expo-crypto.
         generateId: randomUUID,
-        onProgress: (progress) => setStep({ name: 'importing', fileName, parsed, progress }),
+        onProgress: (progress) =>
+          setStep({ name: 'importing', fileName, parsed, original, progress }),
       });
       invalidateGeographyCache();
+
+      // Keep the encrypted original. Deliberately after the import and
+      // deliberately non-fatal: the tree is already in Witness and usable, and
+      // failing the whole import over a backup copy would trade the thing the
+      // user asked for against the thing they didn't ask for.
+      const vault = await keepOriginal(session.user.id, treeId, original);
       // You imported it to look at it. Without this the app would keep showing
       // whichever tree was active before — the new one starts at zero rows and
       // so never wins the fallback — and every screen would answer for the old
       // tree with nothing to say why.
       await refresh();
       await selectTree(treeId);
-      setStep({ name: 'done', treeId, parsed });
+      setStep({ name: 'done', treeId, parsed, vault });
     } catch (error) {
       showAlert('Import failed', error instanceof Error ? error.message : String(error));
-      setStep({ name: 'ready', fileName, parsed });
+      setStep({ name: 'ready', fileName, parsed, original });
     }
   }
 
@@ -153,7 +208,10 @@ export default function ImportGedcom() {
             This makes a copy inside Witness. Nothing changes on Ancestry, or wherever this file
             came from — your original tree stays exactly as it is.
           </ThemedText>
-          <Button title="Bring them into Witness" onPress={() => runImport(step.fileName, step.parsed)} />
+          <Button
+            title="Bring them into Witness"
+            onPress={() => runImport(step.fileName, step.parsed, step.original)}
+          />
           <Button variant="secondary" title="This isn’t my file" onPress={pickAndParse} />
         </>
       )}
@@ -177,6 +235,27 @@ export default function ImportGedcom() {
             {count(step.parsed.metadata.individualCount, 'person', 'people')}, safe inside the app
             now. Nothing on Ancestry changed — this is your own copy.
           </ThemedText>
+          {step.vault.keyIsNew && (
+            <ThemedText type="small">
+              Your original file is now kept, encrypted, on our servers — locked with a key that
+              only exists on this iPhone, so we can’t read it. Save your recovery code and you can
+              get the file back on any device.
+            </ThemedText>
+          )}
+          {step.vault.keyIsNew && (
+            <Button
+              variant="secondary"
+              title="Save my recovery code"
+              onPress={() => router.push('/recovery-code')}
+            />
+          )}
+          {step.vault.available && !step.vault.stored && (
+            <ThemedText type="small">
+              We couldn’t keep an encrypted copy of your original file this time — your tree is
+              imported and fine, but there’s no stored original to restore from. You can try again
+              from You.
+            </ThemedText>
+          )}
           <ThemedText>
             One quick thing: point out which person in the tree is you, and every ancestor gets
             connected — exactly how they relate to you.

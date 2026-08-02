@@ -1177,6 +1177,9 @@ export type Database = {
           charset: string | null
           export_date: string | null
           family_count: number
+          gedcom_bytes: number | null
+          gedcom_path: string | null
+          gedcom_uploaded_at: string | null
           gedcom_version: string | null
           home_person_id: string | null
           id: string
@@ -1193,6 +1196,9 @@ export type Database = {
           charset?: string | null
           export_date?: string | null
           family_count?: number
+          gedcom_bytes?: number | null
+          gedcom_path?: string | null
+          gedcom_uploaded_at?: string | null
           gedcom_version?: string | null
           home_person_id?: string | null
           id?: string
@@ -1209,6 +1215,9 @@ export type Database = {
           charset?: string | null
           export_date?: string | null
           family_count?: number
+          gedcom_bytes?: number | null
+          gedcom_path?: string | null
+          gedcom_uploaded_at?: string | null
           gedcom_version?: string | null
           home_person_id?: string | null
           id?: string

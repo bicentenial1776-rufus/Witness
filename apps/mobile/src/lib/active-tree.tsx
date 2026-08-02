@@ -30,6 +30,8 @@ export interface TreeRow {
   family_count: number;
   place_count: number;
   imported_at: string;
+  gedcom_path: string | null;
+  gedcom_bytes: number | null;
   home_person_id: string | null;
   home_person: { full_name: string } | null;
 }
@@ -60,7 +62,7 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase
       .from('trees')
       .select(
-        'id, name, individual_count, family_count, place_count, imported_at, home_person_id, home_person:individuals!trees_home_person_id_fkey(full_name)',
+        'id, name, individual_count, family_count, place_count, imported_at, gedcom_path, gedcom_bytes, home_person_id, home_person:individuals!trees_home_person_id_fkey(full_name)',
       )
       .order('imported_at', { ascending: false });
     if (error) return;

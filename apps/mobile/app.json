@@ -94,7 +94,8 @@
         }
       ],
       "expo-sharing",
-      "./plugins/with-gedcom-guard.js"
+      "./plugins/with-gedcom-guard.js",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

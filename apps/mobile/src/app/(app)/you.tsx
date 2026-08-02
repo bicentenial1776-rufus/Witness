@@ -14,6 +14,7 @@ import {
   setDigestNotificationEnabled,
 } from '@/lib/digest-notifications';
 import { invalidateCuriositiesCache } from '@/lib/curiosities-cache';
+import { discardOriginal, isVaultAvailable, restoreToCacheFile } from '@/lib/gedcom-vault';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
 import { invalidateRelationshipCache } from '@/lib/relationship-cache';
 import { invalidateTreeIndexCache } from '@/lib/tree-index-cache';
@@ -33,6 +34,12 @@ export default function YouTab() {
     removed: number;
     stage: string;
   } | null>(null);
+  const [restoring, setRestoring] = useState<string | null>(null);
+  const [vaultReady, setVaultReady] = useState(false);
+
+  useEffect(() => {
+    isVaultAvailable().then(setVaultReady);
+  }, []);
 
   useEffect(() => {
     isDigestNotificationEnabled().then(setNotifyEnabled);
@@ -91,6 +98,23 @@ export default function YouTab() {
     }, [refresh]),
   );
 
+  // Decrypt the stored original back onto the device and hand it to the import
+  // screen, which already knows how to parse, report and re-store it. The
+  // restore lands as a new tree rather than overwriting this one — the old
+  // rows may be exactly what someone is trying to get away from.
+  async function restoreTree(tree: TreeRow) {
+    if (!tree.gedcom_path) return;
+    setRestoring(tree.id);
+    try {
+      const uri = await restoreToCacheFile(tree.gedcom_path, `${tree.name || 'tree'}.ged`);
+      router.push({ pathname: '/import', params: { fileUri: uri } });
+    } catch (error) {
+      showAlert('Could not restore', error instanceof Error ? error.message : String(error));
+    } finally {
+      setRestoring(null);
+    }
+  }
+
   async function revokeLink(token: string) {
     const { error } = await supabase
       .from('share_links')
@@ -136,6 +160,18 @@ export default function YouTab() {
           }
         }
         setDeleting(null);
+        // The bucket has no cascade from `trees`, so a deleted tree would
+        // otherwise leave its ciphertext behind forever — paid for, unreachable
+        // from the app, and still the user's data. Only once the rows are
+        // actually gone: a half-finished delete is going to be retried, and
+        // that retry may well be the restore.
+        if (done && tree.gedcom_path) {
+          try {
+            await discardOriginal(tree.gedcom_path);
+          } catch (storageError) {
+            console.warn('Stored original left behind', storageError);
+          }
+        }
         invalidateGeographyCache();
         invalidateRelationshipCache();
         invalidateCuriositiesCache();
@@ -218,7 +254,29 @@ export default function YouTab() {
               >
                 Delete
               </ThemedText>
+              {vaultReady && tree.gedcom_path && (
+                <ThemedText
+                  type="link"
+                  onPress={() => {
+                    if (!restoring && !deleting) restoreTree(tree);
+                  }}
+                  style={restoring || deleting ? { opacity: 0.4 } : undefined}
+                >
+                  {restoring === tree.id ? 'Opening…' : 'Restore original'}
+                </ThemedText>
+              )}
             </View>
+            {vaultReady && (
+              <ThemedText type="small">
+                {tree.gedcom_path
+                  ? `Your original file is kept encrypted${
+                      tree.gedcom_bytes
+                        ? ` (${(tree.gedcom_bytes / 1024 / 1024).toFixed(1)} MB)`
+                        : ''
+                    } — only this iPhone holds the key.`
+                  : 'No encrypted copy of the original file — import it again to store one.'}
+              </ThemedText>
+            )}
             {deleting?.treeId === tree.id && (
               <ThemedText type="small">
                 {`Deleting ${deleting.stage} — ${deleting.removed.toLocaleString()} records removed. Keep this screen open.`}
@@ -235,6 +293,11 @@ export default function YouTab() {
         <ThemedText type="link" onPress={() => router.push('/faq')}>
           Questions & answers ›
         </ThemedText>
+        {vaultReady && (
+          <ThemedText type="link" onPress={() => router.push('/recovery-code')}>
+            Your recovery code ›
+          </ThemedText>
+        )}
 
         <Card style={{ marginTop: 8 }}>
           <View
