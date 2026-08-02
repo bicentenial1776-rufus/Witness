@@ -39,6 +39,8 @@ export interface TreeRow {
 interface ActiveTreeContextValue {
   trees: TreeRow[] | null;
   activeTree: TreeRow | undefined;
+  /** The last load failed. Not the same as having no trees — say so differently. */
+  loadFailed: boolean;
   /** Remember this tree as the active one for this account. */
   selectTree: (treeId: string) => Promise<void>;
   refresh: () => Promise<void>;
@@ -47,15 +49,29 @@ interface ActiveTreeContextValue {
 const ActiveTreeContext = createContext<ActiveTreeContextValue>({
   trees: null,
   activeTree: undefined,
+  loadFailed: false,
   selectTree: async () => {},
   refresh: async () => {},
 });
+
+/**
+ * "You have no trees" and "we couldn't fetch your trees" look identical to a
+ * reader and mean opposite things — the second one has lost nothing. A dropped
+ * connection, or a schema the app is briefly ahead of, must never read as an
+ * empty account.
+ */
+export function noTreeMessage(loadFailed: boolean, purpose: string): string {
+  return loadFailed
+    ? 'Couldn’t reach your trees just now — nothing has been lost. This will retry when you come back.'
+    : `Import a tree ${purpose}.`;
+}
 
 export function ActiveTreeProvider({ children }: { children: ReactNode }) {
   const { session } = useSession();
   const userId = session?.user.id;
   const [trees, setTrees] = useState<TreeRow[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const homePersons = useRef(new Map<string, string | null>());
 
   const refresh = useCallback(async () => {
@@ -65,7 +81,16 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
         'id, name, individual_count, family_count, place_count, imported_at, gedcom_path, gedcom_bytes, home_person_id, home_person:individuals!trees_home_person_id_fkey(full_name)',
       )
       .order('imported_at', { ascending: false });
-    if (error) return;
+    if (error) {
+      // Leave `trees` exactly as it was. Blanking it on a failed fetch made a
+      // network blip indistinguishable from a deleted account: every screen
+      // fell back to its "import a tree" empty state while the data sat safely
+      // on the server.
+      console.warn('Could not load trees', error.message);
+      setLoadFailed(true);
+      return;
+    }
+    setLoadFailed(false);
     // A home person changed on another device leaves this device's cached
     // relationship labels stale for the whole session — drop them here.
     for (const tree of data ?? []) {
@@ -78,7 +103,12 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (session) refresh();
-    else setTrees(null);
+    else {
+      // Signed out is a clean slate, not a failure carried over from the last
+      // account — otherwise the sign-in screen inherits a stale error.
+      setTrees(null);
+      setLoadFailed(false);
+    }
   }, [session, refresh]);
 
   // The remembered choice belongs to the account, not the device, so a shared
@@ -113,7 +143,7 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
     (trees?.length ? [...trees].sort((a, b) => b.individual_count - a.individual_count)[0] : undefined);
 
   return (
-    <ActiveTreeContext.Provider value={{ trees, activeTree, selectTree, refresh }}>
+    <ActiveTreeContext.Provider value={{ trees, activeTree, loadFailed, selectTree, refresh }}>
       {children}
     </ActiveTreeContext.Provider>
   );

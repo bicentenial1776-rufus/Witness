@@ -8,7 +8,7 @@ import { placesWithActivity, type GeographyIndex } from '@witness/core/query';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useActiveTree } from '@/lib/active-tree';
+import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { getGeographyIndex, invalidateGeographyCache } from '@/lib/geography-cache';
 import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/lib/supabase';
@@ -25,7 +25,7 @@ const ERAS: { label: string; range?: { startYear: number; endYear: number } }[] 
 
 export default function AncestorMapTab() {
   const theme = useTheme();
-  const { activeTree } = useActiveTree();
+  const { activeTree, loadFailed } = useActiveTree();
   const treeId = activeTree?.id;
   const [index, setIndex] = useState<GeographyIndex | null>(null);
   const [eraIndex, setEraIndex] = useState(0);
@@ -117,7 +117,9 @@ export default function AncestorMapTab() {
   if (!treeId) {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
-        <ThemedText style={{ textAlign: 'center' }}>Import a tree to see your family on the map.</ThemedText>
+        <ThemedText style={{ textAlign: 'center' }}>
+          {noTreeMessage(loadFailed, 'to see your family on the map')}
+        </ThemedText>
       </ThemedView>
     );
   }

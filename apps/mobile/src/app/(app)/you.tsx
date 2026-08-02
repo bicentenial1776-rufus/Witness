@@ -23,7 +23,7 @@ import { WideContent } from '@/constants/theme';
 
 export default function YouTab() {
   const { session } = useSession();
-  const { trees, activeTree, selectTree, refresh } = useActiveTree();
+  const { trees, activeTree, loadFailed, selectTree, refresh } = useActiveTree();
   const [notifyEnabled, setNotifyEnabled] = useState(false);
   const [notifyBusy, setNotifyBusy] = useState(false);
   const [shareLinks, setShareLinks] = useState<
@@ -210,6 +210,12 @@ export default function YouTab() {
         <ThemedText type="subtitle" style={{ marginTop: 8 }}>
           Your trees
         </ThemedText>
+        {loadFailed && (
+          <ThemedText type="small">
+            Couldn’t reach your trees just now, so this list may be out of date or empty. Nothing
+            has been lost — it’ll refresh when the connection is back.
+          </ThemedText>
+        )}
         {(trees?.length ?? 0) > 1 && (
           <ThemedText type="small">
             Explore, the Register and the Archives all read the tree in use. Pick which one.

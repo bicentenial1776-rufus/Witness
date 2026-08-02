@@ -10,7 +10,7 @@ import { nearbyAncestors, type GeographyIndex, type NearbyPlace } from '@witness
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useActiveTree } from '@/lib/active-tree';
+import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { getGeographyIndex } from '@/lib/geography-cache';
 import { getRelationshipMap } from '@/lib/relationship-cache';
 import { useTheme } from '@/hooks/use-theme';
@@ -76,7 +76,7 @@ function Chip({
 
 export default function ProximityTab() {
   const theme = useTheme();
-  const { activeTree } = useActiveTree();
+  const { activeTree, loadFailed } = useActiveTree();
   const treeId = activeTree?.id;
   const [index, setIndex] = useState<GeographyIndex | null>(null);
   const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
@@ -150,7 +150,7 @@ export default function ProximityTab() {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
         <ThemedText style={{ textAlign: 'center' }}>
-          Import a tree to see who lived near you.
+          {noTreeMessage(loadFailed, 'to see who lived near you')}
         </ThemedText>
       </ThemedView>
     );

@@ -19,7 +19,7 @@ import { Card } from '@/components/card';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useActiveTree } from '@/lib/active-tree';
+import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { getEventLibrary } from '@/lib/event-library';
 import { getShelf } from '@/lib/shelf-cache';
 import { supabase } from '@/lib/supabase';
@@ -63,7 +63,7 @@ function eventYears(event: HistoricalEvent): string {
  * (docs/QUERY_LIBRARY.md); search here remains the fast path.
  */
 export default function ExploreTab() {
-  const { activeTree } = useActiveTree();
+  const { activeTree, loadFailed } = useActiveTree();
   const [events, setEvents] = useState<readonly HistoricalEvent[]>(HISTORICAL_EVENTS);
   const [shelf, setShelf] = useState<ShelfEntry[] | null>(null);
   const [shelfFailed, setShelfFailed] = useState(false);
@@ -396,7 +396,7 @@ export default function ExploreTab() {
           )}
         </>
       ) : (
-        <ThemedText>Import a tree to start exploring.</ThemedText>
+        <ThemedText>{noTreeMessage(loadFailed, 'to start exploring')}</ThemedText>
       )}
     </View>
   );

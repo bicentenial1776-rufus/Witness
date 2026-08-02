@@ -17,7 +17,7 @@ import { Masthead, MarginPanel, PageShell, useBroadsheet } from '@/components/br
 import { PlaceDrawer } from '@/components/broadsheet/place-drawer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useActiveTree } from '@/lib/active-tree';
+import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { getGeographyIndex, invalidateGeographyCache } from '@/lib/geography-cache';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
@@ -224,7 +224,7 @@ function useAncestorMap(
 
 export default function AncestorMapTab() {
   const broadsheet = useBroadsheet();
-  const { activeTree } = useActiveTree();
+  const { activeTree, loadFailed } = useActiveTree();
   const treeId = activeTree?.id;
   const { index, progress } = useGeography(treeId);
   const [eraIndex, setEraIndex] = useState(0);
@@ -278,7 +278,7 @@ export default function AncestorMapTab() {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
         <ThemedText style={{ textAlign: 'center' }}>
-          Import a tree to see your family on the map.
+          {noTreeMessage(loadFailed, 'to see your family on the map')}
         </ThemedText>
       </ThemedView>
     );

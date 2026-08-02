@@ -55,7 +55,7 @@ function Row({ title, detail, onPress }: { title: string; detail?: string; onPre
  * its old tab in the 2026-07-26 restructure.
  */
 export default function TreeTab() {
-  const { activeTree, refresh } = useActiveTree();
+  const { activeTree, loadFailed, refresh } = useActiveTree();
   const broadsheet = useBroadsheet();
   const [generations, setGenerations] = useState<number | null>(null);
   const [households, setHouseholds] = useState<number | null>(null);
@@ -118,7 +118,9 @@ export default function TreeTab() {
           The tree
         </RecordText>
         <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 22, color: L.ink, marginTop: 10 }}>
-          No tree yet — bring your family in from the Home tab.
+          {loadFailed
+            ? 'Couldn’t reach your trees just now — nothing has been lost.'
+            : 'No tree yet — bring your family in from the Home tab.'}
         </Text>
       </View>
     );
