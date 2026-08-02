@@ -14,6 +14,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useSession } from '@/auth/session-provider';
 import { showAlert } from '@/lib/alert';
+import { useActiveTree } from '@/lib/active-tree';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
 import { supabase } from '@/lib/supabase';
 
@@ -31,6 +32,7 @@ type Step =
 
 export default function ImportGedcom() {
   const { session } = useSession();
+  const { selectTree, refresh } = useActiveTree();
   const { fileUri } = useLocalSearchParams<{ fileUri?: string }>();
   const [step, setStep] = useState<Step>({ name: 'pick' });
 
@@ -97,6 +99,12 @@ export default function ImportGedcom() {
         onProgress: (progress) => setStep({ name: 'importing', fileName, parsed, progress }),
       });
       invalidateGeographyCache();
+      // You imported it to look at it. Without this the app would keep showing
+      // whichever tree was active before — the new one starts at zero rows and
+      // so never wins the fallback — and every screen would answer for the old
+      // tree with nothing to say why.
+      await refresh();
+      await selectTree(treeId);
       setStep({ name: 'done', treeId, parsed });
     } catch (error) {
       showAlert('Import failed', error instanceof Error ? error.message : String(error));
