@@ -22,7 +22,7 @@ import { WideContent } from '@/constants/theme';
 
 export default function YouTab() {
   const { session } = useSession();
-  const { trees, activeTree, refresh } = useActiveTree();
+  const { trees, activeTree, selectTree, refresh } = useActiveTree();
   const [notifyEnabled, setNotifyEnabled] = useState(false);
   const [notifyBusy, setNotifyBusy] = useState(false);
   const [shareLinks, setShareLinks] = useState<
@@ -174,6 +174,11 @@ export default function YouTab() {
         <ThemedText type="subtitle" style={{ marginTop: 8 }}>
           Your trees
         </ThemedText>
+        {(trees?.length ?? 0) > 1 && (
+          <ThemedText type="small">
+            Explore, the Register and the Archives all read the tree in use. Pick which one.
+          </ThemedText>
+        )}
         {(trees ?? []).map((tree) => (
           <Card key={tree.id}>
             <ThemedText type="subtitle">{tree.name}</ThemedText>
@@ -185,6 +190,16 @@ export default function YouTab() {
             <ThemedText type="small">
               Imported {new Date(tree.imported_at).toLocaleDateString()}
             </ThemedText>
+            {(trees?.length ?? 0) > 1 &&
+              (tree.id === activeTree?.id ? (
+                <ThemedText type="small" style={{ marginTop: 4, fontWeight: '600' }}>
+                  In use
+                </ThemedText>
+              ) : (
+                <ThemedText type="link" style={{ marginTop: 4 }} onPress={() => selectTree(tree.id)}>
+                  Use this tree
+                </ThemedText>
+              ))}
             <View style={{ flexDirection: 'row', gap: 16, marginTop: 4 }}>
               <ThemedText
                 type="link"

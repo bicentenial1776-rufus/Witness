@@ -92,6 +92,20 @@ export async function importParsedGedcom(
     });
   }
 
+  // The tree row went in claiming nothing; now that every insert has succeeded,
+  // record what actually landed. These are row counts, not the GEDCOM header's
+  // figures — a header that overstates its own file should not become the
+  // number the app shows, nor the number recount_tree is later measured against.
+  const { error: countError } = await client
+    .from('trees')
+    .update({
+      individual_count: payload.individuals.length,
+      family_count: payload.families.length,
+      place_count: payload.places.length,
+    })
+    .eq('id', payload.tree.id as string);
+  if (countError) throw new Error(`Failed recording tree counts: ${countError.message}`);
+
   // Copy coordinates for every place string any tree has already resolved —
   // overlap is heavy, so most of the map lights up immediately. Whatever is
   // left gets picked up by the geocode-pending worker within hours. Non-fatal:

@@ -90,9 +90,15 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
     charset: parsed.metadata.charset ?? null,
     ancestry_tree_id: parsed.metadata.ancestryTreeId ?? null,
     export_date: parsed.metadata.exportDate ?? null,
-    individual_count: parsed.metadata.individualCount,
-    family_count: parsed.metadata.familyCount,
-    place_count: parsed.metadata.placeCount,
+    // Zero until the rows actually land. The tree row is inserted first (every
+    // other table points at it), so any count written here is a claim about
+    // data that does not exist yet — and the app picks its active tree by
+    // largest individual_count, so a header count of 5,495 would hand the whole
+    // UI to an empty tree for the length of the import. importParsedGedcom
+    // writes the real figures once the inserts succeed.
+    individual_count: 0,
+    family_count: 0,
+    place_count: 0,
     parse_warnings: parsed.metadata.parseWarnings,
   };
 
