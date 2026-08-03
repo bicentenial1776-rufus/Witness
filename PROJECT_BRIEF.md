@@ -217,7 +217,7 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 - Suggested query connecting to unfinished work from previous owner
 
 ### Family Street View (V3 Concept — Design Now, Build Later)
-- First-person spatial navigation through the family tree
+- First-person spatial navigation through the family tree, in a full 3D environment (not isometric or fly-over) — chosen for immersion and emotional resonance, drawing on theatrical staging and Disney-park design language
 - Each family unit rendered as a navigable house interior — period-accurate architecture, candlelit
 - Figures sized proportionally to age at current date (time slider)
 - Silhouette figures with period clothing; photos populate faces where available
@@ -226,6 +226,44 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 - Tap any figure for detail card with biography and historical context
 - "Records lost" graceful state for lines that end before documentation begins
 - Proof of concept built; production version requires dedicated design sprint
+
+**Navigation philosophy (decided Aug 2, 2026)**
+- Ground-level perspective only — no "godlike" fly-over view, to preserve mystery and avoid the visual inconsistency of seeing unrelated areas side-by-side
+- Central "hub" navigation (Disney-parks-style) guides users between houses/areas without forcing a fixed path, keeping flow effortless and cohesive
+
+**Platform scope (decided Aug 2, 2026)**
+- iPad and desktop only for the initial build — phone navigation explicitly deferred to reduce control complexity
+- Target demographic skews older (median age ~55 in initial test group of ~20 non-gamers), so navigation must stay simple and intuitive, avoiding complex "two-hand" gaming controls
+
+**Content, narrative, and disclosure (decided Aug 2, 2026)**
+- Mandatory disclaimer required at the start of every experience clarifying that all historical conversations/dialogue are simulated ("words of the dead" — historically-grounded but AI-generated, never presented as literal fact)
+- Narrative structure follows a three-act shape per scene (the "Lantern Keeper" demo is the reference example), with AI-driven variation so repeated visits don't feel scripted or repetitive
+- A bookmarking feature lets users save memorable narrative moments to prevent repetition and build a personal record
+- Content must suit a universal/general audience — avoid morbid or excessively graphic narratives; support multiple reading levels and writing modes for accessibility
+
+**RPG / reward layer (decided Aug 2, 2026)**
+- The environment functions as a light family RPG: quests such as gathering resources or assisting characters, generated (not scripted) to avoid repetition and preserve replayability
+- Reward layer gives users a sense of impact — decorating a home with artifacts, building virtual shrines (in the spirit of the Mexican *ofrenda*)
+- A virtual "notebook" collects past experiences as a recap/record and incentive to keep exploring
+
+**Development strategy (decided Aug 2, 2026)**
+- Strictly generative — no hardcoded assets or hand-authored "tailored demo" content; the experience must hold up as the actual product, not a scripted showcase
+- "Good enough and doesn't break" is the bar per encounter, not perfection in every architectural detail — the taxonomy of historical architecture is too vast to hand-craft
+- Design-system approach for architecture: period-appropriate house structures and landscaping (e.g., 1600s vs. 1900s) generated from a resource library rather than hardcoded per-house or fetched via constant API calls
+- Isolate the relevant family's subtree from the full GEDCOM to streamline prompting and generation, rather than reasoning over the entire file each time
+- Home-person routing: changing the "home person" setting (e.g., to a specific family member) automatically routes all Street View data to center on them — no manual per-person file authoring needed
+
+**Cost and data sourcing (decided Aug 2, 2026)**
+- Anthropic API cost estimated at ~$3/user/year — financially manageable at scale
+- National Archives and DPLA (Digital Public Library of America) queries are free within published API rate limits, with headroom to request higher limits if needed; prioritize free public archives/library data over paid sources to keep token costs down
+- Ancillary/explanatory data (e.g., household sleeping arrangements, period daily-life context) should be pulled from these external sources to give the AI instructive context beyond the tree itself
+
+**Open next steps (from Aug 2, 2026 meeting)**
+- Compile the list of essential elements needed for a 3D environment to read as complete
+- Combine this project brief with the meeting transcript to develop the foundational coding architecture
+- Solidify house interior design elements for architectural distinctness
+- Investigate a shared design-asset library for architecture and landscaping variety
+- Test the current proof of concept with ~20 non-gamer users for feedback
 
 ---
 
