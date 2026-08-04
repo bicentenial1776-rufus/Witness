@@ -114,6 +114,7 @@ export default function AppLayout() {
       <Stack.Screen name="recovery-code" options={{ title: 'Recovery Code' }} />
       <Stack.Screen name="register" options={{ title: 'The Register' }} />
       <Stack.Screen name="tree-health" options={{ title: 'Tree Health' }} />
+      <Stack.Screen name="orphan-records" options={{ title: 'Orphan Records' }} />
       <Stack.Screen name="family-stage/[key]" options={{ headerShown: false }} />
       <Stack.Screen name="faq" options={{ title: 'Questions & Answers' }} />
       <Stack.Screen name="ascent" options={{ title: 'The Ascent' }} />

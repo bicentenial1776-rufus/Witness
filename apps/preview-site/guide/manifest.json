@@ -122,12 +122,12 @@
       "shots": [
         {
           "file": "shots/explore.png",
-          "status": "pending",
+          "status": "placed",
           "shows": "Explore tab: search box + From your family's history shelf (Library card a bonus)"
         },
         {
           "file": "shots/query-results.png",
-          "status": "pending",
+          "status": "placed",
           "shows": "an event result list with Related/Everyone chips, headline count, and person cards (a probable dashed card a bonus)"
         }
       ]
@@ -152,12 +152,12 @@
       "shots": [
         {
           "file": "shots/nearby.png",
-          "status": "pending",
+          "status": "placed",
           "shows": "Nearby list view: headline count, slider + mi readout, place sections with people"
         },
         {
           "file": "shots/map.png",
-          "status": "pending",
+          "status": "placed",
           "shows": "Map tab with pins, era segmented control, Sat toggle"
         }
       ]
@@ -182,7 +182,7 @@
       "shots": [
         {
           "file": "shots/person.png",
-          "status": "pending",
+          "status": "placed",
           "shows": "a well-documented non-living ancestor's page from identity block down to the family register"
         }
       ]
@@ -197,17 +197,24 @@
         "mark fixed",
         "not an error",
         "fix-at-source rhythm",
-        "attribution"
+        "attribution",
+        "orphan records (islands/solo, suggestions)"
       ],
       "appSources": [
         "apps/mobile/src/app/(app)/tree-health.tsx",
-        "packages/core/src/query/treeHealth.ts"
+        "packages/core/src/query/treeHealth.ts",
+        "apps/mobile/src/app/(app)/orphan-records.tsx"
       ],
       "shots": [
         {
           "file": "shots/tree-health.png",
           "status": "pending",
           "shows": "Tree Check with tally line and one category expanded showing finding cards with Mark fixed / Not an error"
+        },
+        {
+          "file": "shots/orphan-records.png",
+          "status": "placed",
+          "shows": "Orphan Records: tally (islands/solo), island card with suggestion, Mark fixed / Not an error"
         }
       ]
     }
