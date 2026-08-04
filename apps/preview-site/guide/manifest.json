@@ -78,16 +78,144 @@
           "shows": "the FAMILY GROUP sheet open with a child row showing mark + parentage"
         }
       ]
+    },
+    {
+      "file": "home.html",
+      "title": "Home",
+      "covers": [
+        "featured today",
+        "curiosities nudge",
+        "on this day",
+        "stat strip",
+        "resume",
+        "explore shelf",
+        "tabs"
+      ],
+      "appSources": [
+        "apps/mobile/src/app/(app)/(tabs)/index.tsx"
+      ],
+      "shots": [
+        {
+          "file": "shots/home-featured.png",
+          "status": "placed",
+          "shows": "Home with FEATURED TODAY card, curiosities nudge, and tab bar"
+        }
+      ]
+    },
+    {
+      "file": "explore.html",
+      "title": "Explore",
+      "covers": [
+        "unified search",
+        "shelf",
+        "library",
+        "ways in",
+        "query result anatomy",
+        "related/everyone",
+        "documented vs probable",
+        "pinned ancestor"
+      ],
+      "appSources": [
+        "apps/mobile/src/app/(app)/(tabs)/explore.tsx",
+        "apps/mobile/src/app/(app)/query/[eventId].tsx"
+      ],
+      "shots": [
+        {
+          "file": "shots/explore.png",
+          "status": "pending",
+          "shows": "Explore tab: search box + From your family's history shelf (Library card a bonus)"
+        },
+        {
+          "file": "shots/query-results.png",
+          "status": "pending",
+          "shows": "an event result list with Related/Everyone chips, headline count, and person cards (a probable dashed card a bonus)"
+        }
+      ]
+    },
+    {
+      "file": "nearby-map.html",
+      "title": "Nearby & Map",
+      "covers": [
+        "proximity list",
+        "radius slider",
+        "era chips",
+        "place sections",
+        "map pins",
+        "era segmented control",
+        "sat toggle",
+        "geocoding note"
+      ],
+      "appSources": [
+        "apps/mobile/src/app/(app)/(tabs)/proximity.tsx",
+        "apps/mobile/src/app/(app)/(tabs)/map.tsx"
+      ],
+      "shots": [
+        {
+          "file": "shots/nearby.png",
+          "status": "pending",
+          "shows": "Nearby list view: headline count, slider + mi readout, place sections with people"
+        },
+        {
+          "file": "shots/map.png",
+          "status": "pending",
+          "shows": "Map tab with pins, era segmented control, Sat toggle"
+        }
+      ]
+    },
+    {
+      "file": "person.html",
+      "title": "A Person's Page",
+      "covers": [
+        "identity block",
+        "relationship lede",
+        "story/their world",
+        "ancestry/share",
+        "lived through tags",
+        "family register",
+        "citations",
+        "living privacy",
+        "nara candidates"
+      ],
+      "appSources": [
+        "apps/mobile/src/app/(app)/ancestor/[id].tsx"
+      ],
+      "shots": [
+        {
+          "file": "shots/person.png",
+          "status": "pending",
+          "shows": "a well-documented non-living ancestor's page from identity block down to the family register"
+        }
+      ]
+    },
+    {
+      "file": "tree-health.html",
+      "title": "Tree Health",
+      "covers": [
+        "tally line",
+        "check categories",
+        "finding cards",
+        "mark fixed",
+        "not an error",
+        "fix-at-source rhythm",
+        "attribution"
+      ],
+      "appSources": [
+        "apps/mobile/src/app/(app)/tree-health.tsx",
+        "packages/core/src/query/treeHealth.ts"
+      ],
+      "shots": [
+        {
+          "file": "shots/tree-health.png",
+          "status": "pending",
+          "shows": "Tree Check with tally line and one category expanded showing finding cards with Mark fixed / Not an error"
+        }
+      ]
     }
   ],
   "backlog": [
-    "Home page \u2014 shots/home-featured.png already on hand (FEATURED TODAY card, shot 2026-08-04)",
-    "Explore page (event library, query results anatomy)",
     "Register page",
-    "Person page (ancestor/[id]) anatomy",
     "How You're Related path view",
     "You & settings page",
-    "Tree Health / FTAnalyzer Tree Check",
     "Add a quiet 'Field guide' link in the app (FAQ screen) once the guide URL is settled"
   ]
 }
