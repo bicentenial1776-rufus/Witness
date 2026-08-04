@@ -10,9 +10,11 @@ import { showAlert, showDestructiveConfirm } from '@/lib/alert';
 import { useActiveTree, type TreeRow } from '@/lib/active-tree';
 import { clearResumePoint } from '@/lib/resume';
 import {
+  armDigestNotification,
   isDigestNotificationEnabled,
   setDigestNotificationEnabled,
 } from '@/lib/digest-notifications';
+import { getLineageScope, setLineageScope } from '@/lib/lineage-scope';
 import { invalidateCuriositiesCache } from '@/lib/curiosities-cache';
 import { discardOriginal, isVaultAvailable, restoreToCacheFile } from '@/lib/gedcom-vault';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
@@ -44,6 +46,18 @@ export default function YouTab() {
   useEffect(() => {
     isDigestNotificationEnabled().then(setNotifyEnabled);
   }, []);
+
+  const [directLineOnly, setDirectLineOnly] = useState(true);
+  useEffect(() => {
+    getLineageScope().then((scope) => setDirectLineOnly(scope === 'direct'));
+  }, []);
+
+  async function toggleDirectLineOnly(value: boolean) {
+    setDirectLineOnly(value);
+    await setLineageScope(value ? 'direct' : 'all');
+    // The scheduled Sunday notification was composed under the old scope.
+    if (activeTree) armDigestNotification(activeTree.id).catch(() => {});
+  }
 
   // The counts on `trees` are written once at import and never revisited, so
   // anything that removes rows behind their back leaves them lying — and they
@@ -322,6 +336,21 @@ export default function YouTab() {
               onValueChange={toggleNotifications}
               disabled={notifyBusy || !activeTree}
             />
+          </View>
+        </Card>
+
+        <Card style={{ marginTop: 8 }}>
+          <View
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <ThemedText>Your direct line only</ThemedText>
+              <ThemedText type="small">
+                Feature only your ancestors and descendants in the digest and “Related” filters.
+                Cousins and other relatives keep their relationship labels but aren’t featured.
+              </ThemedText>
+            </View>
+            <Switch value={directLineOnly} onValueChange={toggleDirectLineOnly} />
           </View>
         </Card>
 

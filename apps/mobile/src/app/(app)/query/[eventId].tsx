@@ -12,7 +12,7 @@ import { DiscoveryCard, type DiscoveryCardHandle } from '@/components/discovery-
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
-import { getRelationshipMap } from '@/lib/relationship-cache';
+import { getFeaturedIds, getRelationshipMap } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 
 function matchLine(match: AliveMatch, startYear: number): string {
@@ -31,14 +31,17 @@ export default function AliveDuringScreen() {
   const [event, setEvent] = useState<HistoricalEvent | undefined | 'loading'>('loading');
   const [result, setResult] = useState<AliveDuringResult | null>(null);
   const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
+  const [lineIds, setLineIds] = useState<Set<string>>(new Set());
   const [scope, setScope] = useState<'line' | 'all'>('line');
   const [error, setError] = useState<string | null>(null);
   const cardRef = useRef<DiscoveryCardHandle>(null);
 
-  // Without a home person there is no "line" to filter by.
-  const hasLine = relationships.size > 0;
+  // Without a home person there is no "line" to filter by. Membership
+  // honors the lineage-scope setting (direct line vs all relatives);
+  // relationship labels stay on everyone either way.
+  const hasLine = lineIds.size > 0;
   const effectiveScope = hasLine ? scope : 'all';
-  const lineMatches = (result?.matches ?? []).filter((m) => relationships.has(m.individual.id));
+  const lineMatches = (result?.matches ?? []).filter((m) => lineIds.has(m.individual.id));
   const scoped = effectiveScope === 'line' ? lineMatches : (result?.matches ?? []);
   // Arriving from an ancestor's "lived through" tag pins that ancestor to
   // the top of the results. The pin only reorders within the current
@@ -57,8 +60,8 @@ export default function AliveDuringScreen() {
   // A pinned ancestor outside the home-person line must land on a scope
   // that actually contains them.
   useEffect(() => {
-    if (pin && relationships.size > 0 && !relationships.has(pin)) setScope('all');
-  }, [pin, relationships]);
+    if (pin && lineIds.size > 0 && !lineIds.has(pin)) setScope('all');
+  }, [pin, lineIds]);
 
   useEffect(() => {
     if (!eventId) return;
@@ -84,6 +87,9 @@ export default function AliveDuringScreen() {
       });
     getRelationshipMap(treeId).then((map) => {
       if (!cancelled) setRelationships(map);
+    });
+    getFeaturedIds(treeId).then((ids) => {
+      if (!cancelled) setLineIds(ids);
     });
     return () => {
       cancelled = true;

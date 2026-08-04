@@ -16,11 +16,24 @@ export interface CachedRelationship {
   generation_distance: number;
   line: string;
   is_direct_ancestor: boolean;
+  is_direct_descendant: boolean;
+}
+
+/**
+ * Which relatives count as "yours" for featuring and family-scoped
+ * filters: the direct line (ancestors and descendants) or every blood
+ * relative including collaterals (cousins, aunts/uncles).
+ */
+export type LineageScope = 'direct' | 'all';
+
+export function inLineageScope(row: CachedRelationship, scope: LineageScope): boolean {
+  return scope === 'all' || row.is_direct_ancestor || row.is_direct_descendant;
 }
 
 const PAGE_SIZE = 1000;
 
-async function fetchCached(
+/** Every cached relationship row for the tree, nearest generations first. */
+export async function fetchRelationshipRows(
   client: WitnessSupabaseClient,
   treeId: string,
 ): Promise<CachedRelationship[]> {
@@ -28,7 +41,9 @@ async function fetchCached(
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data, error } = await client
       .from('relationships')
-      .select('individual_id, label, generation_distance, line, is_direct_ancestor')
+      .select(
+        'individual_id, label, generation_distance, line, is_direct_ancestor, is_direct_descendant',
+      )
       .eq('tree_id', treeId)
       .order('generation_distance')
       .order('individual_id')
@@ -38,6 +53,8 @@ async function fetchCached(
     if (!data || data.length < PAGE_SIZE) return rows;
   }
 }
+
+const fetchCached = fetchRelationshipRows;
 
 /** individual_id → relationship label, for annotating any result list. */
 export async function fetchRelationshipMap(

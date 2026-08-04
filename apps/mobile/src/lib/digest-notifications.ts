@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 
 import { weeklyDigest, type DigestEntry } from '@witness/core/query';
 
+import { getFeaturedIds } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -69,7 +70,8 @@ async function armDigestNotificationNow(treeId: string): Promise<void> {
   if (!permissions.granted) return;
 
   const fireDate = nextDigestFireDate(new Date());
-  const digest = await weeklyDigest(supabase, treeId, fireDate);
+  const featuredIds = await getFeaturedIds(treeId).catch(() => new Set<string>());
+  const digest = await weeklyDigest(supabase, treeId, fireDate, featuredIds);
 
   await cancelScheduled();
   if (digest.entries.length === 0) return;

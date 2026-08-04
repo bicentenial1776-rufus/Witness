@@ -58,7 +58,7 @@ export interface WeeklyDigest {
 
 export const DIGEST_MAX_ENTRIES = 3;
 
-interface WindowDay {
+export interface WindowDay {
   month: number;
   day: number;
   date: Date;
@@ -272,21 +272,38 @@ export async function fetchWeekAnniversaries(
  * Fetch + editorial selection for the week starting at weekStart: the
  * daily program first, then the featured 3 chosen from among the daily
  * rows (so a featured entry is always visible in the program).
+ *
+ * featuredIds is a hard gate, not a boost: when non-empty, only those
+ * people can appear (the caller decides who qualifies — e.g. the home
+ * person's direct line). Empty means no home person is set, and the
+ * whole tree competes.
  */
 export async function weeklyDigest(
   client: WitnessSupabaseClient,
   treeId: string,
   weekStart: Date,
-  directAncestorIds: ReadonlySet<string> = new Set(),
+  featuredIds: ReadonlySet<string> = new Set(),
 ): Promise<WeeklyDigest> {
   const window = digestWindow(weekStart);
   const candidates = await fetchWeekAnniversaries(client, treeId, window);
-  const days = selectDailyBest(candidates, window, directAncestorIds);
+  return composeWeeklyDigest(candidates, window, featuredIds);
+}
+
+/** The pure selection half of weeklyDigest, split out for testing. */
+export function composeWeeklyDigest(
+  candidates: AnniversaryCandidate[],
+  window: WindowDay[],
+  featuredIds: ReadonlySet<string> = new Set(),
+): WeeklyDigest {
+  const pool = featuredIds.size
+    ? candidates.filter((candidate) => featuredIds.has(candidate.individualId))
+    : candidates;
+  const days = selectDailyBest(pool, window, featuredIds);
   return {
     weekStart: window[0]!.date,
     weekEnd: window[6]!.date,
     days,
-    entries: selectDigestEntries(days, window, directAncestorIds),
-    candidateCount: candidates.length,
+    entries: selectDigestEntries(days, window, featuredIds),
+    candidateCount: pool.length,
   };
 }

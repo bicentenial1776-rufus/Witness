@@ -11,7 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { armDigestNotification } from '@/lib/digest-notifications';
 import { getEventLibrary } from '@/lib/event-library';
-import { getRelationshipMap } from '@/lib/relationship-cache';
+import { getFeaturedIds, getRelationshipMap } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
 
@@ -54,12 +54,8 @@ export default function DigestScreen() {
     (async () => {
       try {
         const relationshipMap = await getRelationshipMap(treeId).catch(() => new Map<string, string>());
-        const result = await weeklyDigest(
-          supabase,
-          treeId,
-          new Date(),
-          new Set(relationshipMap.keys()),
-        );
+        const featuredIds = await getFeaturedIds(treeId).catch(() => new Set<string>());
+        const result = await weeklyDigest(supabase, treeId, new Date(), featuredIds);
         if (cancelled) return;
         setRelationships(relationshipMap);
         setDigest(result);

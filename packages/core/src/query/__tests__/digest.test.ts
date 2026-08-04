@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  composeWeeklyDigest,
   digestWindow,
   scoreCandidate,
   selectDailyBest,
@@ -218,5 +219,45 @@ describe('selectDailyBest', () => {
       candidate({ fullName: `Person ${i}`, month: 7, day: 7 }),
     );
     expect(selectDailyBest(crowded, window)).toHaveLength(1);
+  });
+});
+
+describe('composeWeeklyDigest', () => {
+  const window = digestWindow(new Date(2026, 6, 6)); // Jul 6–12 2026
+
+  it('hard-filters to featuredIds — a collateral outside the set never appears', () => {
+    const ancestor = candidate({ individualId: 'ancestor', fullName: 'Direct Ancestor', month: 7, day: 6 });
+    const cousin = candidate({
+      individualId: 'cousin',
+      fullName: 'Distant Cousin',
+      month: 7,
+      day: 7,
+      placeRaw: 'Cumberland', // outscores the ancestor — the gate must still win
+      birthYear: 1804,
+      deathYear: 1874,
+    });
+    const digest = composeWeeklyDigest([ancestor, cousin], window, new Set(['ancestor']));
+    expect(digest.days.map((d) => d.individualId)).toEqual(['ancestor']);
+    expect(digest.entries.map((e) => e.individualId)).toEqual(['ancestor']);
+    expect(digest.candidateCount).toBe(1);
+  });
+
+  it('with an empty set (no home person) the whole tree competes', () => {
+    const digest = composeWeeklyDigest(
+      [candidate({ month: 7, day: 6 }), candidate({ month: 7, day: 7 })],
+      window,
+    );
+    expect(digest.days).toHaveLength(2);
+    expect(digest.candidateCount).toBe(2);
+  });
+
+  it('a featured set with no anniversaries this week yields an empty digest, not strangers', () => {
+    const digest = composeWeeklyDigest(
+      [candidate({ individualId: 'stranger', month: 7, day: 6 })],
+      window,
+      new Set(['ancestor-with-no-anniversary']),
+    );
+    expect(digest.days).toHaveLength(0);
+    expect(digest.entries).toHaveLength(0);
   });
 });

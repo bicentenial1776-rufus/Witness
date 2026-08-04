@@ -14,7 +14,7 @@ import { BrandFonts, Letterpress, WideContent } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { getCuriosities, type CuriositySummary } from '@/lib/curiosities-cache';
 import { armDigestNotification } from '@/lib/digest-notifications';
-import { getRelationshipMap } from '@/lib/relationship-cache';
+import { getFeaturedIds, getRelationshipMap } from '@/lib/relationship-cache';
 import { describeResumePoint, getResumePoint } from '@/lib/resume';
 import { getShelf } from '@/lib/shelf-cache';
 import { supabase } from '@/lib/supabase';
@@ -109,12 +109,8 @@ export default function Home() {
           const relationshipMap = await getRelationshipMap(activeTree.id).catch(
             () => new Map<string, string>(),
           );
-          const result = await weeklyDigest(
-            supabase,
-            activeTree.id,
-            new Date(),
-            new Set(relationshipMap.keys()),
-          );
+          const featuredIds = await getFeaturedIds(activeTree.id).catch(() => new Set<string>());
+          const result = await weeklyDigest(supabase, activeTree.id, new Date(), featuredIds);
           if (cancelled) return;
           setRelationships(relationshipMap);
           setDigest(result);
