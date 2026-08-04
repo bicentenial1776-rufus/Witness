@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Street View Lab — Witness</title>
+<style>
+  :root { --ink:#1c1917; --parch:#f7f3ee; --amber:#b45309; --dim:#a8a29e; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; overflow:hidden; }
+  body {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    background: var(--ink); color: var(--parch);
+    display:flex; flex-direction:column;
+  }
+  header {
+    display:flex; align-items:center; gap:14px; padding:10px 16px;
+    border-bottom:1px solid #3b3835; flex-wrap:wrap;
+  }
+  header h1 { font-size:14px; letter-spacing:.14em; text-transform:uppercase; font-weight:600; }
+  header h1 em { color:var(--amber); font-style:normal; }
+  header .spacer { flex:1; }
+  button, input[type="number"] {
+    font:inherit; font-size:12px; color:var(--parch); background:#2b2825;
+    border:1px solid #4a4540; border-radius:6px; padding:6px 12px; cursor:pointer;
+  }
+  button:hover { border-color:var(--amber); }
+  input[type="number"] { width:110px; cursor:text; }
+  input[type="text"] {
+    font:inherit; font-size:13px; color:var(--parch); background:#2b2825;
+    border:1px solid #4a4540; border-radius:6px; padding:6px 10px; width:240px;
+  }
+  main { flex:1; display:flex; min-height:0; }
+  #stage { flex:1; position:relative; min-width:0; }
+  canvas#view { position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  aside {
+    width:320px; border-left:1px solid #3b3835; padding:14px; overflow-y:auto;
+    font-size:12px; line-height:1.6;
+  }
+  aside h2 { font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); margin:14px 0 6px; }
+  aside h2:first-child { margin-top:0; }
+  #anchorResults div { padding:3px 6px; border-radius:4px; cursor:pointer; }
+  #anchorResults div:hover { background:#2b2825; color:var(--amber); }
+  #stats, #selected { white-space:pre-wrap; color:#d6cec2; }
+  .band-documented { color:#d8ad63; } .band-partial { color:#84a9c6; }
+  .band-lost { color:#8f8f98; } .band-living { color:#82a077; }
+  #drop {
+    position:absolute; inset:0; display:flex; flex-direction:column; gap:10px;
+    align-items:center; justify-content:center; text-align:center;
+    background:rgba(28,25,23,.96); z-index:10; padding:40px; cursor:pointer;
+  }
+  #drop.hidden { display:none; }
+  #drop.hot { outline:3px dashed var(--amber); outline-offset:-16px; }
+  #drop .big { font-size:20px; }
+  #drop .sub { color:var(--dim); max-width:520px; }
+  #hint {
+    position:absolute; left:12px; bottom:10px; z-index:5; font-size:11px;
+    color:#cfc7ba; background:rgba(28,25,23,.7); padding:4px 10px; border-radius:6px;
+    pointer-events:none;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Street View <em>Lab</em></h1>
+    <input id="anchorSearch" type="text" placeholder="anchor person… (type to search)" disabled />
+    <label>seed <input id="seed" type="number" value="20260802" /></label>
+    <button id="regen" disabled>Regenerate</button>
+    <div class="spacer"></div>
+    <button id="downloadSpec" disabled>Download spec</button>
+    <button id="loadSpec">Load spec…</button>
+    <button id="loadGed">Load GEDCOM…</button>
+  </header>
+  <main>
+    <div id="stage">
+      <canvas id="view"></canvas>
+      <div id="hint">drag = look · tap/click = walk or select a house · WASD optional</div>
+      <div id="drop">
+        <div class="big">Drop a <b>.ged</b> / <b>.gdz</b> file here</div>
+        <div class="sub">Parsed entirely in your browser with the Witness parser — nothing uploads, nothing is committed.
+        A scene spec is generated from the anchor's ancestor subtree and rendered as a walkable world.
+        You can also drop a previously downloaded <b>spec .json</b>.</div>
+        <button>choose a file</button>
+      </div>
+    </div>
+    <aside>
+      <h2>Anchor candidates</h2>
+      <div id="anchorResults">—</div>
+      <h2>Spec</h2>
+      <div id="stats">no tree loaded</div>
+      <h2>Selected household</h2>
+      <div id="selected">tap a house</div>
+    </aside>
+  </main>
+  <input id="file" type="file" accept=".ged,.gdz,.json" style="display:none" />
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

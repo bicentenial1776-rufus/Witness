@@ -1,0 +1,21 @@
+{
+  "name": "@witness/streetview-lab",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dev harness for the Street View engine: drop a real GEDCOM, generate a scene spec, walk the world. Never ships; everything it exercises does.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@witness/core": "*",
+    "@witness/streetview": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vite": "^6.0.0"
+  }
+}

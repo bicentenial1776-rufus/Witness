@@ -1,0 +1,25 @@
+{
+  "name": "@witness/streetview",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Family Street View engine: scene-spec contract, GEDCOM-to-spec generator, and the browser Three.js viewer.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./spec": "./src/spec/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "smoke": "tsx scripts/smoke.ts"
+  },
+  "dependencies": {
+    "three": "^0.178.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.178.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4"
+  }
+}

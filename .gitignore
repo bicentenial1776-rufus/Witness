@@ -9,3 +9,9 @@ dist/
 .claude/settings.local.json
 .vercel
 .env*
+
+# Street View lab — real family data and generated specs never committed
+apps/streetview-lab/data/
+apps/streetview-lab/*.ged
+apps/streetview-lab/*.gdz
+apps/streetview-lab/scene-spec-*.json
