@@ -1,0 +1,76 @@
+/* Witness Field Guide — shared styles.
+   Tokens follow the preview-site design system (see apps/preview-site/README.md):
+   ink #1C1917, parchment #F7F3EE, amber #B45309, amber light #E0913A,
+   Playfair Display for headings, Inter for body. */
+
+html, body { margin: 0; padding: 0; background: #F7F3EE; scroll-behavior: smooth; }
+* { box-sizing: border-box; }
+::selection { background: #B45309; color: #F7F3EE; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  color: #1C1917;
+  font-size: clamp(15px, 1.2vw, 17px);
+  line-height: 1.65;
+}
+
+.wrap { max-width: 880px; margin: 0 auto; padding: clamp(28px, 5vw, 64px) clamp(20px, 5vw, 48px) 96px; }
+
+.masthead { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.masthead .wordmark { font-family: 'Playfair Display', serif; font-weight: 600; letter-spacing: 0.24em; font-size: 20px; }
+.masthead .dot { width: 5px; height: 5px; border-radius: 50%; background: #B45309; display: inline-block; }
+.eyebrow { color: #B45309; font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase; font-weight: 500; margin: 26px 0 10px; }
+
+h1 { font-family: 'Playfair Display', serif; font-weight: 500; font-size: clamp(1.9rem, 4vw, 2.7rem); line-height: 1.15; margin: 0 0 14px; }
+h2 { font-family: 'Playfair Display', serif; font-weight: 500; font-size: clamp(1.3rem, 2.4vw, 1.7rem); margin: 44px 0 10px; }
+p  { margin: 0 0 14px; color: #3A3532; }
+.lede { font-size: clamp(16px, 1.4vw, 18px); color: #57534E; }
+.howto { font-size: 14px; color: #78716C; margin-bottom: 18px; }
+.howto strong { color: #57534E; }
+a { color: #B45309; }
+
+.nav { font-size: 14px; margin-bottom: 30px; }
+.nav a { text-decoration: none; margin-right: 18px; }
+.nav a.here { color: #1C1917; font-weight: 600; }
+
+/* ——— The annotated screenshot ———
+   The image stays pristine; numbered callouts are absolutely positioned
+   with PERCENTAGE coordinates (survives any display size), and the
+   explanations live as a real, numbered list beside it. */
+.figure { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px; align-items: start; margin: 18px 0 8px; }
+.shot { position: relative; max-width: 340px; margin: 0 auto; }
+.shot img { display: block; width: 100%; border-radius: 22px; border: 1px solid rgba(28, 25, 23, 0.18); box-shadow: 0 8px 28px rgba(28, 25, 23, 0.12); }
+.co {
+  position: absolute; width: 26px; height: 26px; border-radius: 50%;
+  background: #B45309; color: #F7F3EE; font: 600 13px/26px 'Inter', sans-serif;
+  text-align: center; transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px #F7F3EE, 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.cbox {
+  position: absolute; border: 2px solid #B45309; border-radius: 10px;
+  background: rgba(180, 83, 9, 0.07);
+}
+.cbox .co { top: 0; left: 0; }
+
+.legend { margin: 0; padding: 0 0 0 2px; list-style: none; counter-reset: co; }
+.legend li { position: relative; padding: 0 0 14px 40px; counter-increment: co; color: #3A3532; }
+.legend li::before {
+  content: counter(co); position: absolute; left: 0; top: 1px;
+  width: 26px; height: 26px; border-radius: 50%; background: #B45309;
+  color: #F7F3EE; font: 600 13px/26px 'Inter', sans-serif; text-align: center;
+}
+.legend li strong { color: #1C1917; }
+
+/* A screenshot not yet supplied renders as an honest placeholder. */
+.pending {
+  aspect-ratio: 9 / 19.5; max-width: 340px; margin: 0 auto;
+  border: 2px dashed rgba(180, 83, 9, 0.5); border-radius: 22px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; text-align: center; color: #78716C; font-size: 14px;
+}
+
+.note { border-left: 3px solid #B45309; padding: 2px 0 2px 16px; margin: 18px 0; color: #57534E; font-size: 15px; }
+.foot { margin-top: 64px; padding-top: 20px; border-top: 1px solid rgba(28, 25, 23, 0.12); font-size: 13px; color: #78716C; }
+
+/* Inline glyph chips used when the text refers to the lineage marks. */
+.mark { display: inline-block; min-width: 20px; padding: 0 4px; border-radius: 5px; background: #1C1917; color: #F7F3EE; font-size: 13px; text-align: center; }

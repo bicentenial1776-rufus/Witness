@@ -1,0 +1,56 @@
+{
+  "comment": "Witness Field Guide manifest — read by the /field-guide skill. lastSyncedCommit is the apps/mobile commit whose UI this guide's copy describes; the skill diffs it against HEAD to find screens that changed.",
+  "baseUrl": "https://witnesslives.com/guide/",
+  "lastSyncedCommit": "0a20ea3",
+  "pages": [
+    {
+      "file": "concepts.html",
+      "title": "Concepts",
+      "covers": ["home person", "lineage tiers + marks", "who gets featured", "parentage lines", "documented vs probable", "living privacy"],
+      "appSources": [
+        "apps/mobile/src/app/(app)/you.tsx",
+        "apps/mobile/src/lib/relationship-cache.ts",
+        "apps/mobile/src/lib/parentage.ts",
+        "apps/mobile/src/components/lineage-mark.tsx"
+      ],
+      "shots": [
+        { "file": "shots/you-featured.png", "status": "pending", "shows": "You tab Preferences card 'Who gets featured' with both chips and the explanation line" }
+      ]
+    },
+    {
+      "file": "this-week.html",
+      "title": "This Week in Your Family",
+      "covers": ["weekly digest", "featured card anatomy", "plain cards", "sunday reminder"],
+      "appSources": [
+        "apps/mobile/src/app/(app)/digest.tsx",
+        "apps/mobile/src/lib/digest-notifications.ts"
+      ],
+      "shots": [
+        { "file": "shots/this-week.png", "status": "pending", "shows": "digest with the week span line, one FEATURED card (relationship + parentage + note) and at least one plain card" }
+      ]
+    },
+    {
+      "file": "family-stage.html",
+      "title": "The Family Stage",
+      "covers": ["threads/ribbons", "marriage enclosure", "reading line + band", "sweep/slider", "set-switcher", "family group sheet", "back to register"],
+      "appSources": [
+        "apps/mobile/src/app/(app)/family-stage/[key].tsx",
+        "packages/core/src/query/familyStage.ts",
+        "apps/mobile/src/app/(app)/register.tsx"
+      ],
+      "shots": [
+        { "file": "shots/family-stage.png", "status": "pending", "shows": "a household with the reading line mid-family, legend and reading band visible" },
+        { "file": "shots/family-group.png", "status": "pending", "shows": "the FAMILY GROUP sheet open with a child row showing mark + parentage" }
+      ]
+    }
+  ],
+  "backlog": [
+    "Explore page (event library, query results anatomy)",
+    "Register page",
+    "Person page (ancestor/[id]) anatomy",
+    "How You're Related path view",
+    "You & settings page",
+    "Tree Health / FTAnalyzer Tree Check",
+    "Add a quiet 'Field guide' link in the app (FAQ screen) once the guide URL is settled"
+  ]
+}
