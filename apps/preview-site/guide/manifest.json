@@ -208,7 +208,7 @@
       "shots": [
         {
           "file": "shots/tree-health.png",
-          "status": "pending",
+          "status": "placed",
           "shows": "Tree Check with tally line and one category expanded showing finding cards with Mark fixed / Not an error"
         },
         {
