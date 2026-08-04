@@ -1,11 +1,14 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, ScrollView, Switch, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Switch, View } from 'react-native';
+
+import type { LineageScope } from '@witness/core/family';
 
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useSession } from '@/auth/session-provider';
+import { useTheme } from '@/hooks/use-theme';
 import { showAlert, showDestructiveConfirm } from '@/lib/alert';
 import { useActiveTree, type TreeRow } from '@/lib/active-tree';
 import { clearResumePoint } from '@/lib/resume';
@@ -18,16 +21,31 @@ import { getLineageScope, setLineageScope } from '@/lib/lineage-scope';
 import { invalidateCuriositiesCache } from '@/lib/curiosities-cache';
 import { discardOriginal, isVaultAvailable, restoreToCacheFile } from '@/lib/gedcom-vault';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
-import { invalidateRelationshipCache } from '@/lib/relationship-cache';
+import {
+  getLineageCounts,
+  invalidateRelationshipCache,
+  type LineageCounts,
+} from '@/lib/relationship-cache';
 import { invalidateTreeIndexCache } from '@/lib/tree-index-cache';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
 
+function SectionHeader({ children }: { children: string }) {
+  return (
+    <ThemedText type="subtitle" style={{ marginTop: 16 }}>
+      {children}
+    </ThemedText>
+  );
+}
+
 export default function YouTab() {
   const { session } = useSession();
+  const theme = useTheme();
   const { trees, activeTree, loadFailed, selectTree, refresh } = useActiveTree();
   const [notifyEnabled, setNotifyEnabled] = useState(false);
   const [notifyBusy, setNotifyBusy] = useState(false);
+  const [lineageScope, setLineageScopeState] = useState<LineageScope>('direct');
+  const [lineageCounts, setLineageCounts] = useState<LineageCounts | null>(null);
   const [shareLinks, setShareLinks] = useState<
     { token: string; payload: { fullName?: string }; expires_at: string }[] | null
   >(null);
@@ -47,14 +65,26 @@ export default function YouTab() {
     isDigestNotificationEnabled().then(setNotifyEnabled);
   }, []);
 
-  const [directLineOnly, setDirectLineOnly] = useState(true);
   useEffect(() => {
-    getLineageScope().then((scope) => setDirectLineOnly(scope === 'direct'));
+    getLineageScope().then(setLineageScopeState);
   }, []);
 
-  async function toggleDirectLineOnly(value: boolean) {
-    setDirectLineOnly(value);
-    await setLineageScope(value ? 'direct' : 'all');
+  useEffect(() => {
+    if (!activeTree) return;
+    let cancelled = false;
+    getLineageCounts(activeTree.id)
+      .then((counts) => {
+        if (!cancelled) setLineageCounts(counts);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTree?.id]);
+
+  async function changeLineageScope(scope: LineageScope) {
+    setLineageScopeState(scope);
+    await setLineageScope(scope);
     // The scheduled Sunday notification was composed under the old scope.
     if (activeTree) armDigestNotification(activeTree.id).catch(() => {});
   }
@@ -215,15 +245,18 @@ export default function YouTab() {
     setNotifyBusy(false);
   }
 
+  const scopeOptions = [
+    { key: 'direct', label: 'Direct line', count: lineageCounts?.direct },
+    { key: 'all', label: 'Blood relatives', count: lineageCounts?.all },
+  ] as const;
+
   return (
     <ThemedView style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingTop: 72, paddingBottom: 48, gap: 12 }}>
         <ThemedText type="title">You</ThemedText>
         <ThemedText type="small">{session?.user.email}</ThemedText>
 
-        <ThemedText type="subtitle" style={{ marginTop: 8 }}>
-          Your trees
-        </ThemedText>
+        <SectionHeader>Your trees</SectionHeader>
         {loadFailed && (
           <ThemedText type="small">
             Couldn’t reach your trees just now, so this list may be out of date or empty. Nothing
@@ -241,10 +274,8 @@ export default function YouTab() {
             <ThemedText type="small">
               {tree.individual_count.toLocaleString()} people ·{' '}
               {tree.family_count.toLocaleString()} families ·{' '}
-              {tree.place_count.toLocaleString()} places
-            </ThemedText>
-            <ThemedText type="small">
-              Imported {new Date(tree.imported_at).toLocaleDateString()}
+              {tree.place_count.toLocaleString()} places · imported{' '}
+              {new Date(tree.imported_at).toLocaleDateString()}
             </ThemedText>
             {(trees?.length ?? 0) > 1 &&
               (tree.id === activeTree?.id ? (
@@ -256,7 +287,7 @@ export default function YouTab() {
                   Use this tree
                 </ThemedText>
               ))}
-            <View style={{ flexDirection: 'row', gap: 16, marginTop: 4 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: 4 }}>
               <ThemedText
                 type="link"
                 onPress={() =>
@@ -264,15 +295,6 @@ export default function YouTab() {
                 }
               >
                 {tree.home_person ? `You are ${tree.home_person.full_name}` : 'Tell us who you are'}
-              </ThemedText>
-              <ThemedText
-                type="link"
-                onPress={() => {
-                  if (!deleting) confirmDelete(tree);
-                }}
-                style={deleting ? { opacity: 0.4 } : undefined}
-              >
-                Delete
               </ThemedText>
               {vaultReady && tree.gedcom_path && (
                 <ThemedText
@@ -285,6 +307,15 @@ export default function YouTab() {
                   {restoring === tree.id ? 'Opening…' : 'Restore original'}
                 </ThemedText>
               )}
+              <ThemedText
+                type="link"
+                onPress={() => {
+                  if (!deleting) confirmDelete(tree);
+                }}
+                style={deleting ? { opacity: 0.4 } : undefined}
+              >
+                Delete
+              </ThemedText>
             </View>
             {vaultReady && (
               <ThemedText type="small">
@@ -310,16 +341,47 @@ export default function YouTab() {
         <ThemedText type="link" onPress={() => router.push('/import-guide')}>
           How to export a tree from Ancestry, FamilySearch & more ›
         </ThemedText>
-        <ThemedText type="link" onPress={() => router.push('/faq')}>
-          Questions & answers ›
-        </ThemedText>
-        {vaultReady && (
-          <ThemedText type="link" onPress={() => router.push('/recovery-code')}>
-            Your recovery code ›
-          </ThemedText>
-        )}
 
-        <Card style={{ marginTop: 8 }}>
+        <SectionHeader>Preferences</SectionHeader>
+        <Card>
+          <ThemedText>Who gets featured</ThemedText>
+          <ThemedText type="small">
+            Who counts as family in the digest, the Sunday reminder, and “Related” filters.
+            Everyone else keeps their relationship label — they just aren’t celebrated.
+          </ThemedText>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+            {scopeOptions.map(({ key, label, count }) => {
+              const active = lineageScope === key;
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => changeLineageScope(key)}
+                  style={{
+                    backgroundColor: active ? theme.accent : theme.backgroundElement,
+                    borderWidth: 1,
+                    borderColor: active ? theme.accent : theme.border,
+                    borderRadius: 16,
+                    paddingHorizontal: 14,
+                    paddingVertical: 7,
+                  }}
+                >
+                  <ThemedText
+                    type="small"
+                    style={{ color: active ? theme.onAccent : theme.text, fontWeight: 600 }}
+                  >
+                    {count !== undefined ? `${label} (${count.toLocaleString()})` : label}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+          <ThemedText type="small" style={{ marginTop: 8 }}>
+            {lineageScope === 'direct'
+              ? 'Your ancestors and descendants — the people you descend from, and who descend from you.'
+              : 'Your direct line plus everyone who shares an ancestor with you — cousins, great-aunts and great-uncles.'}
+          </ThemedText>
+        </Card>
+        <Card>
           <View
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
           >
@@ -339,54 +401,49 @@ export default function YouTab() {
           </View>
         </Card>
 
-        <Card style={{ marginTop: 8 }}>
-          <View
-            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-          >
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <ThemedText>Your direct line only</ThemedText>
-              <ThemedText type="small">
-                Feature only your ancestors and descendants in the digest and “Related” filters.
-                Cousins and other relatives keep their relationship labels but aren’t featured.
-              </ThemedText>
-            </View>
-            <Switch value={directLineOnly} onValueChange={toggleDirectLineOnly} />
-          </View>
-        </Card>
-
         {shareLinks !== null && shareLinks.length > 0 && (
-          <Card style={{ marginTop: 8 }}>
-            <ThemedText type="subtitle">Shared stories</ThemedText>
-            <ThemedText type="small">
-              Anyone with the link can see that card until it expires — or until you take it back.
-            </ThemedText>
-            {shareLinks.map((link) => (
-              <View
-                key={link.token}
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'baseline',
-                  marginTop: 8,
-                }}
-              >
-                <View style={{ flexShrink: 1 }}>
-                  <ThemedText>{link.payload.fullName ?? 'A family story'}</ThemedText>
-                  <ThemedText type="small">
-                    until {new Date(link.expires_at).toLocaleDateString()}
+          <>
+            <SectionHeader>Shared stories</SectionHeader>
+            <Card>
+              <ThemedText type="small">
+                Anyone with the link can see that card until it expires — or until you take it back.
+              </ThemedText>
+              {shareLinks.map((link) => (
+                <View
+                  key={link.token}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    marginTop: 8,
+                  }}
+                >
+                  <View style={{ flexShrink: 1 }}>
+                    <ThemedText>{link.payload.fullName ?? 'A family story'}</ThemedText>
+                    <ThemedText type="small">
+                      until {new Date(link.expires_at).toLocaleDateString()}
+                    </ThemedText>
+                  </View>
+                  <ThemedText type="smallBold" themeColor="accent" onPress={() => revokeLink(link.token)}>
+                    Take back
                   </ThemedText>
                 </View>
-                <ThemedText type="smallBold" themeColor="accent" onPress={() => revokeLink(link.token)}>
-                  Take back
-                </ThemedText>
-              </View>
-            ))}
-          </Card>
+              ))}
+            </Card>
+          </>
         )}
 
+        <SectionHeader>Help & account</SectionHeader>
+        <ThemedText type="link" onPress={() => router.push('/faq')}>
+          Questions & answers ›
+        </ThemedText>
+        {vaultReady && (
+          <ThemedText type="link" onPress={() => router.push('/recovery-code')}>
+            Your recovery code ›
+          </ThemedText>
+        )}
         <ThemedText
           type="link"
-          style={{ marginTop: 8 }}
           onPress={() => {
             // One account's trail must not greet the next: drop both resume
             // stores before the session ends (2026-07-26 audit).

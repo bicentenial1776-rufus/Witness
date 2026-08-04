@@ -41,6 +41,19 @@ export async function getFeaturedIds(treeId: string): Promise<Set<string>> {
   return ids;
 }
 
+export interface LineageCounts {
+  direct: number;
+  all: number;
+}
+
+/** How many people each lineage scope covers, for the settings UI. */
+export async function getLineageCounts(treeId: string): Promise<LineageCounts> {
+  const rows = await getRows(treeId);
+  let direct = 0;
+  for (const row of rows) if (inLineageScope(row, 'direct')) direct += 1;
+  return { direct, all: rows.length };
+}
+
 /** Call after the home person changes or a tree is imported/deleted. */
 export function invalidateRelationshipCache(): void {
   cache.clear();
