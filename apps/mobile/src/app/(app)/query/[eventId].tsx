@@ -9,10 +9,17 @@ import { aliveDuring, type AliveDuringResult, type AliveMatch } from '@witness/c
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { DiscoveryCard, type DiscoveryCardHandle } from '@/components/discovery-card';
+import { LineageMark } from '@/components/lineage-mark';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
-import { getFeaturedIds, getRelationshipMap } from '@/lib/relationship-cache';
+import { getParentageMap } from '@/lib/parentage';
+import {
+  getFeaturedIds,
+  getLineageTierMap,
+  getRelationshipMap,
+  type LineageTier,
+} from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 
 function matchLine(match: AliveMatch, startYear: number): string {
@@ -31,6 +38,8 @@ export default function AliveDuringScreen() {
   const [event, setEvent] = useState<HistoricalEvent | undefined | 'loading'>('loading');
   const [result, setResult] = useState<AliveDuringResult | null>(null);
   const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
+  const [tiers, setTiers] = useState<Map<string, LineageTier>>(new Map());
+  const [parentage, setParentage] = useState<Map<string, string>>(new Map());
   const [lineIds, setLineIds] = useState<Set<string>>(new Set());
   const [scope, setScope] = useState<'line' | 'all'>('line');
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +100,16 @@ export default function AliveDuringScreen() {
     getFeaturedIds(treeId).then((ids) => {
       if (!cancelled) setLineIds(ids);
     });
+    getLineageTierMap(treeId)
+      .then((map) => {
+        if (!cancelled) setTiers(map);
+      })
+      .catch(() => {});
+    getParentageMap(treeId)
+      .then((map) => {
+        if (!cancelled) setParentage(map);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -202,9 +221,15 @@ export default function AliveDuringScreen() {
                     THE ANCESTOR YOU CAME FROM
                   </ThemedText>
                 )}
-                <ThemedText>{item.individual.full_name}</ThemedText>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <ThemedText style={{ flexShrink: 1 }}>{item.individual.full_name}</ThemedText>
+                  <LineageMark tier={tiers.get(item.individual.id)} color={theme.accent} />
+                </View>
                 {relationships.has(item.individual.id) && (
                   <ThemedText type="small">your {relationships.get(item.individual.id)}</ThemedText>
+                )}
+                {parentage.has(item.individual.id) && (
+                  <ThemedText type="small">{parentage.get(item.individual.id)}</ThemedText>
                 )}
                 <ThemedText type="small">
                   {item.individual.birth_year ?? '?'}–{item.individual.death_year ?? '?'} ·{' '}

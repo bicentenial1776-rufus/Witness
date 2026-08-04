@@ -12,6 +12,7 @@ import { fetchNaraCandidatesForIndividual, type NaraCandidate } from '@witness/c
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
+import { LineageMark } from '@/components/lineage-mark';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -21,7 +22,7 @@ import * as Clipboard from 'expo-clipboard';
 import { ancestryPersonUrl } from '@/lib/ancestry';
 import { getEventLibrary } from '@/lib/event-library';
 import { createAncestorShareLink } from '@/lib/share-links';
-import { getRelationshipMap } from '@/lib/relationship-cache';
+import { getLineageTierMap, getRelationshipMap, type LineageTier } from '@/lib/relationship-cache';
 import { invokeError } from '@/lib/research-brief';
 import { supabase } from '@/lib/supabase';
 import { BrandFonts, Fonts, WideContent } from '@/constants/theme';
@@ -266,6 +267,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   const [sources, setSources] = useState<SourceGroup[]>([]);
   const [naraCandidates, setNaraCandidates] = useState<NaraCandidate[]>([]);
   const [relationship, setRelationship] = useState<string | null>(null);
+  const [tier, setTier] = useState<LineageTier | undefined>(undefined);
   const [ancestryUrl, setAncestryUrl] = useState<string | null>(null);
   // Story / Their World open in place — one panel at a time, the family
   // register below simply shifts down. Research left this card entirely
@@ -289,6 +291,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     setSources([]);
     setNaraCandidates([]);
     setRelationship(null);
+    setTier(undefined);
     setAncestryUrl(null);
     setOpenPanel(null);
     (async () => {
@@ -481,6 +484,11 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
       // Relationship to the home person: instant from the ancestor cache,
       // otherwise a live graph walk (cousins, descendants, in-laws).
       if (personRow) {
+        getLineageTierMap(personRow.tree_id)
+          .then((map) => {
+            if (!cancelled) setTier(map.get(personRow.id));
+          })
+          .catch(() => {});
         const cached = (await getRelationshipMap(personRow.tree_id)).get(personRow.id);
         if (cached) {
           if (!cancelled) setRelationship(cached);
@@ -644,9 +652,15 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   return (
     <ThemedView style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 48, gap: 4 }}>
-        {/* Identity: name headline → mono span (sex · years · place) → the
-            relationship as a serif-italic lede when we can place them. */}
-        <ThemedText type="title">{person.full_name}</ThemedText>
+        {/* Identity: name headline (with the lineage mark) → mono span
+            (sex · years · place) → parentage → the relationship as a
+            serif-italic lede when we can place them. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <ThemedText type="title" style={{ flexShrink: 1 }}>
+            {person.full_name}
+          </ThemedText>
+          <LineageMark tier={tier} size={16} color={theme.accent} />
+        </View>
         <Text
           style={{
             fontFamily: Fonts.mono,
@@ -663,6 +677,20 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           {birthPlace ? `  ·  ${birthPlace}` : ''}
           {person.living ? '  ·  living' : ''}
         </Text>
+        {parents.length > 0 && (
+          <Text
+            style={{
+              fontFamily: Fonts.mono,
+              fontSize: 12,
+              letterSpacing: 0.3,
+              color: theme.textSecondary,
+              marginTop: 6,
+            }}
+          >
+            {(person.sex === 'F' ? 'Daughter of ' : person.sex === 'M' ? 'Son of ' : 'Child of ') +
+              parents.map((p) => p.full_name).join(' and ')}
+          </Text>
+        )}
         {relationship && (
           <Pressable
             onPress={() =>

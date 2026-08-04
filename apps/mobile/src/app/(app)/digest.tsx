@@ -7,11 +7,19 @@ import { weeklyDigest, type DigestEntry, type WeeklyDigest } from '@witness/core
 import { useBroadsheet } from '@/components/broadsheet';
 import { ThisWeekBroadsheet, type LivedThroughLine } from '@/components/broadsheet/this-week';
 import { Card } from '@/components/card';
+import { LineageMark } from '@/components/lineage-mark';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useTheme } from '@/hooks/use-theme';
 import { armDigestNotification } from '@/lib/digest-notifications';
 import { getEventLibrary } from '@/lib/event-library';
-import { getFeaturedIds, getRelationshipMap } from '@/lib/relationship-cache';
+import { getParentageMap } from '@/lib/parentage';
+import {
+  getFeaturedIds,
+  getLineageTierMap,
+  getRelationshipMap,
+  type LineageTier,
+} from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
 
@@ -39,9 +47,12 @@ function anniversaryLine(entry: DigestEntry): string {
 export default function DigestScreen() {
   const { treeId } = useLocalSearchParams<{ treeId: string }>();
   const broadsheet = useBroadsheet();
+  const theme = useTheme();
   const [digest, setDigest] = useState<WeeklyDigest | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
+  const [tiers, setTiers] = useState<Map<string, LineageTier>>(new Map());
+  const [parentage, setParentage] = useState<Map<string, string>>(new Map());
   const [notes, setNotes] = useState<Record<string, NoteState>>({});
   const [livedThrough, setLivedThrough] = useState<LivedThroughLine[]>([]);
 
@@ -55,6 +66,16 @@ export default function DigestScreen() {
       try {
         const relationshipMap = await getRelationshipMap(treeId).catch(() => new Map<string, string>());
         const featuredIds = await getFeaturedIds(treeId).catch(() => new Set<string>());
+        getLineageTierMap(treeId)
+          .then((map) => {
+            if (!cancelled) setTiers(map);
+          })
+          .catch(() => {});
+        getParentageMap(treeId)
+          .then((map) => {
+            if (!cancelled) setParentage(map);
+          })
+          .catch(() => {});
         const result = await weeklyDigest(supabase, treeId, new Date(), featuredIds);
         if (cancelled) return;
         setRelationships(relationshipMap);
@@ -190,12 +211,14 @@ export default function DigestScreen() {
             return (
               <Card key={entry.eventId} onPress={open} style={{ paddingVertical: 12 }}>
                 <ThemedText type="small">{formatOccurs(entry.occursOn)}</ThemedText>
-                <ThemedText>
-                  {entry.fullName}
-                  {relationship ? (
-                    <ThemedText type="small"> · your {relationship}</ThemedText>
-                  ) : null}
-                </ThemedText>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <ThemedText style={{ flexShrink: 1 }}>{entry.fullName}</ThemedText>
+                  <LineageMark tier={tiers.get(entry.individualId)} color={theme.accent} />
+                  {relationship ? <ThemedText type="small">· your {relationship}</ThemedText> : null}
+                </View>
+                {parentage.has(entry.individualId) && (
+                  <ThemedText type="small">{parentage.get(entry.individualId)}</ThemedText>
+                )}
                 <ThemedText type="small">
                   {anniversaryLine(entry)}
                   {entry.placeRaw ? ` · ${entry.placeRaw.split(',')[0]}` : ''}
@@ -210,8 +233,16 @@ export default function DigestScreen() {
               <ThemedText type="smallBold" themeColor="accent">
                 ✦ FEATURED · {formatOccurs(entry.occursOn).toUpperCase()}
               </ThemedText>
-              <ThemedText type="subtitle">{entry.fullName}</ThemedText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ThemedText type="subtitle" style={{ flexShrink: 1 }}>
+                  {entry.fullName}
+                </ThemedText>
+                <LineageMark tier={tiers.get(entry.individualId)} size={14} color={theme.accent} />
+              </View>
               {relationship && <ThemedText type="small">Your {relationship}</ThemedText>}
+              {parentage.has(entry.individualId) && (
+                <ThemedText type="small">{parentage.get(entry.individualId)}</ThemedText>
+              )}
               <ThemedText>
                 {anniversaryLine(entry)}
                 {entry.placeRaw ? ` · ${entry.placeRaw}` : ''}

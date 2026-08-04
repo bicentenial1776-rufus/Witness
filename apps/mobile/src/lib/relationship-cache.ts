@@ -41,6 +41,18 @@ export async function getFeaturedIds(treeId: string): Promise<Set<string>> {
   return ids;
 }
 
+/** The three lineage tiers, iconed in list views: the direct line, blood
+    beyond it (collaterals). Non-blood people have no entry — absence is
+    the marker. */
+export type LineageTier = 'direct' | 'blood';
+
+export async function getLineageTierMap(treeId: string): Promise<Map<string, LineageTier>> {
+  const rows = await getRows(treeId);
+  return new Map(
+    rows.map((row) => [row.individual_id, inLineageScope(row, 'direct') ? 'direct' : 'blood']),
+  );
+}
+
 export interface LineageCounts {
   direct: number;
   all: number;

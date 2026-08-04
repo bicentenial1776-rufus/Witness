@@ -19,9 +19,12 @@ import {
   type StageRow,
 } from '@witness/core/query';
 
+import { LineageMark } from '@/components/lineage-mark';
 import { RecordText } from '@/components/record-text';
 import { BrandFonts, Letterpress } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
+import { getParentageMap } from '@/lib/parentage';
+import { getLineageTierMap, type LineageTier } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
@@ -97,6 +100,8 @@ export default function FamilyStageScreen() {
   const [sheet, setSheet] = useState<'group' | 'briefs' | null>(null);
   const [briefs, setBriefs] = useState<BriefRow[] | null>(null);
   const [marriageIdx, setMarriageIdx] = useState(0);
+  const [tiers, setTiers] = useState<Map<string, LineageTier>>(new Map());
+  const [parentage, setParentage] = useState<Map<string, string>>(new Map());
 
   const sweepRaf = useRef<number | null>(null);
   const dragStartYear = useRef(0);
@@ -112,6 +117,26 @@ export default function FamilyStageScreen() {
       .catch(() => {
         if (!cancelled) setFailed(true);
       });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTree?.id]);
+
+  // Lineage marks + parentage for the family group sheet. Best-effort —
+  // the sheet reads fine without them (no home person → no marks).
+  useEffect(() => {
+    if (!activeTree) return;
+    let cancelled = false;
+    getLineageTierMap(activeTree.id)
+      .then((map) => {
+        if (!cancelled) setTiers(map);
+      })
+      .catch(() => {});
+    getParentageMap(activeTree.id)
+      .then((map) => {
+        if (!cancelled) setParentage(map);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -372,7 +397,11 @@ export default function FamilyStageScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: L.paper }}>
-      {/* Header — "← Families" is the Register, the stage's table of contents. */}
+      {/* Header — "← Families" returns to the Register, the stage's table
+          of contents. dismissTo POPS back to it (unwinding any chain of
+          "their stage" hops in one tap) rather than pushing a fresh copy —
+          pushing here grew the stack forever and trapped the reader
+          (Rufus, 2026-08-04). */}
       <View
         style={{
           flexDirection: 'row',
@@ -382,7 +411,7 @@ export default function FamilyStageScreen() {
           paddingHorizontal: 20,
         }}
       >
-        <Pressable onPress={() => router.push('/register' as never)} hitSlop={10}>
+        <Pressable onPress={() => router.dismissTo('/register' as never)} hitSlop={10}>
           <Text style={mono(12, L.amber)}>← FAMILIES</Text>
         </Pressable>
         <RecordText eyebrow style={{ color: L.muted }}>
@@ -756,10 +785,18 @@ export default function FamilyStageScreen() {
                       router.push({ pathname: '/ancestor/[id]', params: { id: p.id } });
                     }}
                   >
-                    <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 16, color: L.ink }}>{p.n}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 16, color: L.ink, flexShrink: 1 }}>
+                        {p.n}
+                      </Text>
+                      <LineageMark tier={tiers.get(p.id)} size={11} color={L.deepAmber} />
+                    </View>
                     <Text style={mono(9, L.muted)}>
                       {p.b}–{p.living ? '' : (p.d ?? '?')} · {p.role.toUpperCase()}
                     </Text>
+                    {parentage.has(p.id) && (
+                      <Text style={mono(9, L.muted)}>{parentage.get(p.id)!.toUpperCase()}</Text>
+                    )}
                   </Pressable>
                   {p.mfam && stages?.byKey.has(p.mfam) && (
                     <Pressable
