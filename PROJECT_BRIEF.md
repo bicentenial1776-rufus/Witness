@@ -258,6 +258,8 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 - National Archives and DPLA (Digital Public Library of America) queries are free within published API rate limits, with headroom to request higher limits if needed; prioritize free public archives/library data over paid sources to keep token costs down
 - Ancillary/explanatory data (e.g., household sleeping arrangements, period daily-life context) should be pulled from these external sources to give the AI instructive context beyond the tree itself
 
+**Design and technology decisions (Aug 2026):** see [docs/Street_view_demos/TECH_RECOMMENDATIONS.md](docs/Street_view_demos/TECH_RECOMMENDATIONS.md) (platform: browser-hosted Three.js engine) and [docs/Street_view_demos/STREET_VIEW_DESIGN.md](docs/Street_view_demos/STREET_VIEW_DESIGN.md) (world layout, figures, period style packs, navigation, interaction, entry points), alongside the working demos in that folder.
+
 **Open next steps (from Aug 2, 2026 meeting)**
 - Compile the list of essential elements needed for a 3D environment to read as complete
 - Combine this project brief with the meeting transcript to develop the foundational coding architecture
