@@ -8,6 +8,7 @@ import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { getParentageMap } from '@/lib/parentage';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
 
@@ -19,6 +20,7 @@ export default function RelationshipScreen() {
   const { individualId } = useLocalSearchParams<{ individualId: string }>();
   const theme = useTheme();
   const [path, setPath] = useState<RelationshipPath | null | 'loading'>('loading');
+  const [parentage, setParentage] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (!individualId) return;
@@ -34,6 +36,13 @@ export default function RelationshipScreen() {
         if (!cancelled) setPath(null);
         return;
       }
+      // Parentage under every step: on a cousin path (up one line, down
+      // another) the chain alone doesn't say how each hop connects.
+      getParentageMap(person.tree_id)
+        .then((map) => {
+          if (!cancelled) setParentage(map);
+        })
+        .catch(() => {});
       const result = await getRelationshipPath(supabase, person.tree_id, individualId);
       if (!cancelled) setPath(result);
     })();
@@ -99,6 +108,9 @@ export default function RelationshipScreen() {
                       <ThemedText type="small">
                         {person.birth_year ?? '?'}–{person.death_year ?? ''}
                       </ThemedText>
+                      {parentage.has(person.id) && (
+                        <ThemedText type="small">{parentage.get(person.id)}</ThemedText>
+                      )}
                     </View>
                   </Pressable>
                 );
