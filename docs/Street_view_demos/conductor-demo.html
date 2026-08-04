@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>The Conductor — a live-composed score</title>
+<style>
+:root{--ink:#f3e7d3;--dim:#b39b78;--bg0:#191411;--bg1:#241a13;--warm:#ffb268;--gold:#ffd75e}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:radial-gradient(120% 90% at 50% 0%,var(--bg1),var(--bg0) 70%);color:var(--ink);
+  font-family:Georgia,'Times New Roman',serif;min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;padding:34px 18px 60px;text-align:center}
+h1{font-size:clamp(30px,5vw,46px);letter-spacing:.06em;font-weight:400}
+h1 em{color:var(--warm);font-style:normal}
+.sub{color:var(--dim);margin:10px auto 6px;max-width:640px;font-size:15px;line-height:1.55}
+.rule{width:130px;height:1px;background:linear-gradient(90deg,transparent,var(--warm),transparent);margin:20px 0}
+#rose{width:min(420px,86vw);height:min(420px,86vw);margin:6px 0 2px}
+.readout{height:30px;font-size:20px;letter-spacing:.2em;color:var(--gold);font-variant:small-caps}
+.eras{display:grid;grid-template-columns:repeat(3,minmax(96px,150px));gap:10px;margin:16px 0 8px}
+.era{background:linear-gradient(180deg,#2c2015,#221912);border:1px solid #3d2f1e;border-radius:10px;
+  padding:12px 6px;cursor:pointer;transition:.25s;color:var(--ink)}
+.era small{display:block;color:var(--dim);font-size:11px;margin-top:4px;letter-spacing:.04em}
+.era:hover{border-color:var(--warm)}
+.era.on{border-color:var(--gold);box-shadow:0 0 22px #ffb26833;background:linear-gradient(180deg,#39281735,#221912),linear-gradient(180deg,#332414,#241a12)}
+.rowc{display:flex;gap:14px;align-items:center;margin-top:14px;flex-wrap:wrap;justify-content:center}
+button.big{font-family:inherit;font-size:16px;letter-spacing:.08em;color:#241a12;background:linear-gradient(180deg,var(--gold),#d8a04c);
+  border:none;border-radius:999px;padding:12px 26px;cursor:pointer}
+button.ghost{background:none;border:1px solid #4a3826;color:var(--ink);border-radius:999px;padding:11px 22px;cursor:pointer;font-family:inherit;font-size:14px}
+.slider{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:13px}
+input[type=range]{width:180px;accent-color:var(--warm)}
+.note{color:#7a6a52;font-size:12px;margin-top:22px;max-width:560px;line-height:1.6}
+#begin{margin-top:18px}
+#mute{position:fixed;top:14px;right:16px;background:none;border:1px solid #4a3826;color:var(--ink);
+  border-radius:50%;width:40px;height:40px;font-size:17px;cursor:pointer}
+</style></head><body>
+<button id="mute">♪</button>
+<h1>The <em>Conductor</em></h1>
+<div class="sub">A score composed live, bar by bar — functional harmony, a family leitmotif,
+voice-led strings, horns, harp, timpani, choir and bells. Nothing loops; every phrase is
+written the moment before you hear it.</div>
+<div class="rule"></div>
+<canvas id="rose"></canvas>
+<div class="readout" id="chordName">&nbsp;</div>
+<div class="eras" id="eras"></div>
+<div class="rowc">
+  <div class="slider">stillness <input type="range" id="inten" min="0" max="100" value="40"> majesty</div>
+  <button class="big" id="swell">Cadence ✦</button>
+</div>
+<button class="ghost" id="begin">Begin the music</button>
+<div class="note">The same engine scores every night of the Lantern games. <b>Cadence</b> is what a
+finished chapter sounds like: predominant, dominant, home — and where the mode is dark,
+the arrival opens into major light (a Picardy third), so even Salem ends in grace.</div>
+<script>
+const $=id=>document.getElementById(id);
+/* ============================================================================
+   THE CONDUCTOR — live-composed orchestral score
+   A real-time composition engine in the spirit of Jan Valta's adaptive
+   period scores: functional harmony with genuine cadences, a recurring
+   Lantern leitmotif, voice-led string pads, horns, harp/lute, timpani,
+   choir and bells — layered vertically by intensity, re-sequenced
+   horizontally by game state. Nothing is a loop; every bar is composed
+   as it is played.
+     playEra(name)  — begin an era's style (dusk night salem winter wedding stair)
+     bumpMood(a)    — raise intensity: more layers, brighter voicing
+     musicSwell()   — a true cadence: the orchestra arrives, tutti
+   ============================================================================ */
+let AC=null,masterGain=null,muted=false;
+let mood=0, curStyle=null, curName='';
+const N=(o)=>o;
+
+function initAudio(){
+  if(AC||!(window.AudioContext||window.webkitAudioContext))return;
+  AC=new (window.AudioContext||window.webkitAudioContext)();
+  masterGain=AC.createGain();masterGain.gain.value=.9;
+  // one gentle master colour: a hint of air and glue
+  const comp=AC.createDynamicsCompressor();
+  comp.threshold.value=-20;comp.knee.value=24;comp.ratio.value=3;
+  comp.attack.value=.02;comp.release.value=.4;
+  masterGain.connect(comp);comp.connect(AC.destination);
+}
+$('mute').addEventListener('click',()=>{
+  muted=!muted;
+  if(masterGain)masterGain.gain.linearRampToValueAtTime(muted?0:.9,AC.currentTime+.3);
+  $('mute').textContent=muted?'∅':'♪';
+});
+
+/* ---------- theory: modes, keys, chords, voice-leading ---------- */
+const MODES={
+  ionian:[0,2,4,5,7,9,11], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10],
+  dorian:[0,2,3,5,7,9,10], aeolian:[0,2,3,5,7,8,10],
+};
+const mtof=m=>440*Math.pow(2,(m-69)/12);
+function degPC(st,deg){ // scale degree (1-based, may exceed 7) -> semitone offset
+  const iv=MODES[st.mode];const d=deg-1;
+  return iv[((d%7)+7)%7]+12*Math.floor(d/7);
+}
+function chordPCs(st,c){ // c:{r:degree, q?:'M'|'m'|'sus'|'dim', add7?, bass?}
+  const root=degPC(st,c.r);
+  let third=degPC(st,c.r+2)-root, fifth=degPC(st,c.r+4)-root;
+  if(c.q==='M')third=4; else if(c.q==='m')third=3;
+  else if(c.q==='sus')third=5; else if(c.q==='dim'){third=3;fifth=6;}
+  const pcs=[root,root+third,root+fifth];
+  if(c.add7)pcs.push(root+degPC(st,c.r+6)-degPC(st,c.r));
+  return pcs;
+}
+// voice-lead: move each pad voice to the nearest available chord tone
+function leadVoices(prev,pcs,key,lo,hi){
+  const pool=[];
+  for(let oct=-2;oct<=3;oct++)for(const pc of pcs){
+    const m=key+pc+12*oct; if(m>=lo&&m<=hi)pool.push(m);
+  }
+  if(!prev||!prev.length){ // initial spread voicing, root on bottom
+    const out=[];let want=key+pcs[0];
+    while(want<lo)want+=12;
+    out.push(want);
+    for(let i=1;i<4;i++){
+      const tgt=lo+6+i*6;
+      out.push(pool.reduce((a,b)=>Math.abs(b-tgt)<Math.abs(a-tgt)?b:a));
+    }
+    return out.sort((a,b)=>a-b);
+  }
+  const out=prev.map(p=>pool.reduce((a,b)=>Math.abs(b-p)<Math.abs(a-p)?b:a));
+  // guarantee full chord coverage: every pitch class must sound, or the
+  // harmony loses its identity (a Picardy third that never rings is no
+  // Picardy at all). Reassign the cheapest voice to any missing tone.
+  const pc=m=>((m%12)+12)%12;
+  const want=pcs.map(x=>pc(key+x));
+  for(const w of want){
+    if(out.some(m=>pc(m)===w))continue;
+    let bi=-1,bc=1e9,bm=0;
+    out.forEach((m,i)=>{
+      const dup=out.filter(o=>pc(o)===pc(m)).length>1;
+      if(want.includes(pc(m))&&!dup)return;   // never rob a sole carrier
+      for(const cand of pool){
+        if(pc(cand)!==w)continue;
+        const cost=Math.abs(cand-m)+(i===0?2:0); // mildly protect the bass
+        if(cost<bc){bc=cost;bi=i;bm=cand;}
+      }
+    });
+    if(bi<0)out.forEach((m,i)=>{               // all sole carriers: rob non-bass
+      if(i===0)return;
+      for(const cand of pool){
+        if(pc(cand)!==w)continue;
+        const cost=Math.abs(cand-m);
+        if(cost<bc){bc=cost;bi=i;bm=cand;}
+      }
+    });
+    if(bi>=0)out[bi]=bm;
+  }
+  return out.sort((a,b)=>a-b);
+}
+
+/* ---------- the Lantern leitmotif ----------
+   One theme for the whole family, re-dressed by every era: rising to the
+   sixth (hope), falling home through the fifth (memory). Degrees + beats. */
+const LEITMOTIF=[[1,1],[3,.5],[5,.5],[6,1.5],[5,.5],[3,1],[2,.5],[1,1.5],[5,1],[6,.5],[8,2.5]];
+const LEIT_ANSWER=[[8,1],[6,.5],[5,.5],[3,1.5],[4,.5],[2,1],[1,2.5]];
+
+/* ---------- era styles: mode, pulse, progressions, orchestration --------- */
+const ERAS={
+  dusk:{   key:50,mode:'mixolydian',bpm:76,meter:4,barsPerChord:1,base:.38,
+           prog:[[{r:1},{r:7,},{r:4},{r:1}],[{r:1},{r:5},{r:6},{r:4}]],
+           cad:[{r:4},{r:5,q:'M'},{r:1,q:'M'}],
+           pads:.05,pluck:'lute',pluckPat:[0,1.5,2,3.5],bell:[74,81,86],lp:1600,wind:.008},
+  wedding:{key:53,mode:'lydian',bpm:92,meter:3,barsPerChord:1,base:.5,
+           prog:[[{r:1},{r:2,q:'M'},{r:1},{r:5}],[{r:1},{r:6,q:'m'},{r:4,q:'M'},{r:5}]],
+           cad:[{r:4,q:'M'},{r:5,q:'M',add7:1},{r:1,q:'M'}],
+           pads:.055,pluck:'harp',pluckPat:[0,.66,1.33,2,2.66],bell:[77,81,84,89],lp:2100,wind:.005},
+  night:{  key:45,mode:'dorian',bpm:62,meter:4,barsPerChord:2,base:.3,
+           prog:[[{r:1},{r:4,q:'M'},{r:1},{r:7}],[{r:1},{r:6},{r:4,q:'M'},{r:5,q:'m'}]],
+           cad:[{r:4,q:'M'},{r:7},{r:1}],
+           pads:.045,pluck:'lute',pluckPat:[0,2.5],bell:[69,76,81],lp:900,wind:.03,pulse:49},
+  salem:{  key:50,mode:'aeolian',bpm:58,meter:4,barsPerChord:1,base:.34,picardy:1,
+           // a passacaglia: the ground bass walks down while the sky darkens
+           prog:[[{r:1},{r:7,q:'M'},{r:6,q:'M'},{r:5,q:'M'}],
+                 [{r:1},{r:2,q:'dim'},{r:6,q:'M'},{r:5,q:'M'}]],
+           cad:[{r:6,q:'M'},{r:7,q:'M'},{r:1,q:'M'}],
+           pads:.05,pluck:'lute',pluckPat:[0,3],bell:[62,69],lp:1000,wind:.02,ground:1},
+  winter:{ key:51,mode:'ionian',bpm:54,meter:4,barsPerChord:2,base:.3,
+           prog:[[{r:1},{r:6},{r:4},{r:4,q:'m'}],[{r:1},{r:3,q:'m'},{r:4},{r:5,q:'sus'}]],
+           cad:[{r:4,q:'m'},{r:5,q:'M'},{r:1,q:'M'}],
+           pads:.045,pluck:'harp',pluckPat:[0,2],bell:[87,91,94],lp:1400,wind:.045},
+  stair:{  key:48,mode:'ionian',bpm:66,meter:4,barsPerChord:1,base:.62,
+           prog:[[{r:1},{r:5},{r:6,q:'m'},{r:4}],[{r:1},{r:4},{r:1},{r:5,add7:1}]],
+           cad:[{r:4,q:'M'},{r:5,q:'M',add7:1},{r:1,q:'M'}],
+           pads:.06,pluck:'harp',pluckPat:[0,1,2,3],bell:[72,79,84],lp:1700,wind:.01,noble:1},
+};
+
+/* ---------- orchestra: instruments built from raw waves ---------- */
+function _noiseBuf(){
+  const b=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);
+  const d=b.getChannelData(0);
+  for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  return b;
+}
+function env(g,t,a,peak,hold,rel){
+  g.gain.setValueAtTime(.0001,t);
+  g.gain.exponentialRampToValueAtTime(Math.max(.0002,peak),t+a);
+  g.gain.setValueAtTime(Math.max(.0002,peak),t+a+hold);
+  g.gain.exponentialRampToValueAtTime(.0001,t+a+hold+rel);
+}
+// a bowed string section voice: three detuned saws, slow bow attack
+function stringVoice(L,midi,t,dur,vel){
+  for(const det of [-6,0,7]){
+    const o=AC.createOscillator();o.type='sawtooth';
+    o.frequency.value=mtof(midi);o.detune.value=det;
+    const g=AC.createGain();env(g,t,.55,vel/3,Math.max(0,dur-1.5),1.4);
+    o.connect(g);g.connect(L.strLP);o.start(t);o.stop(t+dur+1.6);
+  }
+}
+// horn: saw through a formant bump, noble attack
+function horn(L,midi,t,dur,vel){
+  const o=AC.createOscillator();o.type='sawtooth';o.frequency.value=mtof(midi);
+  const f=AC.createBiquadFilter();f.type='peaking';f.frequency.value=480;f.Q.value=1.2;f.gain.value=9;
+  const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1300;
+  const g=AC.createGain();env(g,t,.18,vel,Math.max(0,dur-.9),.9);
+  o.connect(f);f.connect(lp);lp.connect(g);g.connect(L.bus);
+  o.start(t);o.stop(t+dur+1);
+}
+// flute: sine + vibrato + a breath of noise
+function flute(L,midi,t,dur,vel){
+  const o=AC.createOscillator();o.type='sine';o.frequency.value=mtof(midi);
+  const vib=AC.createOscillator();vib.frequency.value=4.6;
+  const vg=AC.createGain();vg.gain.value=5;vib.connect(vg);vg.connect(o.frequency);
+  const g=AC.createGain();env(g,t,.12,vel,Math.max(0,dur-.5),.5);
+  o.connect(g);g.connect(L.echo);
+  const n=AC.createBufferSource();n.buffer=L.nb;n.loop=true;
+  const bf=AC.createBiquadFilter();bf.type='bandpass';bf.frequency.value=mtof(midi)*2;bf.Q.value=8;
+  const ng=AC.createGain();env(ng,t,.12,vel*.12,Math.max(0,dur-.5),.4);
+  n.connect(bf);bf.connect(ng);ng.connect(L.echo);
+  vib.start(t);o.start(t);n.start(t);
+  vib.stop(t+dur+.6);o.stop(t+dur+.6);n.stop(t+dur+.6);
+}
+// plucked string: lute (nasal, quick) or harp (round, ringing)
+function pluck(L,midi,t,vel,kind){
+  const harp=kind==='harp';
+  const o=AC.createOscillator();o.type=harp?'triangle':'square';
+  o.frequency.value=mtof(midi);
+  const f=AC.createBiquadFilter();f.type='lowpass';
+  f.frequency.setValueAtTime(harp?3200:2400,t);
+  f.frequency.exponentialRampToValueAtTime(500,t+(harp?1.2:.5));
+  const g=AC.createGain();
+  g.gain.setValueAtTime(vel,t);
+  g.gain.exponentialRampToValueAtTime(.0001,t+(harp?1.6:.7));
+  o.connect(f);f.connect(g);g.connect(L.bus);o.start(t);o.stop(t+(harp?1.7:.8));
+}
+// timpani: pitched thump with skin noise
+function timp(L,midi,t,vel){
+  const o=AC.createOscillator();o.type='sine';
+  o.frequency.setValueAtTime(mtof(midi),t);
+  o.frequency.exponentialRampToValueAtTime(mtof(midi)*.82,t+.35);
+  const g=AC.createGain();g.gain.setValueAtTime(vel,t);
+  g.gain.exponentialRampToValueAtTime(.0001,t+.9);
+  o.connect(g);g.connect(L.bus);o.start(t);o.stop(t+1);
+  const n=AC.createBufferSource();n.buffer=L.nb;
+  const bf=AC.createBiquadFilter();bf.type='lowpass';bf.frequency.value=300;
+  const ng=AC.createGain();ng.gain.setValueAtTime(vel*.5,t);
+  ng.gain.exponentialRampToValueAtTime(.0001,t+.2);
+  n.connect(bf);bf.connect(ng);ng.connect(L.bus);n.start(t);n.stop(t+.25);
+}
+// choir: two detuned triangles through an 'ah' vowel
+function choir(L,midi,t,dur,vel){
+  for(const det of [-9,9]){
+    const o=AC.createOscillator();o.type='triangle';
+    o.frequency.value=mtof(midi);o.detune.value=det;
+    const f1=AC.createBiquadFilter();f1.type='bandpass';f1.frequency.value=700;f1.Q.value=1.4;
+    const g=AC.createGain();env(g,t,1.1,vel/2,Math.max(0,dur-2),1.8);
+    o.connect(f1);f1.connect(g);g.connect(L.bus);o.start(t);o.stop(t+dur+2);
+  }
+}
+function bellNote(L,midi,t,vel,decay){
+  const f=mtof(midi);
+  for(const [ratio,amp,dc] of [[1,1,decay],[2.756,.22,decay*.5],[5.4,.08,decay*.25]]){
+    const o=AC.createOscillator();o.type='sine';o.frequency.value=f*ratio;
+    const g=AC.createGain();g.gain.setValueAtTime(vel*amp,t);
+    g.gain.exponentialRampToValueAtTime(.0001,t+dc);
+    o.connect(g);g.connect(L.bus);o.start(t);o.stop(t+dc+.1);
+  }
+}
+
+/* ---------- the conductor: composes each bar as it arrives ---------- */
+let L=null; // live layer: nodes + clock
+function stopAudio(){
+  if(!L)return;
+  const t=AC.currentTime;
+  L.master.gain.linearRampToValueAtTime(.0001,t+2);
+  clearInterval(L.tick);clearInterval(L.wobble);
+  const old=L;setTimeout(()=>{try{old.wind.stop();}catch(e){}
+    try{old.master.disconnect();}catch(e){}},2400);
+  L=null;curStyle=null;curName='';
+}
+function playEra(name){
+  if(!AC)return;
+  if(curName===name&&L)return;
+  stopAudio();
+  const st=ERAS[name]||ERAS.dusk;
+  curStyle=st;curName=name;
+  mood=st.base;
+  // tone of the whole piece leans on the score: romance warms, elegy stills
+  const tone=(typeof GAME_SPEC!=='undefined'&&GAME_SPEC.meta&&GAME_SPEC.meta.tone)||'drama';
+  const warm=tone==='romance'||tone==='comedy';
+  if(warm)mood=Math.min(1,mood+.12);
+
+  const t0=AC.currentTime;
+  L={tick:0,beatT:t0+.2,beat:0,bar:0,ci:0,pi:0,voices:null,cad:null,
+     melRest:2,phrase:null,ph:0,nb:_noiseBuf(),st};
+  L.master=AC.createGain();L.master.gain.value=0;
+  L.master.gain.linearRampToValueAtTime(.85,t0+2.5);
+  L.master.connect(masterGain);
+  L.bus=AC.createGain();L.bus.gain.value=1;
+  L.lp=AC.createBiquadFilter();L.lp.type='lowpass';L.lp.frequency.value=st.lp;L.lp.Q.value=.3;
+  L.bus.connect(L.lp);L.lp.connect(L.master);
+  L.strLP=AC.createBiquadFilter();L.strLP.type='lowpass';L.strLP.frequency.value=1150;
+  L.strGain=AC.createGain();L.strGain.gain.value=1;
+  L.strLP.connect(L.strGain);L.strGain.connect(L.bus);
+  L.echo=AC.createGain();L.echo.gain.value=1;
+  const dly=AC.createDelay(1);dly.delayTime.value=60/st.bpm*.75;
+  const fb=AC.createGain();fb.gain.value=.3;
+  L.echo.connect(L.bus);L.echo.connect(dly);dly.connect(fb);fb.connect(dly);
+  const dg=AC.createGain();dg.gain.value=.35;dly.connect(dg);dg.connect(L.bus);
+  // wind stays, quieter than before: weather, not melancholy
+  L.wind=AC.createBufferSource();L.wind.buffer=L.nb;L.wind.loop=true;
+  const wf=AC.createBiquadFilter();wf.type='bandpass';wf.frequency.value=420;wf.Q.value=.6;
+  L.windG=AC.createGain();L.windG.gain.value=st.wind;
+  L.wind.connect(wf);wf.connect(L.windG);L.windG.connect(L.master);L.wind.start();
+  L.wobble=setInterval(()=>{if(!L)return;const t=AC.currentTime;
+    wf.frequency.linearRampToValueAtTime(300+Math.random()*380,t+2.4);
+    L.windG.gain.linearRampToValueAtTime(st.wind*(0.5+Math.random()),t+2.4);},2600);
+
+  // look-ahead scheduler: compose ~0.8s into the future, forever
+  L.tick=setInterval(()=>{
+    if(!L||muted)return;
+    while(L.beatT<AC.currentTime+.8)scheduleBeat();
+  },200);
+}
+function curChord(){
+  const st=L.st;
+  if(L.cad)return L.cad.prog[Math.min(L.cad.i,L.cad.prog.length-1)];
+  return st.prog[L.pi][L.ci];
+}
+function advanceChord(){
+  const st=L.st;
+  if(L.cad){L.cad.i++;
+    if(L.cad.i>=L.cad.prog.length+1){L.cad=null;mood=Math.max(st.base,mood*.85);}
+    return;}
+  L.ci++;
+  if(L.ci>=st.prog[L.pi].length){L.ci=0;L.pi=(L.pi+1)%st.prog.length;}
+}
+function scheduleBeat(){
+  const st=L.st,t=L.beatT,spb=60/st.bpm;
+  const i=Math.min(1,mood), tutti=!!L.cad;
+  const beatInBar=L.beat%st.meter, newBar=beatInBar===0;
+  if(newBar){
+    if(L.bar%st.barsPerChord===0){
+      if(L.bar>0)advanceChord();
+      const c=curChord(),pcs=chordPCs(st,c);
+      // strings re-voice with minimal motion; a cadence sings out louder
+      L.voices=leadVoices(L.voices,pcs,st.key,st.key+2,st.key+26);
+      const vel=st.pads*(0.8+i*.8)*(tutti?1.5:1);
+      const dur=spb*st.meter*st.barsPerChord;
+      L.voices.forEach(m=>stringVoice(L,m,t,dur,vel));
+      // bass: the root, an octave of foundation (salem walks its ground)
+      const bass=st.key-12+pcs[0];
+      stringVoice(L,bass,t,dur,vel*1.15);
+      if(st.ground)pluck(L,bass,t,.09,'lute');
+      // horns crown chord changes when the music has risen to meet them
+      if(i>.55||tutti){
+        horn(L,st.key+pcs[0],t,dur*.9,.05*(tutti?1.6:1)*i);
+        horn(L,st.key+pcs[0]+7,t+spb*.5,dur*.75,.035*(tutti?1.6:1)*i);
+        if(st.noble||tutti)horn(L,st.key+12+pcs[0],t+spb,dur*.6,.03*i);
+      }
+      if(i>.75||tutti){
+        choir(L,st.key+12+pcs[1],t,dur,.05);
+        choir(L,st.key+12+pcs[2],t,dur,.04);
+      }
+      // a cadence lands: bell + timpani roll on the final tonic
+      if(L.cad&&L.cad.i>=L.cad.prog.length-1&&!L.cad.rung){
+        L.cad.rung=1;
+        bellNote(L,st.key+24+pcs[0],t,.07,6);
+        for(let k=0;k<6;k++)timp(L,st.key-12+pcs[0],t-spb+k*spb/6,.05+k*.012);
+      }
+    }
+    if((i>.55||tutti)&&(L.bar%2===0))timp(L,st.key-12+chordPCs(st,curChord())[0],t,.06*i);
+    L.bar++;
+  }
+  // plucked figuration: the era's hands on its instrument
+  if(i>.15){
+    const pcs=chordPCs(st,curChord());
+    for(const off of st.pluckPat){
+      if(off>=beatInBar&&off<beatInBar+1){
+        const idx=(L.bar+Math.round(off*2))%pcs.length;
+        pluck(L,st.key+12+pcs[idx]+(off%1?12:0),t+(off-beatInBar)*spb,
+              .05*(0.6+i*.7),st.pluck);
+      }
+    }
+  }
+  // occasional bell colour, tuned to the chord — never random clatter
+  if(!tutti&&Math.random()<.05+i*.06){
+    const pcs=chordPCs(st,curChord());
+    bellNote(L,st.bell[(Math.random()*st.bell.length)|0],t,.03+.02*i,4);
+  }
+  if(st.pulse&&beatInBar===0&&L.bar%2===1){
+    const o=AC.createOscillator();o.type='sine';o.frequency.value=st.pulse;
+    const g=AC.createGain();g.gain.setValueAtTime(.0001,t);
+    g.gain.exponentialRampToValueAtTime(.1,t+.03);
+    g.gain.exponentialRampToValueAtTime(.0001,t+.5);
+    o.connect(g);g.connect(L.master);o.start(t);o.stop(t+.55);
+  }
+  // the melody voice: leitmotif phrases with real contour and rests
+  if(i>.3){
+    if(!L.phrase&&--L.melRest<=0){
+      const useLeit=Math.random()<.45||tutti;
+      L.phrase=useLeit?(Math.random()<.5?LEITMOTIF:LEIT_ANSWER):makePhrase(st);
+      L.ph=0;
+      if(tutti)L.phrase=LEITMOTIF; // the theme itself carries every arrival
+    }
+    if(L.phrase){
+      let acc=0;
+      // schedule any phrase notes that begin during this beat
+      for(;L.ph<L.phrase.length;L.ph++){
+        const [deg,beats]=L.phrase[L.ph];
+        if(L.phAcc===undefined)L.phAcc=0;
+        if(L.phAcc>=1)break;
+        const nt=t+L.phAcc*spb;
+        const midi=st.key+24+degPC(st,deg)+(tutti&&st.noble?12:0);
+        flute(L,midi,nt,beats*spb*.92,.06*(0.7+i*.6)*(tutti?1.3:1));
+        if(i>.75)flute(L,midi-(degPC(st,deg)>=4?5:4),nt,beats*spb*.9,.03);
+        L.phAcc+=beats;
+      }
+      L.phAcc=Math.max(0,(L.phAcc||0)-1);
+      if(L.ph>=L.phrase.length&&L.phAcc<=0){
+        L.phrase=null;L.phAcc=undefined;
+        L.melRest=2+Math.round(Math.random()*4*(1.4-i));
+      }
+    }
+  }
+  L.beat++;L.beatT+=spb;
+}
+// generated phrases: stepwise motion aiming at chord tones on strong beats
+function makePhrase(st){
+  const pcs=chordPCs(st,curChord());
+  const goal=[1,3,5][(Math.random()*3)|0];
+  let d=goal+((Math.random()*3)|0)+2, out=[];
+  const n=3+(Math.random()*4|0);
+  for(let k=0;k<n;k++){
+    out.push([d,Math.random()<.3?1.5:Math.random()<.5?1:.5]);
+    d+=d>goal?-1:1;
+  }
+  out.push([goal,2]);
+  return out;
+}
+function bumpMood(a){
+  mood=Math.min(1,mood+(a||.25));
+  if(!L||!AC)return;
+  const t=AC.currentTime;
+  L.lp.frequency.linearRampToValueAtTime(L.st.lp*(1+mood*.8),t+2);
+  L.strLP.frequency.linearRampToValueAtTime(1150*(1+mood*.9),t+2);
+}
+function musicSwell(){
+  if(!L||!AC)return;
+  const st=L.st;
+  // a genuine cadence: predominant, dominant, tonic — Picardy where the
+  // mode is dark, so even Salem's arrival opens into light
+  const cad=st.cad.map(c=>({...c}));
+  if(st.picardy)cad[cad.length-1]={r:1,q:'M'};
+  L.cad={prog:cad,i:0};
+  mood=Math.min(1,mood+.35);
+  const t=AC.currentTime;
+  L.master.gain.linearRampToValueAtTime(1.05,t+1.4);
+  L.master.gain.linearRampToValueAtTime(.85,t+8);
+  bumpMood(0);
+}
+
+/* legacy scales object (kept for compatibility) */
+const SCALES={dusk:1,night:1,salem:1,winter:1,wedding:1};
+
+
+/* ================= audition console ================= */
+const INFO={dusk:['D mixolydian','76 · pastoral'],wedding:['F lydian · 3/4','92 · joy'],
+  night:['A dorian','62 · mystery'],salem:['D passacaglia','58 · gravitas'],
+  winter:['E♭ major/minor','54 · tender'],stair:['C major','66 · noble']};
+const ROMAN7=['I','II','III','IV','V','VI','VII'];
+let started=false,curBtn=null;
+const wrap=document.getElementById('eras');
+for(const name of ['dusk','wedding','night','salem','winter','stair']){
+  const b=document.createElement('button');b.className='era';
+  b.innerHTML=name+'<small>'+INFO[name][0]+'<br>'+INFO[name][1]+'</small>';
+  b.onclick=()=>{if(!started)return;
+    if(curBtn)curBtn.classList.remove('on');curBtn=b;b.classList.add('on');
+    playEra(name);$('inten').value=Math.round(mood*100);};
+  wrap.appendChild(b);
+}
+$('begin').onclick=()=>{initAudio();started=true;$('begin').style.display='none';
+  wrap.children[0].click();};
+$('inten').oninput=e=>{if(!L)return;mood=e.target.value/100;bumpMood(0);};
+$('swell').onclick=()=>{musicSwell();$('inten').value=Math.round(mood*100);};
+
+/* every instrument blooms a petal in the rose window: angle = pitch class,
+   radius = octave, colour = instrument. The geometry of the harmony itself. */
+const blooms=[];
+function tap(fn,color,size){const orig=fn;
+  return function(L,midi,t,rest){orig.apply(null,arguments);
+    blooms.push({m:midi,t:(t||0),c:color,s:size,born:performance.now()/1000+Math.max(0,(t||0)-(AC?AC.currentTime:0))});};}
+stringVoice=tap(stringVoice,'#e8b06a',9);
+horn=tap(horn,'#ff9a50',12);
+flute=tap(flute,'#ffe8b0',7);
+pluck=(function(o){return function(L,midi,t,vel,kind){o(L,midi,t,vel,kind);
+  blooms.push({m:midi,c:kind==='harp'?'#d8a0c8':'#c8893a',s:5,born:performance.now()/1000+Math.max(0,t-(AC?AC.currentTime:0))});};})(pluck);
+timp=(function(o){return function(L,midi,t,vel){o(L,midi,t,vel);
+  blooms.push({m:midi,c:'#8a5a3a',s:14,born:performance.now()/1000+Math.max(0,t-(AC?AC.currentTime:0))});};})(timp);
+choir=tap(choir,'#cfd8ff',11);
+bellNote=(function(o){return function(L,midi,t,vel,dec){o(L,midi,t,vel,dec);
+  blooms.push({m:midi,c:'#ffd75e',s:8,born:performance.now()/1000+Math.max(0,t-(AC?AC.currentTime:0))});};})(bellNote);
+
+const cv=$('rose'),ctx=cv.getContext('2d');
+function draw(){
+  requestAnimationFrame(draw);
+  const w=cv.clientWidth;if(cv.width!==w*2){cv.width=w*2;cv.height=w*2;}
+  const S=cv.width,C=S/2;ctx.clearRect(0,0,S,S);
+  const now=performance.now()/1000;
+  // twelve spokes: the pitch classes; five rings: the octaves
+  ctx.strokeStyle='#3a2c1c';ctx.lineWidth=1;
+  for(let r=1;r<=5;r++){ctx.beginPath();ctx.arc(C,C,r*S*.085,0,Math.PI*2);ctx.stroke();}
+  for(let i=0;i<12;i++){const a=i/12*Math.PI*2-Math.PI/2;
+    ctx.beginPath();ctx.moveTo(C+Math.cos(a)*S*.085,C+Math.sin(a)*S*.085);
+    ctx.lineTo(C+Math.cos(a)*S*.425,C+Math.sin(a)*S*.425);ctx.stroke();}
+  for(let i=blooms.length-1;i>=0;i--){
+    const b=blooms[i],age=now-b.born;
+    if(age<0)continue;
+    if(age>2.6){blooms.splice(i,1);continue;}
+    const a=(b.m%12)/12*Math.PI*2-Math.PI/2;
+    const oct=Math.max(1,Math.min(5,Math.floor(b.m/12)-2));
+    const r=oct*S*.085;
+    const x=C+Math.cos(a)*r,y=C+Math.sin(a)*r;
+    const f=age<.15?age/.15:1-(age-.15)/2.45;
+    ctx.globalAlpha=Math.max(0,f);
+    ctx.fillStyle=b.c;ctx.beginPath();
+    ctx.arc(x,y,b.s*(1+age*.9),0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=Math.max(0,f*.25);
+    ctx.beginPath();ctx.arc(x,y,b.s*3*(1+age*.6),0,Math.PI*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  // readout: the chord being composed right now
+  if(L&&curStyle){const c=curChord();
+    const q=c.q||(curStyle.mode==='aeolian'||curStyle.mode==='dorian'?
+      ([1,4,5].includes(((c.r-1)%7)+1)?'m':'M'):'');
+    let nm=ROMAN7[((c.r-1)%7+7)%7];
+    if(q==='m')nm=nm.toLowerCase();
+    if(c.q==='dim')nm=nm.toLowerCase()+'°';if(c.q==='sus')nm+='sus';
+    $('chordName').textContent=(L.cad?'cadence · ':'')+nm;
+  } else $('chordName').innerHTML='&nbsp;';
+}
+draw();
+</script></body></html>
