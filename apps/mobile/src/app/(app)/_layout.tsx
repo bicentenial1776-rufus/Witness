@@ -2,6 +2,7 @@ import { Stack, router, useGlobalSearchParams, usePathname } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
+import { GuideHelpButton } from '@/components/field-guide';
 import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { trackResumePoint } from '@/lib/resume';
@@ -105,7 +106,13 @@ export default function AppLayout() {
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="digest" options={{ title: 'This Week in Your Family' }} />
+      <Stack.Screen
+        name="digest"
+        options={{
+          title: 'This Week in Your Family',
+          headerRight: () => <GuideHelpButton page="this-week.html" color={theme.accent} />,
+        }}
+      />
       <Stack.Screen name="import" options={{ title: 'Import a Tree' }} />
       <Stack.Screen name="import-guide/index" options={{ title: 'Get Your Tree' }} />
       <Stack.Screen name="import-guide/[platform]" options={{ title: '' }} />
@@ -113,7 +120,13 @@ export default function AppLayout() {
       <Stack.Screen name="you" options={{ title: 'You' }} />
       <Stack.Screen name="recovery-code" options={{ title: 'Recovery Code' }} />
       <Stack.Screen name="register" options={{ title: 'The Register' }} />
-      <Stack.Screen name="tree-health" options={{ title: 'Tree Health' }} />
+      <Stack.Screen
+        name="tree-health"
+        options={{
+          title: 'Tree Health',
+          headerRight: () => <GuideHelpButton page="tree-health.html" color={theme.accent} />,
+        }}
+      />
       <Stack.Screen name="orphan-records" options={{ title: 'Orphan Records' }} />
       <Stack.Screen name="family-stage/[key]" options={{ headerShown: false }} />
       <Stack.Screen name="faq" options={{ title: 'Questions & Answers' }} />
@@ -126,7 +139,13 @@ export default function AppLayout() {
       <Stack.Screen name="places/index" options={{ title: 'Where They Lived' }} />
       <Stack.Screen name="places/[region]" options={{ title: '' }} />
       <Stack.Screen name="place/[placeId]" options={{ title: '' }} />
-      <Stack.Screen name="query/[eventId]" options={{ title: '' }} />
+      <Stack.Screen
+        name="query/[eventId]"
+        options={{
+          title: '',
+          headerRight: () => <GuideHelpButton page="explore.html#results" color={theme.accent} />,
+        }}
+      />
       <Stack.Screen name="library/index" options={{ title: 'The Library' }} />
       <Stack.Screen name="library/[category]" options={{ title: '' }} />
       <Stack.Screen name="library/results" options={{ title: '' }} />

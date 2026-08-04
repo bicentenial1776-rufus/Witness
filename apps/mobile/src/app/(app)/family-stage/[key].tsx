@@ -19,6 +19,7 @@ import {
   type StageRow,
 } from '@witness/core/query';
 
+import { GuideHelpButton } from '@/components/field-guide';
 import { LineageMark } from '@/components/lineage-mark';
 import { RecordText } from '@/components/record-text';
 import { BrandFonts, Letterpress } from '@/constants/theme';
@@ -414,9 +415,12 @@ export default function FamilyStageScreen() {
         <Pressable onPress={() => router.dismissTo('/register' as never)} hitSlop={10}>
           <Text style={mono(12, L.amber)}>← FAMILIES</Text>
         </Pressable>
-        <RecordText eyebrow style={{ color: L.muted }}>
-          The family stage
-        </RecordText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <RecordText eyebrow style={{ color: L.muted }}>
+            The family stage
+          </RecordText>
+          <GuideHelpButton page="family-stage.html" color={L.amber} />
+        </View>
       </View>
 
       <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>

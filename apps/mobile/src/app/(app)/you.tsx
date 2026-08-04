@@ -5,6 +5,7 @@ import { Platform, Pressable, ScrollView, Switch, View } from 'react-native';
 import type { LineageScope } from '@witness/core/family';
 
 import { Card } from '@/components/card';
+import { openFieldGuide } from '@/components/field-guide';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useSession } from '@/auth/session-provider';
@@ -436,6 +437,9 @@ export default function YouTab() {
         <SectionHeader>Help & account</SectionHeader>
         <ThemedText type="link" onPress={() => router.push('/faq')}>
           Questions & answers ›
+        </ThemedText>
+        <ThemedText type="link" onPress={() => openFieldGuide()}>
+          The Field Guide — every screen, explained ›
         </ThemedText>
         {vaultReady && (
           <ThemedText type="link" onPress={() => router.push('/recovery-code')}>
