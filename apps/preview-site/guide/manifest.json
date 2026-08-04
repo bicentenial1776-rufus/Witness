@@ -44,7 +44,7 @@
       "shots": [
         {
           "file": "shots/this-week.png",
-          "status": "pending",
+          "status": "placed",
           "shows": "digest with the week span line, one FEATURED card (relationship + parentage + note) and at least one plain card"
         }
       ]
