@@ -104,3 +104,43 @@ Greg is designing landforms, water, vegetation, and the library question in para
 The developer prompt (`FSV_DEVELOPER_PROMPT_2026-08-04.md`), this brief, the immersion catalogue (`FSV_IMMERSION_CATALOGUE_2026-08-04.md` — the feel-layer element library, used one entry at a time via its own session preamble), `FSV_REBUILD_SPEC.md`, **`08_02_2026_demo.html`**, `the-long-field.html`, `howe_field.html`, the project files zip (pipeline modules, template, harnesses, four built family games, coverage build), `discoveries.json`, and the GEDCOM fixtures (Howe_Field, atani, synthetic, pathological where present).
 
 Walk the demo first. Everything else is explanation.
+
+---
+
+## 12. Package arrival and verification — 2026-08-05 (Rufus)
+
+*Appended after §11 by Rufus on 2026-08-05. Records what has actually landed against §11's manifest, what inspecting it verified, and what it changes. Greg's rev. 3 text above stands unaltered.*
+
+### 12.1 Arrival ledger
+
+**Received 2026-08-05** — `FSV_REBUILD_SPEC.md`, `the-long-field.html`, `howe_field.html`, `discoveries.json`, `atani.ged`. All are now in `docs/Street_view_demos/`. With the canonical demo already present, **Milestone 1 is unblocked** — the rebuild spec was its stated dependency.
+
+**Still outstanding.** The project files zip — `gedcom_discovery.py`, `scrivener.py`, the narrative director, `build_game.py`, `lantern_template.html`, `architecture_module.js`, the test harnesses, the four built family games, the coverage build — plus the `synthetic` and `pathological` GEDCOM fixtures. This is now the *only* missing item, and it is the whole executable component library described in §4. Everything received is data and reference builds; none of it is the code that produced them.
+
+### 12.2 What the arrivals verify
+
+**`howe_field.html` validates the SceneSpec contract.** Its embedded `RAW` array is 1,829 records — one per placeable household, matching §9 exactly — and its fields map one-for-one onto `HouseholdSpec` in `packages/streetview/src/spec/types.ts`: `fid→id`, `y→year`, `c→era`, `b→band`, `s→score`, `k→children`, `sr→sources`, `sn→surname`, `hn/wn→husbandName/wifeName`, `hl/wl→lifespans`, `md→marriageDate`, `pl→place`, `p1/p2→fatherFamilyId/motherFamilyId`. Distributions confirm the design: era cells `colonial_hall` 453, `federal_farm` 375, `england_hall` 276, `milltown` 244, `postwar` 112, and 295 with no period the evidence can support (typed `null`); bands `partial` 748, `documented` 700, `lost` 280, `living` 101. Two reconciliations remain: `RAW.s` is banded 40–90 where `HouseholdSpec.score` is 0..1, and `RAW` carries both `k` and `nk` where the spec carries only `children`.
+
+**`the-long-field.html` supplies the missing chapter contract.** §3 names it "the bar for chapter interiors and prose" but no scene *schema* had been written down. Its `SPEC.scenes[]` is one: `id`, `cell`, `year`, `era`, `place`, `title`, `quest[3]`, `persona`, `fact`, `card_atmos`, `reveal`, `npc[4]`, `objects[][5]`, and a `pal{sky,fog,ground,wall,floor,roof,key,amb}` palette. Its `cell` vocabulary is the same as `howe_field`'s — the two demos already share the era taxonomy. This should be formalised as `ChapterSpec` v1 beside `SceneSpec` v1.
+
+**`discoveries.json` is the found-chapters engine's output, and it works.** 5,495 people / 1,852 families / **0 warnings**; 4,579 scored candidates across six detectors (`history` 4,090, `convergence` 397, `texture` 40, `anomaly` 39, `immigrant` 10, `deep_line` 3); years 168–2009; 4,308 candidates carry a resolved place. Scores run 6.6–287.3, mean 23.3. Three assembled spines (7, 5 and 7 scenes) score 496.8 / 473.2 / 463.6. The ranking is sound: every top-scoring candidate is a `convergence`, which is precisely the structure §14's *Where the Rivers Meet* was hand-picked for. This is §4's claim demonstrated on disk.
+
+### 12.3 Four findings that change the work
+
+1. **The V1 spine already exists in the repo.** `packages/streetview` (types → rng → generate → engine, ~1,050 lines) plus `apps/streetview-lab` is already GEDCOM → SceneSpec → walkable field: merged per-material geometry, banded door markers, ghost platforms for `lost`, descent roads, tap-to-walk. FSV V1 is not a from-scratch build. The demos are ahead on richness; the repo is ahead on structure, and the two now have a verified common contract.
+
+2. **The three.js version conflict resolves in the repo's favour.** Both demos load r128 from cdnjs; `apps/streetview-lab` pins `three@^0.178.0` and `engine.ts` already runs on it. **r178 is the mandate**; the demos stay read-only reference and are read for intent, never ported line-for-line.
+
+3. **The selection layer and the authoring layer do not yet meet.** `discoveries.json` candidates carry `title`, `detail`, `mood`, `year`, `place`, `people`, `records` — enough to *rank and locate* a chapter. They carry no NPC dialogue, no objects, no reveal prose, no palette. `the-long-field`'s six scenes have all of that, hand-written. The bridge between them is the Scrivener, which is in the still-missing zip. **V1 must therefore not depend on generated prose** — see `FSV_V1_PLAN.md`.
+
+4. **Two data defects to fix before any of this prose reaches a player.**
+   - *Married-surname collapse.* Convergence loglines render the wife under her married name, so the highest-scoring output in the file reads "Two lines cross: Henry F Scott m. Rose A Scott", "Irving C Howe m. Carrie E Howe", "Shirley Scott Howe m. Shirley Howe". The detector is right; the name renderer is using the wrong NAME record. As written, the single strongest beat in the corpus is unusable.
+   - *Tonal skew.* Candidate moods are 62% negative — grief 1,220, dread 968, hardship 674 — against warmth 13, wonder 40, awe 3. For the 55+ audience of §2 an unmoderated director will assemble a relentlessly grim walk. The spine assembler needs an explicit tonal budget, not just a score sort.
+
+   A third item to check rather than fix: 4,579 candidates yield only **3** spines. Confirm whether that is a hard cap in the director or the natural yield of the scoring, because §2's "thousand unique experiences" depends on the answer.
+
+### 12.4 Housekeeping
+
+`atani.ged` is currently in `docs/Street_view_demos/`; per `FSV_REBUILD_SPEC.md` §5 it belongs in `packages/core/fixtures/` beside `Howe_Field Family Tree.ged`. `discoveries.json` (2.0 MB) and `howe_field.html` (567 KB) are large enough that they should be read by tooling, never pasted into a session.
+
+Two of `FSV_REBUILD_SPEC.md`'s open questions are already closed by this brief and should be read as historical: §6's inside-vs-separate fork (closed — inside Witness, §8) and its figures-or-implied-presence question (closed — authored named figures inside chapters only, §5).
