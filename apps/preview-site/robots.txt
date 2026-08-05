@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# The field guide is deliberately unlisted, but it is NOT disallowed here:
+# a crawler must be able to fetch those pages to read the noindex tag they
+# carry. Disallowing the path would leave them eligible to be indexed as
+# bare URLs instead.
+
+Sitemap: https://witnesslives.com/sitemap.xml

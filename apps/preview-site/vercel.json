@@ -1,4 +1,12 @@
 {
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "www.witnesslives.com" }],
+      "destination": "https://witnesslives.com/$1",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },
