@@ -139,7 +139,37 @@ Walk the demo first. Everything else is explanation.
 
    A third item to check rather than fix: 4,579 candidates yield only **3** spines. Confirm whether that is a hard cap in the director or the natural yield of the scoring, because §2's "thousand unique experiences" depends on the answer.
 
-### 12.4 Housekeeping
+### 12.4 Greg's asset refinement loop — reported 2026-08-05
+
+Greg has built, in his own environment, a review loop for parametrically generated models: it emits a demo of individual elements, he approves or annotates each one, and it iterates on his notes until he signs off. JSON in, JSON out. He describes it as "middle ground between procedural and hand authored, but baked in to release builds," starting with trees and extending to all objects as a QC pass. He expects to use it during this week's ecology/architecture/interiors work.
+
+**This is §6's procedural-vs-library question being answered from the design side.** §6 named Greg's authoring time at two design days a week as the genuinely scarce resource; this loop converts authoring time into review time, which is materially cheaper per asset. It is also §5's settled prop-house principle — curate offline, then select and arrange — with the curation step itself made procedural. It strengthens the working hypothesis that vegetation should be a pre-made species library scattered by era and region profile.
+
+**It does not reopen §8's caching decision, and should not be read as doing so.** The distinction matters enough to state plainly:
+
+| | Stage 3 geometry (§9) | Greg's approved assets |
+|---|---|---|
+| What | Household building geometry | Shared species/object library |
+| Scope | Per tree, per user — 297 MB | Identical for every family |
+| Rule | **Never cached.** Regenerate client-side, batched. | Shipped once with the app. An asset, not a cache. |
+
+Anything that ships in the binary and is the same for all users is a library asset and always was in scope. The closed question is about *per-tree generated geometry*, and it stays closed.
+
+**The open engineering question is what an approval actually freezes.** Two readings, with materially different consequences:
+
+- **A frozen mesh** → an asset. Costs download and memory, and the same tree appears everywhere.
+- **A parameter envelope** — the ranges that reliably produce an acceptable oak → stays *data*, lands in the profiles layer, regenerates per instance, and varies.
+
+§2.1 of the rebuild spec pushes hard toward the second: profiles are the only cultural layer and they are data; adding a culture must never mean touching a renderer. It is also the reading that satisfies §2's thousand-experiences requirement, since §6 already argues that selection-and-arrangement of pre-made pieces *is* procedural variety. The likely answer is a hybrid — approve the envelope for the scattered mass, freeze a handful of hero instances where the aesthetic ceiling justifies the memory. **Greg's call, on engineering's cost data.**
+
+Three things engineering owes this loop, and one constraint on it:
+
+1. **Schema agreement, early.** The loop is JSON in and out. The repo already carries `SceneSpec` v1 with `ChapterSpec` v1 proposed; an `AssetSpec` versioned alongside them from the start avoids a permanent hand-translation step between Greg's environment and the build.
+2. **Budgets to approve against.** §6 assigns engineering the cost/quality data and Greg the aesthetic call. This loop is the quality half, so it needs the cost half attached — expressed as a tradeoff he can act on ("at 400 triangles you can have 2,000 of these; at 4,000, 200"), not as a post-hoc rejection at integration.
+3. **Provenance tier as a required field from day one.** Most vegetation and yard dressing is *Period typical* under §5's honesty system. Cheap to carry now; a library-wide retrofit later.
+4. **The constraint:** approved-by-Greg does not bypass the architecture gate or the mesh budgets on import. They check different things than his eye does — and per the developer prompt, no success is reported without gate output.
+
+### 12.5 Housekeeping
 
 `atani.ged` is currently in `docs/Street_view_demos/`; per `FSV_REBUILD_SPEC.md` §5 it belongs in `packages/core/fixtures/` beside `Howe_Field Family Tree.ged`. `discoveries.json` (2.0 MB) and `howe_field.html` (567 KB) are large enough that they should be read by tooling, never pasted into a session.
 

@@ -42,8 +42,14 @@ Close the gap between the repo's boxes-and-prisms field and the demo's. In prior
 - **Evidence bands as atmosphere.** `documented` / `partial` / `lost` / `living` already branch in `engine.ts`. Raise `lost` from a ghost platform to genuine fog-and-shadow, and make `living` legibly *withheld* rather than merely unlabelled. This is §5's "missing data is the terrain" and it is currently the weakest-carried design position in code.
 - **Wayfinding, as a first-class gate.** District landmarks on the horizon, the road network, and a persistent "where am I / where next" affordance. Per brief §2 this is a hard requirement, not polish, and it should have a failing test before it has an implementation.
 - **The year→radius curve frozen** (rebuild spec §3). Store the curve, freeze existing plots on insertion. Cheap now, extremely expensive to retrofit once anyone has bookmarked a world.
+- **The asset-pipeline seam** (brief §12.4). Greg's approval loop starts producing reviewed elements *this week*, so the import path should exist before the assets queue up behind it. Three pieces, all small if built now:
+  - **`AssetSpec` v1**, versioned beside `SceneSpec` v1, with a required **provenance tier** field (most vegetation is *Period typical*). Agree the schema with Greg rather than inferring it from his first export.
+  - **A gated import**, not a drop-in folder. Approved-by-Greg still passes the architecture gate and the mesh budgets — they check what his eye does not.
+  - **A cost table to hand back**, per category: triangles, draw calls, and memory against a scatter count. §6 makes this engineering's half of the bargain, and it is what lets him approve against a budget instead of discovering the budget at integration.
 
-*Exit:* the field is walkable, legible, and stable under tree growth; the accessibility and wayfinding gates pass.
+  Build the seam so it accepts both shapes an approval might take — a frozen mesh *and* a parameter envelope that the scatterer instantiates — because which one Greg's loop emits is still open (brief §12.4), and the answer may differ per category.
+
+*Exit:* the field is walkable, legible, and stable under tree growth; the accessibility and wayfinding gates pass; approved assets have a gated path into the build.
 
 ### Stage 2 — The chapter contract, and one chapter end to end
 
@@ -111,3 +117,5 @@ Per rebuild spec §5 — everything that broke was in a pure layer, and all of i
 2. **Three spines from 4,579 candidates** — hard cap in the director, or the natural yield of the scoring? §2's "thousand unique experiences" depends on which.
 3. **`nk` in `RAW`** — a second child count the spec should carry, or a demo artefact to drop?
 4. **Tonal budget** — is the grim skew a bug in mood assignment, or an honest reading of a 17th–19th century New England record that the director should balance rather than correct?
+5. **The asset loop: does an approval freeze a mesh, or a parameter envelope?** (brief §12.4). The three-layer model wants the envelope — profiles are data, and variety at scale is what §2's thousand-experiences requirement rests on. A hybrid is likely right: envelopes for the scattered mass, frozen heroes where the aesthetic ceiling justifies the memory. Needs his call per category, and needs our cost table in his hands first.
+6. **The `AssetSpec` schema** — can he share the JSON shape his loop emits, before the first batch of trees is approved? Agreeing it now costs a conversation; retrofitting it costs a translation layer we maintain forever.
