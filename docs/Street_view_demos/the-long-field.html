@@ -1,0 +1,446 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>The Long Field \u2014 a Lantern through Six Ages</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:#0a0c12;font-family:Georgia,'Times New Roman',serif;color:#efe6d2}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.mid{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;z-index:20;max-width:640px;padding:24px}
+#splash{background:radial-gradient(ellipse at center,rgba(18,22,32,.86),rgba(6,8,14,.97))}
+#splash h1{font-size:34px;letter-spacing:.04em;margin-bottom:8px;color:#f4ead0;font-weight:normal}
+#splash .sub{font-size:14px;letter-spacing:.22em;text-transform:uppercase;color:#b9a97e;margin-bottom:22px}
+#splash p{font-size:15px;line-height:1.7;color:#d8ccae;margin:0 auto 14px;max-width:520px}
+.btn{display:inline-block;margin-top:20px;padding:13px 34px;border:1px solid #b6924a;border-radius:3px;
+  background:linear-gradient(#3a3020,#241c12);color:#f0dfae;font-size:15px;letter-spacing:.16em;
+  text-transform:uppercase;cursor:pointer;transition:.2s}
+.btn:hover{background:linear-gradient(#4a3c26,#2e2416);box-shadow:0 0 22px rgba(190,150,80,.3)}
+#era{position:fixed;left:50%;top:26px;transform:translateX(-50%);z-index:7;text-align:center;
+  pointer-events:none;opacity:0;transition:opacity 1s}
+#era .y{font-size:19px;letter-spacing:.36em;color:#f2e4c0;text-shadow:0 2px 10px #000}
+#era .p{font-size:8.5px;letter-spacing:.3em;text-transform:uppercase;color:#c2ad7e;margin-top:5px}
+#quest{position:fixed;left:16px;bottom:16px;z-index:7;max-width:330px;
+  background:linear-gradient(180deg,rgba(16,20,30,.82),rgba(10,12,20,.82));
+  border:1px solid rgba(150,120,70,.4);border-radius:5px;padding:12px 15px;opacity:0;transition:opacity .6s}
+#quest .t{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#c9b482;margin-bottom:5px}
+#quest .g{font-size:15px;color:#f2e6cc;margin-bottom:5px}
+#quest .h{font-size:12.5px;line-height:1.5;color:#c8bda0}
+#dlg{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:15;width:min(680px,92vw);
+  background:linear-gradient(180deg,rgba(20,24,34,.95),rgba(10,13,20,.97));
+  border:1px solid rgba(170,135,75,.5);border-radius:7px;padding:17px 21px;display:none;
+  box-shadow:0 10px 40px rgba(0,0,0,.6)}
+#dlg .who{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#d6b878;margin-bottom:7px}
+#dlg .txt{font-size:16px;line-height:1.62;color:#f0e6d0}
+#dlg.reveal{border-color:rgba(210,180,110,.85);background:linear-gradient(180deg,rgba(30,28,20,.96),rgba(16,14,10,.98))}
+#dlg.reveal .txt{color:#f6e9c4;font-style:italic}
+#dlg .more{font-size:11px;color:#9a8c68;margin-top:9px;text-align:right;letter-spacing:.1em}
+#prompt{position:fixed;left:50%;top:58%;transform:translateX(-50%);z-index:8;
+  font-size:14px;letter-spacing:.08em;color:#f4e8c8;background:rgba(12,14,22,.7);
+  padding:8px 16px;border-radius:20px;border:1px solid rgba(160,130,75,.45);display:none;pointer-events:none}
+#card{position:fixed;inset:0;z-index:18;background:radial-gradient(ellipse at center,rgba(14,16,24,.93),rgba(4,6,12,.99));
+  display:none;align-items:center;justify-content:center}
+#card .in{max-width:600px;text-align:center;padding:30px}
+#card .yr{font-size:12px;letter-spacing:.34em;text-transform:uppercase;color:#c1a86f;margin-bottom:12px}
+#card h2{font-size:27px;font-weight:normal;color:#f4ead0;margin-bottom:18px;letter-spacing:.02em}
+#card p{font-size:15.5px;line-height:1.74;color:#dccdb0;margin-bottom:22px}
+#card .go{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#9c8c64}
+#jbtn{position:fixed;right:15px;top:15px;z-index:9;width:40px;height:40px;border-radius:50%;
+  background:rgba(16,20,30,.8);border:1px solid rgba(160,130,75,.5);color:#e8d6a4;font-size:19px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer}
+#journal{position:fixed;right:0;top:0;bottom:0;width:min(400px,86vw);z-index:16;
+  background:linear-gradient(180deg,rgba(14,17,26,.98),rgba(8,10,17,.99));
+  border-left:1px solid rgba(150,120,70,.4);transform:translateX(100%);transition:transform .34s;
+  overflow-y:auto;padding:54px 22px 30px}
+#journal.open{transform:translateX(0)}
+#journal h3{font-size:13px;letter-spacing:.24em;text-transform:uppercase;color:#c6ad76;margin-bottom:16px}
+#journal .e{border-left:2px solid rgba(160,130,75,.45);padding:2px 0 2px 13px;margin-bottom:17px}
+#journal .e .t{font-size:15px;color:#f0e4c6;margin-bottom:3px}
+#journal .e .x{font-size:13px;line-height:1.5;color:#c2b596}
+#journal .e .s{font-size:11px;color:#8c7f5e;margin-top:4px;font-style:italic}
+#hint{position:fixed;left:50%;bottom:6px;transform:translateX(-50%);z-index:6;font-size:11px;color:#7d7358;letter-spacing:.06em}
+#joy{position:fixed;width:132px;height:132px;z-index:12;display:none;pointer-events:none}
+#joy .base{position:absolute;inset:0;border-radius:50%;background:rgba(40,44,56,.28);border:1px solid rgba(180,150,90,.3)}
+#knob{position:absolute;left:41px;top:41px;width:50px;height:50px;border-radius:50%;background:rgba(200,170,110,.5)}
+.vig{position:fixed;inset:0;z-index:5;pointer-events:none;box-shadow:inset 0 0 220px 60px rgba(0,0,0,.66)}
+</style></head><body>
+<canvas id="c"></canvas>
+<div class="vig"></div>
+<div id="era"><div class="y"></div><div class="p"></div></div>
+<div id="quest"><div class="t"></div><div class="g"></div><div class="h"></div></div>
+<div id="prompt"></div>
+<div id="dlg"><div class="who"></div><div class="txt"></div><div class="more">tap / space \u2192</div></div>
+<div id="jbtn">\u2637</div>
+<div id="journal"><h3>The Family Book</h3><div id="jlist"></div></div>
+<div id="joy"><div class="base"></div><div id="knob"></div></div>
+<div id="hint">WASD / drag to look \u00b7 E or tap to act \u00b7 J for the book</div>
+<div id="card"><div class="in"><div class="yr"></div><h2></h2><p></p><div class="go">tap to enter \u2192</div></div></div>
+<div id="splash" class="mid">
+  <h1>The Long Field</h1>
+  <div class="sub">A Lantern through Six Ages</div>
+  <p>One family, walked through six houses across three hundred years \u2014 an English quay, a Salem table, a tavern fire, an Acadian farm, a mill town, a wartime parlour.</p>
+  <p>Everything the lantern tells you is drawn from the record. The atmosphere is a guess; the names, dates, and places are not.</p>
+  <p style="color:#b6a680;font-size:13px">Carry the flame. Watch the two rivers find each other.</p>
+  <div class="btn" id="start">Light the lantern</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+var SPEC={"scenes": [{"id": "s1", "cell": "england_hall", "year": 1620, "era": "dusk", "place": "Great Yarmouth, England", "title": "The Parish Before the Crossing", "quest": ["1620 — Great Yarmouth", "Learn the family's oldest name", "This is the parish the family will leave. Speak with William Towne at his door, read the parish register, and stand at the quay where the ships wait."], "persona": "The Sexton", "fact": "William Towne (1598–1673) married Joanna Blessing here; their daughter Rebecca would be born in this parish in 1621.", "card_atmos": "Salt in the timber, salt in the air. Every wall here has heard the sea decide things.", "reveal": "Everyone this lantern will show you past this door is descended from a choice made on that grey water: to leave. Eight of William and Joanna's children would cross. You are downstream of the leaving.", "npc": ["William Towne", "Yarmouth is the only horizon I have known. My father fished it; his father before him. And yet my Joanna and I have booked passage on a ship whose master I have never met, to a shore no one here has seen.", "You ask him why.", "Because a man wrote to me from Salem that there a Towne might own the ground he stands on. I do not entirely believe it. I am going anyway."], "objects": [["register", "Read the parish register", "The register lies open on the vestry table, its ink the colour of weak tea.", "You turn to 1621 and find, in a careful clerk's hand: Rebecca, daughter of William Towne, baptised.", "That child, baptised here in ink that has since turned brown, would be hanged in Salem seventy-one years later as a witch. The register keeps her beginning; it could not keep her safe."], ["quay", "Stand at the quay", "The tide is out. Fishing smacks lean in the mud, and beyond them the grey mouth of the harbour opens on nothing.", "You stand where the family will stand with their trunks, waiting for a fair wind.", "The crossing took six weeks in a good season. Half the people who made it never wrote a word about what it was like. This family survived it, and so began everyone who reads this."]], "pal": {"sky": 2765380, "fog": 3687516, "ground": 4870976, "wall": "lime_white", "floor": "stone_flag", "roof": "thatch", "key": 16763552, "amb": 5925504}}, {"id": "s2", "cell": "colonial_hall", "year": 1644, "era": "salem", "place": "Salem, Massachusetts", "title": "The Nurse Homestead", "quest": ["1644 — Salem Village", "Sit a while at Rebecca's table", "Rebecca Towne is grown and married now. The dark year is still forty-eight winters off. Speak with her, lay a place at her table, and read what the record keeps of the year that is coming."], "persona": "The Sexton", "fact": "Rebecca Towne (1621–1692) married Francis Nurse in 1644; the record notes seven children and, at the end, a hanging.", "card_atmos": "A well-kept house, low-beamed and warm. Nothing in it yet knows what the year 1692 will ask of it.", "reveal": "Nineteen were hanged before the fever broke. In 1711 the colony began paying restitution to the families; the last conviction was not formally cleared until 2001. Rebecca's excommunication was rescinded in 1712. Remember her name — the lantern is not done with it.", "npc": ["Rebecca Nurse", "You have the look of someone who has come a long way to see me. Sit. There is bread. Whatever you have heard of me, know that I was seventy-one years among these neighbours before any of them thought to call me a witch.", "You want to warn her. You know you cannot.", "Do not weep, child. Whatever the court does, my life was real. Seventy-one years of it. That was the truth. The rest — the rest is the fever. Fevers break."], "objects": [["table", "Lay a place at the table", "The board is scrubbed pale, set for a family of nine.", "You set a wooden trencher at the empty place, the way a guest would earn their welcome.", "Thirty-nine of her neighbours would later sign a petition swearing to her blameless life, at real risk to themselves. It remains one of the bravest documents of 1692. The table she fed them at is why they signed."], ["hearth", "Bank the hearth-fire", "A low fire breathes in a stone hearth wide enough to roast for a wedding.", "You rake the coals together and lay on a split of oak, the way you would for a house you meant to keep.", "Her family carried her body home by night after the hanging and buried her in secret on this ground. In 1885 her descendants raised a granite memorial where the fire once burned."]], "pal": {"sky": 1711142, "fog": 2105902, "ground": 2764326, "wall": "plaster_pnt", "floor": "wood_oak", "roof": "shingle", "key": 9082032, "amb": 3160138}}, {"id": "s3", "cell": "colonial_hall", "year": 1701, "era": "night", "place": "Sudbury, Massachusetts", "title": "The First Fire of the Inn", "quest": ["1701 — Sudbury", "Open the tavern", "David Howe has married a girl named Death and means to keep an inn where every stranger is welcome. Light the first hearth, hang the red-horse sign, and ask Hepzibah about her name."], "persona": "The Keeper", "fact": "David Howe (1674–1759) married Hepzibah Death on 25 December 1701, in Sudbury; the record carries thirty-six sources for this house.", "card_atmos": "Fresh-adzed timber, the smell of new mortar. A house being born into the business of welcome.", "reveal": "Under David's descendants the house became the Red Horse Tavern, and later the Wayside Inn — the oldest operating inn in the United States. In 1862 Longfellow set his Tales of a Wayside Inn at this fireside, and the name held forever.", "npc": ["Hepzibah Howe", "Yes — Death. Hepzibah Death, of the Framingham Deaths, before David gave me his name. Every traveller makes the same joke, so make it quickly and let us move on.", "You ask about the wedding.", "Christmas Day, seventeen hundred and one. A girl named Death, wed in midwinter, to a man building an inn where every stranger is welcome. God has a sense of humour, I have decided. I have made my peace with it."], "objects": [["hearth", "Light the first hearth-fire", "A great cold hearth of field stone, laid by David's own hands, waits for its first flame.", "You kneel and touch the lantern's flame to the kindling. The fire catches.", "It will not go fully cold again for three hundred years."], ["sign", "Hang the red-horse sign", "A signboard leans against the wall: a red horse on a field of white, still smelling of paint.", "You lift it onto its hooks, and it swings free so a rider will see it from the bend in the road.", "David's son Ezekiel kept this tavern and, in April 1775, led the Sudbury militia up this very road toward Concord. The sign was already old then. It is still there."]], "pal": {"sky": 1316902, "fog": 1712176, "ground": 2369566, "wall": "clapboard", "floor": "wood_pine", "roof": "shingle", "key": 16756832, "amb": 2634314}}, {"id": "s4", "cell": "quebec_farm", "year": 1741, "era": "winter", "place": "Port Royal, Acadia", "title": "The Habitant Farm", "quest": ["1741 — Port Royal", "Learn the other river", "Far from Sudbury, another line is keeping its own record in French. Speak with Marguerite, set the loom, and learn the name the lantern will need at the very end."], "persona": "The Sexton", "fact": "Jean-Baptiste Beliveau (1713–1786) married Marguerite Melanson on 23 January 1741, at Port Royal; the record counts nine children.", "card_atmos": "Whitewashed stone and a low warm stove. A different language keeps this house, but the cold outside is the same cold.", "reveal": "Fourteen years after this wedding, the British expelled the Acadians from these farms — le Grand Dérangement. The Beliveaus were scattered across a continent. That this line survived to reach you at all is the quiet miracle this room is keeping.", "npc": ["Marguerite Beliveau", "You do not have the French, I think, but you have the family look, which is its own language. We are Melanson on my side, Beliveau on his — Port Royal names, Acadian names. Older here than any English town you could name.", "You ask what she fears.", "Nothing tonight. The stove is warm, the children are nine and all living, and the ice on the river is thick enough to cross. Tonight that is enough. Ask me again in fifteen years."], "objects": [["stove", "Feed the tile stove", "A tall stove of glazed earthen tile radiates in the corner — the warm heart of a northern house.", "You open the iron door and feed it a length of birch, and the whole room leans toward the heat.", "The tile stove was the Acadian answer to a cold the English colonies never fully understood. When the expulsion came, the families who survived were the ones who had learned, in rooms like this, exactly how to keep warm on nothing."], ["loom", "Set the loom", "A floor loom stands strung with madder-red and indigo wool, a half-woven blanket on the beam.", "You throw the shuttle once, and the weft draws tight — red, then blue, the colours of a family that dyed its own thread.", "Two centuries on, a Beliveau granddaughter named Rita would marry a man named Cash in Maine, and this river of names would run at last into the other one. The lantern is keeping her name for the end."]], "pal": {"sky": 3028548, "fog": 4477020, "ground": 9080984, "wall": "lime_white", "floor": "wood_chest", "roof": "slate", "key": 14673652, "amb": 6320266}}, {"id": "s5", "cell": "milltown", "year": 1866, "era": "stair", "place": "North Brookfield, Massachusetts", "title": "The Mill-Town Knot", "quest": ["1866 — North Brookfield", "Tie the knot the whole book was walking toward", "The war is a year over. A Parker marries a Towne, and two of the family's oldest streams meet in a mill town. Speak with the couple, and read what the record makes of it."], "persona": "The Archivist", "fact": "Edwin Summer Parker (1843–1899) married Sophronia Abiah Towne (1843–1922) on 21 May 1866, at North Brookfield; the record keeps fifty-seven sources for this marriage.", "card_atmos": "Brick and gaslight and the far hum of the shoe-shops. The old farm names have come to town and put on collars.", "reveal": "Fifty-seven sources. The record almost never keeps a couple this well. They lived through the whole transformation of New England — farm to factory, lamplight to electricity — and the book, for once, was watching closely enough to keep nearly all of it.", "npc": ["Sophronia Parker", "Towne, I was, before I was Parker — and yes, the same Townes, all the way back to a woman in Salem I will not name at the supper table. Edwin's people are Parkers of Brookfield. Two of the oldest names in the county, married in a mill town that did not exist when either family arrived.", "You remark that the record keeps them well.", "Fifty-seven times over, I am told. My grandmother in Salem got two. I do not know whether to be proud or to grieve the difference."], "objects": [["register", "Read the town register", "A leather town register lies open under the gaslight, its columns ruled in a clerk's careful hand.", "You find the entry for 21 May 1866: Parker and Towne, both of North Brookfield, both aged twenty-three.", "Sophronia lived to 1922 and saw the automobile, the telephone, and the electric light reach the town her grandparents farmed. The register that recorded her wedding by gaslight is now read by the light she lived to see arrive."], ["lamp", "Turn up the gas-lamp", "A brass gas-lamp hisses low on the wall, its mantle a soft moth-white.", "You turn the little key and the flame swells; the brick room warms from grey to amber.", "This was the last generation to marry by burning gas. Their children would flip a switch. The whole distance from Rebecca's hearth-fire to this mantle to an electric bulb is four lifetimes, and this family walked every step of it."]], "pal": {"sky": 2367512, "fog": 3814442, "ground": 3814700, "wall": "brick_red", "floor": "wood_dark", "roof": "slate", "key": 16765072, "amb": 4867128}}, {"id": "s6", "cell": "postwar", "year": 1943, "era": "stair", "place": "Maine", "title": "Where the Rivers Meet", "quest": ["1943 — Maine", "Close the book", "The last door. The New England line and the Acadian line, apart for three centuries, finally run together. Speak with the couple, sign the book, and let the lantern rest."], "persona": "The Keeper", "fact": "John Clifford Cash (1892–1955) married Rita Alberta Barmon Beliveau (1915–1970) on 29 May 1943, in Maine — and here the Beliveau river runs at last into the Towne one.", "card_atmos": "A plain wartime parlour, radio in the corner, a service star in the window. Ordinary, and the whole book has been walking toward it.", "reveal": "Everything the lantern showed you converges here. Rebecca Towne of Salem and Marguerite Melanson of Port Royal — two women who never knew the other's language or continent — are both this bride's grandmothers, many times over. Three hundred years and an ocean of difference, resolved into one wedding in a Maine parlour in the middle of a war. That is the whole reason for the walk.", "npc": ["Rita Cash", "Beliveau, I was. My people are Acadian — Port Royal, then scattered, then Maine, the long way round. John's people are old New England, back past the Revolution, back to Salem, they say, though nobody talks about the Salem part. Two families that could not have been more differently made.", "You tell her the two rivers meet in her.", "Do they. I only knew I loved him. But I will take it — that all that leaving and crossing and being driven out was walking toward a parlour in Maine and a good man and a radio playing. I will take that gladly."], "objects": [["radio", "Turn on the radio", "A wooden cabinet radio glows in the corner, its dial the only warm light in the room.", "You turn the dial and a dance band swims up out of the static, thin and brave against the war.", "The war took six hundred thousand of an earlier generation and would take more before it ended. This family had crossed oceans and been driven from farms to arrive at exactly this: a warm room, a living man, music. It was never a small thing. It only looked small."], ["book", "Sign the family book", "A great ledger lies open on the parlour table — the family book, every name the lantern showed you written somewhere in it.", "You take up the pen and add the last line: Cash, married Beliveau, Maine, 1943 — and under it, the two old rivers, joined.", "The book keeps walking backward long after you set down the pen — to a mill town, a Rutland farm, a tavern fire, a Salem table, a habitant stove, a Yarmouth quay. One flame, carried the whole way. Thank you for carrying it."]], "pal": {"sky": 2367512, "fog": 3814442, "ground": 3814700, "wall": "brick_red", "floor": "wood_dark", "roof": "slate", "key": 16765072, "amb": 4867128}}]};
+</script>
+<script>
+/* ============================ engine ============================ */
+var scene,camera,renderer,clock;
+var keys={},yaw=0,pitch=0,player={pos:new THREE.Vector3(0,1.6,8)};
+var animators=[],interactables=[],walkers=[];
+var started=false,curScene=null,sceneIdx=0;
+var dlgOpen=false,dQ=[],dCb=null,cardOpen=false;
+var journalEntries=[];
+var $=function(id){return document.getElementById(id);};
+
+/* ---- materials: howe_field's named library ---- */
+var MATS={};
+function dm(id,hex,rough){MATS[id]=new THREE.MeshStandardMaterial({color:hex,roughness:rough===undefined?.95:rough,metalness:0});}
+dm('wood_pine',0x9a7c52);dm('wood_oak',0x6d5433);dm('wood_dark',0x4a3b2c,.7);dm('wood_chest',0x7d6142);
+dm('wood_red',0x7d2820,.55);dm('brick_red',0x9a5e46);dm('brick_grey',0x8e908c);
+dm('lime_white',0xdad3c4);dm('lime_blue',0x7f97a8);dm('plaster_pnt',0xbdae97);
+dm('stone_grey',0x8b8578);dm('stone_flag',0x9b948a);dm('stone_dry',0xa39a86);
+dm('tile_stove',0xe4ded1,.35);dm('slate',0x6a6c72,.85);dm('shingle',0x7d7365,.95);
+dm('thatch',0xa89464,.98);dm('clapboard',0x8b7f6c);dm('clapwhite',0xd9d5c8);
+dm('iron',0x33302c,.6);dm('brass',0xb28a3c,.5);dm('copper',0xa9663a,.55);
+dm('linen',0xd9d1ba);dm('wool_red',0x9d4a3c);dm('wool_blue',0x4d6180);dm('cotton_ind',0x3f5476);
+dm('rush',0xb99e63);dm('treen',0x86673f);dm('hide',0x66452a);dm('paper_rag',0xd0c2a0,.9);
+dm('gilt',0xb99245,.45);dm('tallow',0xece2c2,.7);dm('earth_flr',0x6d5842);
+dm('glass_old',0xa9c0d2,.25);dm('terracotta',0xb06840,.75);dm('wool_madder',0x9d4a3c);
+function M(id){return MATS[id]||MATS.wood_pine;}
+
+/* ---- primitives (howe_field style) ---- */
+function bx(w,h,d,m,x,y,z,ry){var o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+  o.position.set(x||0,y||0,z||0);if(ry)o.rotation.y=ry;o.castShadow=o.receiveShadow=true;scene.add(o);return o;}
+function cy(rt,rb,h,m,x,y,z,s){var o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,s||12),m);
+  o.position.set(x||0,y||0,z||0);o.castShadow=true;scene.add(o);return o;}
+function sph(r,m,x,y,z,s){var o=new THREE.Mesh(new THREE.SphereGeometry(r,s||14,(s||14)-2),m);
+  o.position.set(x||0,y||0,z||0);o.castShadow=true;scene.add(o);return o;}
+function plane(w,d,m,y){var o=new THREE.Mesh(new THREE.PlaneGeometry(w,d),m);
+  o.rotation.x=-Math.PI/2;o.position.y=y||0;o.receiveShadow=true;scene.add(o);return o;}
+
+/* ---- procedural room shell (ported buildShell essence) ---- */
+function buildRoom(pal,openings){
+  var W=15,D=13,H=3.4,T=.22;
+  plane(W,D,M(pal.floor),0);
+  var wallM=M(pal.wall);
+  var walls=[['N',0,-D/2,0,W],['S',0,D/2,Math.PI,W],['W',-W/2,0,Math.PI/2,D],['E',W/2,0,-Math.PI/2,D]];
+  walls.forEach(function(wd){
+    var k=wd[0],x=wd[1],z=wd[2],ry=wd[3],L=wd[4];
+    var op=(openings||[]).filter(function(o){return o.wall===k;});
+    if(!op.length){bx(L,H,T,wallM,x,H/2,z,ry);}
+    else{
+      // simple: leave a centered doorway/window gap by building two piers
+      var o=op[0],gap=o.w,gy0=o.y0||0,gy1=o.y1||H;
+      var side=(L-gap)/2;
+      // left+right piers along the wall axis
+      var ax=(k==='N'||k==='S')?'x':'z';
+      if(ax==='x'){bx(side,H,T,wallM,x-(gap/2+side/2),H/2,z);bx(side,H,T,wallM,x+(gap/2+side/2),H/2,z);
+        if(gy0>0.02)bx(gap,gy0,T,wallM,x,gy0/2,z);if(H-gy1>0.02)bx(gap,H-gy1,T,wallM,x,(H+gy1)/2,z);}
+      else{bx(T,H,side,wallM,x,H/2,z-(gap/2+side/2));bx(T,H,side,wallM,x,H/2,z+(gap/2+side/2));
+        if(gy0>0.02)bx(T,gy0,gap,wallM,x,gy0/2,z);if(H-gy1>0.02)bx(T,H-gy1,gap,wallM,x,(H+gy1)/2,z);}
+    }
+  });
+  // ceiling deck + summer beam + joists
+  plane(W,D,M(pal.wall),H);var deck=scene.children[scene.children.length-1];deck.rotation.x=Math.PI/2;deck.position.y=H;
+  var beamM=M('wood_dark');
+  bx(.28,.3,D,beamM,0,H-.16,0);            // summer beam
+  for(var b=0;b<5;b++){var t=-W/2+W*(b+.5)/5;var jm=cy(.075,.075,D,beamM,t,H-.12,0);jm.rotation.x=Math.PI/2;}
+  // roof outside (visible through it's a closed room, but adds silhouette on entry fade)
+}
+
+/* ---- furniture kit (compact, material-driven) ---- */
+function fTable(x,z,ry,topMat){var g=new THREE.Group();var W=1.5,D=.9,h=.76;
+  var t=bx(W,.045,D,M(topMat||'wood_oak'),0,h,0);t.parent&&scene.remove(t);g.add(t);
+  [[-W/2+.1,-D/2+.1],[W/2-.1,-D/2+.1],[-W/2+.1,D/2-.1],[W/2-.1,D/2-.1]].forEach(function(p){
+    var l=new THREE.Mesh(new THREE.BoxGeometry(.08,h,.08),M('wood_oak'));l.position.set(p[0],h/2,p[1]);g.add(l);});
+  g.position.set(x,0,z);g.rotation.y=ry||0;scene.add(g);return g;}
+function fStool(x,z){var g=new THREE.Group();g.add(new THREE.Mesh(new THREE.CylinderGeometry(.17,.19,.06,12),M('wood_pine')));
+  g.children[0].position.y=.46;for(var i=0;i<3;i++){var a=i/3*6.28;var l=new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,.46,7),M('wood_pine'));
+  l.position.set(Math.cos(a)*.12,.23,Math.sin(a)*.12);g.add(l);}g.position.set(x,0,z);scene.add(g);return g;}
+function fHearth(x,z){bx(1.9,1.5,.5,M('stone_grey'),x,.75,z);bx(1.3,1.0,.55,M('wood_dark'),x,.55,z-.02);
+  var glow=sph(.4,new THREE.MeshBasicMaterial({color:0xff7a2a}),x,.4,z+.15,10);glow.material.transparent=true;glow.material.opacity=.0;
+  return glow;}
+function fLoom(x,z,ry){var g=new THREE.Group();g.add(new THREE.Mesh(new THREE.BoxGeometry(1.4,.08,.1),M('wood_oak')));g.children[0].position.set(0,1.5,0);
+  [[-.7],[.7]].forEach(function(p){var post=new THREE.Mesh(new THREE.BoxGeometry(.1,1.7,.1),M('wood_oak'));post.position.set(p[0],.85,0);g.add(post);});
+  for(var i=0;i<8;i++){var warp=new THREE.Mesh(new THREE.BoxGeometry(.012,.9,.012),M(i%2?'wool_blue':'wool_red'));warp.position.set(-.6+i*.17,.9,0);g.add(warp);}
+  var cloth=new THREE.Mesh(new THREE.BoxGeometry(1.3,.5,.03),M('wool_red'));cloth.position.set(0,.5,0);g.add(cloth);
+  g.position.set(x,0,z);g.rotation.y=ry||0;scene.add(g);return g;}
+function fStove(x,z){var g=new THREE.Group();g.add(new THREE.Mesh(new THREE.BoxGeometry(.7,1.7,.7),M('tile_stove')));g.children[0].position.y=.85;
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(.3,.24,.05),M('iron')));g.children[1].position.set(0,.5,.36);
+  g.position.set(x,0,z);scene.add(g);var glow=sph(.2,new THREE.MeshBasicMaterial({color:0xff8030,transparent:true,opacity:.35}),x,.5,z+.36,8);return g;}
+function fSign(x,z){var g=new THREE.Group();var post=new THREE.Mesh(new THREE.CylinderGeometry(.06,.07,3,9),M('wood_dark'));post.position.set(0,1.5,0);g.add(post);
+  var arm=new THREE.Mesh(new THREE.BoxGeometry(1.1,.08,.08),M('wood_dark'));arm.position.set(.5,2.9,0);g.add(arm);
+  var board=new THREE.Mesh(new THREE.BoxGeometry(1.0,.7,.06),M('wood_red'));board.position.set(.9,2.4,0);g.add(board);
+  var horse=new THREE.Mesh(new THREE.BoxGeometry(.5,.35,.07),new THREE.MeshBasicMaterial({color:0xf0dcae}));horse.position.set(.9,2.4,.04);g.add(horse);
+  g.position.set(x,0,z);scene.add(g);animators.push(function(t){board.rotation.z=Math.sin(t*.9)*.05;horse.rotation.z=Math.sin(t*.9)*.05;});return g;}
+function fLamp(x,y,z){var g=new THREE.Group();g.add(new THREE.Mesh(new THREE.CylinderGeometry(.06,.08,.3,10),M('brass')));g.children[0].position.y=0;
+  var mantle=new THREE.Mesh(new THREE.SphereGeometry(.06,10,8),new THREE.MeshBasicMaterial({color:0xfff0c0}));mantle.position.y=.05;g.add(mantle);
+  g.position.set(x,y,z);scene.add(g);var L=new THREE.PointLight(0xffd890,.5,5);L.position.set(x,y,z);scene.add(L);
+  animators.push(function(t){L.intensity=.42+.08*Math.sin(t*7);});return g;}
+function fRadio(x,z){var g=new THREE.Group();g.add(new THREE.Mesh(new THREE.BoxGeometry(.5,.4,.28),M('wood_chest')));g.children[0].position.y=.7;
+  var dial=new THREE.Mesh(new THREE.CircleGeometry(.07,16),new THREE.MeshBasicMaterial({color:0xffc060}));dial.position.set(0,.7,.15);g.add(dial);
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(.5,.5,.3),M('wood_chest')));g.children[2].position.y=.25;
+  g.position.set(x,0,z);scene.add(g);return g;}
+function fBook(x,z){var g=new THREE.Group();var b=new THREE.Mesh(new THREE.BoxGeometry(.5,.06,.36),M('hide'));b.position.y=.78;g.add(b);
+  var pg=new THREE.Mesh(new THREE.BoxGeometry(.44,.02,.3),M('paper_rag'));pg.position.y=.81;g.add(pg);
+  g.position.set(x,0,z);scene.add(g);return g;}
+function fRegister(x,z){var g=new THREE.Group();var b=new THREE.Mesh(new THREE.BoxGeometry(.46,.05,.34),M('hide'));b.position.y=.78;g.add(b);
+  var pg=new THREE.Mesh(new THREE.BoxGeometry(.4,.02,.28),M('paper_rag'));pg.position.y=.805;g.add(pg);g.position.set(x,0,z);scene.add(g);return g;}
+function fQuay(x,z){bx(6,.3,2.4,M('wood_dark'),x,.15,z);for(var i=0;i<4;i++)cy(.12,.14,1.2,M('wood_dark'),x-2.5+i*1.7,.5,z+1.4);
+  var water=plane(30,20,new THREE.MeshStandardMaterial({color:0x2a3a46,roughness:.3,metalness:.2}),.05);water.position.z=z+8;}
+
+/* ---- person / NPC ---- */
+function person(x,z,coat,skirt){var g=new THREE.Group();
+  var body=new THREE.Mesh(new THREE.CylinderGeometry(skirt?.14:.18,skirt?.34:.2,1.05,10),M('wool_blue'));
+  body.material=new THREE.MeshStandardMaterial({color:coat||0x5a5040,roughness:.9});body.position.y=.62;g.add(body);
+  var head=new THREE.Mesh(new THREE.SphereGeometry(.13,12,10),new THREE.MeshStandardMaterial({color:0xcaa079,roughness:.8}));head.position.y=1.28;g.add(head);
+  g.position.set(x,0,z);g.castShadow=true;scene.add(g);return g;}
+function walker(pts,coat,skirt,speed){var g=person(pts[0][0],pts[0][1],coat,skirt);
+  walkers.push({g:g,pts:pts,i:0,t:0,speed:speed||0.7});return g;}
+
+/* ============================ scene build ============================ */
+function clearScene(){
+  if(!scene)return;
+  for(var i=scene.children.length-1;i>=0;i--){var o=scene.children[i];
+    if(o.isLight&&o.type==='HemisphereLight')continue;scene.remove(o);}
+  animators=[];interactables=[];walkers=[];
+}
+function marker(x,y,z,col){var s=new THREE.Mesh(new THREE.SphereGeometry(.09,10,8),
+  new THREE.MeshBasicMaterial({color:col||0xffcf70}));s.position.set(x,y,z);scene.add(s);
+  animators.push(function(t){s.position.y=y+Math.sin(t*2.4)*.09;s.material.opacity=.6+.4*Math.sin(t*3);s.material.transparent=true;});return s;}
+
+function buildScene(sc){
+  clearScene();curScene=sc;var pal=sc.pal;
+  scene.background=new THREE.Color(pal.sky);
+  scene.fog=new THREE.Fog(pal.fog,10,42);
+  scene.add(new THREE.HemisphereLight(pal.amb,0x0a0a08,.5));
+  var key=new THREE.DirectionalLight(pal.key,.55);key.position.set(-14,20,8);scene.add(key);
+
+  var openings=[{wall:'S',w:2.0,y0:0,y1:2.4}];  // doorway you enter through
+  if(sc.era!=='salem')openings.push({wall:'N',w:1.6,y0:1.0,y1:2.2}); // a window
+  buildRoom(pal,openings);
+
+  // hearth glow reference for warm rooms
+  var glow=null;
+  if(sc.era==='night'||sc.era==='salem')glow=fHearth(-5.5,-5.2);
+
+  // NPC — the family member, placed near center-left
+  var npc=sc.npc;
+  var np=person(-2.2,-2.0,0x6a4a52,true);
+  marker(-2.2,2.2,-2.0,0xffcf70);
+  interactables.push({x:-2.2,z:-2.0,r:2.4,repeat:true,label:'Speak with '+npc[0],
+    act:function(){say([{s:npc[0],t:npc[1]},{s:'You',t:npc[2]},{s:npc[0],t:npc[3]}]);}});
+
+  // objects — the three-beat interactables
+  sc.objects.forEach(function(ob,i){
+    var ox=3.2+(i*1.0),oz=-3.0+i*3.2;
+    buildObjectProp(sc,ob[0],ox,oz);
+    marker(ox,1.8,oz,0xd6b06a);
+    (function(ob,ox,oz){
+      interactables.push({x:ox,z:oz,r:2.2,label:ob[1],
+        act:function(it){ if(it.done)return; it.done=true;
+          say([{s:'The Lantern',t:ob[2]},{s:'You',t:ob[3]},{s:'',t:ob[4],fact:true}],function(){
+            journal(sc.title+' \u2014 '+ob[1].replace(/^(Read|Light|Hang|Feed|Set|Turn|Sign|Lay|Bank|Stand) /,''),ob[4],'From the family record, '+sc.place);
+            checkDone();
+          });
+        }});
+    })(ob,ox,oz);
+  });
+
+  // fact-beat: the persona reads the record
+  var px=6.0,pz=2.6;
+  var pnpc=person(px,pz,0x4a4454,false);
+  marker(px,2.2,pz,0xb8a06a);
+  interactables.push({x:px,z:pz,r:2.4,repeat:true,label:'Ask '+sc.persona.toLowerCase()+' to read the record',
+    act:function(){ say([
+      {s:sc.persona,t:'You have the family look. Then you should hear it whole, as the book keeps it:'},
+      {s:sc.persona,t:sc.fact},
+      {s:'',t:sc.reveal,fact:true}
+    ],function(){ journal(sc.title,sc.fact,'Record \u00b7 '+sc.place); });
+  }});
+
+  // lantern in hand
+  makeLantern(pal.key);
+
+  player.pos.set(0,1.6,5.2);yaw=Math.PI;pitch=0;
+  showEra(sc);showQuest(sc);
+}
+
+function buildObjectProp(sc,kind,x,z){
+  if(kind==='register'||kind==='book')fBook(x,z);
+  else if(kind==='quay')fQuay(x,z);
+  else if(kind==='hearth')fHearth(x,z);
+  else if(kind==='table')fTable(x,z,0,'wood_oak'),fStool(x-1,z),fStool(x+1,z);
+  else if(kind==='sign')fSign(x,z);
+  else if(kind==='stove')fStove(x,z);
+  else if(kind==='loom')fLoom(x,z,0);
+  else if(kind==='lamp')fLamp(x,1.6,z);
+  else if(kind==='radio')fRadio(x,z);
+  else fTable(x,z,0,'wood_pine');
+}
+
+/* ---- lantern in hand ---- */
+var lanternLight=null,lanternGrp=null;
+function makeLantern(col){
+  lanternGrp=new THREE.Group();
+  var frameM=M('brass');
+  var cage=new THREE.Mesh(new THREE.CylinderGeometry(.06,.07,.16,6),frameM);lanternGrp.add(cage);
+  for(var i=0;i<6;i++){var a=i/6*6.28;var bar=new THREE.Mesh(new THREE.BoxGeometry(.008,.16,.008),frameM);
+    bar.position.set(Math.cos(a)*.062,0,Math.sin(a)*.062);lanternGrp.add(bar);}
+  var flame=new THREE.Mesh(new THREE.SphereGeometry(.03,8,6),new THREE.MeshBasicMaterial({color:0xffd9a0}));lanternGrp.add(flame);
+  lanternGrp.position.set(.42,-.34,-.72);lanternGrp.rotation.z=-.08;camera.add(lanternGrp);
+  lanternLight=new THREE.PointLight(col||0xffb268,.9,12);lanternLight.position.set(.3,-.15,-.5);camera.add(lanternLight);
+  animators.push(function(t){if(!lanternLight)return;lanternLight.intensity=.75+.16*Math.sin(t*9.3)+.08*Math.sin(t*23);
+    lanternGrp.rotation.z=-.08+Math.sin(t*1.7)*.03;lanternGrp.position.y=-.34+Math.sin(t*2.1)*.008;});
+}
+
+/* ============================ dialogue ============================ */
+function say(lines,cb){dQ=lines.slice();dCb=cb||null;dlgOpen=true;showLine();}
+function showLine(){
+  if(!dQ.length){dlgOpen=false;$('dlg').style.display='none';var cb=dCb;dCb=null;if(cb)cb();return;}
+  var L=dQ.shift();var d=$('dlg');d.style.display='block';
+  d.className=L.fact?'reveal':'';
+  d.querySelector('.who').textContent=L.s||'';
+  d.querySelector('.txt').textContent=L.t;
+  d.querySelector('.more').style.display=dQ.length?'block':'none';
+}
+function advance(){if(dlgOpen)showLine();}
+
+/* ============================ journal ============================ */
+function journal(title,text,src){
+  for(var i=0;i<journalEntries.length;i++)if(journalEntries[i].t===title)return;
+  journalEntries.push({t:title,x:text,s:src});
+  var el=document.createElement('div');el.className='e';
+  el.innerHTML='<div class="t"></div><div class="x"></div><div class="s"></div>';
+  el.querySelector('.t').textContent=title;el.querySelector('.x').textContent=text;el.querySelector('.s').textContent=src||'';
+  $('jlist').appendChild(el);
+}
+
+/* ============================ progression ============================ */
+function checkDone(){
+  var undone=interactables.filter(function(it){return !it.repeat&&!it.done;});
+  if(undone.length===0){
+    setTimeout(function(){
+      say([{s:'The Lantern',t:'This age is written in the book now. The flame leans toward the next door \u2014 it can feel the years pulling.'}],function(){
+        sceneIdx++;
+        if(sceneIdx<SPEC.scenes.length){fadeToCard(SPEC.scenes[sceneIdx]);}
+        else{ say([{s:'The Lantern',t:'Six houses. Three hundred years. Two rivers, and one flame that walked the whole length of them. There is nothing left to light. Thank you for carrying it.'}]); }
+      });
+    },700);
+  }
+}
+
+/* ============================ era + quest + card ============================ */
+function showEra(sc){var e=$('era');e.querySelector('.y').textContent=sc.year+' \u00b7 '+sc.place.split(',')[0].toUpperCase();
+  e.querySelector('.p').textContent=sc.title;e.style.opacity=1;setTimeout(function(){e.style.opacity=0;},4200);}
+function showQuest(sc){var q=$('quest');q.querySelector('.t').textContent=sc.quest[0];
+  q.querySelector('.g').textContent=sc.quest[1];q.querySelector('.h').textContent=sc.quest[2];q.style.opacity=1;}
+function fadeToCard(sc){cardOpen=true;var c=$('card');c.style.display='flex';
+  c.querySelector('.yr').textContent=sc.year+' \u00b7 '+sc.place;
+  c.querySelector('h2').textContent=sc.title;
+  c.querySelector('p').textContent=sc.fact+' '+sc.card_atmos;
+}
+function enterCard(){cardOpen=false;$('card').style.display='none';buildScene(SPEC.scenes[sceneIdx]);}
+
+/* ============================ input ============================ */
+addEventListener('keydown',function(e){keys[e.code]=true;
+  if(!started)return;
+  if(e.code==='KeyE'||e.code==='Space'){e.preventDefault();onAct();}
+  if(e.code==='KeyJ')$('journal').classList.toggle('open');});
+addEventListener('keyup',function(e){keys[e.code]=false;});
+var cnv=$('c'),drag=false,lx=0,ly=0;
+cnv.addEventListener('mousedown',function(e){drag=true;lx=e.clientX;ly=e.clientY;});
+addEventListener('mouseup',function(){drag=false;});
+addEventListener('mousemove',function(e){if(drag){yaw-=(e.clientX-lx)*.0034;pitch-=(e.clientY-ly)*.003;
+  pitch=Math.max(-1.2,Math.min(1.2,pitch));lx=e.clientX;ly=e.clientY;}});
+cnv.addEventListener('click',function(){if(started&&!dlgOpen&&!cardOpen)onAct();});
+function onAct(){
+  if(cardOpen){enterCard();return;}
+  if(dlgOpen){advance();return;}
+  // nearest interactable in range + facing
+  var best=null,bd=99;
+  interactables.forEach(function(it){var dx=it.x-player.pos.x,dz=it.z-player.pos.z;var d=Math.hypot(dx,dz);
+    if(d<(it.r||2.2)&&d<bd){bd=d;best=it;}});
+  if(best)best.act(best);
+}
+/* touch */
+var joy={active:false,id:null,ox:0,oy:0,x:0,y:0},look={id:null,lx:0,ly:0,moved:0};
+cnv.addEventListener('touchstart',function(e){e.preventDefault();
+  for(var i=0;i<e.changedTouches.length;i++){var t=e.changedTouches[i];
+    if(t.clientX<innerWidth*.45&&!joy.active){joy.active=true;joy.id=t.identifier;joy.ox=t.clientX;joy.oy=t.clientY;
+      var j=$('joy');j.style.display='block';j.style.left=(t.clientX-66)+'px';j.style.top=(t.clientY-66)+'px';}
+    else if(look.id===null){look.id=t.identifier;look.lx=t.clientX;look.ly=t.clientY;look.moved=0;}}
+},{passive:false});
+cnv.addEventListener('touchmove',function(e){e.preventDefault();
+  for(var i=0;i<e.changedTouches.length;i++){var t=e.changedTouches[i];
+    if(joy.active&&t.identifier===joy.id){joy.x=(t.clientX-joy.ox)/50;joy.y=(t.clientY-joy.oy)/50;
+      joy.x=Math.max(-1,Math.min(1,joy.x));joy.y=Math.max(-1,Math.min(1,joy.y));
+      $('knob').style.transform='translate('+(joy.x*40)+'px,'+(joy.y*40)+'px)';}
+    else if(t.identifier===look.id){yaw-=(t.clientX-look.lx)*.005;pitch-=(t.clientY-look.ly)*.004;
+      pitch=Math.max(-1.2,Math.min(1.2,pitch));look.moved+=Math.abs(t.clientX-look.lx);look.lx=t.clientX;look.ly=t.clientY;}}
+},{passive:false});
+cnv.addEventListener('touchend',function(e){e.preventDefault();
+  for(var i=0;i<e.changedTouches.length;i++){var t=e.changedTouches[i];
+    if(t.identifier===joy.id){joy.active=false;joy.id=null;joy.x=joy.y=0;$('joy').style.display='none';$('knob').style.transform='';}
+    else if(t.identifier===look.id){if(look.moved<8)onAct();look.id=null;}}
+},{passive:false});
+
+/* ============================ loop ============================ */
+function move(dt){
+  var sp=3.4*dt,fwd=0,str=0;
+  if(keys.KeyW||keys.ArrowUp)fwd+=1;if(keys.KeyS||keys.ArrowDown)fwd-=1;
+  if(keys.KeyA||keys.ArrowLeft)str-=1;if(keys.KeyD||keys.ArrowRight)str+=1;
+  if(joy.active){fwd-=joy.y;str+=joy.x;}
+  var sinY=Math.sin(yaw),cosY=Math.cos(yaw);
+  player.pos.x+=(sinY*fwd+cosY*str)*sp;
+  player.pos.z+=(cosY*fwd-sinY*str)*sp;
+  player.pos.x=Math.max(-6.8,Math.min(6.8,player.pos.x));
+  player.pos.z=Math.max(-5.8,Math.min(5.8,player.pos.z));
+}
+function updatePrompt(){
+  if(dlgOpen||cardOpen){$('prompt').style.display='none';return;}
+  var best=null,bd=99;
+  interactables.forEach(function(it){var d=Math.hypot(it.x-player.pos.x,it.z-player.pos.z);
+    if(d<(it.r||2.2)&&d<bd){bd=d;best=it;}});
+  var p=$('prompt');
+  if(best){p.style.display='block';p.textContent=best.label;}else p.style.display='none';
+}
+function updateWalkers(dt){walkers.forEach(function(w){
+  var a=w.pts[w.i],b=w.pts[(w.i+1)%w.pts.length];
+  w.t+=dt*w.speed;var f=Math.min(1,w.t);
+  w.g.position.x=a[0]+(b[0]-a[0])*f;w.g.position.z=a[1]+(b[1]-a[1])*f;
+  w.g.rotation.y=Math.atan2(b[0]-a[0],b[1]-a[1]);
+  w.g.position.y=Math.abs(Math.sin(w.t*6))*.04;
+  if(f>=1){w.t=0;w.i=(w.i+1)%w.pts.length;}
+});}
+function loop(){requestAnimationFrame(loop);var dt=Math.min(.05,clock.getDelta());var t=clock.elapsedTime;
+  if(started&&!cardOpen){move(dt);updateWalkers(dt);}
+  for(var i=0;i<animators.length;i++)animators[i](t);
+  camera.position.copy(player.pos);
+  camera.rotation.order='YXZ';camera.rotation.y=yaw;camera.rotation.x=pitch;
+  updatePrompt();
+  renderer.render(scene,camera);
+}
+
+/* ============================ boot ============================ */
+function init(){
+  renderer=new THREE.WebGLRenderer({canvas:$('c'),antialias:true});
+  renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(2,devicePixelRatio));
+  scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(66,innerWidth/innerHeight,.1,120);scene.add(camera);
+  clock=new THREE.Clock();
+  addEventListener('resize',function(){renderer.setSize(innerWidth,innerHeight);
+    camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();});
+  loop();
+}
+$('start').addEventListener('click',function(){
+  $('splash').style.display='none';started=true;sceneIdx=0;
+  $('quest').style.opacity=1;
+  fadeToCard(SPEC.scenes[0]);
+});
+$('jbtn').addEventListener('click',function(){$('journal').classList.toggle('open');});
+$('card').addEventListener('click',function(){if(cardOpen)enterCard();});
+init();
+</script></body></html>
