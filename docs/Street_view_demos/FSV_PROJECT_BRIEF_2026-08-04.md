@@ -160,7 +160,22 @@ Anything that ships in the binary and is the same for all users is a library ass
 - **A frozen mesh** → an asset. Costs download and memory, and the same tree appears everywhere.
 - **A parameter envelope** — the ranges that reliably produce an acceptable oak → stays *data*, lands in the profiles layer, regenerates per instance, and varies.
 
-§2.1 of the rebuild spec pushes hard toward the second: profiles are the only cultural layer and they are data; adding a culture must never mean touching a renderer. It is also the reading that satisfies §2's thousand-experiences requirement, since §6 already argues that selection-and-arrangement of pre-made pieces *is* procedural variety. The likely answer is a hybrid — approve the envelope for the scattered mass, freeze a handful of hero instances where the aesthetic ceiling justifies the memory. **Greg's call, on engineering's cost data.**
+§2.1 of the rebuild spec pushes hard toward the second: profiles are the only cultural layer and they are data; adding a culture must never mean touching a renderer. It is also the reading that satisfies §2's thousand-experiences requirement, since §6 already argues that selection-and-arrangement of pre-made pieces *is* procedural variety.
+
+**The recommendation sent to Greg on 2026-08-05, pending his confirmation: the envelope is the *authoring* format; instanceable variants are the *shipping* format.** Approve the parameter envelope as data, then bake it at build time into a small set of instanceable variants — roughly 8–12 per species per era — and scatter those with per-instance rotation, scale and colour jitter.
+
+This matters because "lower memory cost" names two budgets that pull in opposite directions, and on iPad the binding one is runtime. For ~2,000 scattered trees at ~400 triangles each:
+
+| Approach | Ships | Resident at runtime | Draw calls |
+|---|---|---|---|
+| 8 frozen variants, GPU-instanced | 8 meshes (~3k tris) | ~3k tris of unique vertex data | ~8 |
+| Every instance generated from an envelope | nothing | ~800k tris | 2,000, or merged into buckets |
+
+Unique-per-instance geometry **defeats GPU instancing**, which needs the same mesh repeated under different transforms. Merging into buckets instead — what `engine.ts` already does for houses — still carries the full vertex data resident. That is §9's 297 MB stage-3 problem in miniature, arriving through a different door.
+
+Baking envelopes to variants keeps all three properties at once: the approved envelope stays data in the profiles layer, variety comes from variants × jitter rather than from unique geometry, and the runtime cost collapses to a handful of draw calls. **Hero assets are the exception and stay frozen** — a district landmark seen once at close range should be authored to the aesthetic ceiling, not sampled from a range.
+
+The practical consequence for §6's cost/quality bargain: the figure Greg needs from engineering is **variants per species**, not triangles per tree — *"12 oaks at 400 triangles buys unlimited scatter; 200 unique oaks costs you the frame."* That is a budget he can design against. **Final call is Greg's, per category, on that data.**
 
 Three things engineering owes this loop, and one constraint on it:
 

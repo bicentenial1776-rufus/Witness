@@ -45,9 +45,10 @@ Close the gap between the repo's boxes-and-prisms field and the demo's. In prior
 - **The asset-pipeline seam** (brief §12.4). Greg's approval loop starts producing reviewed elements *this week*, so the import path should exist before the assets queue up behind it. Three pieces, all small if built now:
   - **`AssetSpec` v1**, versioned beside `SceneSpec` v1, with a required **provenance tier** field (most vegetation is *Period typical*). Agree the schema with Greg rather than inferring it from his first export.
   - **A gated import**, not a drop-in folder. Approved-by-Greg still passes the architecture gate and the mesh budgets — they check what his eye does not.
-  - **A cost table to hand back**, per category: triangles, draw calls, and memory against a scatter count. §6 makes this engineering's half of the bargain, and it is what lets him approve against a budget instead of discovering the budget at integration.
+  - **A cost table to hand back**, expressed as **variants per species** rather than triangles per asset — *"12 oaks at 400 triangles buys unlimited scatter; 200 unique oaks costs you the frame."* §6 makes this engineering's half of the bargain, and stated that way it is a budget Greg can design against instead of meeting at integration.
+  - **A build-time bake step.** Per brief §12.4, the envelope is the authoring format and instanceable variants are the shipping format: sample ~8–12 variants per species per era from the approved envelope, then scatter them via `InstancedMesh` with per-instance rotation, scale and colour jitter. Generating unique geometry per instance defeats instancing and lands ~800k resident triangles where instancing would cost ~3k — §9's 297 MB problem arriving through a different door. Hero assets skip the bake and stay frozen.
 
-  Build the seam so it accepts both shapes an approval might take — a frozen mesh *and* a parameter envelope that the scatterer instantiates — because which one Greg's loop emits is still open (brief §12.4), and the answer may differ per category.
+  Build the seam so it accepts both shapes an approval might take — a frozen mesh *and* a parameter envelope — because the bake is a recommendation pending Greg's confirmation (brief §12.4) and the answer may differ per category.
 
 *Exit:* the field is walkable, legible, and stable under tree growth; the accessibility and wayfinding gates pass; approved assets have a gated path into the build.
 
