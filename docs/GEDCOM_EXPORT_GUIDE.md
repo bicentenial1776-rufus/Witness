@@ -11,7 +11,9 @@ sync.)*
 
 ## What Is a GEDCOM File?
 
-A GEDCOM (GEnealogical Data COMmunication) file is the universal format for family tree data — the standard way to move a tree between genealogy programs. Every major platform can produce one. It's a single file, usually ending in `.ged`, containing everyone in your tree: names, dates, places, relationships, and events.
+A GEDCOM (GEnealogical Data COMmunication) file is the universal format for family tree data — the standard way to move a tree between genealogy programs. Nearly every major platform can produce one. It's a single file, usually ending in `.ged`, containing everyone in your tree: names, dates, places, relationships, and events.
+
+**The exception is FamilySearch,** which does not offer its users a GEDCOM export at all — see that section below for the route that does work.
 
 Witness reads your GEDCOM and brings it to life. You keep building your tree wherever you build it today — Ancestry, FamilySearch, MyHeritage, or desktop software. Witness never changes your tree. It reads, enriches, and discovers.
 
@@ -42,24 +44,29 @@ Witness reads your GEDCOM and brings it to life. You keep building your tree whe
 
 ## FamilySearch
 
-*FamilySearch works differently from other sites — read this section before starting.*
+*FamilySearch works differently from every other site here — read this section before starting.*
 
-FamilySearch's Family Tree is one shared, collaborative tree rather than a personal tree you own. Because of that, there are two paths to a GEDCOM, depending on how much of your family line you want.
+**FamilySearch does not give you a GEDCOM export.** This is the single most
+important thing to know, and it is easy to get wrong: FamilySearch's Family
+Tree is one shared, collaborative tree rather than a personal tree you own, and
+there is no "export my tree" button for users. Programmatic access is by
+**FamilySearch's API**, which is granted to approved partners — Witness is
+pursuing that access, and this section will be rewritten when we have it.
 
-### Option A — Quick export (8 generations, direct from FamilySearch)
+> **Correction, August 2026.** Earlier versions of this guide described a
+> direct 8-generation GEDCOM 7.0 export at `familysearch.org/innovate/export`.
+> That path is not available to users, and the instruction has been removed
+> here and from the in-app guide. Do not reinstate it without confirming it
+> first-hand while signed in.
 
-FamilySearch offers a direct export of **8 generations of your ancestors** in their new GEDCOM 7.0 format.
+Until Witness has API access, there is exactly one route, and it works because
+the partner program — not you — is the one talking to FamilySearch's API.
 
-1. Sign in at **familysearch.org**
-2. Go to **familysearch.org/innovate/export**
-3. Click the **Export** button
-4. Save the downloaded file
+### The route that works — free certified partner software
 
-**Good to know:** Witness natively supports GEDCOM 7.0 — including FamilySearch's newest export format — so this file imports directly. The export covers your direct ancestors (the preferred spouse in each generation) but not the full breadth of cousins, siblings, and collateral lines.
-
-### Option B — Full tree export (via free companion software)
-
-For your complete FamilySearch tree — all branches, not just direct ancestors — FamilySearch requires the use of a certified partner program. The free path:
+A FamilySearch **certified partner program** can pull your tree out over the
+API and then export a GEDCOM of its own, which Witness reads normally. The free
+path:
 
 1. Download **RootsMagic Essentials** (free, Mac and Windows) from **rootsmagic.com**
 2. Install and open it, then choose **Create a new file** and name it
@@ -140,7 +147,7 @@ Once you have your `.ged` file, getting it to your iPhone or iPad takes under a 
 
 **Directly on the device.** If you exported the file using Safari on your iPad, it's already in your Downloads folder — Witness's import picker will find it there.
 
-Witness accepts `.ged` files from all versions above (GEDCOM 5.5, 5.5.1, and 7.0), as well as FamilySearch's zipped `.gdz` packages.
+Witness accepts `.ged` files from all versions above (GEDCOM 5.5, 5.5.1, and 7.0). It also reads zipped `.gdz` packages — the GEDCOM 7.0 bundle format — though note that this capability is currently unreachable for FamilySearch users, since FamilySearch offers them no export at all.
 
 ---
 
@@ -150,7 +157,7 @@ Witness accepts `.ged` files from all versions above (GEDCOM 5.5, 5.5.1, and 7.0
 
 **"The tree belongs to a family member."** Only the tree's owner can export it on most platforms. Ask them to follow the steps above and send you the file — it's one email attachment.
 
-**"My file won't import."** Make sure the file ends in `.ged` (or `.gdz` from FamilySearch). If your platform produced a `.zip`, try unzipping it first — the `.ged` file will be inside. If it still won't import, contact us at support@witnesslives.com and attach the file if you're comfortable doing so — a real person will figure it out with you.
+**"My file won't import."** Make sure the file ends in `.ged` (or `.gdz`). If your platform produced a `.zip`, try unzipping it first — the `.ged` file will be inside. If it still won't import, contact us at support@witnesslives.com and attach the file if you're comfortable doing so — a real person will figure it out with you.
 
 **"Will Witness change my tree?"** Never. Witness is read-only by design. Your GEDCOM is encrypted on your device before upload, and your tree on Ancestry, FamilySearch, or anywhere else is untouched. When your research grows, export a fresh GEDCOM and re-import — Witness will show you what's new.
 

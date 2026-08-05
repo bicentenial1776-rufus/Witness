@@ -51,27 +51,16 @@ export const GEDCOM_GUIDE: PlatformGuide[] = [
   {
     id: 'familysearch',
     name: 'FamilySearch',
-    blurb: 'One shared world tree — two ways to export',
-    url: 'https://www.familysearch.org/innovate/export',
-    urlLabel: 'Open the FamilySearch export page',
+    blurb: 'No export of its own — use free partner software',
+    url: 'https://www.rootsmagic.com',
+    urlLabel: 'Open RootsMagic.com',
     intro:
-      'FamilySearch’s Family Tree is one shared, collaborative tree rather than a personal tree you own — so there are two paths, depending on how much of your line you want.',
+      'FamilySearch does not offer its users a GEDCOM export. Its Family Tree is one shared, collaborative tree rather than a personal tree you own, and getting data out is done through FamilySearch’s API — which is open to certified partner programs. So the route runs through one of those, and it is free.',
     sections: [
       {
-        heading: 'Option A — Quick export (8 generations)',
-        intro: 'A direct export of 8 generations of your ancestors.',
-        steps: [
-          'Sign in at familysearch.org',
-          'Go to familysearch.org/innovate/export',
-          'Click the Export button',
-          'Save the downloaded file',
-        ],
-        note: 'Witness reads this file directly — including FamilySearch’s newest format. It covers your direct ancestors but not cousins, siblings, and collateral lines.',
-      },
-      {
-        heading: 'Option B — Full tree (via free companion software)',
+        heading: 'Free certified partner software',
         intro:
-          'For your complete FamilySearch tree — all branches — use a free certified partner program on your computer.',
+          'A certified partner program pulls your tree from FamilySearch and exports a GEDCOM of its own, which Witness reads normally.',
         steps: [
           'Download RootsMagic Essentials (free, Mac and Windows) from rootsmagic.com',
           'Install and open it, then choose Create a new file and name it',
