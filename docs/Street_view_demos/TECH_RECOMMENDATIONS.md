@@ -1,5 +1,7 @@
 # Family Street View — Technology Recommendations
 
+> **Note, 2026-08-05:** The platform recommendation here (Approach A — browser-hosted Three.js engine, WebView on iPad) was adopted and is confirmed by `FSV_PROJECT_BRIEF_2026-08-04.md` (rev. 3), which is now authoritative: the inside-vs-separate question is closed (inside Witness), three.js stays at r128, and `FSV_REBUILD_SPEC.md` governs repo structure. Where details here disagree with the rev. 3 brief (e.g. "strictly generative, no assets" — curated pre-made libraries are now in scope; "universal audience" — now 55+ iPad first-class), the rev. 3 brief wins.
+
 *August 2026. Scope: iPad and web only (iPhone explicitly deferred, per Aug 2 meeting). Sources: PROJECT_BRIEF.md §Family Street View, docs/tech-stack.md, and the working demos in this folder (`08.02.2026 demo.html`, `conductor-demo.html`, `innkeepers-lantern-v2.html`) plus the Elements-of-Design and visual-magnets notes.*
 
 ---

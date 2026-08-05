@@ -1,5 +1,7 @@
 # Family Street View — Design Document
 
+> **Partially superseded 2026-08-05.** Where this document disagrees with `FSV_PROJECT_BRIEF_2026-08-04.md` (Greg, rev. 3), the rev. 3 brief wins. Known conflicts: the back-door/hub graph-traversal navigation (cut — the product is one continuous walkable field, chapters reached on foot); "universal audience" (now explicitly 55+ iPad users as a first-class requirement); ambient stylized figures (figures now exist only as authored, named, period-dressed characters inside chapters — no crowds); "strictly generative, zero-asset" (curated pre-made libraries referenced from profiles are now part of the model). The era×region style-pack thinking, honesty framing, and voice decisions remain broadly compatible.
+
 *August 2026. Consolidates the adopted design directions for the Option A build (browser-hosted Three.js engine — see TECH_RECOMMENDATIONS.md), folding in the world-arrangement, voices, navigation, interaction, and entry-point decisions plus figure fidelity and period-accuracy management. Supersedes DESIGN_QA.md. The Aug 2, 2026 meeting decisions recorded in PROJECT_BRIEF.md remain the constitutional layer: ground-level only, hub navigation, iPad + desktop only, strictly generative, mandatory disclaimer, universal audience.*
 
 ---

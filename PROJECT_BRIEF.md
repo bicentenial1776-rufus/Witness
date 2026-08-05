@@ -217,6 +217,9 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 - Suggested query connecting to unfinished work from previous owner
 
 ### Family Street View (V3 Concept — Design Now, Build Later)
+
+> **Superseded 2026-08-04.** This section is replaced entirely by `docs/Street_view_demos/FSV_PROJECT_BRIEF_2026-08-04.md` (Greg, rev. 3). The silhouette figures, back-door exits, and house-scene structure described below did not survive; the product is now one continuous walkable field with embedded chapters, per the canonical demo `docs/Street_view_demos/08.02.2026 demo.html`. Kept for history only.
+
 - First-person spatial navigation through the family tree, in a full 3D environment (not isometric or fly-over) — chosen for immersion and emotional resonance, drawing on theatrical staging and Disney-park design language
 - Each family unit rendered as a navigable house interior — period-accurate architecture, candlelit
 - Figures sized proportionally to age at current date (time slider)
