@@ -30,9 +30,9 @@ The cheapest work with the highest leverage, and it de-risks everything after it
 1. **`RAW` → `SceneSpec` adapter.** Extract the 1,829-record array from `howe_field.html` into `packages/streetview/fixtures/howe-field.scenespec.json`. Resolve the two known mismatches: normalise `RAW.s` (banded 40–90) onto `HouseholdSpec.score` (0..1), and decide whether `nk` is a second child count the spec needs or a demo artefact to drop.
 2. **Make it the golden fixture.** `apps/streetview-lab` renders the real 1,829-household field immediately, instead of whatever it renders today. Every later change is now measured against the canonical layout rather than a synthetic one.
 3. **Move `atani.ged`** to `packages/core/fixtures/` (rebuild spec §5). Two corpora from the start is what keeps the model from going quietly Anglo-specific.
-4. **Pin r178 in writing.** Record in the repo that the demos are r128 read-only reference and r178 is the build target, so the question stops being re-litigated.
+4. **Settle the three.js version deliberately, as its own gated task.** The mandate is **r128** (`FSV_DEVELOPER_PROMPT_2026-08-04.md` §42, and its "do not upgrade three.js in passing"). `apps/streetview-lab` is on r178 and predates rev. 3, so it is the deviation. Either bring the lab back to r128, or adopt r178 explicitly with Greg's sign-off and amend the developer prompt. **Do not let Stage 1 decide this by accident** — it is the one item here that must not be resolved by whichever code gets written next.
 
-*Exit:* the lab renders the canonical field from a versioned fixture, and `packages/streetview` has a regression baseline.
+*Exit:* the lab renders the canonical field from a versioned fixture, `packages/streetview` has a regression baseline, and the three.js version is settled on the record rather than by default.
 
 ### Stage 1 — Field parity
 
