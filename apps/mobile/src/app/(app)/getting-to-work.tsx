@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import {
   averageAgeAtFirstMarriageByCentury,
@@ -129,6 +129,13 @@ function build(index: TreeIndex): Panels {
 export default function GettingToWorkScreen() {
   const { activeTree } = useActiveTree();
   const broadsheet = useBroadsheet();
+  // Gate the charts on width alone, not on platform. useBroadsheet() is
+  // `Platform.OS === 'web' && width >= 900`, so gating on it hid this screen
+  // from a native iPad — which has the width and every reason to show it.
+  // Below the threshold the same charts stack in one column rather than
+  // vanishing behind a "use a bigger screen" note.
+  const { width } = useWindowDimensions();
+  const wide = width >= 760;
   const [panels, setPanels] = useState<Panels | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -149,37 +156,74 @@ export default function GettingToWorkScreen() {
     };
   }, [activeTree?.id]);
 
+  // Everything except the broadsheet masthead — shared by phone, tablet and
+  // web so the three never drift apart.
+  const body = panels ? (
+    <View style={{ gap: wide ? 20 : 14 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: wide ? 16 : 10 }}>
+        <StatTile value={panels.people.toLocaleString()} label="People" />
+        <StatTile value={panels.surnames.toLocaleString()} label="Surnames" />
+        <StatTile value={panels.withBirth.toLocaleString()} label="With a birth year" />
+        <StatTile value={panels.withDeath.toLocaleString()} label="With a death year" />
+        <StatTile
+          value={panels.medianLifespan ? `${panels.medianLifespan.toFixed(0)}` : '—'}
+          label="Average lifespan"
+        />
+      </View>
+
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: wide ? 16 : 14 }}>
+        <ChartFrame
+          title="Lifespans across the centuries"
+          caption="Average years lived, by century of birth. Centuries with fewer than five dated lives are left out."
+        >
+          <TrendDots data={panels.lifespanByCentury} unit="years" />
+        </ChartFrame>
+
+        <ChartFrame
+          title="Deaths by decade"
+          caption="When the deaths in your tree were recorded — as much a map of your sources as of mortality."
+        >
+          <ColumnChart data={panels.mortality} />
+        </ChartFrame>
+      </View>
+
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: wide ? 16 : 14 }}>
+        <ChartFrame title="Age at first marriage" caption="By century of the marriage.">
+          <TrendDots data={panels.marriageByCentury} unit="years" />
+        </ChartFrame>
+
+        <ChartFrame title="Who married younger" caption="Average age at a first marriage.">
+          <PairedBars data={panels.marriageBySex} unit="years" />
+        </ChartFrame>
+
+        <ChartFrame title="Your commonest names" caption="The eight surnames carried by most people.">
+          <BarList data={panels.topSurnames} />
+        </ChartFrame>
+      </View>
+    </View>
+  ) : null;
+
   if (!broadsheet) {
-    // The charts need width. Rather than crush them onto a phone, give the
-    // headline figures and say plainly where the rest lives.
     return (
       <ThemedView style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingTop: 72, gap: 10 }}>
+        <ScrollView
+          contentContainerStyle={{ ...WideContent, padding: 20, paddingTop: 72, paddingBottom: 48, gap: 12 }}
+        >
           <ThemedText type="title">Getting To Work</ThemedText>
+          <ThemedText type="small">What the shape of your tree says</ThemedText>
           {panels ? (
-            <>
-              <ThemedText>
-                {panels.people.toLocaleString()} people · {panels.surnames.toLocaleString()} surnames
-                {panels.medianLifespan
-                  ? ` · they lived ${panels.medianLifespan.toFixed(0)} years on average`
-                  : ''}
-              </ThemedText>
-              <ThemedText type="small">
-                {panels.withBirth.toLocaleString()} have a birth year and{' '}
-                {panels.withDeath.toLocaleString()} a death year — the dated core everything below
-                is measured from.
-              </ThemedText>
-              <ThemedText type="small" style={{ marginTop: 12, opacity: 0.8 }}>
-                The full picture — lifespans across the centuries, mortality by decade, marriage
-                ages and your commonest names — is drawn on a wider screen. Open Witness in a
-                browser at app.witnesslives.com.
-              </ThemedText>
-            </>
+            body
           ) : failed ? (
             <ThemedText type="small">Couldn’t read your tree just now.</ThemedText>
           ) : (
             <ActivityIndicator style={{ marginVertical: 24 }} />
           )}
+          {panels ? (
+            <ThemedText type="small" style={{ opacity: 0.7, marginTop: 4 }}>
+              Every figure is measured from the records you imported, not estimated. Where a date
+              is missing the person is left out of that chart rather than guessed at.
+            </ThemedText>
+          ) : null}
         </ScrollView>
       </ThemedView>
     );
@@ -205,50 +249,7 @@ export default function GettingToWorkScreen() {
         )
       ) : (
         <View style={{ gap: 20 }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
-            <StatTile value={panels.people.toLocaleString()} label="People" />
-            <StatTile value={panels.surnames.toLocaleString()} label="Surnames" />
-            <StatTile value={panels.withBirth.toLocaleString()} label="With a birth year" />
-            <StatTile value={panels.withDeath.toLocaleString()} label="With a death year" />
-            <StatTile
-              value={panels.medianLifespan ? `${panels.medianLifespan.toFixed(0)}` : '—'}
-              label="Average lifespan"
-            />
-          </View>
-
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
-            <ChartFrame
-              title="Lifespans across the centuries"
-              caption="Average years lived, by century of birth. Centuries with fewer than five dated lives are left out."
-            >
-              <TrendDots data={panels.lifespanByCentury} unit="years" />
-            </ChartFrame>
-
-            <ChartFrame
-              title="Deaths by decade"
-              caption="When the deaths in your tree were recorded — as much a map of your sources as of mortality."
-            >
-              <ColumnChart data={panels.mortality} />
-            </ChartFrame>
-          </View>
-
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
-            <ChartFrame
-              title="Age at first marriage"
-              caption="By century of the marriage."
-            >
-              <TrendDots data={panels.marriageByCentury} unit="years" />
-            </ChartFrame>
-
-            <ChartFrame title="Who married younger" caption="Average age at a first marriage.">
-              <PairedBars data={panels.marriageBySex} unit="years" />
-            </ChartFrame>
-
-            <ChartFrame title="Your commonest names" caption="The eight surnames carried by most people.">
-              <BarList data={panels.topSurnames} />
-            </ChartFrame>
-          </View>
-
+          {body}
           <Text
             style={{
               fontFamily: BrandFonts.sans.regular,

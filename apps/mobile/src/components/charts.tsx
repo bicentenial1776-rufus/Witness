@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
-import { Broadsheet, BrandFonts } from '@/constants/theme';
+import { BrandFonts, Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 /**
  * Chart primitives for Getting To Work.
@@ -19,10 +20,46 @@ import { Broadsheet, BrandFonts } from '@/constants/theme';
  * hue alone.
  */
 
-const C = Broadsheet.color;
+/**
+ * Chart colours per mode. Dark is *selected*, not flipped: its steps are their
+ * own, chosen inside the dark lightness band and validated against the dark
+ * card surface. The app's own dark accent (#E08D2F) is too light to sit in
+ * that band, so the charts use a slightly deeper amber of the same family.
+ *
+ *   light  #B4501A / #1F6FA8  — ΔE 20.0 protan on #FFFDF9
+ *   dark   #CC7F26 / #3F8FD6  — ΔE 23.8 protan on #2A2018
+ *
+ * Both pass all six checks in the dataviz validator.
+ */
+const PALETTE = {
+  light: {
+    surface: Colors.light.backgroundElement,
+    border: Colors.light.border,
+    ink: Colors.light.text,
+    inkSecondary: Colors.light.textSecondary,
+    inkFaint: '#A0968A',
+    track: '#E2D9CC',
+    accent: '#B4501A',
+    accentHover: '#8E3D11',
+    series: ['#B4501A', '#1F6FA8'] as const,
+  },
+  dark: {
+    surface: Colors.dark.backgroundElement,
+    border: Colors.dark.border,
+    ink: Colors.dark.text,
+    inkSecondary: Colors.dark.textSecondary,
+    inkFaint: '#8A8074',
+    track: '#3E362C',
+    accent: '#CC7F26',
+    accentHover: '#E89740',
+    series: ['#CC7F26', '#3F8FD6'] as const,
+  },
+} as const;
 
-/** Validated categorical pair. Assigned in fixed order, never cycled. */
-export const SERIES = ['#B4501A', '#1F6FA8'] as const;
+export function useChartTheme() {
+  const scheme = useColorScheme();
+  return PALETTE[scheme === 'dark' ? 'dark' : 'light'];
+}
 
 const MARK_RADIUS = 4;
 
@@ -35,12 +72,13 @@ export function ChartFrame({
   caption?: string;
   children: React.ReactNode;
 }) {
+  const C = useChartTheme();
   return (
     <View
       style={{
-        backgroundColor: C.paperRaised,
+        backgroundColor: C.surface,
         borderWidth: 1,
-        borderColor: C.rule,
+        borderColor: C.border,
         borderRadius: 3,
         padding: 20,
         gap: 4,
@@ -57,7 +95,7 @@ export function ChartFrame({
           style={{
             fontFamily: BrandFonts.sans.regular,
             fontSize: 13,
-            color: C.inkMuted,
+            color: C.inkSecondary,
             marginBottom: 10,
           }}
         >
@@ -72,12 +110,13 @@ export function ChartFrame({
 }
 
 export function StatTile({ value, label }: { value: string; label: string }) {
+  const C = useChartTheme();
   return (
     <View
       style={{
-        backgroundColor: C.paperRaised,
+        backgroundColor: C.surface,
         borderWidth: 1,
-        borderColor: C.rule,
+        borderColor: C.border,
         borderRadius: 3,
         paddingVertical: 18,
         paddingHorizontal: 20,
@@ -96,7 +135,7 @@ export function StatTile({ value, label }: { value: string; label: string }) {
           fontSize: 12,
           letterSpacing: 1.2,
           textTransform: 'uppercase',
-          color: C.inkMuted,
+          color: C.inkSecondary,
           marginTop: 2,
         }}
       >
@@ -124,6 +163,7 @@ export interface Datum {
  * ellipsis of a year that had nowhere to go.
  */
 function AxisRow({ data, stride }: { data: Datum[]; stride: number }) {
+  const C = useChartTheme();
   const shown = data.filter((_, i) => i % stride === 0);
   return (
     <View style={{ flexDirection: 'row', marginTop: 5 }}>
@@ -157,6 +197,7 @@ function AxisRow({ data, stride }: { data: Datum[]; stride: number }) {
  * axis text were both sliced off by the container.
  */
 export function ColumnChart({ data, height = 130 }: { data: Datum[]; height?: number }) {
+  const C = useChartTheme();
   const [hover, setHover] = useState<string | null>(null);
   if (data.length === 0) return <Empty />;
   const max = Math.max(...data.map((d) => d.value));
@@ -219,6 +260,7 @@ export function ColumnChart({ data, height = 130 }: { data: Datum[]; height?: nu
  * which is printed on the axis so nobody has to infer it.
  */
 export function TrendDots({ data, unit, height = 130 }: { data: Datum[]; unit: string; height?: number }) {
+  const C = useChartTheme();
   const [hover, setHover] = useState<string | null>(null);
   if (data.length === 0) return <Empty />;
   const values = data.map((d) => d.value);
@@ -253,7 +295,7 @@ export function TrendDots({ data, unit, height = 130 }: { data: Datum[]; unit: s
                   bottom: 0,
                   height: y,
                   width: 2,
-                  backgroundColor: C.barInactive,
+                  backgroundColor: C.track,
                 }}
               />
               <Text
@@ -279,7 +321,7 @@ export function TrendDots({ data, unit, height = 130 }: { data: Datum[]; unit: s
                   backgroundColor: active ? C.accentHover : C.accent,
                   // 2px surface ring keeps neighbouring dots from merging.
                   borderWidth: 2,
-                  borderColor: C.paperRaised,
+                  borderColor: C.surface,
                 }}
               />
             </Pressable>
@@ -294,6 +336,7 @@ export function TrendDots({ data, unit, height = 130 }: { data: Datum[]; unit: s
 
 /** Horizontal bars for a ranking. Magnitude against a shared baseline. */
 export function BarList({ data }: { data: Datum[] }) {
+  const C = useChartTheme();
   const [hover, setHover] = useState<string | null>(null);
   if (data.length === 0) return <Empty />;
   const max = Math.max(...data.map((d) => d.value));
@@ -322,7 +365,7 @@ export function BarList({ data }: { data: Datum[] }) {
                 {d.detail ?? d.value.toLocaleString()}
               </Text>
             </View>
-            <View style={{ height: 7, backgroundColor: C.barInactive, borderRadius: MARK_RADIUS }}>
+            <View style={{ height: 7, backgroundColor: C.track, borderRadius: MARK_RADIUS }}>
               <View
                 style={{
                   width: `${Math.max(1, (d.value / max) * 100)}%`,
@@ -350,6 +393,7 @@ export function PairedBars({
   data: { key: string; label: string; value: number }[];
   unit: string;
 }) {
+  const C = useChartTheme();
   if (data.length === 0) return <Empty />;
   const max = Math.max(...data.map((d) => d.value));
   return (
@@ -371,7 +415,7 @@ export function PairedBars({
               style={{
                 width: '100%',
                 height: Math.max(3, (d.value / max) * 62),
-                backgroundColor: SERIES[i % SERIES.length],
+                backgroundColor: C.series[i % C.series.length],
                 borderTopLeftRadius: MARK_RADIUS,
                 borderTopRightRadius: MARK_RADIUS,
               }}
@@ -387,7 +431,7 @@ export function PairedBars({
                 width: 10,
                 height: 10,
                 borderRadius: 2,
-                backgroundColor: SERIES[i % SERIES.length],
+                backgroundColor: C.series[i % C.series.length],
               }}
             />
             <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 13, color: C.inkSecondary }}>
@@ -401,6 +445,7 @@ export function PairedBars({
 }
 
 function Tooltip({ datum }: { datum?: Datum }) {
+  const C = useChartTheme();
   return (
     <View style={{ height: 20, justifyContent: 'center' }}>
       <Text
@@ -414,8 +459,9 @@ function Tooltip({ datum }: { datum?: Datum }) {
 }
 
 function Empty() {
+  const C = useChartTheme();
   return (
-    <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14, color: C.inkMuted }}>
+    <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14, color: C.inkSecondary }}>
       Not enough dated records in your tree to draw this yet.
     </Text>
   );
