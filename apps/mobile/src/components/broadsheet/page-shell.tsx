@@ -48,13 +48,17 @@ export function Masthead({
       >
         {title}
       </Text>
+      {/* Ternaries, not `&&`. Callers pass '' while their data loads, and
+          `'' && <X/>` evaluates to the empty string — which React renders as a
+          text node inside this View and react-native-web rejects at runtime
+          ("Unexpected text node"). A boolean guard yields null instead. */}
       <View style={{ alignItems: 'flex-end', gap: 4, paddingBottom: 6 }}>
-        {metaMono && <RecordText>{metaMono}</RecordText>}
-        {metaCaption && (
+        {metaMono ? <RecordText>{metaMono}</RecordText> : null}
+        {metaCaption ? (
           <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: Broadsheet.type.caption, color: C.inkMuted }}>
             {metaCaption}
           </Text>
-        )}
+        ) : null}
       </View>
     </View>
   );

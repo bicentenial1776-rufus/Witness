@@ -16,7 +16,15 @@ const C = Broadsheet.color;
 // The five destinations mirror the phone tabs exactly (docs/
 // phone-ia-design-brief.md, decision 2): Home is the feed, This Week
 // lives behind it at /digest, and Research folds into Tree.
-const TREE_ROUTES = ['/tree', '/research', '/archives', '/register', '/family-stage', '/orphan-records'];
+const TREE_ROUTES = [
+  '/tree',
+  '/research',
+  '/archives',
+  '/register',
+  '/family-stage',
+  '/orphan-records',
+  '/getting-to-work',
+];
 const DESTINATIONS: { label: string; href: string; match: (p: string) => boolean }[] = [
   { label: 'Home', href: '/', match: (p) => p === '/' || p === '/index' || p.startsWith('/digest') },
   { label: 'Tree', href: '/tree', match: (p) => TREE_ROUTES.some((route) => p.startsWith(route)) },

@@ -222,6 +222,11 @@ export default function TreeTab() {
   const treeHealthSection = (
     <Section eyebrow="Your tree health">
       <Row
+        title="Getting To Work"
+        detail="The shape of your tree in figures — lifespans across the centuries, deaths by decade, marriage ages, and your commonest names"
+        onPress={() => router.push('/getting-to-work' as never)}
+      />
+      <Row
         title="FTAnalyzer Tree Check"
         detail="Twenty-two data-integrity checks across your whole tree — impossible dates, merged generations, duplicate children, and more"
         onPress={() => router.push('/tree-health' as never)}
