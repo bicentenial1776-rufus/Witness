@@ -9,6 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
+import { ledgerEntries, ledgerHeading, useResearchLedger } from '@/lib/research-ledger';
 import { supabase } from '@/lib/supabase';
 
 interface BriefRow {
@@ -32,6 +33,16 @@ export default function ResearchTab() {
   const [briefs, setBriefs] = useState<BriefRow[] | null>(null);
   const [filter, setFilter] = useState<BriefFilter>('all');
   const broadsheet = useBroadsheet();
+  const { ledger, reload: reloadLedger } = useResearchLedger(activeTree?.id);
+  const entries = ledger ? ledgerEntries(ledger) : [];
+
+  // Judgments are made on other screens, so the ledger is stale by the time
+  // the reader comes back to it — refresh on focus, not just on mount.
+  useFocusEffect(
+    useCallback(() => {
+      reloadLedger();
+    }, [reloadLedger]),
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -76,6 +87,48 @@ export default function ResearchTab() {
           />
         }
       >
+        {entries.length > 0 && (
+          <View style={{ marginBottom: 30 }}>
+            <Text
+              style={{
+                fontFamily: BrandFonts.sans.semiBold,
+                fontSize: 12,
+                letterSpacing: 1.6,
+                textTransform: 'uppercase',
+                color: C.inkSecondary,
+                marginBottom: 14,
+              }}
+            >
+              {ledger ? ledgerHeading(ledger) : ''}
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 20 }}>
+              {entries.map((entry) => (
+                <Pressable
+                  key={entry.key}
+                  onPress={() => router.push(entry.route)}
+                  style={{
+                    flex: 1,
+                    minWidth: 220,
+                    backgroundColor: C.paperRaised,
+                    borderWidth: 1,
+                    borderColor: C.rule,
+                    borderRadius: 3,
+                    padding: 18,
+                    gap: 8,
+                  }}
+                >
+                  <Text
+                    style={{ fontFamily: BrandFonts.serif.regular, fontSize: 19, color: C.ink }}
+                  >
+                    {entry.label}
+                  </Text>
+                  <RecordText muted>{entry.detail}</RecordText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
+
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 24, marginBottom: 22 }}>
           {FILTERS.map(({ key, label, count }) => {
             const active = filter === key;
@@ -156,6 +209,20 @@ export default function ResearchTab() {
     <ThemedView style={{ flex: 1, padding: 24, paddingTop: 72, gap: 8 }}>
       <ThemedText type="title">Research</ThemedText>
       <ThemedText type="small">Your open brick walls and the briefs to break them</ThemedText>
+
+      {entries.length > 0 && (
+        <View style={{ marginTop: 12, gap: 8 }}>
+          <ThemedText type="smallBold" style={{ opacity: 0.7 }}>
+            {ledger ? ledgerHeading(ledger).toUpperCase() : ''}
+          </ThemedText>
+          {entries.map((entry) => (
+            <Card key={entry.key} onPress={() => router.push(entry.route)}>
+              <ThemedText>{entry.label}</ThemedText>
+              <ThemedText type="small">{entry.detail}</ThemedText>
+            </Card>
+          ))}
+        </View>
+      )}
 
       {briefs === null ? (
         <ActivityIndicator style={{ marginVertical: 24 }} />
