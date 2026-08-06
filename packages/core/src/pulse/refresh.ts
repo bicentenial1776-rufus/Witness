@@ -49,6 +49,8 @@ interface BriefRow {
 interface CandidateRow {
   id: string;
   individual_id: string;
+  /** Needed to find the new tree's duplicate of this same document. */
+  na_id: number;
 }
 
 async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: string) {
@@ -59,7 +61,7 @@ async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: strin
     // would just fight the unique (individual_id, na_id) constraint.
     supabase
       .from('nara_candidates')
-      .select('id, individual_id')
+      .select('id, individual_id, na_id')
       .eq('tree_id', oldTreeId)
       .neq('status', 'pending'),
   ]);
@@ -144,9 +146,23 @@ export async function applyRefresh(
   }
 
   for (const { row, newIndividualId } of candidatePlan.moving) {
-    // The new tree's enrichment may already hold a pending row for this same
-    // (individual, na_id). The user's verdict is the better record, so let it
-    // land on top rather than colliding with the unique constraint.
+    // The new tree's enrichment may already have surfaced this same document
+    // for this same person as a pending suggestion. `unique (individual_id,
+    // na_id)` means moving the verdict on top of it is a constraint violation,
+    // not an overwrite — so the machine's guess is cleared first. A verdict the
+    // researcher actually gave outranks a pending suggestion, and without this
+    // the refresh aborts for exactly the people who have done the most archive
+    // work.
+    const { error: clearError } = await supabase
+      .from('nara_candidates')
+      .delete()
+      .eq('tree_id', newTreeId)
+      .eq('individual_id', newIndividualId)
+      .eq('na_id', row.na_id);
+    if (clearError) {
+      throw new Error(`Could not clear a duplicate archive candidate: ${clearError.message}`);
+    }
+
     const { error } = await supabase
       .from('nara_candidates')
       .update({ tree_id: newTreeId, individual_id: newIndividualId })

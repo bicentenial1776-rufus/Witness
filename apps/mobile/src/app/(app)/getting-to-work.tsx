@@ -154,6 +154,10 @@ export default function GettingToWorkScreen() {
     return () => {
       cancelled = true;
     };
+    // Keyed on the id, not the object: a new activeTree reference for the same
+    // tree should not refetch and rebuild every panel. Same convention as
+    // orphan-records.tsx.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTree?.id]);
 
   // Everything except the broadsheet masthead — shared by phone, tablet and
