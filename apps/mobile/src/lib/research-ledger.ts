@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { pulseSummary, type TreePulse } from '@witness/core/pulse';
+
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -18,6 +20,8 @@ export interface ResearchLedger {
   archives: { confirmed: number; dismissed: number; pending: number };
   /** Every judgment above, for the "you have made N decisions" line. */
   total: number;
+  /** The last GEDCOM Refresh on this tree, if it came from one. */
+  pulse: { summary: string; at: string } | null;
 }
 
 /**
@@ -62,8 +66,9 @@ export function useResearchLedger(treeId: string | undefined): {
       countByStatus(treeId, 'confirmed'),
       countByStatus(treeId, 'dismissed'),
       countByStatus(treeId, 'pending'),
+      supabase.from('trees').select('last_pulse, last_pulse_at').eq('id', treeId).maybeSingle(),
     ])
-      .then(([marks, rulings, confirmed, dismissed, pending]) => {
+      .then(([marks, rulings, confirmed, dismissed, pending, tree]) => {
         if (cancelled) return;
         const markKeys = (marks.data ?? []).map((m) => m.finding_key);
         const ruleKeys = (rulings.data ?? []).map((r) => r.xref_key);
@@ -78,6 +83,16 @@ export function useResearchLedger(treeId: string | undefined): {
           orphans: { fixed: m.orphan, ruled: r.orphan },
           archives: { confirmed, dismissed, pending },
           total: markKeys.length + ruleKeys.length + confirmed + dismissed,
+          // Summarised at write time by applyRefresh, so the card reads the
+          // same sentence the reader was shown when they chose to apply —
+          // re-summarising here could drift from what they agreed to.
+          pulse:
+            tree.data?.last_pulse && tree.data.last_pulse_at
+              ? {
+                  summary: pulseSummary(tree.data.last_pulse as unknown as TreePulse),
+                  at: tree.data.last_pulse_at,
+                }
+              : null,
         });
       })
       .catch(() => {

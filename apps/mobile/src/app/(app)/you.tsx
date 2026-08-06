@@ -297,6 +297,14 @@ export default function YouTab() {
               >
                 {tree.home_person ? `You are ${tree.home_person.full_name}` : 'Tell us who you are'}
               </ThemedText>
+              <ThemedText
+                type="link"
+                onPress={() =>
+                  router.push({ pathname: '/import', params: { refreshTreeId: tree.id } })
+                }
+              >
+                Update from a newer file
+              </ThemedText>
               {vaultReady && tree.gedcom_path && (
                 <ThemedText
                   type="link"

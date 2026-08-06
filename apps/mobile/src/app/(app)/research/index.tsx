@@ -87,6 +87,36 @@ export default function ResearchTab() {
           />
         }
       >
+        {ledger?.pulse && (
+          <View
+            style={{
+              marginBottom: 26,
+              backgroundColor: C.paperRaised,
+              borderWidth: 1,
+              borderColor: C.accent,
+              borderRadius: 3,
+              padding: 20,
+              gap: 6,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: BrandFonts.sans.semiBold,
+                fontSize: 12,
+                letterSpacing: 1.6,
+                textTransform: 'uppercase',
+                color: C.accent,
+              }}
+            >
+              Tree Pulse · {new Date(ledger.pulse.at).toLocaleDateString()}
+            </Text>
+            <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 21, color: C.ink }}>
+              {ledger.pulse.summary}
+            </Text>
+            <RecordText muted>What your last upload changed.</RecordText>
+          </View>
+        )}
+
         {entries.length > 0 && (
           <View style={{ marginBottom: 30 }}>
             <Text
@@ -209,6 +239,16 @@ export default function ResearchTab() {
     <ThemedView style={{ flex: 1, padding: 24, paddingTop: 72, gap: 8 }}>
       <ThemedText type="title">Research</ThemedText>
       <ThemedText type="small">Your open brick walls and the briefs to break them</ThemedText>
+
+      {ledger?.pulse && (
+        <Card style={{ marginTop: 12 }}>
+          <ThemedText type="smallBold" themeColor="accent">
+            TREE PULSE · {new Date(ledger.pulse.at).toLocaleDateString()}
+          </ThemedText>
+          <ThemedText>{ledger.pulse.summary}</ThemedText>
+          <ThemedText type="small">What your last upload changed.</ThemedText>
+        </Card>
+      )}
 
       {entries.length > 0 && (
         <View style={{ marginTop: 12, gap: 8 }}>

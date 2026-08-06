@@ -15,7 +15,7 @@ import './node-polyfills.js';
 import { parseGedcom } from '../src/gedcom/index.js';
 import { createWitnessClient } from '../src/supabase/client.js';
 import { importParsedGedcom } from '../src/supabase/import.js';
-import { applyRefresh, previewRefresh } from '../src/pulse/index.js';
+import { applyRefresh, previewRefresh, pulseSummary } from '../src/pulse/index.js';
 import { loadEnv, requireEnv } from './env.js';
 
 loadEnv();
@@ -154,6 +154,14 @@ try {
     .eq('id', afterImport.treeId)
     .maybeSingle();
   console.log('  last_pulse stored :', newTree?.last_pulse ? 'yes' : 'NO');
+  // The Research card re-summarises the stored jsonb rather than the live
+  // object, so the round trip has to produce the same sentence the reader
+  // agreed to when they applied.
+  const rehydrated = newTree?.last_pulse
+    ? pulseSummary(newTree.last_pulse as unknown as Parameters<typeof pulseSummary>[0])
+    : null;
+  const summaryStable = rehydrated === preview.summary;
+  console.log('  summary round-trip:', summaryStable ? 'stable' : `DRIFTED → ${rehydrated}`);
   console.log('  last_pulse_at     :', newTree?.last_pulse_at ?? 'null');
   console.log('  refreshed_from    :', newTree?.refreshed_from ?? 'null');
 
@@ -198,6 +206,7 @@ try {
     Boolean(newTree?.last_pulse) &&
     newTree?.refreshed_from === beforeImport.treeId &&
     briefSurvived &&
+    summaryStable &&
     !oldTree &&
     result.oldTreeDeleted;
   console.log(ok ? '\nPASS' : '\nFAIL — see above');
