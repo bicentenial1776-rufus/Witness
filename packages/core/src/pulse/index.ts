@@ -13,3 +13,9 @@ export {
   type CarryPlan,
   type CarryableRow,
 } from './carryForward.js';
+export {
+  previewRefresh,
+  applyRefresh,
+  type RefreshPreview,
+  type RefreshResult,
+} from './refresh.js';

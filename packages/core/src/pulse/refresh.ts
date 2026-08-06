@@ -1,4 +1,6 @@
-import { fetchTreeHealthData } from '@witness/core/query';
+import { fetchTreeHealthData } from '../query/treeHealth.js';
+import type { WitnessSupabaseClient } from '../supabase/client.js';
+import type { Json } from '../supabase/database.types.js';
 import {
   carryCostWarning,
   diffTrees,
@@ -7,9 +9,7 @@ import {
   remapIndividuals,
   type IdRemap,
   type TreePulse,
-} from '@witness/core/pulse';
-
-import { supabase } from '@/lib/supabase';
+} from './index.js';
 
 /**
  * GEDCOM Refresh, import-then-swap.
@@ -51,7 +51,7 @@ interface CandidateRow {
   individual_id: string;
 }
 
-async function fetchCarryables(oldTreeId: string) {
+async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: string) {
   const [briefs, candidates] = await Promise.all([
     supabase.from('research_briefs').select('id, individual_id').eq('tree_id', oldTreeId),
     // Only decided candidates are worth carrying. A pending row is a machine
@@ -74,13 +74,14 @@ async function fetchCarryables(oldTreeId: string) {
  * writing anything. Both trees must already exist.
  */
 export async function previewRefresh(
+  supabase: WitnessSupabaseClient,
   oldTreeId: string,
   newTreeId: string,
 ): Promise<RefreshPreview> {
   const [before, after, carryables, oldTree] = await Promise.all([
     fetchTreeHealthData(supabase, oldTreeId),
     fetchTreeHealthData(supabase, newTreeId),
-    fetchCarryables(oldTreeId),
+    fetchCarryables(supabase, oldTreeId),
     supabase.from('trees').select('home_person_id').eq('id', oldTreeId).maybeSingle(),
   ]);
 
@@ -125,11 +126,12 @@ export interface RefreshResult {
  * retry; a duplicate tree is recoverable, a deleted brief is not.
  */
 export async function applyRefresh(
+  supabase: WitnessSupabaseClient,
   oldTreeId: string,
   newTreeId: string,
   preview: RefreshPreview,
 ): Promise<RefreshResult> {
-  const carryables = await fetchCarryables(oldTreeId);
+  const carryables = await fetchCarryables(supabase, oldTreeId);
   const briefPlan = planCarryForward(carryables.briefs, preview.remap);
   const candidatePlan = planCarryForward(carryables.candidates, preview.remap);
 
@@ -168,15 +170,15 @@ export async function applyRefresh(
     }
   }
 
-  // The report is a rendered artefact; database.types.ts predates this column
-  // until it is regenerated, hence the narrow cast.
   const { error: pulseError } = await supabase
     .from('trees')
     .update({
-      last_pulse: preview.pulse,
+      // Structurally Json, but TreePulse is an interface rather than an index
+      // signature, so it needs naming as such for the generated column type.
+      last_pulse: preview.pulse as unknown as Json,
       last_pulse_at: new Date().toISOString(),
       refreshed_from: oldTreeId,
-    } as never)
+    })
     .eq('id', newTreeId);
   if (pulseError) throw new Error(`Could not record the Tree Pulse: ${pulseError.message}`);
 
