@@ -297,6 +297,14 @@ export default function YouTab() {
               >
                 {tree.home_person ? `You are ${tree.home_person.full_name}` : 'Tell us who you are'}
               </ThemedText>
+              <ThemedText
+                type="link"
+                onPress={() =>
+                  router.push({ pathname: '/import', params: { refreshTreeId: tree.id } })
+                }
+              >
+                Update from a newer file
+              </ThemedText>
               {vaultReady && tree.gedcom_path && (
                 <ThemedText
                   type="link"
@@ -308,16 +316,23 @@ export default function YouTab() {
                   {restoring === tree.id ? 'Opening…' : 'Restore original'}
                 </ThemedText>
               )}
-              <ThemedText
-                type="link"
-                onPress={() => {
-                  if (!deleting) confirmDelete(tree);
-                }}
-                style={deleting ? { opacity: 0.4 } : undefined}
-              >
-                Delete
-              </ThemedText>
             </View>
+            {/* Set apart from the row above, and muted rather than accented.
+                Delete used to sit among the safe actions looking exactly like
+                them; adding "Update from a newer file" beside it made a
+                mis-tap both likelier and more expensive. */}
+            <ThemedText
+              type="link"
+              onPress={() => {
+                if (!deleting) confirmDelete(tree);
+              }}
+              style={[
+                { marginTop: 10, opacity: 0.55, alignSelf: 'flex-start' },
+                deleting ? { opacity: 0.3 } : null,
+              ]}
+            >
+              Delete this tree
+            </ThemedText>
             {vaultReady && (
               <ThemedText type="small">
                 {tree.gedcom_path

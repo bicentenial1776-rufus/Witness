@@ -3,11 +3,17 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 
 import type { ParsedGedcom } from '@witness/core/gedcom';
 import { extractGedcomText, parseGedcom } from '@witness/core/gedcom';
 import { importParsedGedcom, type ImportProgress } from '@witness/core/supabase';
+import {
+  applyRefresh,
+  previewRefresh,
+  pulseSummary,
+  type RefreshPreview,
+} from '@witness/core/pulse';
 
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
@@ -35,6 +41,17 @@ type Step =
       parsed: ParsedGedcom;
       original: Uint8Array;
       progress: ImportProgress | null;
+    }
+  // A refresh: the new tree is in, and the reader now decides whether to let
+  // it replace the old one. Nothing has been moved or deleted at this point.
+  | {
+      name: 'reviewing';
+      treeId: string;
+      oldTreeId: string;
+      parsed: ParsedGedcom;
+      vault: VaultOutcome;
+      preview: RefreshPreview | null;
+      applying: boolean;
     }
   | { name: 'done'; treeId: string; parsed: ParsedGedcom; vault: VaultOutcome }
   | { name: 'error'; fileName: string; kind: 'not-gedcom' | 'unreadable' };
@@ -81,7 +98,11 @@ async function keepOriginal(
 export default function ImportGedcom() {
   const { session } = useSession();
   const { selectTree, refresh } = useActiveTree();
-  const { fileUri } = useLocalSearchParams<{ fileUri?: string }>();
+  const { fileUri, refreshTreeId } = useLocalSearchParams<{
+    fileUri?: string;
+    /** Set when this import is updating an existing tree rather than adding one. */
+    refreshTreeId?: string;
+  }>();
   const [step, setStep] = useState<Step>({ name: 'pick' });
 
   async function parseAndSet(source: { uri: string; webFile?: Blob }, fileName: string) {
@@ -160,10 +181,75 @@ export default function ImportGedcom() {
       // tree with nothing to say why.
       await refresh();
       await selectTree(treeId);
+
+      // A refresh imports first and decides second, so the reader sees what
+      // changed before anything is moved or deleted. If the comparison itself
+      // fails, this is still a perfectly good ordinary import — say so rather
+      // than stranding them mid-flow.
+      if (refreshTreeId) {
+        setStep({
+          name: 'reviewing',
+          treeId,
+          oldTreeId: refreshTreeId,
+          parsed,
+          vault,
+          preview: null,
+          applying: false,
+        });
+        try {
+          const preview = await previewRefresh(supabase, refreshTreeId, treeId);
+          setStep({
+            name: 'reviewing',
+            treeId,
+            oldTreeId: refreshTreeId,
+            parsed,
+            vault,
+            preview,
+            applying: false,
+          });
+        } catch (error) {
+          console.warn('Refresh comparison failed', error);
+          showAlert(
+            'Imported, but could not compare',
+            'Your new tree is here and usable. It is sitting alongside the old one rather than replacing it.',
+          );
+          setStep({ name: 'done', treeId, parsed, vault });
+        }
+        return;
+      }
+
       setStep({ name: 'done', treeId, parsed, vault });
     } catch (error) {
       showAlert('Import failed', error instanceof Error ? error.message : String(error));
       setStep({ name: 'ready', fileName, parsed, original });
+    }
+  }
+
+  /** Commit the swap: move the reader's work across, retire the old tree. */
+  async function commitRefresh(
+    step: Extract<Step, { name: 'reviewing' }>,
+    preview: RefreshPreview,
+  ) {
+    setStep({ ...step, applying: true });
+    try {
+      const result = await applyRefresh(supabase, step.oldTreeId, step.treeId, preview);
+      await refresh();
+      if (!result.oldTreeDeleted) {
+        // Everything worth keeping already moved; only the tidy-up failed.
+        showAlert(
+          'Updated, with one leftover',
+          'Your work moved across, but the old copy could not be removed. You can delete it from the You tab.',
+        );
+      }
+      setStep({ name: 'done', treeId: step.treeId, parsed: step.parsed, vault: step.vault });
+    } catch (error) {
+      showAlert(
+        'Could not finish updating',
+        error instanceof Error
+          ? `${error.message} Both trees are still here — nothing was lost.`
+          : 'Both trees are still here — nothing was lost.',
+      );
+      setStep({ ...step, applying: false });
     }
   }
 
@@ -192,6 +278,72 @@ export default function ImportGedcom() {
         <>
           <ActivityIndicator />
           <ThemedText>Reading {step.fileName}…</ThemedText>
+        </>
+      )}
+
+      {step.name === 'reviewing' && !step.preview && (
+        <>
+          <ActivityIndicator />
+          <ThemedText>Comparing this against your saved tree…</ThemedText>
+        </>
+      )}
+
+      {step.name === 'reviewing' && step.preview && (
+        <>
+          <ThemedText type="subtitle">
+            {step.preview.pulse.unchanged ? 'Nothing has changed.' : 'Here’s what your research did.'}
+          </ThemedText>
+          <ThemedText>{pulseSummary(step.preview.pulse)}</ThemedText>
+
+          {!step.preview.pulse.unchanged && (
+            <View style={{ gap: 2, marginTop: 4 }}>
+              {step.preview.pulse.brickWallsBroken.slice(0, 3).map((p) => (
+                <ThemedText key={p.xref} type="small">
+                  · {p.name} now has a parent recorded
+                </ThemedText>
+              ))}
+              {step.preview.pulse.added.slice(0, 3).map((p) => (
+                <ThemedText key={p.xref} type="small">
+                  · {p.name} is new to the tree
+                </ThemedText>
+              ))}
+              {step.preview.pulse.removed.slice(0, 3).map((p) => (
+                <ThemedText key={p.xref} type="small">
+                  · {p.name} is no longer in the file
+                </ThemedText>
+              ))}
+            </View>
+          )}
+
+          {step.preview.costWarning && (
+            <ThemedText type="small" style={{ marginTop: 8, fontWeight: '600' }}>
+              {step.preview.costWarning}
+            </ThemedText>
+          )}
+
+          <ThemedText type="small" style={{ marginTop: 8 }}>
+            Updating keeps your research briefs and archive verdicts, and replaces the saved copy
+            with this file. Your own GEDCOM is never changed.
+          </ThemedText>
+
+          <Button
+            title={step.applying ? 'Updating…' : 'Update this tree'}
+            disabled={step.applying}
+            onPress={() => commitRefresh(step, step.preview!)}
+          />
+          <Button
+            variant="secondary"
+            title="Keep both trees"
+            disabled={step.applying}
+            onPress={() =>
+              setStep({
+                name: 'done',
+                treeId: step.treeId,
+                parsed: step.parsed,
+                vault: step.vault,
+              })
+            }
+          />
         </>
       )}
 

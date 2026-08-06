@@ -12,7 +12,9 @@
     "./history": "./dist/history/index.js",
     "./query": "./dist/query/index.js",
     "./geocode": "./dist/geocode/nominatim.js",
-    "./family": "./dist/family/index.js"
+    "./family": "./dist/family/index.js",
+    "./export": "./dist/export/index.js",
+    "./pulse": "./dist/pulse/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

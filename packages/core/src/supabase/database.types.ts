@@ -1185,9 +1185,12 @@ export type Database = {
           id: string
           imported_at: string
           individual_count: number
+          last_pulse: Json | null
+          last_pulse_at: string | null
           name: string
           parse_warnings: Json
           place_count: number
+          refreshed_from: string | null
           source_file: string | null
           user_id: string
         }
@@ -1204,9 +1207,12 @@ export type Database = {
           id?: string
           imported_at?: string
           individual_count?: number
+          last_pulse?: Json | null
+          last_pulse_at?: string | null
           name: string
           parse_warnings?: Json
           place_count?: number
+          refreshed_from?: string | null
           source_file?: string | null
           user_id: string
         }
@@ -1223,9 +1229,12 @@ export type Database = {
           id?: string
           imported_at?: string
           individual_count?: number
+          last_pulse?: Json | null
+          last_pulse_at?: string | null
           name?: string
           parse_warnings?: Json
           place_count?: number
+          refreshed_from?: string | null
           source_file?: string | null
           user_id?: string
         }
@@ -1237,6 +1246,13 @@ export type Database = {
             referencedRelation: "individuals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "trees_refreshed_from_fkey"
+            columns: ["refreshed_from"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -1244,6 +1260,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bump_nara_calls: {
+        Args: { p_calls: number; p_month: string }
+        Returns: number
+      }
       delete_tree_batch: { Args: { p_tree_id: string }; Returns: Json }
       get_share: { Args: { p_token: string }; Returns: Json }
       recount_tree: { Args: { p_tree_id: string }; Returns: Json }
