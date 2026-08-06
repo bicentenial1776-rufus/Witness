@@ -316,16 +316,23 @@ export default function YouTab() {
                   {restoring === tree.id ? 'Opening…' : 'Restore original'}
                 </ThemedText>
               )}
-              <ThemedText
-                type="link"
-                onPress={() => {
-                  if (!deleting) confirmDelete(tree);
-                }}
-                style={deleting ? { opacity: 0.4 } : undefined}
-              >
-                Delete
-              </ThemedText>
             </View>
+            {/* Set apart from the row above, and muted rather than accented.
+                Delete used to sit among the safe actions looking exactly like
+                them; adding "Update from a newer file" beside it made a
+                mis-tap both likelier and more expensive. */}
+            <ThemedText
+              type="link"
+              onPress={() => {
+                if (!deleting) confirmDelete(tree);
+              }}
+              style={[
+                { marginTop: 10, opacity: 0.55, alignSelf: 'flex-start' },
+                deleting ? { opacity: 0.3 } : null,
+              ]}
+            >
+              Delete this tree
+            </ThemedText>
             {vaultReady && (
               <ThemedText type="small">
                 {tree.gedcom_path
