@@ -25,22 +25,22 @@ Witness. Both names refer to the same app.
 
 ## What it does
 
-- **Tree Health** — 22 data-integrity checks, adapted from the FTAnalyzer
-  catalog used by desktop researchers, run over every person, family and date.
-  They catch the impossible rather than the merely unlikely: a person dying
-  before they were born, a marriage after a death, siblings born impossibly
-  close together, a date in the future.
 - **Question library** — 39 ready-made questions answered from your own tree,
   plus 48 historical events you can check your family against. Each question
   shows a live count from your data before you open it.
-- **Map and Nearby** — every place your ancestors' events were recorded, and
-  which ancestors or events are close to where you are standing.
 - **Biographies and Research Briefs** — life narratives built from your tree's
   own data and real historical context, constructed to avoid unsubstantiated
   claims; and a structured brief with prioritised questions and named archives
   when you hit a brick wall.
 - **The National Archives** — US federal records matched to your ancestors,
   each awaiting your judgment.
+- **Map and Nearby** — every place your ancestors' events were recorded, and
+  which ancestors or events are close to where you are standing.
+- **Tree Health** — 22 data-integrity checks, adapted from the FTAnalyzer
+  catalog used by desktop researchers, run over every person, family and date.
+  They catch the impossible rather than the merely unlikely: a person dying
+  before they were born, a marriage after a death, siblings born impossibly
+  close together, a date in the future.
 - **Also** — The Portrait, The Family Stage, This Week in Your Family, Orphan
   Records, citations and sources carried through from your GEDCOM, Ancestry
   deep links, and an in-app Field Guide explaining every screen.
