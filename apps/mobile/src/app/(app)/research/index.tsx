@@ -113,7 +113,13 @@ export default function ResearchTab() {
             <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 21, color: C.ink }}>
               {ledger.pulse.summary}
             </Text>
-            <RecordText muted>What your last upload changed.</RecordText>
+            {/* A caption, not an eyebrow — RecordText is mono uppercase, which
+                turned this sentence into a shouted label. */}
+            <Text
+              style={{ fontFamily: BrandFonts.sans.regular, fontSize: 13, color: C.inkMuted }}
+            >
+              What your last upload changed.
+            </Text>
           </View>
         )}
 

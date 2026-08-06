@@ -183,12 +183,34 @@ export async function applyRefresh(
   if (pulseError) throw new Error(`Could not record the Tree Pulse: ${pulseError.message}`);
 
   // Last, and only now that everything worth keeping has moved.
-  const { error: deleteError } = await supabase.from('trees').delete().eq('id', oldTreeId);
-
   return {
     briefsMoved: briefPlan.moving.length,
     verdictsMoved: candidatePlan.moving.length,
     homePersonMoved: movedHome,
-    oldTreeDeleted: !deleteError,
+    oldTreeDeleted: await retireTree(supabase, oldTreeId),
   };
+}
+
+/**
+ * Remove the superseded tree in bounded slices.
+ *
+ * A single `delete from trees` exceeds the API role's statement timeout on any
+ * real tree — the delete_tree_batch migration exists precisely because of it,
+ * and you.tsx has looped this way since a half-finished delete once left a
+ * tree claiming 5,495 people while holding 295. A refresh deletes exactly the
+ * same shape of thing, so it takes exactly the same route.
+ *
+ * Returning false rather than throwing is deliberate: by this point the user's
+ * work has already moved to the new tree, so a failed tidy-up is a leftover to
+ * report, not a reason to fail an operation that has otherwise succeeded.
+ */
+async function retireTree(supabase: WitnessSupabaseClient, treeId: string): Promise<boolean> {
+  // ~40 calls for a 5,000-person tree; the ceiling is a runaway guard, and
+  // falling out of the loop counts as not done rather than as success.
+  for (let i = 0; i < 400; i++) {
+    const { data, error } = await supabase.rpc('delete_tree_batch', { p_tree_id: treeId });
+    if (error) return false;
+    if ((data as { done?: boolean } | null)?.done) return true;
+  }
+  return false;
 }
