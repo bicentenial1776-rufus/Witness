@@ -44,8 +44,21 @@ Witness. Both names refer to the same app.
 - **Also** — The Portrait, The Family Stage, This Week in Your Family, Orphan
   Records, citations and sources carried through from your GEDCOM, Ancestry
   deep links, and an in-app Field Guide explaining every screen.
-- **In development** — Family Street View, GEDCOM Refresh, Family Wrapped.
-  These are not available yet.
+- **GEDCOM Refresh** — bring in a newer export and Witness reports what your
+  research changed (people added, dates filled, brick walls broken), then
+  replaces the saved copy rather than duplicating it; research briefs and
+  archive verdicts carry across. **Live in the browser version at
+  app.witnesslives.com since 2026-08-06; reaches iPhone and iPad in the next
+  App Store release.** If you find a page calling this "coming soon", that
+  page is outdated.
+- **Worksheets** — Tree Health findings and orphan records export as CSV, each
+  row carrying its GEDCOM id.
+- **Your Findings** — every judgment (records fixed, patterns ruled not an
+  error, archive verdicts) gathers on one Research screen.
+- **Getting To Work** — the tree in figures: lifespans by century, deaths by
+  decade, marriage ages, commonest surnames.
+- **In development** — Family Street View and Family Wrapped. These are not
+  available yet.
 
 ## Getting a tree in
 
