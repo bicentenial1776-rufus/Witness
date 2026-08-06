@@ -12,6 +12,7 @@ import {
   type HealthFinding,
   type TreeHealthReport,
 } from '@witness/core/query';
+import { exportFileName, treeHealthCsv, type TreeHealthCsvRow } from '@witness/core/export';
 
 import AncestorScreen from '@/app/(app)/ancestor/[id]';
 import { Card } from '@/components/card';
@@ -19,6 +20,8 @@ import { useBroadsheet } from '@/components/broadsheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useActiveTree } from '@/lib/active-tree';
+import { showAlert } from '@/lib/alert';
+import { saveTextFile } from '@/lib/export-file';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
 
@@ -78,6 +81,7 @@ export default function TreeHealthScreen() {
   const [marked, setMarked] = useState<Set<string>>(new Set());
   const [ruled, setRuled] = useState<Set<string>>(new Set());
   const [showRuled, setShowRuled] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [selectedPerson, setSelectedPerson] = useState<string | null>(null);
   // Every category starts folded to its headline; reading 540 records is
@@ -188,6 +192,42 @@ export default function TreeHealthScreen() {
     }
   }
 
+  /**
+   * The worksheet. Witness never corrects a tree itself, so every finding has
+   * to travel to wherever the tree actually lives — this is that journey.
+   * Exports what is on screen, ruled findings included only when they are
+   * being shown, so the file matches what the reader is looking at.
+   */
+  async function exportWorksheet() {
+    if (!report || exporting) return;
+    setExporting(true);
+    try {
+      const rows: TreeHealthCsvRow[] = report.findings
+        .filter((f) => showRuled || !isRuled(f))
+        .map((finding) => ({
+          finding,
+          checkTitle: CHECK_TITLES[finding.check],
+          names: finding.individualIds.map((id) => people.get(id)?.full_name ?? 'Unnamed'),
+          xrefs: finding.individualIds.map((id) => people.get(id)?.gedcom_xref ?? id),
+          status: isRuled(finding)
+            ? ('Not an error' as const)
+            : marked.has(findingKey(finding))
+              ? ('Fixed' as const)
+              : ('Open' as const),
+        }));
+      await saveTextFile(
+        exportFileName(activeTree?.name, 'tree-health', new Date().toISOString().slice(0, 10)),
+        treeHealthCsv(rows),
+        'text/csv',
+        'public.comma-separated-values-text',
+      );
+    } catch {
+      showAlert('Could not build the worksheet', 'Try again in a moment.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
   function openFinding(finding: HealthFinding) {
     const person = finding.individualIds[0];
     if (!person) return;
@@ -242,6 +282,13 @@ export default function TreeHealthScreen() {
               </Pressable>
             )}
           </View>
+          {total > 0 && (
+            <Pressable onPress={exportWorksheet} disabled={exporting} hitSlop={8}>
+              <ThemedText type="smallBold" themeColor="accent">
+                {exporting ? 'Building your worksheet…' : '↓ Export this list as a spreadsheet'}
+              </ThemedText>
+            </Pressable>
+          )}
           {total === 0 && (
             <ThemedText>
               Nothing to report — every check passed at the precision your dates were recorded.
