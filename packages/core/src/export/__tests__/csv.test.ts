@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { exportFileName, toCsv } from '../csv.js';
 import { treeHealthCsv, type TreeHealthCsvRow } from '../treeHealth.js';
+import { orphanRecordsCsv, type OrphanCsvRow } from '../orphanRecords.js';
 import type { HealthFinding } from '../../query/treeHealth.js';
 
 describe('toCsv', () => {
@@ -109,5 +110,61 @@ describe('treeHealthCsv', () => {
     expect(csv).toContain('I12');
     expect(csv).not.toContain('@');
     expect(csv).not.toContain("'I12");
+  });
+});
+
+describe('orphanRecordsCsv', () => {
+  const orphan = (over: Partial<OrphanCsvRow>): OrphanCsvRow => ({
+    kind: 'Solo',
+    name: 'Unknown',
+    xref: '@I1@',
+    groupSize: 1,
+    suggestedName: null,
+    suggestedXref: null,
+    suggestedReasons: [],
+    deletionCandidate: false,
+    status: 'Open',
+    ...over,
+  });
+
+  /** Third column is Name — see COLUMNS in orphanRecords.ts. */
+  function names(csv: string): string[] {
+    return csv
+      .split('\r\n')
+      .slice(1)
+      .map((line) => line.split(',')[2] ?? '');
+  }
+
+  it('puts records with a suggested connection first — the tractable work', () => {
+    const csv = orphanRecordsCsv([
+      orphan({ name: 'No lead', groupSize: 40 }),
+      orphan({ name: 'Has lead', suggestedName: 'Ada Howe', suggestedXref: '@I9@' }),
+    ]);
+    expect(names(csv)).toEqual(['Has lead', 'No lead']);
+  });
+
+  it('sinks likely merge debris below real unconnected people', () => {
+    const csv = orphanRecordsCsv([
+      orphan({ name: 'Debris', deletionCandidate: true }),
+      orphan({ name: 'Real person' }),
+    ]);
+    expect(names(csv)).toEqual(['Real person', 'Debris']);
+  });
+
+  it('ranks larger islands above smaller ones once leads and debris tie', () => {
+    const csv = orphanRecordsCsv([
+      orphan({ name: 'Small', kind: 'Island', groupSize: 2 }),
+      orphan({ name: 'Large', kind: 'Island', groupSize: 12 }),
+    ]);
+    expect(names(csv)).toEqual(['Large', 'Small']);
+  });
+
+  it('sheds pointer delimiters on both the record and its suggestion', () => {
+    const csv = orphanRecordsCsv([
+      orphan({ suggestedName: 'Ada', suggestedXref: '@I9@', xref: '@I1@' }),
+    ]);
+    expect(csv).not.toContain('@');
+    expect(csv).toContain('I1');
+    expect(csv).toContain('I9');
   });
 });

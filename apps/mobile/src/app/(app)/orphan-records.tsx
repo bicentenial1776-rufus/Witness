@@ -10,6 +10,7 @@ import {
   type OrphanReport,
   type SoloOrphan,
 } from '@witness/core/query';
+import { exportFileName, orphanRecordsCsv, type OrphanCsvRow } from '@witness/core/export';
 
 import AncestorScreen from '@/app/(app)/ancestor/[id]';
 import { Card } from '@/components/card';
@@ -17,6 +18,8 @@ import { useBroadsheet } from '@/components/broadsheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useActiveTree } from '@/lib/active-tree';
+import { showAlert } from '@/lib/alert';
+import { saveTextFile } from '@/lib/export-file';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
 
@@ -60,6 +63,7 @@ export default function OrphanRecordsScreen() {
   const [showRuled, setShowRuled] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selectedPerson, setSelectedPerson] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (!treeId) return;
@@ -176,6 +180,56 @@ export default function OrphanRecordsScreen() {
     }
   }
 
+  /**
+   * The reattachment worksheet. Islands and solos land in one table because
+   * to the person working the list they are the same decision — where does
+   * this record belong, or should it go.
+   */
+  async function exportWorksheet() {
+    if (!report || exporting) return;
+    setExporting(true);
+    try {
+      const all: OrphanRow[] = [
+        ...report.islands.map((island) => ({ kind: 'island' as const, island })),
+        ...report.solos.map((solo) => ({ kind: 'solo' as const, solo })),
+      ];
+      const rows: OrphanCsvRow[] = all
+        .filter((row) => showRuled || !rowRuled(row))
+        .map((row) => {
+          const id = primaryId(row);
+          const person = people.get(id);
+          const suggestion = row.kind === 'island' ? row.island.suggestion : row.solo.suggestion;
+          return {
+            kind: row.kind === 'island' ? ('Island' as const) : ('Solo' as const),
+            name: person?.full_name ?? 'Unnamed',
+            xref: person?.gedcom_xref ?? id,
+            groupSize: row.kind === 'island' ? row.island.memberIds.length : 1,
+            suggestedName: suggestion?.candidateName ?? null,
+            suggestedXref: suggestion
+              ? (people.get(suggestion.candidateId)?.gedcom_xref ?? suggestion.candidateId)
+              : null,
+            suggestedReasons: suggestion?.reasons ?? [],
+            deletionCandidate: row.kind === 'solo' && row.solo.deletionCandidate,
+            status: rowRuled(row)
+              ? ('Not an error' as const)
+              : marked.has(fixedKey(row))
+                ? ('Fixed' as const)
+                : ('Open' as const),
+          };
+        });
+      await saveTextFile(
+        exportFileName(activeTree?.name, 'orphan-records', new Date().toISOString().slice(0, 10)),
+        orphanRecordsCsv(rows),
+        'text/csv',
+        'public.comma-separated-values-text',
+      );
+    } catch {
+      showAlert('Could not build the worksheet', 'Try again in a moment.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
   function openPerson(id: string) {
     if (broadsheet) setSelectedPerson(id);
     else router.push({ pathname: '/ancestor/[id]', params: { id } });
@@ -230,6 +284,13 @@ export default function OrphanRecordsScreen() {
             Suggestions are leads scored on surname, era, and shared places — verify at your
             source before connecting.
           </ThemedText>
+          {report.totalDisconnected > 0 && (
+            <Pressable onPress={exportWorksheet} disabled={exporting} hitSlop={8}>
+              <ThemedText type="smallBold" themeColor="accent">
+                {exporting ? 'Building your worksheet…' : '↓ Export this list as a spreadsheet'}
+              </ThemedText>
+            </Pressable>
+          )}
           {report.totalDisconnected === 0 && (
             <ThemedText>Every record in your tree connects to every other. Remarkable.</ThemedText>
           )}
