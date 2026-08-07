@@ -22,6 +22,7 @@
     "test:watch": "vitest",
     "parse:sample": "tsx scripts/parse-sample.ts",
     "create-test-user": "tsx scripts/create-test-user.ts",
+    "create-beta-user": "tsx scripts/create-beta-user.ts",
     "live-import": "tsx scripts/live-import.ts"
   },
   "devDependencies": {
