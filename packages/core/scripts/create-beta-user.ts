@@ -11,9 +11,13 @@ import { loadEnv, requireEnv } from './env.js';
  * beta tester never sees the confirmation mail — we hand them a password
  * directly. The profiles row is created by the on_auth_user_created trigger.
  *
+ * Each account is comped with a lifetime `premium` entitlement unless
+ * --no-grant says otherwise, so a tester never meets the paywall.
+ *
  *   npm run create-beta-user -- someone@example.com
  *   npm run create-beta-user -- a@example.com "Ada Lovelace" b@example.com
  *   npm run create-beta-user -- --file testers.csv     # email,Name per line
+ *   npm run create-beta-user -- someone@example.com --no-grant
  */
 
 loadEnv();
@@ -60,11 +64,45 @@ function generatePassword(length = 16): string {
   return out;
 }
 
-const invitees = parseArgs(process.argv.slice(2));
+/**
+ * Comps the account so no paywall stands between a tester and the thing we
+ * asked them to look at. RevenueCat's identity is the Supabase user id (the
+ * app calls Purchases.logIn with it), and entitlements aren't platform-scoped,
+ * so one grant covers iOS and the web app both.
+ *
+ * Two calls, not one: the promotional grant 404s (`7259 subscriber not found`)
+ * for someone who has never opened the app, and only the public SDK key can
+ * create a subscriber. The secret key is rejected outright on that endpoint.
+ * Note REVENUECAT_SECRET_API_KEY is the *v1* key — the v2 key 403s here.
+ */
+async function grantEntitlement(userId: string): Promise<void> {
+  const publicKey = requireEnv('EXPO_PUBLIC_REVENUECAT_IOS_API_KEY');
+  const secretKey = requireEnv('REVENUECAT_SECRET_API_KEY');
+  const entitlement = process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID ?? 'premium';
+  const base = `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(userId)}`;
+
+  const ensure = await fetch(base, {
+    headers: { Authorization: `Bearer ${publicKey}`, 'X-Platform': 'ios' },
+  });
+  if (!ensure.ok) throw new Error(`subscriber create failed: ${await ensure.text()}`);
+
+  // 'lifetime' is RevenueCat's ~200-year expiry, not a distinct product type.
+  const grant = await fetch(`${base}/entitlements/${entitlement}/promotional`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${secretKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ duration: 'lifetime' }),
+  });
+  if (!grant.ok) throw new Error(`entitlement grant failed: ${await grant.text()}`);
+}
+
+const argv = process.argv.slice(2);
+const shouldGrant = !argv.includes('--no-grant');
+const invitees = parseArgs(argv.filter((a) => a !== '--no-grant'));
 
 if (invitees.length === 0) {
   console.error('Usage: npm run create-beta-user -- <email> ["Name"] [<email> ...]');
   console.error('       npm run create-beta-user -- --file testers.csv');
+  console.error('       --no-grant   create the account without comping it');
   process.exit(1);
 }
 
@@ -93,8 +131,24 @@ for (const { email, name } of invitees) {
     continue;
   }
 
+  const userId = data.user!.id;
+
+  if (shouldGrant) {
+    try {
+      await grantEntitlement(userId);
+    } catch (grantError) {
+      // The account is real and usable — it just hits the paywall. Say which
+      // half failed rather than implying the whole invite needs redoing.
+      const reason = grantError instanceof Error ? grantError.message : String(grantError);
+      skipped.push({ email, reason: `account created, but ${reason}` });
+      console.error(`⚠ ${email} — ${userId}: account created, NOT comped: ${reason}`);
+      created.push({ email, password });
+      continue;
+    }
+  }
+
   created.push({ email, password });
-  console.log(`✓ ${email} — ${data.user?.id}`);
+  console.log(`✓ ${email} — ${userId}${shouldGrant ? ' (comped)' : ''}`);
 }
 
 if (created.length) {
