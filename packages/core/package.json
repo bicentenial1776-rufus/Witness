@@ -13,6 +13,7 @@
     "./query": "./dist/query/index.js",
     "./geocode": "./dist/geocode/nominatim.js",
     "./family": "./dist/family/index.js",
+    "./findings": "./dist/findings/index.js",
     "./export": "./dist/export/index.js",
     "./pulse": "./dist/pulse/index.js"
   },

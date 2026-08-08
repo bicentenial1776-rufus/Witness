@@ -201,11 +201,46 @@ there is a spine for it to sit on.
 
 1. **Do the approach-independent cleanup first**, then re-read the graph with the sink
    fixed and choose the spine. The cleanup is right under either approach.
-2. **The spine choice is open.** Recommendation on record: take **B (The Issue)** and use
-   **A's plumbing** to build it — the Ledger is the data model, the Issue is the framing,
-   and an editor needs a backlog to edit. The app doesn't feel eclectic for want of a queue;
-   it feels eclectic for want of a *subject*.
+2. **The spine: B (The Issue) built on A's plumbing** — decided the same evening, after
+   seeing the cleanup on device. The Ledger is the data model, the Issue is the framing,
+   and an editor needs a backlog to edit. The app doesn't feel eclectic for want of a
+   queue; it feels eclectic for want of a *subject*.
 3. **The Lens is a filter, not a spine.** Not revived as the organizing idea.
+4. **Orientation instruments over a tree diagram.** The "I always know where I am" quality
+   of a pedigree chart is provided by one-dimensional instruments instead of a 2-D map:
+   a *path* (the relationship lede opens the person-by-person chain — already shipped),
+   a *compass* (generation depth + branch side in the identity span), and a *running head*
+   (house of the parents, position in the birth order). The discipline: everything stays
+   one-dimensional; the moment something fans out in two dimensions it is the me-too tree
+   diagram sneaking back in, and Ancestry already does that better.
+
+## The spine, v1 — shipped 2026-08-07, same branch
+
+**A's plumbing, client-side first.** `packages/core/src/findings/` defines the unified
+`Finding` — id, source, subjectIds, one editorial sentence — with mappers from every
+emitting feature (Tree Health, NARA, crossings, migrations), plus the Issue's arithmetic:
+`issueOf(date)` (ISO-week edition number and label) and `pickWeekly(items, seed)` (FNV-1a —
+deterministic, so the week's picks are the same on every device without a server). The
+planned Postgres `findings` table uses this row shape; until it lands, findings assemble
+from the session caches and the tables that already persist (marks, rulings, candidates).
+
+**B's front page.** Home is this week's issue: a dateline (`NO. 32 · THE WEEK OF AUGUST 3`),
+**The lead** (the digest hero), then each desk files ONE piece — **From the Tree Check**
+(a single weekly-picked curiosity, the open count demoted to a mono footnote), **From the
+Archives** (the waiting count, one line), **The pattern** (one crossing or migration for
+the week, picked from the cached geography index). On This Day, the stat strip, resume,
+and the Library shelf carry on as standing furniture. A thin week simply prints fewer
+pieces — no desk fabricates.
+
+**The Portrait's third door opened.** *From the Tree Check* on the person: the audit's
+open findings naming them, same session-cached run and marks/rulings filter as the
+workbench (`getPersonCuriosities` in `curiosities-cache.ts`), so a decision there
+disappears here. Home warms the audit cache on focus, so the Portrait usually filters
+work already done. The compass ships in the identity span (`gen 7 · father's side`,
+direct line only — a cousin's generation_distance measures the common ancestor, which
+would read as a lie about the cousin), and the running head sits above the family
+register. Findings persistence (the Postgres table), back-issue permanence, and the
+Recognition/Wrapped desks remain open work.
 
 ## The cleanup — approach-independent (shipped 2026-08-07)
 

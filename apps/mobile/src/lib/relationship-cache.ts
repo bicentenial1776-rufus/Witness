@@ -33,6 +33,18 @@ export async function getRelationshipMap(treeId: string): Promise<Map<string, st
   return new Map(rows.map((row) => [row.individual_id, row.label]));
 }
 
+/**
+ * The full cached row per relative — the label plus the compass fields
+ * (generation_distance, line, is_direct_ancestor) the Portrait's identity
+ * span reads. Same single fetch as the label map.
+ */
+export async function getRelationshipDetailMap(
+  treeId: string,
+): Promise<Map<string, CachedRelationship>> {
+  const rows = await getRows(treeId);
+  return new Map(rows.map((row) => [row.individual_id, row]));
+}
+
 /** The scope is read per call, so flipping the setting applies instantly. */
 export async function getFeaturedIds(treeId: string): Promise<Set<string>> {
   const [rows, scope] = await Promise.all([getRows(treeId), getLineageScope()]);

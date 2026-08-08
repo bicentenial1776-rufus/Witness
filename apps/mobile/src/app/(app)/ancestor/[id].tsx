@@ -20,9 +20,14 @@ import { useTheme } from '@/hooks/use-theme';
 import * as Clipboard from 'expo-clipboard';
 
 import { ancestryPersonUrl } from '@/lib/ancestry';
+import { getPersonCuriosities, type Curiosity } from '@/lib/curiosities-cache';
 import { getEventLibrary } from '@/lib/event-library';
 import { createAncestorShareLink } from '@/lib/share-links';
-import { getLineageTierMap, getRelationshipMap, type LineageTier } from '@/lib/relationship-cache';
+import {
+  getLineageTierMap,
+  getRelationshipDetailMap,
+  type LineageTier,
+} from '@/lib/relationship-cache';
 import { invokeError } from '@/lib/research-brief';
 import { supabase } from '@/lib/supabase';
 import { BrandFonts, Fonts, WideContent } from '@/constants/theme';
@@ -267,6 +272,10 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   const [sources, setSources] = useState<SourceGroup[]>([]);
   const [naraCandidates, setNaraCandidates] = useState<NaraCandidate[]>([]);
   const [relationship, setRelationship] = useState<string | null>(null);
+  // The compass: generation depth + branch side, from the same cached
+  // relationship rows as the label (docs/cohesion-design-brief.md §orientation).
+  const [compass, setCompass] = useState<string | null>(null);
+  const [curiosities, setCuriosities] = useState<Curiosity[]>([]);
   const [tier, setTier] = useState<LineageTier | undefined>(undefined);
   const [ancestryUrl, setAncestryUrl] = useState<string | null>(null);
   // Story / Their World open in place — one panel at a time, the family
@@ -291,6 +300,8 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     setSources([]);
     setNaraCandidates([]);
     setRelationship(null);
+    setCompass(null);
+    setCuriosities([]);
     setTier(undefined);
     setAncestryUrl(null);
     setOpenPanel(null);
@@ -489,9 +500,32 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             if (!cancelled) setTier(map.get(personRow.id));
           })
           .catch(() => {});
-        const cached = (await getRelationshipMap(personRow.tree_id)).get(personRow.id);
+        getPersonCuriosities(personRow.tree_id, personRow.id)
+          .then((found) => {
+            if (!cancelled) setCuriosities(found);
+          })
+          .catch(() => {});
+        const cached = (await getRelationshipDetailMap(personRow.tree_id)).get(personRow.id);
         if (cached) {
-          if (!cancelled) setRelationship(cached);
+          if (!cancelled) {
+            setRelationship(cached.label);
+            // Altitude and quadrant, direct line only — a cousin's
+            // generation_distance measures the common ancestor, which
+            // reads as a lie about the cousin.
+            if (cached.is_direct_ancestor && cached.generation_distance > 1) {
+              const side =
+                cached.line === 'paternal'
+                  ? "father's side"
+                  : cached.line === 'maternal'
+                    ? "mother's side"
+                    : cached.line === 'both'
+                      ? 'both sides'
+                      : null;
+              setCompass(
+                [`gen ${cached.generation_distance}`, side].filter(Boolean).join(' · '),
+              );
+            }
+          }
         } else {
           const { data: tree } = await supabase
             .from('trees')
@@ -650,6 +684,52 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   };
   const hasRegister = parents.length > 0 || siblings.length > 0 || marriages.length > 0;
 
+  // "House of Josiah Howe & Mary Field · third of eight children" — the
+  // running head. Position comes from the sibship (already in true birth
+  // order, self included); an only child gets the house alone.
+  const ORDINAL_WORDS = [
+    '',
+    'first',
+    'second',
+    'third',
+    'fourth',
+    'fifth',
+    'sixth',
+    'seventh',
+    'eighth',
+    'ninth',
+    'tenth',
+    'eleventh',
+    'twelfth',
+  ];
+  const COUNT_WORDS = [
+    '',
+    'one',
+    'two',
+    'three',
+    'four',
+    'five',
+    'six',
+    'seven',
+    'eight',
+    'nine',
+    'ten',
+    'eleven',
+    'twelve',
+  ];
+  let runningHead: string | null = null;
+  if (parents.length > 0) {
+    const house = `House of ${parents.map((p) => p.full_name).join(' & ')}`;
+    const position = siblings.findIndex((s) => s.id === person.id);
+    if (position >= 0 && siblings.length > 1) {
+      const nth = ORDINAL_WORDS[position + 1] ?? `${position + 1}th`;
+      const of = COUNT_WORDS[siblings.length] ?? String(siblings.length);
+      runningHead = `${house} · ${nth} of ${of} children`;
+    } else {
+      runningHead = house;
+    }
+  }
+
   return (
     <ThemedView style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 48, gap: 4 }}>
@@ -698,6 +778,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             ''
           )}
           {person.living ? '  ·  living' : ''}
+          {compass ? `  ·  ${compass}` : ''}
         </Text>
         {parents.length > 0 && (
           <Text
@@ -829,6 +910,22 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
         {/* The family register: parents, the sibship (self lit), marriages. */}
         {hasRegister && (
           <View style={{ marginTop: 18, borderTopWidth: 1, borderTopColor: theme.border }}>
+            {/* Running head: person within household, position within the
+                birth order — a page number, not a map (cohesion brief
+                §orientation). Skipped when the register can't say it. */}
+            {runningHead && (
+              <Text
+                style={{
+                  fontFamily: Fonts.serif,
+                  fontSize: 13.5,
+                  fontStyle: 'italic',
+                  color: theme.textSecondary,
+                  marginTop: 12,
+                }}
+              >
+                {runningHead}
+              </Text>
+            )}
             {parents.length > 0 && (
               <View style={{ paddingTop: 14, paddingBottom: 4 }}>
                 <Text style={groupLabelStyle}>Parents</Text>
@@ -971,6 +1068,30 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 )}
               </Card>
             ))}
+          </>
+        )}
+
+        {/* The third door: what the audit noticed about this person. Same
+            session-cached run and marks/rulings filter as the workbench, so
+            a decided finding disappears here on the next visit. */}
+        {curiosities.length > 0 && (
+          <>
+            <ThemedText type="subtitle" style={{ marginTop: 16 }}>
+              From the Tree Check
+            </ThemedText>
+            <ThemedText type="small">
+              {curiosities.length === 1
+                ? `One curiosity names ${firstName(person.full_name)} — a prompt, not a problem.`
+                : `${curiosities.length} curiosities name ${firstName(person.full_name)} — prompts, not problems.`}
+            </ThemedText>
+            {curiosities.slice(0, 3).map((curiosity) => (
+              <Card key={curiosity.key} onPress={() => router.push('/tree-health')}>
+                <ThemedText type="small">{curiosity.prompt}</ThemedText>
+              </Card>
+            ))}
+            <ThemedText type="link" onPress={() => router.push('/tree-health')}>
+              Open the Tree Check ›
+            </ThemedText>
           </>
         )}
 
