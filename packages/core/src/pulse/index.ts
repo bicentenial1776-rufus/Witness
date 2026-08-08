@@ -8,10 +8,13 @@ export {
 export {
   remapIndividuals,
   planCarryForward,
+  planFindingsCarry,
   carryCostWarning,
   type IdRemap,
   type CarryPlan,
   type CarryableRow,
+  type FindingRow,
+  type FindingsCarryPlan,
 } from './carryForward.js';
 export {
   previewRefresh,

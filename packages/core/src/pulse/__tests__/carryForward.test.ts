@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { carryCostWarning, planCarryForward, remapIndividuals } from '../carryForward.js';
+import {
+  carryCostWarning,
+  planCarryForward,
+  planFindingsCarry,
+  remapIndividuals,
+  type FindingRow,
+} from '../carryForward.js';
 import type { HealthIndividual } from '../../query/treeHealth.js';
 
 function person(id: string, gedcom_xref: string | null): HealthIndividual {
@@ -112,5 +118,118 @@ describe('carryCostWarning', () => {
       homePersonLost: true,
     });
     expect(warning).toContain('1 research brief and your home person are attached');
+  });
+});
+
+describe('planFindingsCarry', () => {
+  // Real-shaped uuids, because the crossing rewrite finds them by pattern.
+  const OLD_A = '0a1b2c3d-0000-4000-8000-00000000000a';
+  const OLD_B = '0a1b2c3d-0000-4000-8000-00000000000b';
+  const NEW_A = 'f9e8d7c6-0000-4000-8000-00000000000a';
+  const NEW_B = 'f9e8d7c6-0000-4000-8000-00000000000b';
+  const GONE = '0a1b2c3d-0000-4000-8000-00000000dead';
+
+  const remap = remapIndividuals(
+    [person(OLD_A, '@I1@'), person(OLD_B, '@I2@'), person(GONE, '@I9@')],
+    [person(NEW_A, '@I1@'), person(NEW_B, '@I2@')],
+  );
+
+  const finding = (over: Partial<FindingRow>): FindingRow => ({
+    finding_id: 'migration:Massachusetts>Nova Scotia',
+    source: 'migration',
+    subject_ids: [OLD_A],
+    sentence: 'sentence',
+    edition_key: '2026-W32',
+    section: 'pattern',
+    first_seen_at: '2026-08-08T00:00:00Z',
+    ...over,
+  });
+
+  it('rewrites a tree-health id and re-sorts it canonical', () => {
+    const plan = planFindingsCarry(
+      [
+        finding({
+          source: 'tree-health',
+          // OLD_B < OLD_A would be false here, but NEW ids may sort differently
+          // than the old ones did — the rewrite must re-sort, not substitute.
+          finding_id: `tree-health:birth_after_death:${[OLD_A, OLD_B].sort().join(',')}`,
+          subject_ids: [OLD_A, OLD_B],
+        }),
+      ],
+      remap,
+    );
+    expect(plan.stranded).toHaveLength(0);
+    expect(plan.moving[0]!.newFindingId).toBe(
+      `tree-health:birth_after_death:${[NEW_A, NEW_B].sort().join(',')}`,
+    );
+    expect(plan.moving[0]!.newSubjectIds).toEqual([NEW_A, NEW_B]);
+  });
+
+  it('strands a tree-health finding naming someone gone from the file', () => {
+    const plan = planFindingsCarry(
+      [
+        finding({
+          source: 'tree-health',
+          finding_id: `tree-health:birth_after_death:${[OLD_A, GONE].sort().join(',')}`,
+          subject_ids: [OLD_A, GONE],
+        }),
+      ],
+      remap,
+    );
+    expect(plan.moving).toHaveLength(0);
+    expect(plan.stranded).toHaveLength(1);
+  });
+
+  it('rewrites the crosser inside a crossing id', () => {
+    const plan = planFindingsCarry(
+      [finding({ source: 'crossing', finding_id: `crossing:${OLD_A}:1845`, subject_ids: [OLD_A] })],
+      remap,
+    );
+    expect(plan.moving[0]!.newFindingId).toBe(`crossing:${NEW_A}:1845`);
+  });
+
+  it('never remaps an archives id — it names the candidate row, not a person', () => {
+    const candidateRowId = '11111111-2222-4333-8444-555555555555';
+    const plan = planFindingsCarry(
+      [finding({ source: 'archives', finding_id: `archives:${candidateRowId}`, subject_ids: [OLD_A] })],
+      remap,
+    );
+    expect(plan.moving[0]!.newFindingId).toBe(`archives:${candidateRowId}`);
+    expect(plan.moving[0]!.newSubjectIds).toEqual([NEW_A]);
+  });
+
+  it('carries a migration with the survivors, strands it when nobody is left', () => {
+    const survivors = planFindingsCarry([finding({ subject_ids: [OLD_A, GONE] })], remap);
+    expect(survivors.moving[0]!.newSubjectIds).toEqual([NEW_A]);
+
+    const empty = planFindingsCarry([finding({ subject_ids: [GONE] })], remap);
+    expect(empty.moving).toHaveLength(0);
+    expect(empty.stranded).toHaveLength(1);
+  });
+});
+
+describe('carryCostWarning with back issues', () => {
+  it('names the back-issue pieces alongside the rest', () => {
+    expect(
+      carryCostWarning({
+        strandedBriefs: 0,
+        strandedArchiveVerdicts: 1,
+        strandedBackIssues: 2,
+        homePersonLost: false,
+      }),
+    ).toBe(
+      '1 archive verdict and 2 back-issue pieces are attached to people who are not in the new file, and will not carry over.',
+    );
+  });
+
+  it('still costs nothing when nothing strands', () => {
+    expect(
+      carryCostWarning({
+        strandedBriefs: 0,
+        strandedArchiveVerdicts: 0,
+        strandedBackIssues: 0,
+        homePersonLost: false,
+      }),
+    ).toBeNull();
   });
 });

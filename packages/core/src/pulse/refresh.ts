@@ -5,8 +5,10 @@ import {
   carryCostWarning,
   diffTrees,
   planCarryForward,
+  planFindingsCarry,
   pulseSummary,
   remapIndividuals,
+  type FindingRow,
   type IdRemap,
   type TreePulse,
 } from './index.js';
@@ -39,6 +41,7 @@ export interface RefreshPreview {
   remap: IdRemap;
   strandedBriefs: number;
   strandedArchiveVerdicts: number;
+  strandedBackIssues: number;
   homePersonLost: boolean;
 }
 
@@ -54,7 +57,7 @@ interface CandidateRow {
 }
 
 async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: string) {
-  const [briefs, candidates] = await Promise.all([
+  const [briefs, candidates, findings] = await Promise.all([
     supabase.from('research_briefs').select('id, individual_id').eq('tree_id', oldTreeId),
     // Only decided candidates are worth carrying. A pending row is a machine
     // suggestion the new tree's enrichment will regenerate anyway; moving it
@@ -64,10 +67,19 @@ async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: strin
       .select('id, individual_id, na_id')
       .eq('tree_id', oldTreeId)
       .neq('status', 'pending'),
+    // The findings ledger — only printed pieces (edition_key set) carry:
+    // an unprinted row is a machine notice the new tree will re-derive, but
+    // a back issue is history and dies with the old tree's cascade otherwise.
+    supabase
+      .from('findings')
+      .select('finding_id, source, subject_ids, sentence, edition_key, section, first_seen_at')
+      .eq('tree_id', oldTreeId)
+      .not('edition_key', 'is', null),
   ]);
   return {
     briefs: (briefs.data ?? []) as BriefRow[],
     candidates: (candidates.data ?? []) as CandidateRow[],
+    findings: (findings.data ?? []) as FindingRow[],
   };
 }
 
@@ -92,6 +104,7 @@ export async function previewRefresh(
 
   const briefPlan = planCarryForward(carryables.briefs, remap);
   const candidatePlan = planCarryForward(carryables.candidates, remap);
+  const findingsPlan = planFindingsCarry(carryables.findings, remap);
   const homePersonId = oldTree.data?.home_person_id ?? null;
   const homePersonLost = Boolean(homePersonId && !remap.map.has(homePersonId));
 
@@ -101,11 +114,13 @@ export async function previewRefresh(
     costWarning: carryCostWarning({
       strandedBriefs: briefPlan.stranded.length,
       strandedArchiveVerdicts: candidatePlan.stranded.length,
+      strandedBackIssues: findingsPlan.stranded.length,
       homePersonLost,
     }),
     remap,
     strandedBriefs: briefPlan.stranded.length,
     strandedArchiveVerdicts: candidatePlan.stranded.length,
+    strandedBackIssues: findingsPlan.stranded.length,
     homePersonLost,
   };
 }
@@ -113,6 +128,7 @@ export async function previewRefresh(
 export interface RefreshResult {
   briefsMoved: number;
   verdictsMoved: number;
+  backIssuePiecesMoved: number;
   homePersonMoved: boolean;
   oldTreeDeleted: boolean;
 }
@@ -136,6 +152,7 @@ export async function applyRefresh(
   const carryables = await fetchCarryables(supabase, oldTreeId);
   const briefPlan = planCarryForward(carryables.briefs, preview.remap);
   const candidatePlan = planCarryForward(carryables.candidates, preview.remap);
+  const findingsPlan = planFindingsCarry(carryables.findings, preview.remap);
 
   for (const { row, newIndividualId } of briefPlan.moving) {
     const { error } = await supabase
@@ -170,6 +187,33 @@ export async function applyRefresh(
     if (error) throw new Error(`Could not move an archive verdict: ${error.message}`);
   }
 
+  // The ledger crosses by insert rather than update: finding_id is half the
+  // primary key and must be rewritten, and the new tree's Home may already
+  // have printed this week's pieces there — ignoreDuplicates lets the two
+  // histories meet without a constraint violation. The old rows retire with
+  // the old tree's cascade.
+  if (findingsPlan.moving.length > 0) {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (userId) {
+      const { error } = await supabase.from('findings').upsert(
+        findingsPlan.moving.map(({ row, newFindingId, newSubjectIds }) => ({
+          tree_id: newTreeId,
+          user_id: userId,
+          finding_id: newFindingId,
+          source: row.source,
+          subject_ids: newSubjectIds,
+          sentence: row.sentence,
+          edition_key: row.edition_key,
+          section: row.section,
+          first_seen_at: row.first_seen_at,
+        })),
+        { onConflict: 'tree_id,finding_id', ignoreDuplicates: true },
+      );
+      if (error) throw new Error(`Could not carry the back issues: ${error.message}`);
+    }
+  }
+
   let movedHome = false;
   if (!preview.homePersonLost) {
     const { data } = await supabase
@@ -202,6 +246,7 @@ export async function applyRefresh(
   return {
     briefsMoved: briefPlan.moving.length,
     verdictsMoved: candidatePlan.moving.length,
+    backIssuePiecesMoved: findingsPlan.moving.length,
     homePersonMoved: movedHome,
     oldTreeDeleted: await retireTree(supabase, oldTreeId),
   };
