@@ -284,6 +284,11 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // (it belongs to Tree Health — a person can't tell a brief is needed).
   const [openPanel, setOpenPanel] = useState<'story' | 'world' | null>(null);
   const [shareState, setShareState] = useState<'idle' | 'busy' | 'copied'>('idle');
+  // Re-render tick for the issue band: dismissal mutates module state this
+  // screen can't see. MUST live up here with the other hooks — declared
+  // below the early returns it broke the Rules of Hooks and crashed every
+  // navigation into the Portrait (caught 2026-08-08, on device).
+  const [, trailTick] = useState(0);
 
   const biography = useEnrichment(id, 'biography', 'generate-biography', 'biography');
   const worldContext = useEnrichment(id, 'historical_context', 'generate-historical-context', 'context');
@@ -733,9 +738,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
 
   // The road back to the issue (audit G1): while the reader is inside this
   // week's edition, the next piece is one tap — not five backs. Read per
-  // render so following the band to another Portrait advances it; the tick
-  // exists because dismissal mutates module state this screen can't see.
-  const [, trailTick] = useState(0);
+  // render so following the band to another Portrait advances it.
   const trailNext = nextTrailPiece();
 
   return (
