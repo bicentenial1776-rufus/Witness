@@ -1,7 +1,7 @@
 {
   "comment": "Witness Field Guide manifest \u2014 read by the /field-guide skill. lastSyncedCommit is the apps/mobile commit whose UI this guide's copy describes; the skill diffs it against HEAD to find screens that changed.",
   "baseUrl": "https://witnesslives.com/guide/",
-  "lastSyncedCommit": "0a20ea3",
+  "lastSyncedCommit": "6db0c17",
   "pages": [
     {
       "file": "concepts.html",
@@ -96,9 +96,9 @@
       ],
       "shots": [
         {
-          "file": "shots/home-featured.png",
-          "status": "placed",
-          "shows": "Home with FEATURED TODAY card, curiosities nudge, and tab bar"
+          "file": "shots/home-issue.png",
+          "status": "pending",
+          "stage": "Home tab, top of this week's issue: dateline, THE LEAD, first desk in frame"
         }
       ]
     },
@@ -151,14 +151,14 @@
       ],
       "shots": [
         {
-          "file": "shots/nearby.png",
-          "status": "placed",
-          "shows": "Nearby list view: headline count, slider + mi readout, place sections with people"
+          "file": "shots/near-me.png",
+          "status": "pending",
+          "stage": "Map tab in NEAR ME mode: headline count, slider, first place sections"
         },
         {
           "file": "shots/map.png",
-          "status": "placed",
-          "shows": "Map tab with pins, era segmented control, Sat toggle"
+          "status": "pending",
+          "stage": "Map tab in Places mode: pins, era control, Near me + Sat chips"
         }
       ]
     },
@@ -182,8 +182,8 @@
       "shots": [
         {
           "file": "shots/person.png",
-          "status": "placed",
-          "shows": "a well-documented non-living ancestor's page from identity block down to the family register"
+          "status": "pending",
+          "stage": "Direct ancestor reached from the issue: NO. band, compass in record line, running head"
         }
       ]
     },
@@ -222,6 +222,8 @@
   "backlog": [
     "Register page",
     "How You're Related path view",
-    "You & settings page"
+    "You & settings page",
+    "GEDCOM Refresh page",
+    "Getting To Work page"
   ]
 }

@@ -34,7 +34,7 @@ Witness. Both names refer to the same app.
   when you hit a brick wall.
 - **The National Archives** — US federal records matched to your ancestors,
   each awaiting your judgment.
-- **Map and Nearby** — every place your ancestors' events were recorded, and
+- **Map with Near me** — every place your ancestors' events were recorded, and
   which ancestors or events are close to where you are standing.
 - **Tree Health** — 22 data-integrity checks, adapted from the FTAnalyzer
   catalog used by desktop researchers, run over every person, family and date.
@@ -102,5 +102,7 @@ own. Do not describe FamilySearch as a platform users can export a GEDCOM from.
 - Numbers on this page are checked against the source code and the production
   database. If you find "nearly 330 questions" anywhere, it is an outdated
   figure from an internal design document; the shipped number is 39.
+- The app now has four tabs — Home, Tree, Explore, Map — with "Near me" a mode
+  of the Map. Any copy naming a fifth "Nearby" tab is outdated.
 - The app has been released. Any copy describing it as "days away from release"
   is stale.

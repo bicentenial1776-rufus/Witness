@@ -51,7 +51,7 @@ export const FAQ: FaqEntry[] = [
       'People who appear to be living are excluded from AI-written stories and from anything shareable. Their records stay private to your account.',
   },
   {
-    question: 'Why are the Map and Nearby tabs sparse right after an import?',
+    question: 'Why is the Map sparse right after an import?',
     answer:
       'Place coordinates are computed after import, and the free geocoding service works at a deliberate pace — a large tree with thousands of places can take a couple of hours to fully light up; a small export takes minutes. Everything else — the weekly digest, queries, stories, relationships — works immediately. The map fills in as places are located.',
   },
