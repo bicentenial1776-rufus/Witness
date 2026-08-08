@@ -1,0 +1,525 @@
+<title>Witness — the features as they stand, and how they feed each other</title>
+
+<style>
+  :root {
+    --paper:      #FBF9F5;
+    --raised:     #FFFDF9;
+    --ink:        #1A1815;
+    --ink-2:      #4A443B;
+    --muted:      #6F6A60;
+    --rule:       #DDD6C9;
+    --rule-faint: #EBE5D9;
+    --amber:      #B0741F;
+    --amber-deep: #8A5A12;
+    --slate:      #5F6E79;
+    --good:       #4A6B4E;
+
+    --serif: 'Iowan Old Style', 'Hoefler Text', Palatino, 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+    --mono:  ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #1C1917;
+      --raised:     #241F1A;
+      --ink:        #F0EBE3;
+      --ink-2:      #BDB3A6;
+      --muted:      #8E857A;
+      --rule:       #3E362C;
+      --rule-faint: #2E2820;
+      --amber:      #E08D2F;
+      --amber-deep: #C4761F;
+      --slate:      #93A5B1;
+      --good:       #7FA983;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:      #1C1917;
+    --raised:     #241F1A;
+    --ink:        #F0EBE3;
+    --ink-2:      #BDB3A6;
+    --muted:      #8E857A;
+    --rule:       #3E362C;
+    --rule-faint: #2E2820;
+    --amber:      #E08D2F;
+    --amber-deep: #C4761F;
+    --slate:      #93A5B1;
+    --good:       #7FA983;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet { max-width: 960px; margin: 0 auto; padding: 0 28px 96px; }
+
+  .masthead { border-bottom: 3px double var(--rule); padding: 56px 0 18px; margin-bottom: 40px; }
+  .kicker {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--amber-deep); margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(30px, 5vw, 44px);
+    line-height: 1.12; letter-spacing: -0.015em; text-wrap: balance; margin: 0 0 16px;
+  }
+  .standfirst { font-size: 19px; line-height: 1.5; color: var(--ink-2); max-width: 62ch; margin: 0; }
+  .dateline {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); margin: 20px 0 0;
+  }
+
+  h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 27px; line-height: 1.2;
+    letter-spacing: -0.01em; text-wrap: balance; margin: 56px 0 4px;
+    padding-top: 20px; border-top: 1px solid var(--rule);
+  }
+  h2 .num {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+    color: var(--amber); display: block; margin-bottom: 8px;
+  }
+
+  p { margin: 0 0 16px; max-width: 68ch; }
+  code, .m { font-family: var(--mono); font-size: 0.86em; font-variant-numeric: tabular-nums; }
+  code { color: var(--ink-2); }
+  strong { font-weight: 600; }
+
+  ul { margin: 0 0 16px; padding-left: 0; list-style: none; max-width: 68ch; }
+  ul li { position: relative; padding-left: 20px; margin-bottom: 9px; }
+  ul li::before {
+    content: '—'; position: absolute; left: 0; color: var(--amber);
+    font-family: var(--mono); font-size: 11px; top: 0.15em;
+  }
+
+  .verdict {
+    border-left: 2px solid var(--amber);
+    padding: 2px 0 2px 22px; margin: 26px 0 30px;
+    font-size: 21px; line-height: 1.42; max-width: 56ch;
+  }
+
+  figure { margin: 34px 0 40px; padding: 0; }
+  .figframe {
+    border: 1px solid var(--rule);
+    background: var(--raised);
+    padding: 24px 20px 18px;
+    overflow-x: auto;
+  }
+  figure svg {
+    display: block; width: 100%; min-width: 660px; max-width: 100%;
+    height: auto; color: var(--ink-2);
+  }
+  figcaption {
+    font-family: var(--mono); font-size: 10.5px; line-height: 1.6;
+    letter-spacing: 0.03em; color: var(--muted); margin-top: 12px; max-width: 78ch;
+  }
+  figcaption b { color: var(--ink-2); font-weight: 400; }
+
+  .svg-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; }
+  .svg-serif { font-family: var(--serif); }
+
+  .register { width: 100%; border-collapse: collapse; margin: 20px 0 28px; font-size: 14.5px; }
+  .register th {
+    font-family: var(--mono); font-size: 9.5px; font-weight: 400; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted); text-align: left;
+    padding: 0 14px 8px 0; border-bottom: 1px solid var(--rule); white-space: nowrap;
+  }
+  .register td {
+    padding: 11px 14px 11px 0; border-bottom: 1px solid var(--rule-faint);
+    vertical-align: top; line-height: 1.5;
+  }
+  .register tr:last-child td { border-bottom: 1px solid var(--rule); }
+  .register .feat { font-family: var(--serif); font-size: 16px; white-space: nowrap; }
+  .register .where { font-family: var(--mono); font-size: 11px; color: var(--amber-deep); white-space: nowrap; }
+  .register .note { color: var(--ink-2); }
+
+  .foot {
+    margin-top: 64px; padding-top: 18px; border-top: 3px double var(--rule);
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em;
+    color: var(--muted); line-height: 1.8;
+  }
+</style>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <p class="kicker">Product architecture · the current state</p>
+    <h1>Witness, as it stands: one subject, four verbs, two loops</h1>
+    <p class="standfirst">
+      Two days ago the feature map showed six families of screens funneling into a room
+      with one door. This is the after picture: what each feature is now, what feeds it,
+      and the two loops — the reading week and the research round trip — that make them
+      one system.
+    </p>
+    <p class="dateline">8 August 2026 · drawn from <span class="m">main</span> at <span class="m">978a904</span> · live on phone, native iPad ≥900pt, and app.witnesslives.com</p>
+  </header>
+
+  <section>
+    <h2><span class="num">01</span>The shape</h2>
+    <p>
+      Four tabs, four verbs: <strong>Home</strong> reads, <strong>Tree</strong> works,
+      <strong>Explore</strong> asks, <strong>Map</strong> goes. The fifth slot is empty on
+      purpose — Street View is its claimant. Every tab, and every desk on the front page,
+      ultimately lands on the same room — the Portrait — but the room is now a junction,
+      not a terminus: it can send you onward to a place, a household, a chain of descent,
+      an era, a finding, or the next piece of the week's issue.
+    </p>
+
+    <figure>
+      <div class="figframe">
+        <svg viewBox="0 0 920 620" role="img" aria-label="The current Witness architecture: engines at the top feed the four desks of the weekly Issue on Home; the Issue, the Tree tab, the Explore tab and the Map tab all land on the Portrait at the center; the Portrait's doors lead onward to people, place, household, descent chain, era query, workbench, Ancestry, and back to the next piece of the issue.">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0,1 L9,5 L0,9 z" fill="currentColor"/>
+            </marker>
+            <marker id="ar-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0,1 L9,5 L0,9 z" style="fill:var(--amber)"/>
+            </marker>
+          </defs>
+
+          <!-- ============ ENGINES BAND ============ -->
+          <text x="20" y="20" class="svg-label" style="fill:var(--muted)">THE ENGINES · CACHED PER SESSION, WORKED BY CRON</text>
+          <g fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3">
+            <rect x="20"  y="30" width="200" height="40"/>
+            <rect x="240" y="30" width="200" height="40"/>
+            <rect x="460" y="30" width="200" height="40"/>
+            <rect x="680" y="30" width="220" height="40"/>
+          </g>
+          <g class="svg-label" fill="currentColor">
+            <text x="34" y="47">DIGEST + FEATURED-TODAY</text>
+            <text x="34" y="61" style="fill:var(--muted)">ANNIVERSARIES · DAILY NOTE JOB</text>
+            <text x="254" y="47">TREE CHECK AUDIT</text>
+            <text x="254" y="61" style="fill:var(--muted)">22 CHECKS · ONE RUN A SESSION</text>
+            <text x="474" y="47">NARA WORKER</text>
+            <text x="474" y="61" style="fill:var(--muted)">DRAFT CARDS · NATURALIZATIONS</text>
+            <text x="694" y="47">GEOGRAPHY INDEX</text>
+            <text x="694" y="61" style="fill:var(--muted)">CROSSINGS · MIGRATIONS · PLACES</text>
+          </g>
+
+          <!-- engine → desk arrows -->
+          <g stroke="currentColor" stroke-width="1" fill="none" marker-end="url(#ar)">
+            <line x1="120" y1="70" x2="120" y2="122"/>
+            <line x1="340" y1="70" x2="340" y2="122"/>
+            <line x1="560" y1="70" x2="560" y2="122"/>
+            <line x1="790" y1="70" x2="790" y2="122"/>
+          </g>
+          <text x="126" y="100" class="svg-label" style="fill:var(--muted)">FILES ONE PIECE A WEEK</text>
+
+          <!-- ============ THE ISSUE ============ -->
+          <rect x="20" y="126" width="880" height="86" fill="none" style="stroke:var(--amber)" stroke-width="1.5"/>
+          <text x="34" y="148" class="svg-label" style="fill:var(--amber)">HOME · THE ISSUE — NO. 32, SAME EDITION ALL WEEK, EVERY DEVICE</text>
+          <g fill="none" stroke="currentColor" stroke-width="1">
+            <rect x="34"  y="158" width="196" height="40"/>
+            <rect x="250" y="158" width="196" height="40"/>
+            <rect x="466" y="158" width="196" height="40"/>
+            <rect x="682" y="158" width="204" height="40"/>
+          </g>
+          <g class="svg-serif" font-size="14" fill="currentColor">
+            <text x="48" y="183">The lead</text>
+            <text x="264" y="183">From the Tree Check</text>
+            <text x="480" y="183">From the Archives</text>
+            <text x="696" y="183">The pattern</text>
+          </g>
+
+          <!-- ledger tap -->
+          <line x1="900" y1="169" x2="900" y2="169"/>
+          <path d="M886,198 C910,220 910,240 886,252" stroke="currentColor" stroke-width="1" fill="none" marker-end="url(#ar)" stroke-dasharray="3 3"/>
+          <text x="838" y="232" class="svg-label" style="fill:var(--muted)">RECORDED AS</text>
+          <text x="838" y="245" class="svg-label" style="fill:var(--muted)">BACK ISSUES</text>
+
+          <!-- desks → portrait -->
+          <g style="stroke:var(--amber)" stroke-width="1.2" fill="none" marker-end="url(#ar-amber)">
+            <line x1="132" y1="198" x2="360" y2="330"/>
+            <line x1="348" y1="198" x2="404" y2="326"/>
+          </g>
+          <text x="200" y="270" class="svg-label" style="fill:var(--amber)">LANDS ON THE PERSON IT NAMES</text>
+
+          <!-- ============ SIDE TABS ============ -->
+          <g fill="none" stroke="currentColor" stroke-width="1">
+            <rect x="20"  y="300" width="180" height="120"/>
+            <rect x="720" y="300" width="180" height="120"/>
+          </g>
+          <text x="34" y="322" class="svg-label" fill="currentColor">TREE · THE WORKBENCH</text>
+          <g class="svg-serif" font-size="13" fill="currentColor">
+            <text x="34" y="344">Family Stage · Register</text>
+            <text x="34" y="363">Tree Check · Orphans</text>
+            <text x="34" y="382">Archives · Briefs</text>
+          </g>
+          <text x="34" y="404" class="svg-label" style="fill:var(--muted)">YOUR FINDINGS LEDGER BAND</text>
+
+          <text x="734" y="322" class="svg-label" fill="currentColor">EXPLORE + MAP</text>
+          <g class="svg-serif" font-size="13" fill="currentColor">
+            <text x="734" y="344">Search by name or place</text>
+            <text x="734" y="363">Library · 329 questions</text>
+            <text x="734" y="382">Patterns · Places</text>
+          </g>
+          <text x="734" y="404" class="svg-label" style="fill:var(--muted)">MAP + NEAR ME MODE</text>
+
+          <g stroke="currentColor" stroke-width="1" fill="none" marker-end="url(#ar)">
+            <line x1="200" y1="360" x2="336" y2="360"/>
+            <line x1="720" y1="360" x2="584" y2="360"/>
+          </g>
+
+          <!-- ============ THE PORTRAIT ============ -->
+          <rect x="340" y="320" width="240" height="110" fill="none" style="stroke:var(--amber)" stroke-width="2"/>
+          <text x="460" y="350" text-anchor="middle" class="svg-serif" font-size="18" fill="currentColor">The Portrait</text>
+          <text x="460" y="368" text-anchor="middle" class="svg-label" style="fill:var(--amber)">EVERY ROAD'S DESTINATION</text>
+          <g class="svg-label" style="fill:var(--muted)" text-anchor="middle">
+            <text x="460" y="390">COMPASS · GEN 7 · FATHER'S SIDE</text>
+            <text x="460" y="404">HOUSE OF X &amp; Y · THIRD OF EIGHT</text>
+            <text x="460" y="418">NO. 32 · NEXT: THE PATTERN ›</text>
+          </g>
+
+          <!-- issue band return -->
+          <path d="M580,335 C660,300 660,240 640,212" style="stroke:var(--amber)" stroke-width="1.2" fill="none" marker-end="url(#ar-amber)"/>
+          <text x="668" y="262" class="svg-label" style="fill:var(--amber)">NEXT IN THIS ISSUE</text>
+
+          <!-- ============ THE DOORS ============ -->
+          <text x="20" y="470" class="svg-label" style="fill:var(--muted)">THE DOORS OUT — EVERY ONE CUT SINCE 7 AUGUST IS MARKED ●</text>
+          <g fill="none" stroke="currentColor" stroke-width="1">
+            <rect x="20"  y="482" width="130" height="44"/>
+            <rect x="166" y="482" width="130" height="44"/>
+            <rect x="312" y="482" width="130" height="44"/>
+            <rect x="458" y="482" width="130" height="44"/>
+            <rect x="604" y="482" width="130" height="44"/>
+            <rect x="750" y="482" width="150" height="44"/>
+          </g>
+          <g class="svg-serif" font-size="13" fill="currentColor">
+            <text x="34" y="501">Another person</text>
+            <text x="180" y="501">Their place ●</text>
+            <text x="326" y="501">Their household ●</text>
+            <text x="472" y="501">Descent chain</text>
+            <text x="618" y="501">Era query</text>
+            <text x="764" y="501">Their findings ●</text>
+          </g>
+          <g class="svg-label" style="fill:var(--muted)">
+            <text x="34" y="517">SIBLING · SPOUSE · CHILD</text>
+            <text x="180" y="517">EVERYONE ELSE THERE</text>
+            <text x="326" y="517">THE FAMILY STAGE</text>
+            <text x="472" y="517">YOU → … → THEM</text>
+            <text x="618" y="517">WHO ELSE WAS ALIVE</text>
+            <text x="764" y="517">FROM THE TREE CHECK</text>
+          </g>
+          <g stroke="currentColor" stroke-width="1" fill="none" marker-end="url(#ar)">
+            <line x1="400" y1="430" x2="85"  y2="478"/>
+            <line x1="420" y1="430" x2="231" y2="478"/>
+            <line x1="450" y1="430" x2="377" y2="478"/>
+            <line x1="480" y1="430" x2="523" y2="478"/>
+            <line x1="510" y1="430" x2="669" y2="478"/>
+            <line x1="540" y1="430" x2="820" y2="478"/>
+          </g>
+
+          <!-- outward -->
+          <text x="20" y="570" class="svg-label" style="fill:var(--slate)">OUTWARD — ANCESTRY DEEP LINK · SHARE LINK (OG UNFURL) · NARA CATALOG</text>
+          <line x1="460" y1="526" x2="460" y2="556" stroke-width="1" style="stroke:var(--slate)" fill="none" marker-end="url(#ar)"/>
+          <text x="20" y="596" class="svg-label" style="fill:var(--muted)">THE SHARE LINK COMES BACK: A COUSIN'S SIGN-IN NOW CARRIES THE STORY TOKEN THROUGH AND LANDS THEM ON THE ANCESTOR</text>
+        </svg>
+      </div>
+      <figcaption>
+        <b>The app as one drawing.</b> Engines (dashed) compute; the Issue's four desks each
+        file ONE piece a week, deterministically seeded by the ISO week so every device
+        prints the same edition; every desk, tab, and search lands on the Portrait; the
+        Portrait's doors lead onward — the ● doors are the ones cut this week — and the
+        issue band leads back. Compare the 6 August figure: the same room had one door,
+        to another copy of itself.
+      </figcaption>
+    </figure>
+
+    <p class="verdict">
+      The funnel became a wheel. Everything still meets at the Portrait — but now it's the
+      hub the spokes pass through, not the drain they empty into.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">02</span>The two loops</h2>
+    <p>
+      The system runs on two cycles at different speeds. The <strong>reading loop</strong>
+      turns weekly and asks nothing of the user but twenty minutes. The <strong>research
+      loop</strong> turns on the user's schedule — months, sometimes — and is the only
+      path by which Witness's findings become part of the permanent family record.
+    </p>
+
+    <figure>
+      <div class="figframe">
+        <svg viewBox="0 0 920 330" role="img" aria-label="Two loops. Left: the weekly reading loop — the edition is composed Monday, read on the Portrait, recorded to the findings ledger as a back issue, and next Monday's edition follows. Right: the research round trip — a confirmed archives record is added to Ancestry by deep link, comes back inside the next GEDCOM export, and the refresh carries briefs, verdicts, home person and back issues onto the new tree.">
+          <defs>
+            <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0,1 L9,5 L0,9 z" fill="currentColor"/>
+            </marker>
+            <marker id="ar2-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0,1 L9,5 L0,9 z" style="fill:var(--amber)"/>
+            </marker>
+          </defs>
+
+          <!-- LEFT: reading loop -->
+          <text x="20" y="24" class="svg-serif" font-size="15" fill="currentColor">The reading loop · turns weekly</text>
+
+          <g fill="none" stroke="currentColor" stroke-width="1">
+            <rect x="40"  y="60"  width="150" height="42"/>
+            <rect x="250" y="60"  width="150" height="42"/>
+            <rect x="250" y="200" width="150" height="42"/>
+            <rect x="40"  y="200" width="150" height="42"/>
+          </g>
+          <g class="svg-serif" font-size="13.5" fill="currentColor" text-anchor="middle">
+            <text x="115" y="79">Monday</text>
+            <text x="115" y="95" class="svg-label" style="fill:var(--muted)">NEW EDITION SEEDED</text>
+            <text x="325" y="79">The desks file</text>
+            <text x="325" y="95" class="svg-label" style="fill:var(--muted)">ONE PIECE EACH</text>
+            <text x="325" y="219">Read on the Portrait</text>
+            <text x="325" y="235" class="svg-label" style="fill:var(--muted)">BAND: NEXT PIECE ›</text>
+            <text x="115" y="219">The ledger keeps it</text>
+            <text x="115" y="235" class="svg-label" style="fill:var(--muted)">BACK ISSUE · POSTGRES</text>
+          </g>
+          <g style="stroke:var(--amber)" stroke-width="1.2" fill="none" marker-end="url(#ar2-amber)">
+            <line x1="190" y1="81"  x2="246" y2="81"/>
+            <line x1="325" y1="102" x2="325" y2="196"/>
+            <line x1="246" y1="221" x2="194" y2="221"/>
+            <path d="M115,196 C115,150 115,150 115,106"/>
+          </g>
+          <text x="122" y="155" class="svg-label" style="fill:var(--amber)">NEXT MONDAY</text>
+
+          <!-- divider -->
+          <line x1="460" y1="16" x2="460" y2="314" style="stroke:var(--rule)" stroke-width="1"/>
+
+          <!-- RIGHT: research loop -->
+          <text x="490" y="24" class="svg-serif" font-size="15" fill="currentColor">The research round trip · turns when you do</text>
+
+          <g fill="none" stroke="currentColor" stroke-width="1">
+            <rect x="490" y="60"  width="180" height="42"/>
+            <rect x="712" y="60"  width="188" height="42"/>
+            <rect x="712" y="200" width="188" height="42"/>
+            <rect x="490" y="200" width="180" height="42"/>
+          </g>
+          <g class="svg-serif" font-size="13.5" fill="currentColor" text-anchor="middle">
+            <text x="580" y="79">Witness notices</text>
+            <text x="580" y="95" class="svg-label" style="fill:var(--muted)">NARA MATCH · YOU CONFIRM</text>
+            <text x="806" y="79">Into Ancestry</text>
+            <text x="806" y="95" class="svg-label" style="fill:var(--muted)">DEEP LINK + PASTED SOURCE</text>
+            <text x="806" y="219">GEDCOM comes back</text>
+            <text x="806" y="235" class="svg-label" style="fill:var(--muted)">EXPORT · REFRESH IMPORT</text>
+            <text x="580" y="219">The work survives</text>
+            <text x="580" y="235" class="svg-label" style="fill:var(--muted)">CARRY-FORWARD, OR SAYS WHY NOT</text>
+          </g>
+          <g style="stroke:var(--slate)" stroke-width="1.2" fill="none" marker-end="url(#ar2)">
+            <line x1="670" y1="81"  x2="708" y2="81"/>
+            <line x1="806" y1="102" x2="806" y2="196"/>
+            <line x1="708" y1="221" x2="674" y2="221"/>
+            <line x1="580" y1="196" x2="580" y2="106"/>
+          </g>
+          <g class="svg-label" style="fill:var(--muted)">
+            <text x="490" y="270">CARRIED: RESEARCH BRIEFS · ARCHIVE VERDICTS · HOME PERSON · BACK ISSUES · RULINGS</text>
+            <text x="490" y="286">DIES ON PURPOSE: "FIXED" MARKS — IF THE SOURCE WAS TRULY CORRECTED, THE FINDING WON'T RETURN</text>
+            <text x="490" y="302">STRANDED WORK IS NAMED IN THE COST WARNING BEFORE YOU COMMIT, NEVER DISCOVERED AFTER</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>
+        <b>Two cycles, two speeds.</b> The reading loop needs nothing from the user and
+        never runs dry — a thin week prints fewer pieces rather than fabricating. The
+        research round trip is the only way a Witness finding becomes part of the
+        permanent record, because Witness never edits a tree: the bridge is a pasted
+        source link outbound and a GEDCOM refresh inbound, with the carry-forward
+        planner keeping the researcher's work alive across the crossing.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2><span class="num">03</span>The register — every feature, what feeds it, where it leads</h2>
+
+    <table class="register">
+      <thead>
+        <tr><th>Feature</th><th>Lives</th><th>Fed by</th><th>Leads to</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="feat">The Issue</td>
+          <td class="where">HOME</td>
+          <td class="note">All four engines; ISO-week seed; findings ledger records what printed</td>
+          <td class="note">Each piece lands on its person or story; the trail leads back</td>
+        </tr>
+        <tr>
+          <td class="feat">The Portrait</td>
+          <td class="where">EVERYWHERE</td>
+          <td class="note">Family register, relationship cache (compass + descent), audit cache (findings), NARA per person, enrichment (Story / Their World)</td>
+          <td class="note">Six doors + Ancestry, share, and the issue band</td>
+        </tr>
+        <tr>
+          <td class="feat">Family Stage &amp; Register</td>
+          <td class="where">TREE</td>
+          <td class="note">Tree index; <span class="m">stageKeyForPerson</span> resolves any spouse to their household</td>
+          <td class="note">Every thread tappable to a Portrait; child marriages to the next stage</td>
+        </tr>
+        <tr>
+          <td class="feat">Tree Check</td>
+          <td class="where">TREE</td>
+          <td class="note">One audit run a session, shared by Home, workbench, and Portrait; marks + rulings persist</td>
+          <td class="note">The accused's Portrait; decisions feed the ledger band and quiet the curiosity everywhere at once</td>
+        </tr>
+        <tr>
+          <td class="feat">The Archives</td>
+          <td class="where">TREE</td>
+          <td class="note">NARA cron worker, atomic monthly quota</td>
+          <td class="note">The person first, the catalog second, Ancestry third — the research loop's first arc</td>
+        </tr>
+        <tr>
+          <td class="feat">Patterns</td>
+          <td class="where">EXPLORE</td>
+          <td class="note">Geography index (origins, migrations, crossings) + family graph (kindred)</td>
+          <td class="note">The pattern desk draws its weekly piece from here; every mover and crosser tappable</td>
+        </tr>
+        <tr>
+          <td class="feat">The Library</td>
+          <td class="where">EXPLORE</td>
+          <td class="note">329 curated questions, counted live against the tree</td>
+          <td class="note">Era queries → everyone alive → their Portraits; backs Home's shelf and On This Day fallback</td>
+        </tr>
+        <tr>
+          <td class="feat">Map + Near me</td>
+          <td class="where">MAP</td>
+          <td class="note">Geography index + geocode worker (pins fill for hours after import); GPS for the Near me mode</td>
+          <td class="note">Place → residents → Portraits; the graveyard moment is two taps</td>
+        </tr>
+        <tr>
+          <td class="feat">GEDCOM Refresh</td>
+          <td class="where">IMPORT</td>
+          <td class="note">Pulse diff + carry-forward planner (briefs, verdicts, home person, back issues; rulings survive by xref)</td>
+          <td class="note">The research loop's return arc; the cost warning names anything stranded before you commit</td>
+        </tr>
+        <tr>
+          <td class="feat">Story sharing</td>
+          <td class="where">OUTWARD</td>
+          <td class="note">Share links with OG unfurls, 90-day expiry, living persons excluded</td>
+          <td class="note">The cousin's sign-in carries the token back to the story — the seed of the deferred network</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span>Deliberately absent</h2>
+    <ul>
+      <li><strong>The fifth tab.</strong> Empty until Street View earns it. Filling a slot because it's free is the opportunism this year's work corrected.</li>
+      <li><strong>The cousin network.</strong> Deferred again, on purpose (Rufus, 8 Aug): a network-effect feature with no network yet fires never and looks broken. Kindred couples is its single-tree rehearsal; the society campaign is its future seedbed.</li>
+      <li><strong>"I'm Here" notifications.</strong> The lock-screen nudge in ancestral territory — the true field entry the Nearby tab was standing in for. Future work by choice, not omission.</li>
+      <li><strong>The Lens.</strong> Branch focus lives on as a future <em>filter</em> on the ledger and the Issue ("an issue about the Acadian line"), never as the spine.</li>
+      <li><strong>A tree diagram.</strong> Still refused. Orientation is carried by one-dimensional instruments — path, compass, running head — because the moment anything fans out in two dimensions, it's a worse Ancestry.</li>
+    </ul>
+  </section>
+
+  <p class="foot">
+    Drawn from <span class="m">main</span> at <span class="m">978a904</span> · companion pages:
+    the 6 August feature map (the before picture) and the walkthrough audit (all seven gaps
+    closed) · deployed: iPhone build 8 Aug · native iPad broadsheet verified on simulator ·
+    app.witnesslives.com serving <span class="m">entry-f5db164e</span>
+  </p>
+
+</div>

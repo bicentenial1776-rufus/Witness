@@ -1,0 +1,955 @@
+<title>Witness — the feature map and two ways to make it cohere</title>
+
+<style>
+  :root {
+    --paper:      #FBF9F5;
+    --raised:     #FFFDF9;
+    --ink:        #1A1815;
+    --ink-2:      #4A443B;
+    --muted:      #6F6A60;
+    --rule:       #DDD6C9;
+    --rule-faint: #EBE5D9;
+    --amber:      #B0741F;
+    --amber-deep: #8A5A12;
+    --slate:      #5F6E79;
+    --slate-soft: #E8ECEE;
+
+    --serif: 'Iowan Old Style', 'Hoefler Text', Palatino, 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+    --mono:  ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #1C1917;
+      --raised:     #241F1A;
+      --ink:        #F0EBE3;
+      --ink-2:      #BDB3A6;
+      --muted:      #8E857A;
+      --rule:       #3E362C;
+      --rule-faint: #2E2820;
+      --amber:      #E08D2F;
+      --amber-deep: #C4761F;
+      --slate:      #93A5B1;
+      --slate-soft: #2A3238;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:      #1C1917;
+    --raised:     #241F1A;
+    --ink:        #F0EBE3;
+    --ink-2:      #BDB3A6;
+    --muted:      #8E857A;
+    --rule:       #3E362C;
+    --rule-faint: #2E2820;
+    --amber:      #E08D2F;
+    --amber-deep: #C4761F;
+    --slate:      #93A5B1;
+    --slate-soft: #2A3238;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 0 28px 96px;
+  }
+
+  /* ---- masthead ---- */
+
+  .masthead {
+    border-bottom: 3px double var(--rule);
+    padding: 56px 0 18px;
+    margin-bottom: 40px;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--amber-deep);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(30px, 5vw, 46px);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 16px;
+  }
+  .standfirst {
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 60ch;
+    margin: 0;
+  }
+  .dateline {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 20px 0 0;
+  }
+
+  /* ---- structure ---- */
+
+  section { margin: 0 0 12px; }
+
+  h2 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 27px;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 56px 0 4px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+  }
+  h2 .num {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--amber);
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  h3 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 20px;
+    line-height: 1.3;
+    margin: 34px 0 2px;
+  }
+
+  h4 {
+    font-family: var(--mono);
+    font-weight: 400;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 28px 0 8px;
+  }
+
+  p { margin: 0 0 16px; max-width: 68ch; }
+  p.wide { max-width: none; }
+
+  a { color: var(--amber-deep); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, .row:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+
+  code, .m {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    font-variant-numeric: tabular-nums;
+  }
+  code { color: var(--ink-2); }
+
+  strong { font-weight: 600; }
+
+  ul { margin: 0 0 16px; padding-left: 0; list-style: none; max-width: 68ch; }
+  ul li {
+    position: relative;
+    padding-left: 20px;
+    margin-bottom: 9px;
+  }
+  ul li::before {
+    content: '—';
+    position: absolute;
+    left: 0;
+    color: var(--amber);
+    font-family: var(--mono);
+    font-size: 11px;
+    top: 0.15em;
+  }
+
+  /* ---- the pull statement ---- */
+
+  .verdict {
+    border-left: 2px solid var(--amber);
+    padding: 2px 0 2px 22px;
+    margin: 26px 0 30px;
+    font-size: 21px;
+    line-height: 1.42;
+    max-width: 56ch;
+  }
+
+  /* ---- figures ---- */
+
+  figure {
+    margin: 34px 0 40px;
+    padding: 0;
+  }
+  .figframe {
+    border: 1px solid var(--rule);
+    background: var(--raised);
+    padding: 24px 20px 18px;
+    overflow-x: auto;
+  }
+  figure svg {
+    display: block;
+    width: 100%;
+    min-width: 620px;
+    max-width: 100%;
+    height: auto;
+    color: var(--ink-2);
+  }
+  figcaption {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.6;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    margin-top: 12px;
+    max-width: 76ch;
+  }
+  figcaption b { color: var(--ink-2); font-weight: 400; }
+
+  .svg-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; }
+  .svg-title { font-family: var(--serif); font-size: 14px; }
+
+  /* ---- the register table ---- */
+
+  .register {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0 28px;
+    font-size: 15px;
+  }
+  .register th {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 0 14px 8px 0;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  .register td {
+    padding: 11px 14px 11px 0;
+    border-bottom: 1px solid var(--rule-faint);
+    vertical-align: top;
+    line-height: 1.45;
+  }
+  .register td:first-child { white-space: nowrap; }
+  .register tr:last-child td { border-bottom: 1px solid var(--rule); }
+  .register .route {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--ink);
+  }
+  .register .note { color: var(--ink-2); font-size: 14.5px; }
+  .register .n {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--ink-2);
+  }
+
+  .tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .tag--dead   { color: var(--slate); }
+  .tag--stub   { color: var(--muted); }
+  .tag--curio  { color: var(--amber-deep); }
+
+  /* ---- approach cards ---- */
+
+  .approach {
+    border-top: 2px solid var(--ink);
+    padding-top: 18px;
+    margin-top: 46px;
+  }
+  .approach-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .approach-head .letter {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--amber);
+  }
+  .approach-head h3 { margin: 0; font-size: 26px; }
+  .thesis {
+    font-size: 18px;
+    color: var(--ink-2);
+    font-style: italic;
+    max-width: 62ch;
+    margin: 0 0 22px;
+  }
+
+  .grid2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0 40px;
+    margin-bottom: 8px;
+  }
+  .grid2 ul { max-width: none; }
+
+  .costline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-top: 1px solid var(--rule-faint);
+    border-bottom: 1px solid var(--rule-faint);
+    padding: 11px 0;
+    margin: 22px 0 4px;
+  }
+  .costline b { color: var(--ink); font-weight: 400; }
+
+  .foot {
+    margin-top: 64px;
+    padding-top: 18px;
+    border-top: 3px double var(--rule);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    a { transition: color 120ms ease; }
+  }
+</style>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <p class="kicker">Product architecture · internal</p>
+    <h1>Witness reads like a toolbox and looks like a newspaper</h1>
+    <p class="standfirst">
+      Thirty-eight screens, six feature families, one universal destination that could not
+      reach five of them. A map of what talks to what, the screens that talk to nothing,
+      the doors now cut — and two ways to make the whole thing cohere.
+    </p>
+    <p class="dateline">7 August 2026 · diagnosis at <span class="m">c0f8a1f</span> · cleanup shipped at <span class="m">32774c9</span></p>
+  </header>
+
+  <section>
+    <h2><span class="num">01</span>The read</h2>
+
+    <p>
+      Nothing in Witness is bad. That is what makes the eclectic feeling hard to place.
+      Tree Health is a serious piece of forensic work. The Portrait answers the
+      relational question a tree diagram is usually drawn for. The Query Library counts
+      329 real questions against your own dead. Each feature would survive on its own.
+    </p>
+    <p>
+      The problem is not the features. It is that they barely speak to one another. I
+      traced every navigation edge in <code>apps/mobile/src</code> and the shape that
+      came out is a funnel, not a graph: six independent families of screens, all of
+      them pushing into <code>ancestor/[id]</code> — and <code>ancestor/[id]</code>
+      pushing back out only to other people, an era query, and a relationship path.
+      Their place, their household, and their findings had no door at all.
+    </p>
+
+    <p class="verdict">
+      Every road leads to the Portrait, and almost every door out of it led to another
+      person. The features feel unrelated because, structurally, they were.
+    </p>
+  </section>
+
+  <section>
+    <figure>
+      <div class="figframe">
+        <svg viewBox="0 0 880 356" role="img" aria-label="Navigation graph of the Witness app before the cleanup: five families of screens all push into the Portrait screen, whose outbound links reached only other people, an era query and a relationship path; the paths to a person's place, household and tree-health findings did not exist. Place and household have since been cut; findings has not.">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,1 L9,5 L0,9 z" fill="currentColor"/>
+            </marker>
+            <marker id="ar-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,1 L9,5 L0,9 z" style="fill:var(--amber)"/>
+            </marker>
+            <marker id="ar-ghost" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,1 L9,5 L0,9 z" style="fill:var(--slate)"/>
+            </marker>
+          </defs>
+
+          <!-- source boxes -->
+          <g fill="none" stroke="currentColor" stroke-width="1">
+            <rect x="20" y="8"   width="212" height="48"/>
+            <rect x="20" y="76"  width="212" height="48"/>
+            <rect x="20" y="144" width="212" height="48"/>
+            <rect x="20" y="212" width="212" height="48"/>
+            <rect x="20" y="280" width="212" height="48"/>
+          </g>
+          <g fill="currentColor" class="svg-label">
+            <text x="34" y="28" font-size="12" style="font-family:var(--serif)">Prompted discovery</text>
+            <text x="34" y="45" style="fill:var(--muted)">HOME HERO · DIGEST · LIBRARY · MOMENTS</text>
+
+            <text x="34" y="96" font-size="12" style="font-family:var(--serif)">The household</text>
+            <text x="34" y="113" style="fill:var(--muted)">FAMILY STAGE · REGISTER · RELATIONSHIP</text>
+
+            <text x="34" y="164" font-size="12" style="font-family:var(--serif)">Place</text>
+            <text x="34" y="181" style="fill:var(--muted)">MAP · NEARBY · PLACES · ORIGINS · MIGRATIONS</text>
+
+            <text x="34" y="232" font-size="12" style="font-family:var(--serif)">Rigor</text>
+            <text x="34" y="249" style="fill:var(--muted)">TREE HEALTH · ORPHAN RECORDS · ARCHIVES</text>
+
+            <text x="34" y="300" font-size="12" style="font-family:var(--serif)">Search</text>
+            <text x="34" y="317" style="fill:var(--muted)">EXPLORE — BY NAME, BY PLACE</text>
+          </g>
+
+          <!-- converging arrows -->
+          <g stroke="currentColor" stroke-width="1" fill="none" marker-end="url(#ar)">
+            <line x1="234" y1="32"  x2="366" y2="140"/>
+            <line x1="234" y1="100" x2="366" y2="154"/>
+            <line x1="234" y1="168" x2="366" y2="168"/>
+            <line x1="234" y1="236" x2="366" y2="182"/>
+            <line x1="234" y1="304" x2="366" y2="196"/>
+          </g>
+
+          <!-- portrait -->
+          <rect x="370" y="120" width="190" height="96" fill="none" style="stroke:var(--amber)" stroke-width="1.5"/>
+          <text x="465" y="155" text-anchor="middle" style="font-family:var(--serif)" font-size="17" fill="currentColor">The Portrait</text>
+          <text x="465" y="174" text-anchor="middle" class="svg-label" style="fill:var(--amber)">ANCESTOR/[ID]</text>
+          <text x="465" y="196" text-anchor="middle" class="svg-label" style="fill:var(--muted)">28 INBOUND LINKS</text>
+
+          <!-- the one door -->
+          <line x1="562" y1="168" x2="686" y2="168" style="stroke:var(--amber)" stroke-width="1.5" marker-end="url(#ar-amber)"/>
+          <text x="624" y="160" text-anchor="middle" class="svg-label" style="fill:var(--amber)">TAP A NAME</text>
+          <rect x="692" y="144" width="168" height="48" fill="none" style="stroke:var(--amber)" stroke-width="1.5"/>
+          <text x="776" y="166" text-anchor="middle" style="font-family:var(--serif)" font-size="13" fill="currentColor">Another Portrait</text>
+          <text x="776" y="182" text-anchor="middle" class="svg-label" style="fill:var(--muted)">PLUS ERA + RELATIONSHIP</text>
+
+          <!-- the missing edges -->
+          <line x1="465" y1="218" x2="465" y2="266" style="stroke:var(--slate)" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#ar-ghost)"/>
+          <text x="478" y="246" class="svg-label" style="fill:var(--slate)">NO SUCH PATH</text>
+          <rect x="330" y="268" width="270" height="72" fill="none" style="stroke:var(--slate)" stroke-width="1" stroke-dasharray="4 4"/>
+          <g class="svg-label" style="fill:var(--slate)" text-anchor="middle">
+            <text x="465" y="295">THEIR PLACE  ·  NOW CUT</text>
+            <text x="465" y="312">THEIR HOUSEHOLD  ·  NOW CUT</text>
+            <text x="465" y="329">THEIR TREE-HEALTH FINDINGS  ·  STILL SHUT</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>
+        <b>The graph as it stood, and the three doors that weren't there.</b> Counted by
+        tracing <span class="m">router.push</span> targets across <span class="m">apps/mobile/src</span>.
+        <span class="m">ancestor/[id]</span> takes 28 inbound links — more than every other route
+        combined — and led onward only to other people, an era query, and a relationship path.
+        Place and household have since been cut (§06); findings needs a persisted store first.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2><span class="num">02</span>Three findings</h2>
+
+    <h3>The Portrait is a sink, not a hub</h3>
+    <p>
+      This is the whole problem in one screen. A user arrives at Patrick Howe from a
+      Tree Health finding, from a NARA draft card, from a map pin, from a
+      "47 of your ancestors were alive" card, from a search. Each of those arrivals
+      carries a reason. The Portrait discards the reason and shows the same register
+      of parents, siblings, and children every time.
+    </p>
+    <p>
+      Worse, it cannot send you back. From Patrick you cannot reach Patrick's place,
+      Patrick's archive candidates, Patrick's health findings, or Patrick's household.
+      Six feature families can put you in the room; the room knows about none of them.
+      <strong>Fixing this one screen would do more for cohesion than any amount of
+      re-shelving</strong>, because it is the only screen every feature already agrees on.
+    </p>
+
+    <h3>The spine specified in the brief was never built</h3>
+    <p>
+      <span class="m">PROJECT_BRIEF.md</span> §Branch Focus / Identity Lens:
+      <em>"User designates a heritage branch… entire product reorients around that lens —
+      queries, historical context, map, notifications."</em> Grep the codebase for
+      <code>branchFocus</code> or <code>branch_focus</code>: zero hits. It does not exist.
+    </p>
+    <p>
+      Nor do the other cross-cutting features from the same document — The Recognition
+      Feature, Family Constellation, Annual Family Wrapped, Inheritance Transfer, Cemetery
+      GPS, Wikidata, Chronicling America. Look at that list: <strong>every unbuilt feature
+      is a connective one, and every shipped feature is a vertical one.</strong> The app
+      doesn't feel eclectic by accident. The ribs shipped and the spine was descoped.
+    </p>
+
+    <h3>Two shelves are competing for the same job</h3>
+    <p>
+      The National Archives screen is on the Explore shelf <em>and</em> the Tree shelf.
+      That duplication is the tell: Explore means "wander" and Tree means "work," NARA is
+      both, so it was filed twice. Meanwhile Ocean Crossings — arguably the most emotionally
+      loaded fact in an American tree — is the fifth card down on the wander shelf, and
+      Tree Health, the app's most serious asset, is at the bottom of the work shelf.
+      Nothing is ranked by how much it matters.
+    </p>
+
+    <h4>The one thing already doing this right</h4>
+    <p>
+      <span class="m">src/lib/research-ledger.ts</span> aggregates Tree Health, Orphan
+      Records, and the Archives into a single "Your findings · 43 decisions so far" band.
+      It is the only code in the app that treats three features as one thing. It works, it
+      is 200 lines, and it is used on exactly one screen. Both approaches below are, in
+      different ways, arguments for generalizing it.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">03</span>The orphans</h2>
+
+    <p>
+      One screen is a true orphan — zero inbound references anywhere in the source, still
+      compiled into every bundle. The rest are what I'd call <em>curios</em>: reachable by
+      exactly one tap from one shelf, with no path onward and no relationship to anything
+      else in the app.
+    </p>
+
+    <table class="register">
+      <thead>
+        <tr>
+          <th>Screen</th>
+          <th>Status</th>
+          <th>In</th>
+          <th>What's actually wrong</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="route">/ascent</td>
+          <td><span class="tag tag--dead">Deleted</span></td>
+          <td class="n">0</td>
+          <td class="note">
+            Delisted from Explore on 25 July, never deleted. The screen plus
+            <span class="m">components/ascent/</span> — three components used by nothing else —
+            still ship in every build. Superseded by Tree Health. Delete it.
+          </td>
+        </tr>
+        <tr>
+          <td class="route">/kindred</td>
+          <td><span class="tag tag--curio">Curio</span></td>
+          <td class="n">1</td>
+          <td class="note">
+            Spouses who share an ancestor. A genuinely startling fact about a family, and it
+            appears nowhere else: not a Tree Health finding, not on either spouse's Portrait,
+            not on the map. Now a kind of finding under <span class="m">/patterns</span>.
+          </td>
+        </tr>
+        <tr>
+          <td class="route">/crossings</td>
+          <td><span class="tag tag--curio">Curio</span></td>
+          <td class="n">1</td>
+          <td class="note">
+            Ocean crossings — the single most narratively loaded event in most American trees,
+            shelved fifth among six cards and connected to neither the map nor the migration
+            paths screen, which computes the same journeys. Now under <span class="m">/patterns</span>.
+          </td>
+        </tr>
+        <tr>
+          <td class="route">/archives</td>
+          <td><span class="tag tag--stub">Leaks</span></td>
+          <td class="n">2</td>
+          <td class="note">
+            The only screen whose cards linked <em>out</em> of Witness — to the NARA catalog and to
+            Ancestry — and never <em>in</em>. <span class="m">nara-candidate-card.tsx</span> had no
+            router import at all. <b>The person is now the card's first link</b>, and the screen
+            has left the Explore shelf for the Tree tab.
+          </td>
+        </tr>
+        <tr>
+          <td class="route">/orphan-records</td>
+          <td><span class="tag tag--curio">Curio</span></td>
+          <td class="n">1</td>
+          <td class="note">
+            Aptly named. Does belong to the research ledger, which is more than the others can say,
+            but a user reaches it only by scrolling to the bottom of the Tree tab.
+          </td>
+        </tr>
+        <tr>
+          <td class="route">Street View</td>
+          <td><span class="tag tag--stub">Announced</span></td>
+          <td class="n">0</td>
+          <td class="note">
+            A "COMING SOON — A WALK THROUGH THE PLACES THEY LIVED" row at the bottom of the Tree
+            tab. Not an orphan, a tenant with a lease. Worth checking the promise still matches
+            the plan before more people read it.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      The curios share a diagnosis. They are all <em>findings</em> — computed facts about
+      the tree — but the app files them as <em>destinations</em>, so each one gets a card on a
+      shelf and a screen of its own. A finding that lives on its own screen can only be found
+      by someone who already went looking for it.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span>Who this is for</h2>
+    <p>
+      You asked me to think as the amateur who uses this regularly but not as their main
+      tool. That framing does a lot of work, so it's worth being explicit about it.
+    </p>
+    <p>
+      Their main tool is Ancestry. That is where they edit, attach, and build. They come to
+      Witness on a Sunday afternoon with maybe twenty minutes, having done nothing since
+      last time, and the question in their head is <strong>"what's here that I didn't know
+      last week?"</strong> — not "let me open the tool that finds kindred couples." They
+      never navigate on purpose. They arrive and expect to be handed something.
+    </p>
+    <p>
+      Two consequences. First, a shelf of six equal cards is the wrong shape for that visit
+      — it asks them to choose, and choosing requires knowing what each one does. Second, a
+      queue of 443 open Tree Health findings is <em>also</em> the wrong shape, because it's
+      a chore list, and this is a hobby they do for pleasure. Both approaches below are
+      attempts to hand them something instead of asking them to choose.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">05</span>Two approaches</h2>
+    <p class="wide">
+      Both keep every shipped feature. Neither is a rewrite. They differ in what they make
+      the organizing unit of the app — a <em>finding</em> or a <em>story</em> — and that choice
+      cascades into what Home is, what the Portrait does, and whether the curios survive.
+    </p>
+
+    <figure>
+      <div class="figframe">
+        <svg viewBox="0 0 880 300" role="img" aria-label="Side-by-side comparison. Approach A inserts a shared findings store between every feature and the Portrait, with the Portrait writing decisions back. Approach B inserts a weekly issue on Home between every feature and the Portrait, with the Portrait returning the reader to the issue.">
+          <defs>
+            <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,1 L9,5 L0,9 z" fill="currentColor"/>
+            </marker>
+            <marker id="ar2-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,1 L9,5 L0,9 z" style="fill:var(--amber)"/>
+            </marker>
+          </defs>
+
+          <!-- ============ PANEL A ============ -->
+          <text x="16" y="18" style="font-family:var(--serif)" font-size="15" fill="currentColor">A · The Ledger</text>
+          <text x="16" y="34" class="svg-label" style="fill:var(--muted)">THE UNIT IS A FINDING</text>
+
+          <g fill="none" stroke="currentColor" stroke-width="1">
+            <rect x="16" y="58"  width="112" height="32"/>
+            <rect x="16" y="104" width="112" height="32"/>
+            <rect x="16" y="150" width="112" height="32"/>
+          </g>
+          <g class="svg-label" fill="currentColor">
+            <text x="30" y="78">TREE HEALTH</text>
+            <text x="30" y="124">ARCHIVES</text>
+            <text x="30" y="170">KINDRED · CROSSINGS</text>
+          </g>
+
+          <g style="stroke:var(--amber)" stroke-width="1.2" fill="none" marker-end="url(#ar2-amber)">
+            <line x1="130" y1="74"  x2="184" y2="106"/>
+            <line x1="130" y1="120" x2="184" y2="118"/>
+            <line x1="130" y1="166" x2="184" y2="130"/>
+          </g>
+          <text x="150" y="150" class="svg-label" style="fill:var(--amber)">FILE</text>
+
+          <rect x="188" y="96" width="94" height="44" fill="none" style="stroke:var(--amber)" stroke-width="1.5"/>
+          <text x="235" y="115" text-anchor="middle" style="font-family:var(--serif)" font-size="13" fill="currentColor">findings</text>
+          <text x="235" y="130" text-anchor="middle" class="svg-label" style="fill:var(--amber)">NEW TABLE</text>
+
+          <path d="M284,110 L344,110" style="stroke:var(--amber)" stroke-width="1.2" fill="none" marker-end="url(#ar2-amber)"/>
+          <text x="314" y="102" text-anchor="middle" class="svg-label" style="fill:var(--amber)">HERS</text>
+          <path d="M344,128 L284,128" style="stroke:var(--amber)" stroke-width="1.2" fill="none" marker-end="url(#ar2-amber)"/>
+          <text x="314" y="143" text-anchor="middle" class="svg-label" style="fill:var(--amber)">DECIDED</text>
+
+          <rect x="348" y="96" width="84" height="44" fill="none" stroke="currentColor" stroke-width="1"/>
+          <text x="390" y="123" text-anchor="middle" style="font-family:var(--serif)" font-size="13" fill="currentColor">Portrait</text>
+
+          <path d="M235,142 L235,196" style="stroke:var(--amber)" stroke-width="1.2" fill="none" marker-end="url(#ar2-amber)"/>
+          <rect x="176" y="198" width="118" height="38" fill="none" style="stroke:var(--amber)" stroke-width="1.5"/>
+          <text x="235" y="215" text-anchor="middle" style="font-family:var(--serif)" font-size="13" fill="currentColor">Home</text>
+          <text x="235" y="229" text-anchor="middle" class="svg-label" style="fill:var(--amber)">17 WAITING ON YOU</text>
+
+          <text x="16" y="266" class="svg-label" style="fill:var(--muted)">EVERY FEATURE WRITES TO ONE STORE.</text>
+          <text x="16" y="281" class="svg-label" style="fill:var(--muted)">THE PORTRAIT READS ITS PERSON'S SLICE.</text>
+
+          <!-- divider -->
+          <line x1="452" y1="8" x2="452" y2="292" style="stroke:var(--rule)" stroke-width="1"/>
+
+          <!-- ============ PANEL B ============ -->
+          <text x="476" y="18" style="font-family:var(--serif)" font-size="15" fill="currentColor">B · The Issue</text>
+          <text x="476" y="34" class="svg-label" style="fill:var(--muted)">THE UNIT IS A STORY</text>
+
+          <g fill="none" stroke="currentColor" stroke-width="1">
+            <rect x="476" y="58"  width="112" height="32"/>
+            <rect x="476" y="104" width="112" height="32"/>
+            <rect x="476" y="150" width="112" height="32"/>
+          </g>
+          <g class="svg-label" fill="currentColor">
+            <text x="490" y="78">TREE HEALTH</text>
+            <text x="490" y="124">ARCHIVES</text>
+            <text x="490" y="170">KINDRED · CROSSINGS</text>
+          </g>
+
+          <g style="stroke:var(--amber)" stroke-width="1.2" fill="none" marker-end="url(#ar2-amber)">
+            <line x1="590" y1="74"  x2="644" y2="106"/>
+            <line x1="590" y1="120" x2="644" y2="118"/>
+            <line x1="590" y1="166" x2="644" y2="130"/>
+          </g>
+          <text x="606" y="150" class="svg-label" style="fill:var(--amber)">FILE COPY</text>
+
+          <rect x="648" y="90" width="104" height="56" fill="none" style="stroke:var(--amber)" stroke-width="1.5"/>
+          <text x="700" y="110" text-anchor="middle" style="font-family:var(--serif)" font-size="13" fill="currentColor">This week's</text>
+          <text x="700" y="126" text-anchor="middle" style="font-family:var(--serif)" font-size="13" fill="currentColor">issue</text>
+          <text x="700" y="140" text-anchor="middle" class="svg-label" style="fill:var(--amber)">= HOME</text>
+
+          <path d="M754,110 L810,110" style="stroke:var(--amber)" stroke-width="1.2" fill="none" marker-end="url(#ar2-amber)"/>
+          <text x="782" y="102" text-anchor="middle" class="svg-label" style="fill:var(--amber)">READ</text>
+
+          <rect x="812" y="90" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1"/>
+          <text x="840" y="115" text-anchor="middle" style="font-family:var(--serif)" font-size="12" fill="currentColor">Por-</text>
+          <text x="840" y="130" text-anchor="middle" style="font-family:var(--serif)" font-size="12" fill="currentColor">trait</text>
+
+          <path d="M840,148 C840,190 700,190 700,152" style="stroke:var(--amber)" stroke-width="1.2" fill="none" marker-end="url(#ar2-amber)"/>
+          <text x="770" y="203" text-anchor="middle" class="svg-label" style="fill:var(--amber)">NEXT STORY</text>
+
+          <rect x="640" y="216" width="120" height="34" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3"/>
+          <text x="700" y="237" text-anchor="middle" class="svg-label" style="fill:var(--muted)">BACK ISSUES = LIBRARY</text>
+
+          <text x="476" y="266" class="svg-label" style="fill:var(--muted)">FEATURES BECOME DESKS, NOT TABS.</text>
+          <text x="476" y="281" class="svg-label" style="fill:var(--muted)">THE READER IS HANDED A PAGE, NOT A SHELF.</text>
+        </svg>
+      </div>
+      <figcaption>
+        <b>What each approach adds to the graph in figure 1.</b> Amber = new. Both insert one
+        thing between the features and the Portrait, and both give the Portrait a return path
+        — the missing edge from figure 1. They differ in what that thing is, and therefore in
+        what a visit to Witness feels like.
+      </figcaption>
+    </figure>
+
+    <!-- APPROACH A -->
+    <div class="approach">
+      <div class="approach-head">
+        <span class="letter">APPROACH A</span>
+        <h3>The Ledger</h3>
+      </div>
+      <p class="thesis">
+        Witness is a workbench. Every feature produces findings about specific people;
+        findings accumulate in one place; the Portrait shows you everything Witness knows
+        about the person in front of you.
+      </p>
+
+      <p>
+        Generalize <span class="m">research-ledger.ts</span> from three sources to all of them.
+        Introduce one typed record — a finding, with a subject person, a kind, a source
+        feature, and a status — and have every feature emit them instead of owning a screen.
+        Tree Health emits findings. NARA emits findings. Kindred, Crossings, Migrations, and
+        the Query Library emit findings. The screens stay, but they become <em>filtered views
+        of one store</em> rather than six unrelated destinations.
+      </p>
+
+      <div class="grid2">
+        <div>
+          <h4>What changes</h4>
+          <ul>
+            <li>The Portrait grows a <em>Findings</em> section under the family register — this person's health flags, archive candidates, kindred marriage, the queries they appear in. The sink becomes a hub.</li>
+            <li>Home leads with the ledger: <span class="m">17 waiting on you · 43 decided</span>.</li>
+            <li>Kindred and Crossings stop being shelf cards and become finding types. Their screens survive as filters.</li>
+            <li>Every finding carries the reason you arrived, so the Portrait can say <em>"you're here because of a 1917 draft card."</em></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Why it's plausible here</h4>
+          <ul>
+            <li>The pattern is already proven in your code on three sources, and it reads well.</li>
+            <li>It's mostly server-side — a table and one adapter per feature. Screens change little.</li>
+            <li>It makes Tree Health, your most serious asset, the engine of the app rather than a shelf item.</li>
+            <li>It gives Street View a natural way to land later: a chapter is a finding with a place.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>
+        <strong>The risk is real and I'd weigh it heavily.</strong> A ledger turns a hobby into
+        a chore list. Your live tree already produces 443 Tree Health findings; a home screen
+        that opens with "443 waiting on you" is a scold, and the Sunday-afternoon amateur closes
+        it. If you take this route, the ledger must be capped, ranked, and framed as invitation —
+        which is exactly the discipline the existing <span class="m">ledgerHeading()</span>
+        function already shows you understand.
+      </p>
+
+      <div class="costline">
+        <span><b>Shape</b> · backend-led</span>
+        <span><b>Screens touched</b> · Portrait, Home, six feature screens</span>
+        <span><b>New concepts for the user</b> · one</span>
+        <span><b>Reversible</b> · yes</span>
+      </div>
+    </div>
+
+    <!-- APPROACH B -->
+    <div class="approach">
+      <div class="approach-head">
+        <span class="letter">APPROACH B</span>
+        <h3>The Issue</h3>
+      </div>
+      <p class="thesis">
+        Witness is a periodical about your family. Each visit is an issue. The features are
+        not tabs the reader chooses between — they are desks that file copy into it.
+      </p>
+
+      <p>
+        The strongest argument for this is that <strong>you have already built it visually and
+        not structurally.</strong> The design system is called Broadsheet. There is a component
+        named <span class="m">Masthead</span>. The type is serif with mono record-text and
+        hairline rules. The app <em>looks</em> like a newspaper and is <em>organized</em> like a
+        toolbox, and I think that mismatch is a large part of the eclectic feeling — the visual
+        language keeps promising an editor's judgment that the information architecture never
+        delivers.
+      </p>
+
+      <div class="grid2">
+        <div>
+          <h4>What changes</h4>
+          <ul>
+            <li>Home becomes this week's issue: a lead story, two or three shorter pieces, a standing column. The digest, featured-today, and Tree-tab curiosities already generate exactly this material.</li>
+            <li>Each feature becomes a desk with an editorial slot — Tree Health files <em>one</em> finding this week, not 443. Archives files the best candidate. Kindred files a piece when it finds something.</li>
+            <li>The Portrait's return path is <em>"next in this issue,"</em> which is a far more natural door than "back."</li>
+            <li>The Library becomes the archive of back issues — which is nearly what it is already.</li>
+            <li>Explore stops being a shelf of six equal cards and becomes the index.</li>
+          </ul>
+        </div>
+        <div>
+          <h4>Why it fits this user</h4>
+          <ul>
+            <li>It answers "what's here that I didn't know last week?" directly — that is what a periodical is <em>for</em>.</li>
+            <li>Twenty minutes on a Sunday is an issue-sized visit. A queue is not.</li>
+            <li>Rationing is a feature, not a limitation: one Tree Health finding a week is inviting where 443 is oppressive.</li>
+            <li>It gives Crossings and Kindred a job — they are wonderful <em>stories</em> and poor <em>tools</em>.</li>
+            <li>It makes the subscription legible. You pay for an issue to arrive.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>
+        <strong>The risk is emptiness.</strong> A periodical must publish. A small tree, or a
+        tree the reader hasn't re-imported in six months, may have nothing new — and an issue
+        with no stories is worse than a shelf. This needs an honest answer before you commit:
+        either a deep backlog the editor draws from (you have 329 library queries and 443
+        findings, so the backlog is real), or an issue that is candid when it's thin.
+      </p>
+
+      <div class="costline">
+        <span><b>Shape</b> · editorial / front-end-led</span>
+        <span><b>Screens touched</b> · Home, Explore, Portrait, Library</span>
+        <span><b>New concepts for the user</b> · one</span>
+        <span><b>Reversible</b> · less so — it changes what the app <em>is</em></span>
+      </div>
+    </div>
+
+    <!-- THE BRIEF'S OWN ANSWER -->
+    <div class="approach">
+      <div class="approach-head">
+        <span class="letter">ALSO CONSIDERED</span>
+        <h3>The Lens — the brief's own answer</h3>
+      </div>
+      <p class="thesis">
+        The reader picks a branch — a surname, a place, a century — and the entire product
+        reorients around it.
+      </p>
+      <p>
+        This is Branch Focus from <span class="m">PROJECT_BRIEF.md</span>, and it is the thing
+        the document itself proposed as the spine. I'd argue against reviving it <em>as the
+        spine</em>, for two reasons. It hides data, and an amateur who doesn't understand why
+        the map lost half its pins will read that as a bug. And it fails exactly where it's
+        needed most: a mixed or shallow tree has no dominant branch to detect, so the users
+        with the least cohesive experience get the least help.
+      </p>
+      <p>
+        But it is an excellent <em>filter</em> on top of either approach above — "show me only
+        the Howes" on a ledger, or "an issue about the Acadian line" — and that's where I'd
+        spend it, once there's a spine for it to sit on.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">06</span>What I'd do</h2>
+
+    <p>
+      A short answer and a longer one.
+    </p>
+    <p>
+      <strong>Short: the cleanup is done</strong> — shipped 7 August on
+      <span class="m">fix/cohesion-cleanup</span> at <span class="m">32774c9</span>. None of it
+      depended on the spine choice, all of it was cheap, and the Portrait change was the single
+      highest-leverage edit in the app.
+    </p>
+    <ul>
+      <li><b>Deleted</b> <span class="m">/ascent</span> and <span class="m">components/ascent/</span> — dead two weeks, shipping in every bundle.</li>
+      <li><b>Cut the Portrait's onward doors:</b> the birthplace is now a link to the place, and the family register ends at the household on the stage. Findings stays shut — see below.</li>
+      <li><b>NARA candidate cards link to the person</b>, and the Archives screen left the Explore shelf for the Tree tab, where its counts already lived.</li>
+      <li><b>Origins, migrations, crossings, and kindred collapsed into one <span class="m">/patterns</span> entry.</b> The first screen in this app to present several features as one — the dress rehearsal for either spine.</li>
+      <li>Two fixes underneath: <span class="m">stageKeyForPerson()</span> resolves a person to their household (stage keys are the <em>head's</em> id, so a wife's own id silently landed the reader on the root family), and the broadsheet rail keeps Explore lit when you follow a card off its shelf.</li>
+    </ul>
+    <p>
+      <strong>One door stayed shut, and it argues for A.</strong> The Portrait cannot show this
+      person's Tree Health findings, because findings are computed client-side over the whole
+      tree index on every visit — only the rulings and marks are persisted. Linking them from a
+      person would mean running the full audit on the Portrait, ~11s on an 8.6k tree. That door
+      needs a persisted <span class="m">findings</span> table, which is precisely Approach A's
+      plumbing. It is the strongest concrete argument for building A regardless of which spine wins.
+    </p>
+
+    <p>
+      <strong>Longer: I'd take B, and use A's plumbing to build it.</strong> They're not really
+      exclusive — the Ledger is the data model and the Issue is the framing, and an editor
+      needs a backlog to edit. What decides it is the diagnosis. The app doesn't feel eclectic
+      because it lacks a queue; it feels eclectic because it lacks a <em>subject</em>. Every
+      week's issue is about your family, and that is a subject the toolbox never had.
+    </p>
+    <p>
+      It also resolves the mismatch you're already living with. You built a newspaper's visual
+      language and then filed everything as tools. Making the structure match the surface is
+      cheaper than the reverse, and you've done most of the hard part already — the digest, the
+      featured-today warmer, and the Tree-tab curiosities are all, functionally, columns
+      waiting for an issue to appear in.
+    </p>
+  </section>
+
+  <p class="foot">
+    Diagnosis read against <span class="m">main</span> at <span class="m">c0f8a1f</span> ·
+    cleanup shipped at <span class="m">32774c9</span> on <span class="m">fix/cohesion-cleanup</span>
+    (369 tests green, typecheck clean, web bundle builds) · full write-up in
+    <span class="m">docs/cohesion-design-brief.md</span> · navigation graph traced from
+    <span class="m">router.push</span> targets in <span class="m">apps/mobile/src</span> ·
+    feature claims checked against the code, not <span class="m">PROJECT_BRIEF.md</span> alone
+  </p>
+
+</div>

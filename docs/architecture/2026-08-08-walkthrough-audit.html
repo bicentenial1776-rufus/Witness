@@ -1,0 +1,438 @@
+<title>Witness — seven walks through the app, and where they break</title>
+
+<style>
+  :root {
+    --paper:      #FBF9F5;
+    --raised:     #FFFDF9;
+    --ink:        #1A1815;
+    --ink-2:      #4A443B;
+    --muted:      #6F6A60;
+    --rule:       #DDD6C9;
+    --rule-faint: #EBE5D9;
+    --amber:      #B0741F;
+    --amber-deep: #8A5A12;
+    --slate:      #5F6E79;
+    --good:       #4A6B4E;
+
+    --serif: 'Iowan Old Style', 'Hoefler Text', Palatino, 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+    --mono:  ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #1C1917;
+      --raised:     #241F1A;
+      --ink:        #F0EBE3;
+      --ink-2:      #BDB3A6;
+      --muted:      #8E857A;
+      --rule:       #3E362C;
+      --rule-faint: #2E2820;
+      --amber:      #E08D2F;
+      --amber-deep: #C4761F;
+      --slate:      #93A5B1;
+      --good:       #7FA983;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:      #1C1917;
+    --raised:     #241F1A;
+    --ink:        #F0EBE3;
+    --ink-2:      #BDB3A6;
+    --muted:      #8E857A;
+    --rule:       #3E362C;
+    --rule-faint: #2E2820;
+    --amber:      #E08D2F;
+    --amber-deep: #C4761F;
+    --slate:      #93A5B1;
+    --good:       #7FA983;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet { max-width: 940px; margin: 0 auto; padding: 0 28px 96px; }
+
+  .masthead { border-bottom: 3px double var(--rule); padding: 56px 0 18px; margin-bottom: 40px; }
+  .kicker {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--amber-deep); margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(30px, 5vw, 44px);
+    line-height: 1.12; letter-spacing: -0.015em; text-wrap: balance; margin: 0 0 16px;
+  }
+  .standfirst { font-size: 19px; line-height: 1.5; color: var(--ink-2); max-width: 62ch; margin: 0; }
+  .dateline {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); margin: 20px 0 0;
+  }
+
+  h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 27px; line-height: 1.2;
+    letter-spacing: -0.01em; text-wrap: balance; margin: 56px 0 4px;
+    padding-top: 20px; border-top: 1px solid var(--rule);
+  }
+  h2 .num {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+    color: var(--amber); display: block; margin-bottom: 8px;
+  }
+
+  p { margin: 0 0 16px; max-width: 68ch; }
+  a { color: var(--amber-deep); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+
+  code, .m { font-family: var(--mono); font-size: 0.86em; font-variant-numeric: tabular-nums; }
+  code { color: var(--ink-2); }
+  strong { font-weight: 600; }
+
+  ul { margin: 0 0 16px; padding-left: 0; list-style: none; max-width: 68ch; }
+  ul li { position: relative; padding-left: 20px; margin-bottom: 9px; }
+  ul li::before {
+    content: '—'; position: absolute; left: 0; color: var(--amber);
+    font-family: var(--mono); font-size: 11px; top: 0.15em;
+  }
+
+  /* ---- the walk ---- */
+
+  .walk {
+    border: 1px solid var(--rule);
+    background: var(--raised);
+    padding: 20px 22px 18px;
+    margin: 26px 0;
+  }
+  .walk-head {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 14px; margin-bottom: 4px;
+  }
+  .walk-head .id { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--amber); }
+  .walk-head h3 { font-family: var(--serif); font-weight: 400; font-size: 21px; margin: 0; }
+  .walk-head .device {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--slate); border: 1px solid var(--slate); padding: 3px 7px; margin-left: auto;
+    white-space: nowrap;
+  }
+  .persona { font-style: italic; color: var(--ink-2); font-size: 15.5px; margin: 2px 0 14px; max-width: 64ch; }
+
+  .route {
+    font-family: var(--mono); font-size: 12px; line-height: 2.05;
+    color: var(--ink-2); margin: 0 0 12px;
+    overflow-x: auto; white-space: nowrap; padding-bottom: 4px;
+  }
+  .route .step { color: var(--ink); }
+  .route .arrow { color: var(--muted); padding: 0 2px; }
+  .route .break { color: var(--amber-deep); border-bottom: 2px solid var(--amber-deep); }
+  .route .ok { color: var(--good); }
+
+  .verdictline { display: flex; gap: 10px; align-items: baseline; margin-top: 6px; }
+  .verdictline .tag {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 3px 7px; border: 1px solid currentColor; white-space: nowrap; flex-shrink: 0;
+  }
+  .tag--holds { color: var(--good); }
+  .tag--breaks { color: var(--amber-deep); }
+  .tag--fixed { color: var(--slate); }
+  .verdictline p { margin: 0; font-size: 15.5px; color: var(--ink-2); max-width: none; }
+
+  /* ---- gap register ---- */
+
+  .register { width: 100%; border-collapse: collapse; margin: 20px 0 28px; font-size: 15px; }
+  .register th {
+    font-family: var(--mono); font-size: 9.5px; font-weight: 400; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted); text-align: left;
+    padding: 0 14px 8px 0; border-bottom: 1px solid var(--rule); white-space: nowrap;
+  }
+  .register td {
+    padding: 12px 14px 12px 0; border-bottom: 1px solid var(--rule-faint);
+    vertical-align: top; line-height: 1.5;
+  }
+  .register tr:last-child td { border-bottom: 1px solid var(--rule); }
+  .register .g { font-family: var(--mono); font-size: 11px; color: var(--amber); white-space: nowrap; }
+  .register .note { color: var(--ink-2); font-size: 14.5px; }
+
+  .verdict {
+    border-left: 2px solid var(--amber);
+    padding: 2px 0 2px 22px; margin: 26px 0 30px;
+    font-size: 21px; line-height: 1.42; max-width: 56ch;
+  }
+
+  .foot {
+    margin-top: 64px; padding-top: 18px; border-top: 3px double var(--rule);
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em;
+    color: var(--muted); line-height: 1.8;
+  }
+</style>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <p class="kicker">Product architecture · walkthrough audit</p>
+    <h1>Seven walks through Witness, and where they break</h1>
+    <p class="standfirst">
+      The Issue shipped, the app hangs together — so this pass stopped reading the map and
+      walked the roads. Seven realistic journeys across iPhone, iPad, and web, each pushed
+      until something gave; a register of every gap found; and an answer to the Nearby-tab
+      question. <strong>As of 8 August, every gap in the register is closed.</strong>
+    </p>
+    <p class="dateline">8 August 2026 · read against <span class="m">fix/cohesion-cleanup</span> after <span class="m">c5ebf22</span></p>
+  </header>
+
+  <section>
+    <h2><span class="num">01</span>The Nearby question, answered first</h2>
+    <p>
+      <strong>Yes — fold Nearby into Map.</strong> The code has already voted. Nearby's own
+      header comment reads <em>"Distance is this tab's only dimension (eras live on the Map
+      tab)"</em> — it knows it's half a feature — and it already contains an internal
+      <span class="m">list | map</span> toggle, meaning the app currently ships <em>two maps</em>.
+      The tabs divide one question ("where?") by <em>which coordinate is fixed</em>: Map fixes
+      the era and roams space; Nearby fixes your position and roams distance. No user thinks
+      in those terms.
+    </p>
+    <p>
+      Merged shape: Map gains a <span class="m">NEAR ME</span> mode — tap it, the map flies to
+      you, the radius chips appear, pins become your-people-within-N-miles, and the era
+      segmented control keeps working (which fixes a real omission: Nearby currently has a
+      century filter but no era language, so the two screens even disagree about time).
+      The graveyard moment survives intact: open app → Map → Near me is the same tap count
+      as open app → Nearby.
+    </p>
+    <p>
+      <strong>And leave the freed slot empty.</strong> Four tabs — Home · Tree · Explore · Map —
+      is not a poverty; it's the four verbs (read · work · ask · go). Filling the slot
+      "because it's free" is exactly the opportunism this whole exercise is correcting. The
+      strongest future claimant is Street View when it becomes real; parking the slot keeps
+      the seat warm for it. (This reverses the July 25 IA decision that gave Nearby its own
+      tab — that decision predates the Issue, and the field moment it protected is better
+      served by the planned "I'm Here" lock-screen notification than by a resident tab.)
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">02</span>The walks</h2>
+
+    <div class="walk">
+      <div class="walk-head">
+        <span class="id">W1</span><h3>The Sunday twenty minutes</h3>
+        <span class="device">iPhone</span>
+      </div>
+      <p class="persona">Regular reader, tree lives on Ancestry, nothing new imported. "What's here that I didn't know last week?"</p>
+      <p class="route">
+        <span class="step">Home / NO. 32</span><span class="arrow">→</span>
+        <span class="step">lead</span><span class="arrow">→</span>
+        <span class="step">Portrait</span><span class="arrow">→</span>
+        <span class="step">sibling</span><span class="arrow">→</span>
+        <span class="step">birthplace</span><span class="arrow">→</span>
+        <span class="step">place</span><span class="arrow">→</span>
+        <span class="step">another Portrait</span><span class="arrow">→</span>
+        <span class="break">…back ×5 to Home to find piece two</span>
+      </p>
+      <div class="verdictline">
+        <span class="tag tag--breaks">Breaks</span>
+        <p>The wander is exactly right until the reader wants the <em>next piece</em> — the only road back to the issue is the back button, five screens deep. The brief promised "next in this issue" as the Portrait's return path; it isn't built. <strong>Gap G1.</strong></p>
+      </div>
+    </div>
+
+    <div class="walk">
+      <div class="walk-head">
+        <span class="id">W2</span><h3>The curiosity thread</h3>
+        <span class="device">iPhone · web</span>
+      </div>
+      <p class="persona">Same reader, taps the week's Tree Check piece: "Josiah Haskell's daughter was born before his marriage."</p>
+      <p class="route">
+        <span class="step">Home</span><span class="arrow">→</span>
+        <span class="step">curiosity prompt</span><span class="arrow">→</span>
+        <span class="ok">Josiah's Portrait (finding shown in place)</span><span class="arrow">→</span>
+        <span class="step">Open the Tree Check</span><span class="arrow">→</span>
+        <span class="break">the workbench re-downloads what Home already fetched</span>
+      </p>
+      <div class="verdictline">
+        <span class="tag tag--fixed">Half fixed</span>
+        <p>The prompt now lands on the person, not the 443-row workbench — fixed this pass. But <span class="m">tree-health.tsx</span> still fetches its own audit data instead of sharing the curiosities cache, so the workbench hop re-runs ~30 paginated requests Home already made. <strong>Gap G2.</strong></p>
+      </div>
+    </div>
+
+    <div class="walk">
+      <div class="walk-head">
+        <span class="id">W3</span><h3>The full Ancestry round trip</h3>
+        <span class="device">iPhone → Ancestry app → weeks later</span>
+      </div>
+      <p class="persona">The Archives desk says two draft cards await judgment. The reader confirms one and wants it in their real tree.</p>
+      <p class="route">
+        <span class="step">Home</span><span class="arrow">→</span>
+        <span class="step">Archives</span><span class="arrow">→</span>
+        <span class="step">card → person ✓</span><span class="arrow">→</span>
+        <span class="step">This is them</span><span class="arrow">→</span>
+        <span class="step">Add to Ancestry (URL copied, app opens)</span><span class="arrow">→</span>
+        <span class="step">paste as web link</span><span class="arrow">→</span>
+        <span class="break">…weeks pass… re-import = a NEW tree</span>
+      </p>
+      <div class="verdictline">
+        <span class="tag tag--breaks">Breaks at the far end</span>
+        <p>The outbound leg is genuinely good — clipboard + universal link is the honest bridge around Ancestry's missing write API. The return leg has a structural crack: import is not idempotent, so the re-import that "brings the link home" creates a fresh tree, and everything keyed by <span class="m">tree_id</span> — marks, NARA decisions, the new findings ledger, back issues — stays behind on the old one. Rulings alone survive (xref-keyed). The pulse module already solved carry-forward for Tree Health verdicts; the same treatment is owed to the rest. <strong>Gap G3 — the deepest one in the app.</strong></p>
+      </div>
+    </div>
+
+    <div class="walk">
+      <div class="walk-head">
+        <span class="id">W4</span><h3>The graveyard</h3>
+        <span class="device">iPhone, in the field</span>
+      </div>
+      <p class="persona">Standing in a cemetery in Worcester on a Saturday. Which of ours are here?</p>
+      <p class="route">
+        <span class="step">Nearby</span><span class="arrow">→</span>
+        <span class="step">radius 5mi</span><span class="arrow">→</span>
+        <span class="step">person</span><span class="arrow">→</span>
+        <span class="ok">Portrait → household → siblings</span><span class="arrow">→</span>
+        <span class="break">phone in pocket, tab spent the rest of the year idle</span>
+      </p>
+      <div class="verdictline">
+        <span class="tag tag--holds">Holds — but overpays</span>
+        <p>The flow works and the Portrait's new doors make the graveside reading much richer. The break is economic, not functional: a permanent tab for a some-Saturdays feature. Fold into Map (§01). The real field entry the brief promised — the "I'm Here" lock-screen nudge when you pass through ancestral territory — remains unbuilt and would serve this moment better than any tab. <strong>Gap G4.</strong></p>
+      </div>
+    </div>
+
+    <div class="walk">
+      <div class="walk-head">
+        <span class="id">W5</span><h3>The first hour</h3>
+        <span class="device">iPhone, fresh install</span>
+      </div>
+      <p class="persona">New beta user, GEDCOM exported per the guide, first import finishing.</p>
+      <p class="route">
+        <span class="step">onboarding</span><span class="arrow">→</span>
+        <span class="step">import</span><span class="arrow">→</span>
+        <span class="step">recovery code</span><span class="arrow">→</span>
+        <span class="step">home person</span><span class="arrow">→</span>
+        <span class="step">Home / NO. 32</span><span class="arrow">→</span>
+        <span class="break">lead has no note · Archives desk empty for days · map pins trickle in</span>
+      </p>
+      <div class="verdictline">
+        <span class="tag tag--breaks">Thin, and doesn't say why</span>
+        <p>The lead works immediately (digest computes from events) and the pattern desk works (place parsing needs no geocoding). But the hero's record-grounded note is written by a <em>daily</em> job, NARA matching waits on a pg_cron worker, and geocoding fills the map over hours. First-hour reader sees a half-empty issue with no explanation. The thin-week principle says don't fabricate — right — but candor is owed: a one-line "first issue; the presses are still warming up — richer next week" would convert confusion into anticipation. <strong>Gap G5.</strong></p>
+      </div>
+    </div>
+
+    <div class="walk">
+      <div class="walk-head">
+        <span class="id">W6</span><h3>The shared story</h3>
+        <span class="device">web, signed out → member</span>
+      </div>
+      <p class="persona">A cousin receives a story link in the family group chat.</p>
+      <p class="route">
+        <span class="step">unfurl card</span><span class="arrow">→</span>
+        <span class="step">/shared/[token]</span><span class="arrow">→</span>
+        <span class="step">story renders</span><span class="arrow">→</span>
+        <span class="step">sign-in</span><span class="arrow">→</span>
+        <span class="break">lands on THEIR home — the shared person is gone</span>
+      </p>
+      <div class="verdictline">
+        <span class="tag tag--breaks">Breaks at the handoff</span>
+        <p>Reading works; the bridge into membership drops its cargo. A cousin moved to sign up by <em>a particular ancestor</em> arrives at a generic Home (or an empty import screen — the cousin has no GEDCOM; the tree is the family's, which is really the V3 cousin-network problem showing its face early). At minimum the shared token should survive sign-in and land the new member back on that story. <strong>Gap G6.</strong></p>
+      </div>
+    </div>
+
+    <div class="walk">
+      <div class="walk-head">
+        <span class="id">W7</span><h3>The iPad evening</h3>
+        <span class="device">iPad, native app</span>
+      </div>
+      <p class="persona">The armchair session — the form factor the brief calls the reading device. Also: Greg's platform.</p>
+      <p class="route">
+        <span class="step">Home</span><span class="arrow">→</span>
+        <span class="break">phone layout, stretched to 10 inches</span>
+      </p>
+      <div class="verdictline">
+        <span class="tag tag--breaks">Breaks on arrival</span>
+        <p><span class="m">useBroadsheet()</span> is <span class="m">Platform.OS === 'web' && width ≥ 900</span> — the broadsheet carrier, the app's best reading layout, is unreachable on the device most suited to reading. An iPad in Safari at app.witnesslives.com gets a better Witness than the installed app. The gate is one line; the audit of broadsheet components for native rendering is the real (modest) work. <strong>Gap G7.</strong></p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">03</span>The gap register</h2>
+
+    <table class="register">
+      <thead>
+        <tr><th>Gap</th><th>What's missing</th><th>Suggested shape</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="g">G1 ✓</td>
+          <td class="note"><strong>No road back to the issue — CLOSED at <span class="m">da9ab91</span>.</strong> Five screens into a wander, the next piece is unreachable except by back-button archaeology.</td>
+          <td class="note">A slim <em>"NO. 32 · next: the pattern ›"</em> band on the Portrait, shown only when the session entered from Home, dismissed by scrolling. The findings ledger now knows what each edition printed, so "next" is a query, not a guess.</td>
+        </tr>
+        <tr>
+          <td class="g">G2 ✓</td>
+          <td class="note"><strong>The audit runs twice — CLOSED at <span class="m">ba85f97</span>.</strong> Workbench and curiosities cache each fetch the same ~30 pages per session.</td>
+          <td class="note">Point <span class="m">tree-health.tsx</span> at the curiosities cache's <span class="m">getAuditRun</span>. Pure plumbing, no UI change.</td>
+        </tr>
+        <tr>
+          <td class="g">G3</td>
+          <td class="note"><strong>Re-import orphans the ledger — FIXED at <span class="m">cd08016</span>.</strong> The audit overstated part of this: GEDCOM Refresh already carried briefs, archive verdicts, and the home person, xref-matched. What it couldn't carry was the findings ledger, which shipped after it.</td>
+          <td class="note"><span class="m">planFindingsCarry()</span> now moves every printed piece across a refresh, rewriting the person ids embedded in each finding's identity (per-source rules; archives ids name the candidate row and never remap). A story whose people all left the file strands loudly, and the refresh screen's cost warning names the stranded back-issue pieces. 7 new tests.</td>
+        </tr>
+        <tr>
+          <td class="g">G4 ✓</td>
+          <td class="note"><strong>Nearby is a tab — CLOSED at <span class="m">695bec9</span>: NEAR ME mode on Map, four tabs, freed slot left empty.</strong> "I'm Here" remains future work by choice. The resident tab serves the some-Saturdays moment; the promised lock-screen nudge that would actually create field moments is unbuilt.</td>
+          <td class="note">Merge Nearby into Map as <span class="m">NEAR ME</span> (§01); keep four tabs; build the geofenced notification as the true field entry when it earns its keep.</td>
+        </tr>
+        <tr>
+          <td class="g">G5 ✓</td>
+          <td class="note"><strong>The first issue doesn't explain its thinness — CLOSED at <span class="m">ba85f97</span>: one italic line for the first week; refreshed trees skip the apology.</strong> Note-less lead, empty Archives desk, sparse map — with no acknowledgment.</td>
+          <td class="note">A first-edition masthead line: <em>"Your first issue — the presses are still warming: richer notes and archive matches arrive over the coming days."</em> One conditional, honest, and it converts absence into anticipation.</td>
+        </tr>
+        <tr>
+          <td class="g">G6 ✓</td>
+          <td class="note"><strong>The shared-story bridge drops its cargo — CLOSED at <span class="m">25e3e0f</span>: the token rides through sign-in and lands back on the story.</strong> at sign-in; the moved cousin lands nowhere near the ancestor who moved them.</td>
+          <td class="note">Carry the token through auth (<span class="m">redirect_to</span> is already query-param-only per the auth work) and land back on the story. The full answer — cousin joins the <em>same tree</em> — is the V3 network, correctly deferred.</td>
+        </tr>
+        <tr>
+          <td class="g">G7 ✓</td>
+          <td class="note"><strong>Native iPad gets the worst Witness — CLOSED at <span class="m">978a904</span>, smoke-tested on the 13-inch sim: rail, Issue, and native Map with the Near me chip all render; narrow iPads correctly stay on the phone carrier.</strong> The reading device renders the phone layout; Safari on the same device gets the broadsheet.</td>
+          <td class="note">Widen <span class="m">useBroadsheet()</span> to native width ≥ 900, then walk the broadsheet components for RN-native quirks. Worth doing before Street View lands — Greg's canvas is this screen.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      Fixed during this audit rather than registered: the Tree Check desk piece now lands on
+      the person it names (not the 443-row workbench), the pattern piece lands on the crosser
+      or the specific migration (not the Patterns menu), and the broadsheet no longer prints
+      the edition dateline twice. All three were the same disease the NARA cards had — a
+      sentence that names someone must go to them.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span>Priority, if it were mine to order</h2>
+    <p class="verdict">
+      All seven gaps closed 8 August, in the order this section proposed. What remains
+      open is what was deliberately deferred: the "I'm Here" notification, the cousin
+      network, and the fifth tab — which stays empty until Street View earns it.
+    </p>
+    <ul>
+      <li><strong>Now:</strong> G2 (share the audit run) · G5 (first-issue candor) — small, pure win.</li>
+      <li><strong>Next:</strong> G4 (Nearby → Map, four tabs) · G1 (the issue band) — the experience loop closes.</li>
+      <li><strong>Done:</strong> G3 (carry-forward) — shipped with tests the same day, before the beta cohort re-imports en masse.</li>
+      <li><strong>Scheduled:</strong> G7 (native iPad broadsheet) before Street View.</li>
+      <li><strong>Explicitly not now:</strong> filling the fifth tab slot; the cousin network (G6 gets the token-through-auth patch only).</li>
+    </ul>
+  </section>
+
+  <p class="foot">
+    Walks traced against <span class="m">fix/cohesion-cleanup</span> after <span class="m">c5ebf22</span> ·
+    evidence from code, not the brief: <span class="m">proximity.tsx</span> ·
+    <span class="m">use-broadsheet.ts</span> · <span class="m">tree-health.tsx</span> ·
+    <span class="m">ancestry.ts</span> · <span class="m">shared/[token].tsx</span> ·
+    import non-idempotence per <span class="m">apps/mobile/AGENTS.md</span> ·
+    all seven gaps closed: G3 cd08016 · G2+G5 ba85f97 · G4 695bec9 · G1 da9ab91 · G6 25e3e0f · G7 978a904
+  </p>
+
+</div>
