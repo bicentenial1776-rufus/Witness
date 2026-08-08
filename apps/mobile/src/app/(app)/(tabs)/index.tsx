@@ -29,6 +29,7 @@ import { ThemedText } from '@/components/themed-text';
 import { BrandFonts, Letterpress, WideContent } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { getCuriosities, type CuriositySummary } from '@/lib/curiosities-cache';
+import { recordEditionPieces } from '@/lib/edition-ledger';
 import { getGeographyIndex } from '@/lib/geography-cache';
 import { armDigestNotification } from '@/lib/digest-notifications';
 import { getFeaturedIds, getRelationshipMap } from '@/lib/relationship-cache';
@@ -103,13 +104,41 @@ export default function Home() {
   const [heroNote, setHeroNote] = useState<string | null>(null);
   const [curiosities, setCuriosities] = useState<CuriositySummary | null>(null);
   const [naraCounts, setNaraCounts] = useState<NaraCounts | null>(null);
-  const [pattern, setPattern] = useState<Finding | null>(null);
+  // The pattern piece keeps its precise destination alongside the finding:
+  // a crossing lands on the crosser, a migration on its own path screen. A
+  // sentence about Michael Howe must land on Michael Howe, not on a menu.
+  const [pattern, setPattern] = useState<{
+    finding: Finding;
+    destination: { pathname: string; params: Record<string, string> };
+  } | null>(null);
   const [shelf, setShelf] = useState<ShelfEntry[] | null>(null);
   const [generations, setGenerations] = useState<number | null>(null);
   const [resume, setResume] = useState<{ path: string; title: string; ts: number } | null>(null);
 
   // The edition — same all week, everywhere; the seed for the desks' picks.
   const issue = issueOf(new Date());
+
+  // The ledger's write path: record what this edition printed, once the
+  // desks have picked. Fire-and-forget — a failed write costs a back
+  // issue, never the front page.
+  useEffect(() => {
+    if (!activeTree) return;
+    const pieces: { finding: Finding; section: string }[] = [];
+    const weekly = curiosities ? pickWeekly(curiosities.top, `${issue.key}:tree-check`) : null;
+    if (weekly) {
+      pieces.push({
+        finding: {
+          id: `tree-health:${weekly.key}`,
+          source: 'tree-health',
+          subjectIds: [weekly.individualId],
+          sentence: weekly.prompt,
+        },
+        section: 'tree-check',
+      });
+    }
+    if (pattern) pieces.push({ finding: pattern.finding, section: 'pattern' });
+    recordEditionPieces(activeTree.id, issue.key, pieces);
+  }, [activeTree?.id, issue.key, curiosities, pattern]);
 
   useFocusEffect(
     useCallback(() => {
@@ -186,10 +215,26 @@ export default function Home() {
       getGeographyIndex(treeId)
         .then((index) => {
           if (cancelled) return;
-          const stories: Finding[] = [
-            ...oceanCrossings(index, 'atlantic').map(fromOceanCrossing),
-            ...oceanCrossings(index, 'pacific').map(fromOceanCrossing),
-            ...migrationPaths(index).map(fromMigrationPath),
+          const crossingStory = (crossing: (typeof crossings)[number]) => ({
+            finding: fromOceanCrossing(crossing),
+            destination: {
+              pathname: '/ancestor/[id]',
+              params: { id: crossing.individual.id },
+            },
+          });
+          const crossings = [
+            ...oceanCrossings(index, 'atlantic'),
+            ...oceanCrossings(index, 'pacific'),
+          ];
+          const stories = [
+            ...crossings.map(crossingStory),
+            ...migrationPaths(index).map((path) => ({
+              finding: fromMigrationPath(path),
+              destination: {
+                pathname: '/migration',
+                params: { treeId, from: path.from, to: path.to },
+              },
+            })),
           ];
           setPattern(pickWeekly(stories, `${issue.key}:pattern`));
         })
@@ -245,10 +290,13 @@ export default function Home() {
         ) : (
           activeTree && (
             <>
-              {/* 0 · The edition dateline */}
-              <Text style={{ ...mono(10, L.muted), marginTop: 20, letterSpacing: 1.4 }}>
-                {`NO. ${issue.number} · ${issue.weekOfLabel.toUpperCase()}`}
-              </Text>
+              {/* 0 · The edition dateline — phone only; the broadsheet's
+                  masthead already carries the edition number. */}
+              {!broadsheet && (
+                <Text style={{ ...mono(10, L.muted), marginTop: 20, letterSpacing: 1.4 }}>
+                  {`NO. ${issue.number} · ${issue.weekOfLabel.toUpperCase()}`}
+                </Text>
+              )}
 
               {/* 1 · The lead */}
               <Feed eyebrow="The lead">
@@ -308,13 +356,14 @@ export default function Home() {
 
               {/* 2 · From the Tree Check — the desk files ONE curiosity a
                   week, the count is a footnote. One is inviting; 443 is a
-                  chore list (cohesion brief, Approach B). */}
+                  chore list (cohesion brief, Approach B). The prompt lands
+                  on the person it names — their Portrait carries the same
+                  finding — and only the footnote opens the full workbench. */}
               {curiosities && curiosities.total > 0 && (() => {
                 const weekly = pickWeekly(curiosities.top, `${issue.key}:tree-check`);
                 return (
                   <Feed eyebrow="From the Tree Check">
-                    <Pressable
-                      onPress={() => router.push('/tree-health' as never)}
+                    <View
                       style={{
                         borderLeftWidth: 2,
                         borderLeftColor: L.amber,
@@ -323,19 +372,32 @@ export default function Home() {
                         gap: 5,
                       }}
                     >
-                      <Text
-                        style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15.5, lineHeight: 22, color: L.ink }}
+                      <Pressable
+                        onPress={() =>
+                          weekly
+                            ? router.push({
+                                pathname: '/ancestor/[id]',
+                                params: { id: weekly.individualId },
+                              })
+                            : router.push('/tree-health' as never)
+                        }
                       >
-                        {weekly
-                          ? weekly.prompt
-                          : `${curiosities.total.toLocaleString()} curiosities in the record — worth a look, nothing urgent.`}
-                      </Text>
-                      <Text style={mono(10, L.muted)}>
-                        {`THIS WEEK'S CURIOSITY · ${curiosities.total.toLocaleString()} OPEN${
-                          curiosities.lineName ? ` · MOST IN THE ${curiosities.lineName.toUpperCase()} LINE` : ''
-                        }`}
-                      </Text>
-                    </Pressable>
+                        <Text
+                          style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15.5, lineHeight: 22, color: L.ink }}
+                        >
+                          {weekly
+                            ? weekly.prompt
+                            : `${curiosities.total.toLocaleString()} curiosities in the record — worth a look, nothing urgent.`}
+                        </Text>
+                      </Pressable>
+                      <Pressable onPress={() => router.push('/tree-health' as never)} hitSlop={6}>
+                        <Text style={mono(10, L.muted)}>
+                          {`THIS WEEK'S CURIOSITY · ${curiosities.total.toLocaleString()} OPEN${
+                            curiosities.lineName ? ` · MOST IN THE ${curiosities.lineName.toUpperCase()} LINE` : ''
+                          } ›`}
+                        </Text>
+                      </Pressable>
+                    </View>
                   </Feed>
                 );
               })()}
@@ -360,22 +422,24 @@ export default function Home() {
                 </Feed>
               )}
 
-              {/* 4 · The pattern — one crossing or move, this week's pick. */}
+              {/* 4 · The pattern — one crossing or move, this week's pick.
+                  The sentence lands where it points; the footnote is the menu. */}
               {pattern && (
                 <Feed eyebrow="The pattern">
+                  <Pressable onPress={() => router.push(pattern.destination as never)}>
+                    <Text
+                      style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15.5, lineHeight: 22, color: L.ink }}
+                    >
+                      {pattern.finding.sentence}
+                    </Text>
+                  </Pressable>
                   <Pressable
                     onPress={() =>
                       router.push({ pathname: '/patterns', params: { treeId: activeTree.id } })
                     }
+                    hitSlop={6}
                   >
-                    <Text
-                      style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15.5, lineHeight: 22, color: L.ink }}
-                    >
-                      {pattern.sentence}
-                    </Text>
-                    <Text style={{ ...mono(10.5, L.amber), marginTop: 4 }}>
-                      MORE PATTERNS ›
-                    </Text>
+                    <Text style={mono(10.5, L.amber)}>MORE PATTERNS ›</Text>
                   </Pressable>
                 </Feed>
               )}

@@ -376,6 +376,50 @@ export type Database = {
           },
         ]
       }
+      findings: {
+        Row: {
+          edition_key: string | null
+          finding_id: string
+          first_seen_at: string
+          section: string | null
+          sentence: string
+          source: string
+          subject_ids: string[]
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          edition_key?: string | null
+          finding_id: string
+          first_seen_at?: string
+          section?: string | null
+          sentence: string
+          source: string
+          subject_ids?: string[]
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          edition_key?: string | null
+          finding_id?: string
+          first_seen_at?: string
+          section?: string | null
+          sentence?: string
+          source?: string
+          subject_ids?: string[]
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "findings_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       geocode_ticks: {
         Row: {
           created_at: string
@@ -1244,13 +1288,6 @@ export type Database = {
             columns: ["home_person_id"]
             isOneToOne: false
             referencedRelation: "individuals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trees_refreshed_from_fkey"
-            columns: ["refreshed_from"]
-            isOneToOne: false
-            referencedRelation: "trees"
             referencedColumns: ["id"]
           },
         ]
