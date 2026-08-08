@@ -162,10 +162,13 @@ export async function setHomePerson(
     .eq('id', treeId);
   if (updateError) throw new Error(`Setting home person failed: ${updateError.message}`);
 
-  const { error: clearError } = await client.from('relationships').delete().eq('tree_id', treeId);
-  if (clearError) throw new Error(`Clearing old relationships failed: ${clearError.message}`);
-
-  if (options.precompute === false) return { cachedAncestors: 0 };
+  if (options.precompute === false) {
+    // Explicit opt-out still clears the stale cache — the old rows describe
+    // the old home person.
+    const { error } = await client.from('relationships').delete().eq('tree_id', treeId);
+    if (error) throw new Error(`Clearing old relationships failed: ${error.message}`);
+    return { cachedAncestors: 0 };
+  }
 
   const { data: userData } = await client.auth.getUser();
   const userId = userData.user?.id;
@@ -198,6 +201,14 @@ export async function setHomePerson(
       is_collateral: result.isCollateral,
     });
   }
+
+  // Compute-then-swap: the old rows are cleared only once the replacements
+  // exist. The old order deleted FIRST, so an interrupted compute — the app
+  // backgrounded mid-walk on a large tree — left zero rows and silently
+  // stripped every lineage mark, relationship label, and scope count until
+  // someone noticed (2026-08-08, Rufus's 08-06 import, on device).
+  const { error: clearError } = await client.from('relationships').delete().eq('tree_id', treeId);
+  if (clearError) throw new Error(`Clearing old relationships failed: ${clearError.message}`);
 
   for (let i = 0; i < rows.length; i += INSERT_BATCH) {
     const { error } = await client.from('relationships').insert(rows.slice(i, i + INSERT_BATCH));
