@@ -30,6 +30,7 @@ const STATIC_TITLES: [prefix: string, title: string][] = [
   ['/digest', 'This Week in Your Family'],
   ['/archives', 'The National Archives'],
   ['/patterns', 'Patterns in Your Family'],
+  ['/nearby', 'Near Me'],
   ['/crossings', 'Ocean Crossings'],
   ['/kindred', 'Kindred Couples'],
   ['/migrations', 'Migration Paths'],

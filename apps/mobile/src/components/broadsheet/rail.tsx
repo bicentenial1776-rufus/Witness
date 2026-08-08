@@ -13,9 +13,10 @@ import { Broadsheet, BrandFonts } from '@/constants/theme';
 
 const C = Broadsheet.color;
 
-// The five destinations mirror the phone tabs exactly (docs/
-// phone-ia-design-brief.md, decision 2): Home is the feed, This Week
-// lives behind it at /digest, and Research folds into Tree.
+// The four destinations mirror the phone tabs exactly (docs/
+// phone-ia-design-brief.md decision 2, amended 2026-08-08 by audit G4:
+// Nearby folded into Map). Home is the feed, This Week lives behind it
+// at /digest, and Research folds into Tree.
 const TREE_ROUTES = [
   '/tree',
   '/research',
@@ -48,8 +49,11 @@ const DESTINATIONS: { label: string; href: string; match: (p: string) => boolean
     href: '/explore',
     match: (p) => EXPLORE_ROUTES.some((route) => p.startsWith(route)),
   },
-  { label: 'Map', href: '/map', match: (p) => p.startsWith('/map') },
-  { label: 'Nearby', href: '/proximity', match: (p) => p.startsWith('/proximity') },
+  {
+    label: 'Map',
+    href: '/map',
+    match: (p) => p.startsWith('/map') || p.startsWith('/nearby'),
+  },
 ];
 
 export function Rail() {

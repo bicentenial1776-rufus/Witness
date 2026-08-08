@@ -38,11 +38,11 @@ export default function TabsLayout() {
           <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: tabIcon('house.fill') }} />
           <Tabs.Screen name="tree" options={{ title: 'Tree', tabBarIcon: tabIcon('tree.fill') }} />
           <Tabs.Screen name="explore" options={{ title: 'Explore', tabBarIcon: tabIcon('hourglass') }} />
+          {/* Four tabs since 2026-08-08 (audit G4): Nearby folded into Map as
+              its NEAR ME mode — the two tabs were one question ("where?")
+              split by which coordinate was held fixed. The freed slot stays
+              deliberately empty; Street View is its strongest claimant. */}
           <Tabs.Screen name="map" options={{ title: 'Map', tabBarIcon: tabIcon('map.fill') }} />
-          <Tabs.Screen
-            name="proximity"
-            options={{ title: 'Nearby', tabBarIcon: tabIcon('location.fill') }}
-          />
         </Tabs>
       </View>
     </View>

@@ -454,6 +454,12 @@ export default function AncestorMapTab() {
           );
         })}
         <View style={{ flex: 1 }} />
+        {/* The former Nearby tab, now a page off the Map (audit G4). */}
+        <Pressable onPress={() => router.push('/nearby' as never)}>
+          <Text style={{ fontFamily: BrandFonts.sans.semiBold, fontSize: 14.5, color: C.accent }}>
+            Near me →
+          </Text>
+        </Pressable>
         <RecordText muted>Pin size = life recorded there</RecordText>
       </View>
 

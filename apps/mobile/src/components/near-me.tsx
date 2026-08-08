@@ -16,9 +16,13 @@ import { getRelationshipMap } from '@/lib/relationship-cache';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
- * Proximity: who in your family has history near where you're standing?
- * Distance is this tab's only dimension (eras live on the Map tab) —
- * radius chips in miles, results as a list or a map.
+ * Near me: who in your family has history near where you're standing?
+ * Distance is the only dimension here — a log-scaled radius slider, results
+ * as a list or a map. Lived as the fifth tab ("Nearby") until 2026-08-08;
+ * now a mode of the Map tab (walkthrough audit G4: the tabs were splitting
+ * one question — "where?" — by which coordinate was held fixed). The
+ * embedded list/map toggle survives because standing in a cemetery you
+ * want the list; planning a drive you want the map.
  */
 
 const MILES_TO_KM = 1.60934;
@@ -74,7 +78,7 @@ function Chip({
   );
 }
 
-export default function ProximityTab() {
+export function NearMe() {
   const theme = useTheme();
   const { activeTree, loadFailed } = useActiveTree();
   const treeId = activeTree?.id;
@@ -157,7 +161,7 @@ export default function ProximityTab() {
   }
 
   return (
-    <ThemedView style={{ flex: 1, padding: view === 'map' ? 0 : 24, paddingTop: view === 'map' ? 0 : 72, gap: 8 }}>
+    <ThemedView style={{ flex: 1, padding: view === 'map' ? 0 : 24, paddingTop: view === 'map' ? 0 : 116, gap: 8 }}>
       {view === 'list' && (
         <>
           {denied && (

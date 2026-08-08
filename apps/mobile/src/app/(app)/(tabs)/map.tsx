@@ -6,6 +6,7 @@ import MapView, { Marker, type MapType } from 'react-native-maps';
 
 import { placesWithActivity, type GeographyIndex } from '@witness/core/query';
 
+import { NearMe } from '@/components/near-me';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
@@ -33,6 +34,10 @@ export default function AncestorMapTab() {
   // is the desaturated cartography that suits the brand; hybrid = satellite
   // with labels.
   const [mapType, setMapType] = useState<MapType>('mutedStandard');
+  // PLACES roams the whole tree; NEAR ME fixes your position and asks who
+  // was around you (the former Nearby tab — audit G4). One question, two
+  // grips on it, one tab.
+  const [mode, setMode] = useState<'places' | 'near'>('places');
   const [progress, setProgress] = useState<{ placed: number; total: number } | null>(null);
   const lastPlaced = useRef<number | null>(null);
   const mapRef = useRef<MapView>(null);
@@ -124,6 +129,27 @@ export default function AncestorMapTab() {
     );
   }
 
+  if (mode === 'near') {
+    return (
+      <ThemedView style={{ flex: 1 }}>
+        <NearMe />
+        <View style={{ position: 'absolute', top: 60, right: 16 }}>
+          <Pressable
+            onPress={() => setMode('places')}
+            style={{
+              backgroundColor: theme.accent,
+              borderRadius: 16,
+              paddingHorizontal: 12,
+              paddingVertical: 7,
+            }}
+          >
+            <ThemedText type="small" style={{ color: '#F7F3EE' }}>Places</ThemedText>
+          </Pressable>
+        </View>
+      </ThemedView>
+    );
+  }
+
   return (
     <ThemedView style={{ flex: 1 }}>
       {index === null ? (
@@ -155,6 +181,17 @@ export default function AncestorMapTab() {
             selectedIndex={eraIndex}
             onChange={(event) => setEraIndex(event.nativeEvent.selectedSegmentIndex)}
           />
+          <Pressable
+            onPress={() => setMode('near')}
+            style={{
+              backgroundColor: '#1C1917',
+              borderRadius: 16,
+              paddingHorizontal: 12,
+              paddingVertical: 7,
+            }}
+          >
+            <ThemedText type="small" style={{ color: '#F7F3EE' }}>Near me</ThemedText>
+          </Pressable>
           <Pressable
             onPress={() => setMapType(mapType === 'hybrid' ? 'mutedStandard' : 'hybrid')}
             style={{
