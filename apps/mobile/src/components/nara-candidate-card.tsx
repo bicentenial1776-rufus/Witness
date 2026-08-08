@@ -1,4 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 
@@ -94,7 +95,20 @@ export function NaraCandidateCard({
         {years}
       </ThemedText>
       <ThemedText>{candidate.title}</ThemedText>
-      {showPerson && <ThemedText type="small">might be {candidate.individualName}</ThemedText>}
+      {/* The person is the way back into the app. Without this the archives are a
+          one-way street: a matched draft card that cannot take you to the man it
+          belongs to (see docs/cohesion-design-brief.md). */}
+      {showPerson && (
+        <ThemedText
+          type="link"
+          onPress={() =>
+            router.push({ pathname: '/ancestor/[id]', params: { id: candidate.individualId } })
+          }
+        >
+          {candidate.status === 'confirmed' ? '' : 'might be '}
+          {candidate.individualName} ›
+        </ThemedText>
+      )}
       {candidate.recordGroup && <ThemedText type="small">{candidate.recordGroup}</ThemedText>}
       <ThemedText type="link" onPress={() => Linking.openURL(naraCatalogUrl(candidate.naId))}>
         View at the National Archives ›
@@ -102,7 +116,7 @@ export function NaraCandidateCard({
       {candidate.status === 'confirmed' ? (
         <>
           <ThemedText type="small" themeColor="accent" style={{ fontWeight: 600 }}>
-            Confirmed — part of {showPerson ? `${candidate.individualName}'s` : 'their'} record
+            Confirmed — part of their record
           </ThemedText>
           {ancestryUrl && (
             <ThemedText type="link" onPress={addToAncestry}>

@@ -54,7 +54,6 @@ export function ExploreBroadsheet({
   index,
   shelf,
   eras,
-  naraCounts,
   treeId,
   searchPeople,
   searchMoments,
@@ -64,7 +63,6 @@ export function ExploreBroadsheet({
   index: GeographyIndex;
   shelf: ShelfEntry[] | null;
   eras: EraCount[];
-  naraCounts: { pending: number; confirmed: number } | null;
   treeId: string;
   searchPeople: PersonHit[];
   searchMoments: HistoricalEvent[];
@@ -99,38 +97,20 @@ export function ExploreBroadsheet({
     return { datedNoPlace, orphanSurnames };
   }, [index]);
 
+  // Mirrors the phone shelf exactly. Archives moved to the Tree tab (Explore
+  // wanders, Tree works) and the four pattern screens collapsed into one
+  // entry — see docs/cohesion-design-brief.md.
   const waysIn: { title: string; detail: string; path: string }[] = [
-    {
-      title: 'In the National Archives',
-      detail: naraCounts
-        ? `${naraCounts.pending} to review · ${naraCounts.confirmed} confirmed`
-        : 'Federal records matched to your ancestors, awaiting your judgment',
-      path: '/archives',
-    },
     {
       title: 'Where your family lived',
       detail: 'Every state, province, and country in your tree',
       path: '/places',
     },
     {
-      title: 'Where your family began',
-      detail: 'The earliest places your tree reaches back to',
-      path: '/origins',
-    },
-    {
-      title: 'Migration paths',
-      detail: 'The moves your family made, generation by generation',
-      path: '/migrations',
-    },
-    {
-      title: 'Ocean crossings',
-      detail: 'Ancestors who crossed the Atlantic or Pacific',
-      path: '/crossings',
-    },
-    {
-      title: 'Kindred couples',
-      detail: 'Spouses who shared an ancestor — however far back',
-      path: '/kindred',
+      title: 'Patterns in your family',
+      detail:
+        'Where it began, the moves it made, the oceans it crossed, and the couples who turned out to be kin',
+      path: '/patterns',
     },
   ];
 

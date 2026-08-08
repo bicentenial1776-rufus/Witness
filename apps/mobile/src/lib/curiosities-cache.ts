@@ -129,6 +129,41 @@ export async function getCuriosities(treeId: string, topCount = 3): Promise<Curi
   return { total: open.length, lineName, lineCount, top };
 }
 
+/**
+ * The curiosities that name one person — the Portrait's findings door
+ * (docs/cohesion-design-brief.md: the third door). Same session-cached
+ * audit run and the same marks/rulings filter as getCuriosities, so a
+ * decision on the workbench disappears here on the next visit. Home warms
+ * the audit cache on focus, so by the time a reader reaches a Portrait
+ * this is usually a filter over work already done.
+ */
+export async function getPersonCuriosities(
+  treeId: string,
+  individualId: string,
+): Promise<Curiosity[]> {
+  const [{ report, people }, marks, rulings] = await Promise.all([
+    getAuditRun(treeId),
+    supabase.from('tree_health_marks').select('finding_key').eq('tree_id', treeId),
+    supabase.from('tree_health_rulings').select('xref_key'),
+  ]);
+  const marked = new Set((marks.data ?? []).map((m) => m.finding_key));
+  const ruled = new Set((rulings.data ?? []).map((r) => r.xref_key));
+
+  return report.findings
+    .filter(
+      (f) =>
+        f.individualIds.includes(individualId) &&
+        !marked.has(findingKey(f)) &&
+        !ruled.has(findingXrefKey(f, people)) &&
+        !ruled.has(legacyFindingXrefKey(f, people)),
+    )
+    .map((f) => ({
+      key: findingKey(f),
+      prompt: f.detail,
+      individualId: f.individualIds[0],
+    }));
+}
+
 export function invalidateCuriositiesCache(): void {
   runs.clear();
 }
