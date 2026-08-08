@@ -63,7 +63,7 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 - **Launch:** iPhone + iPad (near-feature parity, adaptive layouts) **+ web**, launched ahead of schedule (July 2026) at app.witnesslives.com
 - **iPad** is the primary canvas for deep research sessions
 - **iPhone** is the field device — cemetery GPS, "I'm Here" mode, sharing moments
-- **Web** runs its own "Broadsheet" design system (IBM Plex Mono, letterpress/newspaper aesthetic) on viewports ≥900px, gated by `useBroadsheet()`; below that it falls back to the phone's tab bar. Same five-tab IA as the phone (Home · Tree · Explore · Map · Nearby), billing via RevenueCat Web Billing (Stripe checkout in-page) instead of Apple IAP, browser geolocation instead of device GPS for Nearby, and an email digest (Resend) standing in for local push where native notifications aren't available.
+- **Web** runs its own "Broadsheet" design system (IBM Plex Mono, letterpress/newspaper aesthetic) on viewports ≥900px, gated by `useBroadsheet()` — which as of 2026-08-08 also admits the native iPad at the same width, so the reading device gets the reading layout; below that it falls back to the phone's tab bar. Same four-tab IA as the phone (Home · Tree · Explore · Map — Nearby folded into Map as its Near me mode, 2026-08-08), billing via RevenueCat Web Billing (Stripe checkout in-page) instead of Apple IAP, browser geolocation instead of device GPS for Near me, and an email digest (Resend) standing in for local push where native notifications aren't available.
 - Built with **React Native / Expo**
 
 ---
@@ -295,10 +295,20 @@ Built during Phase 4–5 in response to what the real 5,495-person tree and fiel
 - Public share links with OG-tag unfurls so a shared story renders a preview card off-platform, with a bridge back into the app for non-users
 
 ### Family Stage & Register (Phone + Web Navigation)
-- Five-tab IA replaced the original Home/Explore/Map/Research/You layout: **Home · Tree · Explore · Map · Nearby** (Research folded into Tree)
+- Four-tab IA (amended 2026-08-08 from the 2026-07-26 five-tab layout; originally Home/Explore/Map/Research/You): **Home · Tree · Explore · Map** — Research folded into Tree, Nearby folded into Map as its Near me mode. The freed fifth slot is deliberately empty; Street View is its strongest claimant
 - **Family Stage** — a household rendered as a lifeline (a length of time, not a static chart), with a set-switcher for people with multiple marriages, honest "?" for uncertain data
 - **Register** — table-of-contents navigation by time, name, and place, without ever drawing the full tree
 - Both ship identically on phone and web
+
+### The Issue & the Findings Ledger (the app's spine — 2026-08-07/08)
+- **Home is a weekly edition**: one issue per ISO week, identical on every device (deterministic picks, no server). Each feature is a desk that files ONE piece — the digest's lead, a single Tree Check curiosity (the open count demoted to a footnote), the Archives' waiting count, one crossing or migration from the pattern engines. Rationing is the point: one invites where 443 oppress. A thin week prints fewer pieces; the first week says so honestly
+- **Unified findings plumbing** (`@witness/core/findings` + a Postgres `findings` table): every feature emits the same typed Finding; printed pieces persist as back issues and survive GEDCOM Refresh via the carry-forward planner (per-source id rewriting; stranded stories named in the cost warning, never guessed at)
+- **The issue trail**: the Portrait carries a "NO. 32 · NEXT: THE PATTERN ›" band while the reader is inside the edition — the road back that back-button archaeology used to be
+- Full diagnosis and decisions in `docs/cohesion-design-brief.md`; the before/after architecture drawings in `docs/architecture/`
+
+### Orientation Instruments (never a tree diagram)
+- The Portrait answers "where am I" with one-dimensional instruments instead of a 2-D chart: the **descent path** (the relationship lede opens the person-by-person chain), the **compass** (`gen 7 · father's side` in the identity span, direct line only), and the **running head** (*House of Josiah Howe & Mary Field · third of eight children*). The discipline: anything that wants to fan out in two dimensions is a worse Ancestry
+- The Portrait's onward doors: their place, their household on the Stage (`stageKeyForPerson` resolves a spouse to their household), their Tree Check findings, the descent chain, era queries — the universal destination is a junction now, not a terminus
 
 ### The Person View — "The Portrait"
 - The ancestor detail screen (`ancestor/[id]`, the universal destination every tap and search routes to) rebuilt to **lead with the family**: a serif name headline, a mono span (sex-inked word · years · birthplace), the relationship as a one-line serif lede, then a register of **Parents / Brothers & sisters / Marriage + children** — every name tappable onward, the person themselves highlighted and shown in true birth order among their siblings

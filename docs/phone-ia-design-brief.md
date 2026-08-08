@@ -13,6 +13,10 @@ softer, bluer visual language; the decisions below adopt the structure and rejec
    corners, mono eyebrows, Playfair display. The mock's layout survives; its palette,
    rounded cards, gradients, and blur do not.
 2. **Tabs: Home · Tree · Explore · Map · Nearby.** Map and Nearby keep their own tabs.
+   *(Amended 2026-08-08, Rufus, per the walkthrough audit: Nearby folded into Map as its
+   NEAR ME mode — the two tabs were one question split by which coordinate was held fixed.
+   Four tabs now: Home · Tree · Explore · Map; the freed slot stays deliberately empty,
+   with Street View its strongest claimant. See docs/cohesion-design-brief.md.)*
    Research folds into the Tree tab. (The mock's "Me" tab: You/profile stays reachable as
    today rather than spending a fifth-plus slot; revisit only if usage argues otherwise.)
 3. **The Family Stage and the Register live as a card on the Tree tab** — selecting it opens
@@ -27,7 +31,9 @@ softer, bluer visual language; the decisions below adopt the structure and rejec
 
 ## The screens
 
-**Home — a vertical feed** (the earlier swipeable-carousel concept is superseded):
+**Home — a vertical feed** (the earlier swipeable-carousel concept is superseded;
+*and this feed itself was superseded 2026-08-07 by The Issue — the weekly edition of
+docs/cohesion-design-brief.md — which keeps these blocks as its standing furniture*):
 
 1. *Featured Today* hero — one ancestor, name/years/place in mono, a short story built from
    their actual records (digest engine picks; biography enrichment writes; cached daily).
@@ -59,7 +65,8 @@ softer, bluer visual language; the decisions below adopt the structure and rejec
 - *Mill & Loom* → occupation events (imported; needs a query/screen, data already present)
 - Existing library remains the backbone (event catalog with live alive-counts, pins).
 
-**Map · Nearby** — as shipped today, unchanged by this brief.
+**Map · Nearby** — as shipped today, unchanged by this brief. *(2026-08-08: merged — Near
+me is now a mode of the Map tab; `/nearby` remains the web page.)*
 
 ## Carried rules
 
