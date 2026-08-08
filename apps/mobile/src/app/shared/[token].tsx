@@ -86,7 +86,16 @@ export default function SharedStoryScreen() {
             title="Discover your family's history"
             onPress={() => Linking.openURL('https://witnesslives.com')}
           />
-          <ThemedText type="link" style={{ textAlign: 'center' }} onPress={() => router.push('/sign-in')}>
+          {/* The token rides along so sign-in can land back on this story —
+              a cousin moved to join by a particular ancestor should arrive
+              at that ancestor, not a generic Home (audit G6). */}
+          <ThemedText
+            type="link"
+            style={{ textAlign: 'center' }}
+            onPress={() =>
+              router.push({ pathname: '/sign-in', params: { next: `/shared/${token}` } })
+            }
+          >
             Already have Witness? Sign in ›
           </ThemedText>
         </View>

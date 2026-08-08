@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   Image,
@@ -35,6 +35,13 @@ export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Where to land after sign-in. Allowlisted to shared stories — the one
+  // flow that arrives here carrying a destination (audit G6: a cousin moved
+  // to join by a particular ancestor should land back on that ancestor).
+  // /shared is public and outside the auth guards, so the replace can't
+  // race the guard flip.
+  const { next } = useLocalSearchParams<{ next?: string }>();
+  const safeNext = next && /^\/shared\/[A-Za-z0-9_-]+$/.test(next) ? next : null;
 
   // Simulator-driven verification can't type; a gitignored .env opts into
   // signing in as the dev account automatically. Dev builds only.
@@ -53,7 +60,11 @@ export default function SignIn() {
     setIsSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setIsSubmitting(false);
-    if (error) showAlert('Sign in failed', error.message);
+    if (error) {
+      showAlert('Sign in failed', error.message);
+      return;
+    }
+    if (safeNext) router.replace(safeNext as never);
   }
 
   const form = (
