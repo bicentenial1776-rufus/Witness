@@ -25,10 +25,29 @@ const TREE_ROUTES = [
   '/orphan-records',
   '/getting-to-work',
 ];
+// The Explore shelf's own destinations. Without these the rail highlighted
+// nothing once a reader followed a card off the shelf, which read as having
+// left the app rather than having gone one level down.
+const EXPLORE_ROUTES = [
+  '/explore',
+  '/library',
+  '/places',
+  '/patterns',
+  '/origins',
+  '/migrations',
+  '/migration',
+  '/crossings',
+  '/kindred',
+  '/query',
+];
 const DESTINATIONS: { label: string; href: string; match: (p: string) => boolean }[] = [
   { label: 'Home', href: '/', match: (p) => p === '/' || p === '/index' || p.startsWith('/digest') },
   { label: 'Tree', href: '/tree', match: (p) => TREE_ROUTES.some((route) => p.startsWith(route)) },
-  { label: 'Explore', href: '/explore', match: (p) => p.startsWith('/explore') },
+  {
+    label: 'Explore',
+    href: '/explore',
+    match: (p) => EXPLORE_ROUTES.some((route) => p.startsWith(route)),
+  },
   { label: 'Map', href: '/map', match: (p) => p.startsWith('/map') },
   { label: 'Nearby', href: '/proximity', match: (p) => p.startsWith('/proximity') },
 ];

@@ -130,7 +130,7 @@ export default function AppLayout() {
       <Stack.Screen name="orphan-records" options={{ title: 'Orphan Records' }} />
       <Stack.Screen name="family-stage/[key]" options={{ headerShown: false }} />
       <Stack.Screen name="faq" options={{ title: 'Questions & Answers' }} />
-      <Stack.Screen name="ascent" options={{ title: 'The Ascent' }} />
+      <Stack.Screen name="patterns" options={{ title: 'Patterns' }} />
       <Stack.Screen name="origins" options={{ title: 'Where It Began' }} />
       <Stack.Screen name="crossings" options={{ title: 'Ocean Crossings' }} />
       <Stack.Screen name="migrations" options={{ title: 'Migration Paths' }} />

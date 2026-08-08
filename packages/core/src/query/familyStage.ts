@@ -104,6 +104,30 @@ function endYear(person: TreeIndividual | undefined, currentYear: number): numbe
   return null;
 }
 
+/**
+ * The stage a person belongs to as a parent, by their individual id.
+ *
+ * Stage keys are the household HEAD's id (the spouse with the most
+ * marriages, ties to the husband), so a wife's own id is not a key. Anything
+ * that knows only a person — the Portrait, a search result — needs this to
+ * find their household without guessing the rule. Returns null when the
+ * person heads no household, which is the caller's cue to show no link
+ * rather than land the reader on somebody else's family.
+ */
+export function stageKeyForPerson(
+  index: FamilyStageIndex,
+  individualId: string,
+): string | null {
+  const direct = index.byKey.get(individualId);
+  if (direct) return direct.key;
+  for (const stage of index.byKey.values()) {
+    for (const marriage of stage.marriages) {
+      if (marriage.spouse?.id === individualId) return stage.key;
+    }
+  }
+  return null;
+}
+
 interface Unit {
   head: TreeIndividual;
   marriages: { family: TreeFamily; spouse: TreeIndividual | null }[];

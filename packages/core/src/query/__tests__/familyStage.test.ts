@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildFamilyStages, type StageBond, type StagePerson } from '../familyStage.js';
+import {
+  buildFamilyStages,
+  stageKeyForPerson,
+  type StageBond,
+  type StagePerson,
+} from '../familyStage.js';
 import type { TreeIndex, TreeIndividual } from '../treeIndex.js';
 
 const YEAR = 2026;
@@ -159,5 +164,36 @@ describe('buildFamilyStages', () => {
       .rows.find((row): row is StagePerson => row.kind === 'person' && row.id === 'c0')!;
     expect(openChild.d).toBeNull();
     expect(openChild.living).toBe(false); // open ribbon, but NOT living
+  });
+});
+
+describe('stageKeyForPerson', () => {
+  // A screen that knows only a person — the Portrait — cannot derive the stage
+  // key, because the key is the HEAD's id and the head is whichever spouse has
+  // the most marriages. Before this resolver a wife's own id missed every key
+  // and the caller silently landed the reader on the root family instead.
+  const index = makeIndex(
+    [
+      person({ id: 'head', full_name: 'Josiah Haskell', sex: 'M', birth_year: 1700, death_year: 1770 }),
+      person({ id: 'wife', full_name: 'Mary Beliveau', sex: 'F', birth_year: 1705, death_year: 1780 }),
+      person({ id: 'child', sex: 'F', birth_year: 1730, death_year: 1800 }),
+      person({ id: 'nobody', full_name: 'Unwed Cousin', birth_year: 1740, death_year: 1800 }),
+    ],
+    [{ id: 'f1', husband_id: 'head', wife_id: 'wife', marriage_year: 1728, children: ['child'] }],
+  );
+
+  it('resolves the head to their own stage', () => {
+    expect(stageKeyForPerson(build(index), 'head')).toBe('head');
+  });
+
+  it('resolves a spouse to the household she is a parent in', () => {
+    expect(stageKeyForPerson(build(index), 'wife')).toBe('head');
+  });
+
+  it('returns null for someone who heads no household', () => {
+    // The caller's cue to render no link at all — a wrong household is worse
+    // than no door.
+    expect(stageKeyForPerson(build(index), 'nobody')).toBeNull();
+    expect(stageKeyForPerson(build(index), 'child')).toBeNull();
   });
 });

@@ -93,7 +93,7 @@ on iOS alone (pure file move), and every later piece depends on it.
 | Map + proximity | react-native-maps | Platform-split `Map.web.tsx` on MapLibre GL (OSM tiles) | B |
 | Notifications (trial reminder, weekly digest) | expo-notifications | Email (Resend is already wired for auth mail) | B |
 | Share cards (view-shot) | Native snapshot | Server-rendered OG images / html-to-image | B |
-| Ascent, Street View | RN / (future) three.js | react-three-fiber targets web natively | with feature |
+| Street View | RN / (future) three.js | react-three-fiber targets web natively | with feature |
 
 Standing rule (now binding): components stay platform-agnostic; a platform
 split file is the escape hatch, not the norm.

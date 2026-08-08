@@ -12,6 +12,7 @@ import {
 
 import {
   buildFamilyStages,
+  stageKeyForPerson,
   type FamilyStage as Stage,
   type FamilyStageIndex,
   type StageBond,
@@ -143,10 +144,19 @@ export default function FamilyStageScreen() {
     };
   }, [activeTree?.id]);
 
-  // Pick the household: the route's key, else the picker's first.
+  // Pick the household: the route's key, else the household that key names a
+  // parent of, else the picker's first. The middle case is what lets a screen
+  // that knows only a person (the Portrait) link here — stage keys are the
+  // HEAD's id, so a wife's own id never matched and the reader silently landed
+  // on the root family instead of hers.
+  //
+  // The final fallback stays: `/family-stage/root` relies on it, and a key that
+  // resolves to nothing must still land somewhere — leaving currentKey null
+  // hangs the screen on "SETTING THE STAGE…" forever.
   useEffect(() => {
     if (!stages) return;
-    const key = paramKey && stages.byKey.has(paramKey) ? paramKey : stages.topLevel[0]?.key;
+    const key =
+      (paramKey && stageKeyForPerson(stages, paramKey)) ?? stages.topLevel[0]?.key;
     if (key) setCurrentKey(key);
   }, [stages, paramKey]);
 

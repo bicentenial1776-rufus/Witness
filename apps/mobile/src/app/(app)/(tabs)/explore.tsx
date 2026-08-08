@@ -9,7 +9,7 @@ import {
   type HistoricalEvent,
   type ShelfEntry,
 } from '@witness/core/history';
-import { fetchNaraCounts, type GeographyIndex, type NaraCounts } from '@witness/core/query';
+import { type GeographyIndex } from '@witness/core/query';
 
 import { useBroadsheet } from '@/components/broadsheet';
 import { ExploreBroadsheet, type EraCount } from '@/components/broadsheet/explore-broadsheet';
@@ -70,7 +70,6 @@ export default function ExploreTab() {
   const [shelfAttempt, setShelfAttempt] = useState(0);
   const [search, setSearch] = useState('');
   const [people, setPeople] = useState<PersonHit[]>([]);
-  const [naraCounts, setNaraCounts] = useState<NaraCounts | null>(null);
   const broadsheet = useBroadsheet();
   const [geoIndex, setGeoIndex] = useState<GeographyIndex | null>(null);
   const [eras, setEras] = useState<EraCount[]>([]);
@@ -96,23 +95,6 @@ export default function ExploreTab() {
       cancelled = true;
     };
   }, [broadsheet, activeTree?.id]);
-
-  // Archive counts refresh on every focus: reviews happen deeper in the
-  // stack, and a stale "3 to review" badge undercuts the workflow.
-  useFocusEffect(
-    useCallback(() => {
-      if (!activeTree) return;
-      let cancelled = false;
-      fetchNaraCounts(supabase, activeTree.id)
-        .then((counts) => {
-          if (!cancelled) setNaraCounts(counts);
-        })
-        .catch(() => {});
-      return () => {
-        cancelled = true;
-      };
-    }, [activeTree?.id]),
-  );
 
   // The full library backs search only; it is never listed outright.
   useEffect(() => {
@@ -230,7 +212,6 @@ export default function ExploreTab() {
         index={geoIndex}
         shelf={shelf}
         eras={eras}
-        naraCounts={naraCounts}
         treeId={activeTree.id}
         searchPeople={people}
         searchMoments={filtered.slice(0, 8)}
@@ -302,33 +283,13 @@ export default function ExploreTab() {
                 </ThemedText>
               </Card>
 
+              {/* Archives left this shelf for the Tree tab: Explore wanders, Tree works,
+                  and a card on both shelves meant neither shelf had a job. Origins,
+                  migrations, crossings, and kindred collapsed into Patterns — four equal
+                  cards read as clutter (docs/cohesion-design-brief.md). */}
               <ThemedText type="subtitle" style={{ marginTop: 12 }}>
                 Ways in
               </ThemedText>
-              <Card
-                onPress={() =>
-                  router.push({ pathname: '/archives', params: { treeId: activeTree.id } })
-                }
-              >
-                <ThemedText type="subtitle">In the National Archives</ThemedText>
-                <ThemedText type="small">
-                  Federal records matched to your ancestors — draft cards, naturalizations, and
-                  more, each awaiting your judgment
-                </ThemedText>
-                {naraCounts && (naraCounts.pending > 0 || naraCounts.confirmed > 0) && (
-                  <ThemedText type="smallBold" themeColor="accent">
-                    {[
-                      naraCounts.pending > 0 ? `${naraCounts.pending} to review` : null,
-                      naraCounts.confirmed > 0
-                        ? `${naraCounts.confirmed} confirmed`
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}{' '}
-                    ›
-                  </ThemedText>
-                )}
-              </Card>
               <Card
                 onPress={() => router.push({ pathname: '/places', params: { treeId: activeTree.id } })}
               >
@@ -336,32 +297,13 @@ export default function ExploreTab() {
                 <ThemedText type="small">Every state, province, and country in your tree</ThemedText>
               </Card>
               <Card
-                onPress={() => router.push({ pathname: '/origins', params: { treeId: activeTree.id } })}
+                onPress={() => router.push({ pathname: '/patterns', params: { treeId: activeTree.id } })}
               >
-                <ThemedText type="subtitle">Where your family began</ThemedText>
-                <ThemedText type="small">The earliest places your tree reaches back to</ThemedText>
-              </Card>
-              <Card
-                onPress={() =>
-                  router.push({ pathname: '/migrations', params: { treeId: activeTree.id } })
-                }
-              >
-                <ThemedText type="subtitle">Migration paths</ThemedText>
-                <ThemedText type="small">The moves your family made, generation by generation</ThemedText>
-              </Card>
-              <Card
-                onPress={() =>
-                  router.push({ pathname: '/crossings', params: { treeId: activeTree.id } })
-                }
-              >
-                <ThemedText type="subtitle">Ocean crossings</ThemedText>
-                <ThemedText type="small">Ancestors who crossed the Atlantic or Pacific</ThemedText>
-              </Card>
-              <Card
-                onPress={() => router.push({ pathname: '/kindred', params: { treeId: activeTree.id } })}
-              >
-                <ThemedText type="subtitle">Kindred couples</ThemedText>
-                <ThemedText type="small">Spouses who shared an ancestor — however far back</ThemedText>
+                <ThemedText type="subtitle">Patterns in your family</ThemedText>
+                <ThemedText type="small">
+                  Where it began, the moves it made, the oceans it crossed, and the couples who
+                  turned out to be kin
+                </ThemedText>
               </Card>
 
             </>
