@@ -31,6 +31,7 @@ import { useActiveTree } from '@/lib/active-tree';
 import { getCuriosities, type CuriositySummary } from '@/lib/curiosities-cache';
 import { recordEditionPieces } from '@/lib/edition-ledger';
 import { getGeographyIndex } from '@/lib/geography-cache';
+import { layIssueTrail, openTrailPiece, type TrailPiece } from '@/lib/issue-trail';
 import { armDigestNotification } from '@/lib/digest-notifications';
 import { getFeaturedIds, getRelationshipMap } from '@/lib/relationship-cache';
 import { describeResumePoint, getResumePoint } from '@/lib/resume';
@@ -120,7 +121,8 @@ export default function Home() {
 
   // The ledger's write path: record what this edition printed, once the
   // desks have picked. Fire-and-forget — a failed write costs a back
-  // issue, never the front page.
+  // issue, never the front page. The same pass lays the issue trail, so
+  // the Portrait can offer "next in this issue" (audit G1).
   useEffect(() => {
     if (!activeTree) return;
     const pieces: { finding: Finding; section: string }[] = [];
@@ -138,7 +140,35 @@ export default function Home() {
     }
     if (pattern) pieces.push({ finding: pattern.finding, section: 'pattern' });
     recordEditionPieces(activeTree.id, issue.key, pieces);
-  }, [activeTree?.id, issue.key, curiosities, pattern]);
+
+    const hero = digest ? (digest.entries[0] ?? digest.days[0] ?? null) : null;
+    const trail: TrailPiece[] = [];
+    if (hero) {
+      trail.push({
+        key: 'lead',
+        label: 'THE LEAD',
+        destination: { pathname: '/ancestor/[id]', params: { id: hero.individualId } },
+      });
+    }
+    if (weekly) {
+      trail.push({
+        key: 'tree-check',
+        label: 'THE TREE CHECK',
+        destination: { pathname: '/ancestor/[id]', params: { id: weekly.individualId } },
+      });
+    }
+    if (naraCounts && naraCounts.pending > 0) {
+      trail.push({
+        key: 'archives',
+        label: 'THE ARCHIVES',
+        destination: { pathname: '/archives', params: { treeId: activeTree.id } },
+      });
+    }
+    if (pattern) {
+      trail.push({ key: 'pattern', label: 'THE PATTERN', destination: pattern.destination });
+    }
+    layIssueTrail(issue.number, trail);
+  }, [activeTree?.id, issue.key, issue.number, curiosities, pattern, digest, naraCounts]);
 
   useFocusEffect(
     useCallback(() => {
@@ -330,9 +360,10 @@ export default function Home() {
                   </Text>
                 ) : (
                   <Pressable
-                    onPress={() =>
-                      router.push({ pathname: '/ancestor/[id]', params: { id: hero.individualId } })
-                    }
+                    onPress={() => {
+                      openTrailPiece('lead');
+                      router.push({ pathname: '/ancestor/[id]', params: { id: hero.individualId } });
+                    }}
                     style={{
                       borderWidth: 1,
                       borderColor: L.rule,
@@ -395,14 +426,17 @@ export default function Home() {
                       }}
                     >
                       <Pressable
-                        onPress={() =>
-                          weekly
-                            ? router.push({
-                                pathname: '/ancestor/[id]',
-                                params: { id: weekly.individualId },
-                              })
-                            : router.push('/tree-health' as never)
-                        }
+                        onPress={() => {
+                          if (weekly) {
+                            openTrailPiece('tree-check');
+                            router.push({
+                              pathname: '/ancestor/[id]',
+                              params: { id: weekly.individualId },
+                            });
+                          } else {
+                            router.push('/tree-health' as never);
+                          }
+                        }}
                       >
                         <Text
                           style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15.5, lineHeight: 22, color: L.ink }}
@@ -428,9 +462,10 @@ export default function Home() {
               {naraCounts && naraCounts.pending > 0 && (
                 <Feed eyebrow="From the Archives">
                   <Pressable
-                    onPress={() =>
-                      router.push({ pathname: '/archives', params: { treeId: activeTree.id } })
-                    }
+                    onPress={() => {
+                      openTrailPiece('archives');
+                      router.push({ pathname: '/archives', params: { treeId: activeTree.id } });
+                    }}
                   >
                     <Text
                       style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15.5, lineHeight: 22, color: L.ink }}
@@ -448,7 +483,12 @@ export default function Home() {
                   The sentence lands where it points; the footnote is the menu. */}
               {pattern && (
                 <Feed eyebrow="The pattern">
-                  <Pressable onPress={() => router.push(pattern.destination as never)}>
+                  <Pressable
+                    onPress={() => {
+                      openTrailPiece('pattern');
+                      router.push(pattern.destination as never);
+                    }}
+                  >
                     <Text
                       style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15.5, lineHeight: 22, color: L.ink }}
                     >

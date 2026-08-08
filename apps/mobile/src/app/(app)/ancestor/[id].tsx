@@ -22,6 +22,7 @@ import * as Clipboard from 'expo-clipboard';
 import { ancestryPersonUrl } from '@/lib/ancestry';
 import { getPersonCuriosities, type Curiosity } from '@/lib/curiosities-cache';
 import { getEventLibrary } from '@/lib/event-library';
+import { advanceTrail, dismissTrail, nextTrailPiece } from '@/lib/issue-trail';
 import { createAncestorShareLink } from '@/lib/share-links';
 import {
   getLineageTierMap,
@@ -730,8 +731,60 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     }
   }
 
+  // The road back to the issue (audit G1): while the reader is inside this
+  // week's edition, the next piece is one tap — not five backs. Read per
+  // render so following the band to another Portrait advances it; the tick
+  // exists because dismissal mutates module state this screen can't see.
+  const [, trailTick] = useState(0);
+  const trailNext = nextTrailPiece();
+
   return (
     <ThemedView style={{ flex: 1 }}>
+      {trailNext && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            paddingHorizontal: 24,
+            paddingVertical: 8,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border,
+            backgroundColor: theme.backgroundElement,
+          }}
+        >
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => {
+              advanceTrail(trailNext.piece.key);
+              router.push(trailNext.piece.destination as never);
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: Fonts.mono,
+                fontSize: 10.5,
+                letterSpacing: 1.2,
+                color: theme.accent,
+              }}
+            >
+              {`NO. ${trailNext.number} · NEXT: ${trailNext.piece.label} ›`}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              dismissTrail();
+              trailTick((n) => n + 1);
+            }}
+            hitSlop={10}
+            accessibilityLabel="Dismiss the issue band"
+          >
+            <Text style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.textSecondary }}>
+              ×
+            </Text>
+          </Pressable>
+        </View>
+      )}
       <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 48, gap: 4 }}>
         {/* Identity: name headline (with the lineage mark) → mono span
             (sex · years · place) → parentage → the relationship as a
