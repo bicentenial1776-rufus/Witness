@@ -164,6 +164,18 @@ export async function getPersonCuriosities(
     }));
 }
 
+/**
+ * The session's audit run, shared with the workbench. Before this,
+ * tree-health.tsx re-fetched the same ~30 paginated pages Home had already
+ * pulled through this cache — the walkthrough audit's G2.
+ */
+export async function getAuditReport(
+  treeId: string,
+): Promise<{ report: TreeHealthReport; people: AuditRun['people'] }> {
+  const { report, people } = await getAuditRun(treeId);
+  return { report, people };
+}
+
 export function invalidateCuriositiesCache(): void {
   runs.clear();
 }

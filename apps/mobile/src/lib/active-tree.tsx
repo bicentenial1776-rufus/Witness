@@ -34,6 +34,8 @@ export interface TreeRow {
   gedcom_bytes: number | null;
   home_person_id: string | null;
   home_person: { full_name: string } | null;
+  /** Set when this tree arrived via GEDCOM Refresh — it inherits its history. */
+  refreshed_from: string | null;
 }
 
 interface ActiveTreeContextValue {
@@ -78,7 +80,7 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase
       .from('trees')
       .select(
-        'id, name, individual_count, family_count, place_count, imported_at, gedcom_path, gedcom_bytes, home_person_id, home_person:individuals!trees_home_person_id_fkey(full_name)',
+        'id, name, individual_count, family_count, place_count, imported_at, gedcom_path, gedcom_bytes, home_person_id, refreshed_from, home_person:individuals!trees_home_person_id_fkey(full_name)',
       )
       .order('imported_at', { ascending: false });
     if (error) {

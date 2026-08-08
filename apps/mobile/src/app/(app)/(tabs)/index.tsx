@@ -298,6 +298,28 @@ export default function Home() {
                 </Text>
               )}
 
+              {/* First-week candor (audit gap G5): the hero's note is written
+                  by a daily job, archive matches by a scheduled worker, map
+                  pins by the geocoder — a brand-new tree's issue runs thin
+                  for reasons the reader can't see. Say so. A refreshed tree
+                  inherits its history and skips the apology. */}
+              {!activeTree.refreshed_from &&
+                Date.now() - new Date(activeTree.imported_at).getTime() < 7 * 86_400_000 && (
+                  <Text
+                    style={{
+                      fontFamily: BrandFonts.serif.regular,
+                      fontStyle: 'italic',
+                      fontSize: 14.5,
+                      lineHeight: 21,
+                      color: L.muted,
+                      marginTop: 10,
+                    }}
+                  >
+                    Your first issues run thin — the presses are still warming. Richer notes,
+                    archive matches, and map pins arrive over the coming days.
+                  </Text>
+                )}
+
               {/* 1 · The lead */}
               <Feed eyebrow="The lead">
                 {!digest ? (

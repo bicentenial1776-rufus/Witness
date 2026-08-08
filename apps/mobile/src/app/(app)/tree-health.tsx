@@ -3,11 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, SectionList, View } from 'react-native';
 
 import {
-  fetchTreeHealthData,
   findingKey,
   findingXrefKey,
   legacyFindingXrefKey,
-  runTreeHealth,
   type HealthCheckId,
   type HealthFinding,
   type TreeHealthReport,
@@ -21,6 +19,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useActiveTree } from '@/lib/active-tree';
 import { showAlert } from '@/lib/alert';
+import { getAuditReport } from '@/lib/curiosities-cache';
 import { saveTextFile } from '@/lib/export-file';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
@@ -93,15 +92,18 @@ export default function TreeHealthScreen() {
     let cancelled = false;
     setReport(null);
     setFailed(false);
+    // The audit itself comes from the session cache Home already warmed —
+    // the workbench used to re-download the same ~30 pages (audit gap G2).
+    // Marks and rulings stay live reads: decisions made here must show here.
     Promise.all([
-      fetchTreeHealthData(supabase, treeId),
+      getAuditReport(treeId),
       supabase.from('tree_health_marks').select('finding_key').eq('tree_id', treeId),
       supabase.from('tree_health_rulings').select('xref_key'),
     ])
-      .then(([data, marks, rulings]) => {
+      .then(([audit, marks, rulings]) => {
         if (cancelled) return;
-        setPeople(new Map(data.individuals.map((i) => [i.id, { gedcom_xref: i.gedcom_xref, full_name: i.full_name }])));
-        setReport(runTreeHealth(data, { currentYear: new Date().getFullYear() }));
+        setPeople(audit.people);
+        setReport(audit.report);
         setMarked(new Set((marks.data ?? []).map((m) => m.finding_key)));
         setRuled(new Set((rulings.data ?? []).map((r) => r.xref_key)));
       })
