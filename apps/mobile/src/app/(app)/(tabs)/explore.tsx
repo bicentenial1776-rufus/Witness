@@ -336,6 +336,9 @@ export default function ExploreTab() {
               {`${filtered.length} ${filtered.length === 1 ? 'moment matches' : 'moments match'}`}
             </ThemedText>
           )}
+          {searching && people.length === 0 && filtered.length === 0 && (
+            <ThemedText type="small">Nothing matches — try a broader word.</ThemedText>
+          )}
         </>
       ) : (
         <ThemedText>{noTreeMessage(loadFailed, 'to start exploring')}</ThemedText>

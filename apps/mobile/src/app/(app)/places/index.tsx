@@ -34,6 +34,13 @@ export default function PlacesScreen() {
       {error && <ThemedText>Something went wrong: {error}</ThemedText>}
       {!rollups && !error && <ActivityIndicator style={{ marginVertical: 24 }} />}
 
+      {rollups && rollups.length === 0 && (
+        <ThemedText>
+          Nothing located yet — your tree’s places are still being found, and they arrive on
+          their own over the hours after an import. This list fills in as they land.
+        </ThemedText>
+      )}
+
       {rollups && (
         <FlatList
           data={rollups}

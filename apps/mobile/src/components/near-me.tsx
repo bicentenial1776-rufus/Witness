@@ -2,11 +2,12 @@ import Slider from '@react-native-community/slider';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, SectionList, View } from 'react-native';
+import { ActivityIndicator, AppState, Linking, Pressable, ScrollView, SectionList, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
 import { nearbyAncestors, type GeographyIndex, type NearbyPlace } from '@witness/core/query';
 
+import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -85,7 +86,12 @@ export function NearMe() {
   const [index, setIndex] = useState<GeographyIndex | null>(null);
   const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
   const [position, setPosition] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [denied, setDenied] = useState(false);
+  // The OS location dialog used to fire the instant this mounted, context-free.
+  // Now: 'ask' renders a priming card whose button is what triggers the dialog,
+  // and 'denied' offers the road back (Settings) instead of a dead sentence.
+  const [permission, setPermission] = useState<'checking' | 'ask' | 'granted' | 'denied'>(
+    'checking',
+  );
   // t in [0,1] on a log track; live follows the finger, committed queries.
   const [liveT, setLiveT] = useState(Math.log(5) / Math.log(MAX_MILES));
   const [committedT, setCommittedT] = useState(Math.log(5) / Math.log(MAX_MILES));
@@ -106,22 +112,56 @@ export function NearMe() {
       if (!cancelled) setRelationships(map);
     });
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        if (!cancelled) setDenied(true);
-        return;
-      }
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      if (!cancelled) {
-        setPosition({ latitude: location.coords.latitude, longitude: location.coords.longitude });
+      // Look, don't ask: only an already-granted permission proceeds here.
+      // The request itself waits for the priming card's button.
+      const current = await Location.getForegroundPermissionsAsync();
+      if (cancelled) return;
+      if (current.granted) {
+        setPermission('granted');
+        locate();
+      } else if (current.canAskAgain === false) {
+        setPermission('denied');
+      } else {
+        setPermission('ask');
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [treeId]);
+
+  async function locate() {
+    const location = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+    setPosition({ latitude: location.coords.latitude, longitude: location.coords.longitude });
+  }
+
+  async function requestAccess() {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status === 'granted') {
+      setPermission('granted');
+      locate();
+    } else {
+      setPermission('denied');
+    }
+  }
+
+  // The road back from a denial runs through the Settings app — when the
+  // reader returns, notice a granted permission without being asked to tap
+  // anything again.
+  useEffect(() => {
+    if (permission !== 'denied') return;
+    const subscription = AppState.addEventListener('change', async (state) => {
+      if (state !== 'active') return;
+      const current = await Location.getForegroundPermissionsAsync();
+      if (current.granted) {
+        setPermission('granted');
+        locate();
+      }
+    });
+    return () => subscription.remove();
+  }, [permission]);
 
   const nearby = useMemo(() => {
     if (!index || !position) return null;
@@ -164,14 +204,36 @@ export function NearMe() {
     <ThemedView style={{ flex: 1, padding: view === 'map' ? 0 : 24, paddingTop: view === 'map' ? 0 : 116, gap: 8 }}>
       {view === 'list' && (
         <>
-          {denied && (
-            <ThemedText>
-              Witness needs your location to find the ancestors around you. Enable location access
-              in Settings.
-            </ThemedText>
+          {permission === 'ask' && (
+            <Card style={{ gap: 10 }}>
+              <ThemedText type="subtitle">Who lived near where you’re standing?</ThemedText>
+              <ThemedText type="small">
+                Witness compares your location against the places already in your tree, on this
+                device. Your location isn’t stored and isn’t sent anywhere.
+              </ThemedText>
+              <Button title="Show who’s near me" onPress={requestAccess} />
+            </Card>
           )}
 
-          {!denied && (!index || !position) && (
+          {permission === 'denied' && (
+            <Card style={{ gap: 10 }}>
+              <ThemedText>
+                Witness needs your location to find the ancestors around you — and location access
+                is currently off for Witness.
+              </ThemedText>
+              <Button
+                title="Open Settings"
+                variant="secondary"
+                onPress={() => Linking.openSettings().catch(() => {})}
+              />
+              <ThemedText type="small">
+                Turn it on there and this screen picks up where you left it. The rest of Witness
+                never uses your location.
+              </ThemedText>
+            </Card>
+          )}
+
+          {permission === 'granted' && (!index || !position) && (
             <View style={{ gap: 8, marginVertical: 8 }}>
               <ActivityIndicator />
               <ThemedText type="small">Finding where you are…</ThemedText>

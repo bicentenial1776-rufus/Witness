@@ -221,6 +221,26 @@ export default function AncestorMapTab() {
             </ThemedText>
           </View>
         )}
+        {/* A tree with no place rows at all would otherwise show an empty map
+            of New England with no explanation (the progress banner needs
+            total > 0 to have anything to count). */}
+        {progress && progress.total === 0 && (
+          <View
+            style={{
+              backgroundColor: theme.backgroundElement,
+              borderRadius: 10,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderWidth: 1,
+              borderColor: theme.border,
+            }}
+          >
+            <ThemedText type="small">
+              No places are recorded in this tree — the map lights up when your GEDCOM carries
+              where things happened.
+            </ThemedText>
+          </View>
+        )}
         {markers.length === MAX_MARKERS && (
           <ThemedText type="small">
             Showing the {MAX_MARKERS} busiest places for this era.

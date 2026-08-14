@@ -67,6 +67,12 @@ export default function LibraryResultsScreen() {
             {matches && matches.length > MAX_ROWS && (
               <ThemedText type="small">Showing the first {MAX_ROWS}.</ThemedText>
             )}
+            {matches && matches.length === 0 && (
+              <ThemedText type="small">
+                No one in your tree answers this question yet — that’s an answer too. As your
+                research grows, a fresh import may change it.
+              </ThemedText>
+            )}
             <Pressable onPress={togglePin} hitSlop={8}>
               <ThemedText type="small" themeColor="accent">
                 {pinned ? '★ Pinned' : '☆ Pin this question'}

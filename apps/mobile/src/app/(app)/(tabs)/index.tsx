@@ -34,6 +34,7 @@ import { getGeographyIndex } from '@/lib/geography-cache';
 import { layIssueTrail, openTrailPiece, type TrailPiece } from '@/lib/issue-trail';
 import { armDigestNotification } from '@/lib/digest-notifications';
 import { getFeaturedIds, getRelationshipMap } from '@/lib/relationship-cache';
+import { usePurchases } from '@/lib/purchases';
 import { describeResumePoint, getResumePoint } from '@/lib/resume';
 import { getShelf } from '@/lib/shelf-cache';
 import { supabase } from '@/lib/supabase';
@@ -100,6 +101,7 @@ function Feed({ eyebrow, children }: { eyebrow: string; children: ReactNode }) {
 export default function Home() {
   const { trees, activeTree, refresh } = useActiveTree();
   const broadsheet = useBroadsheet();
+  const { subscription } = usePurchases();
   const [digest, setDigest] = useState<WeeklyDigest | null>(null);
   const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
   const [heroNote, setHeroNote] = useState<string | null>(null);
@@ -305,6 +307,19 @@ export default function Home() {
   const historicalToday =
     !onThisDay && shelf && shelf.length > 0 ? shelf[dayOfYear % shelf.length] : null;
 
+  // The paywall's Day-5 promise ("we'll remind you before your trial ends")
+  // rode entirely on a notification permission the reader may have declined.
+  // The issue itself is the backstop: for the trial's last two days, say it
+  // plainly, on paper — a user-protective notice, not a conversion nudge.
+  const trialEndsAt =
+    subscription?.isTrial && subscription.willRenew && subscription.expiresAt
+      ? new Date(subscription.expiresAt)
+      : null;
+  const trialEndsSoon =
+    trialEndsAt !== null &&
+    trialEndsAt.getTime() > Date.now() &&
+    trialEndsAt.getTime() - Date.now() <= 2 * 86_400_000;
+
   const feedBody =
     trees === null ? (
           <ActivityIndicator style={{ marginVertical: 24 }} />
@@ -349,6 +364,24 @@ export default function Home() {
                     archive matches, and map pins arrive over the coming days.
                   </Text>
                 )}
+
+              {trialEndsSoon && trialEndsAt && (
+                <Pressable onPress={() => router.push('/you')}>
+                  <Text
+                    style={{
+                      fontFamily: BrandFonts.serif.regular,
+                      fontStyle: 'italic',
+                      fontSize: 14.5,
+                      lineHeight: 21,
+                      color: L.ink,
+                      marginTop: 10,
+                    }}
+                  >
+                    {`Your free trial ends ${trialEndsAt.toLocaleDateString(undefined, { weekday: 'long' })} — the subscription starts then unless you cancel. `}
+                    <Text style={{ color: L.deepAmber }}>Your subscription ›</Text>
+                  </Text>
+                </Pressable>
+              )}
 
               {/* 1 · The lead */}
               <Feed eyebrow="The lead">
