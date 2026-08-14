@@ -56,6 +56,16 @@ export const FAQ: FaqEntry[] = [
       'Place coordinates are computed after import, and the free geocoding service works at a deliberate pace — a large tree with thousands of places can take a couple of hours to fully light up; a small export takes minutes. Everything else — the weekly digest, queries, stories, relationships — works immediately. The map fills in as places are located.',
   },
   {
+    question: 'How do I cancel my subscription?',
+    answer:
+      'From the You screen (the gear on Home), under Your subscription — Manage subscription opens the store’s own page, where canceling takes effect at the end of the period you’ve paid for. Subscribed on iPhone? Settings › Apple Account › Subscriptions works too.',
+  },
+  {
+    question: 'How do I delete my account?',
+    answer:
+      'From the You screen, under Help & account: Delete your account. It removes every tree, shared link, and stored file, then the account itself — permanently. Your GEDCOM files and your trees on other platforms are untouched. Note that deleting the account does not cancel a subscription; cancel that first.',
+  },
+  {
     question: 'Something looks wrong and it isn’t listed here.',
     answer:
       'Genealogy data is messy — that’s half the fun. Write us at support@witnesslives.com and a real person will dig in with you.',

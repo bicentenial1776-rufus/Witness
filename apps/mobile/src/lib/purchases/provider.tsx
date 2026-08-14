@@ -14,7 +14,7 @@ import Purchases, {
 import { useSession } from '@/auth/session-provider';
 import { syncTrialReminder } from '@/lib/trial-reminder';
 
-import { ENTITLEMENT_ID, PurchasesContext } from './contract';
+import { ENTITLEMENT_ID, PurchasesContext, type SubscriptionStatus } from './contract';
 
 const rawApiKey = Platform.select({
   ios: process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY,
@@ -38,6 +38,18 @@ const DEV_SKIP_PAYWALL = __DEV__ && process.env.EXPO_PUBLIC_DEV_SKIP_PAYWALL ===
 function isEntitled(info: CustomerInfo | null): boolean {
   if (DEV_SKIP_PAYWALL) return true;
   return Boolean(info?.entitlements.active[ENTITLEMENT_ID]);
+}
+
+function subscriptionOf(info: CustomerInfo | null): SubscriptionStatus | null {
+  const entitlement = info?.entitlements.active[ENTITLEMENT_ID];
+  if (!entitlement) return null;
+  return {
+    isTrial: entitlement.periodType === 'TRIAL',
+    willRenew: entitlement.willRenew,
+    expiresAt: entitlement.expirationDate,
+    isPromotional: entitlement.store === 'PROMOTIONAL',
+    managementURL: info?.managementURL ?? null,
+  };
 }
 
 let configured = false;
@@ -169,7 +181,14 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
 
   return (
     <PurchasesContext.Provider
-      value={{ isLoading, isEntitled: isEntitled(customerInfo), offering, restore, purchasePackage }}
+      value={{
+        isLoading,
+        isEntitled: isEntitled(customerInfo),
+        offering,
+        subscription: subscriptionOf(customerInfo),
+        restore,
+        purchasePackage,
+      }}
     >
       {children}
     </PurchasesContext.Provider>

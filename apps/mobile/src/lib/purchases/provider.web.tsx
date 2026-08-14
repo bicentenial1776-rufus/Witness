@@ -2,6 +2,7 @@ import {
   ErrorCode,
   Purchases,
   PurchasesError,
+  type CustomerInfo as WebCustomerInfo,
   type Package as WebPackage,
 } from '@revenuecat/purchases-js';
 import { useEffect, useRef, useState, type PropsWithChildren } from 'react';
@@ -9,7 +10,7 @@ import type { PurchasesOffering } from 'react-native-purchases';
 
 import { useSession } from '@/auth/session-provider';
 
-import { ENTITLEMENT_ID, PurchasesContext } from './contract';
+import { ENTITLEMENT_ID, PurchasesContext, type SubscriptionStatus } from './contract';
 
 /**
  * Web purchases provider (WEB_APP_DESIGN.md §2–4): entitlement and checkout
@@ -48,9 +49,24 @@ async function instanceFor(userId: string): Promise<Purchases> {
   return instance;
 }
 
+// The web SDK's shape differs from native only in the small ways adapted
+// here: lowercase periodType values and Date objects for expiration.
+function subscriptionOf(info: WebCustomerInfo): SubscriptionStatus | null {
+  const entitlement = info.entitlements.active[ENTITLEMENT_ID];
+  if (!entitlement) return null;
+  return {
+    isTrial: entitlement.periodType === 'trial',
+    willRenew: entitlement.willRenew,
+    expiresAt: entitlement.expirationDate ? entitlement.expirationDate.toISOString() : null,
+    isPromotional: String(entitlement.store).toLowerCase() === 'promotional',
+    managementURL: info.managementURL,
+  };
+}
+
 export function PurchasesProvider({ children }: PropsWithChildren) {
   const { session } = useSession();
   const [isEntitled, setIsEntitled] = useState(false);
+  const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
   // The adapted offering carries only what the paywall renders; the real
@@ -60,6 +76,7 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (!apiKey || !session) {
       setIsEntitled(false);
+      setSubscription(null);
       setOffering(null);
       setIsLoading(false);
       return;
@@ -70,7 +87,10 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
       try {
         const purchases = await instanceFor(session.user.id);
         const info = await purchases.getCustomerInfo();
-        if (!cancelled) setIsEntitled(Boolean(info.entitlements.active[ENTITLEMENT_ID]));
+        if (!cancelled) {
+          setIsEntitled(Boolean(info.entitlements.active[ENTITLEMENT_ID]));
+          setSubscription(subscriptionOf(info));
+        }
 
         const offerings = await purchases.getOfferings();
         const current = offerings.current;
@@ -90,7 +110,10 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
         }
       } catch (error) {
         console.warn('RevenueCat web setup failed', error);
-        if (!cancelled) setIsEntitled(false);
+        if (!cancelled) {
+          setIsEntitled(false);
+          setSubscription(null);
+        }
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -107,6 +130,7 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
     const info = await purchases.getCustomerInfo();
     const entitled = Boolean(info.entitlements.active[ENTITLEMENT_ID]);
     setIsEntitled(entitled);
+    setSubscription(subscriptionOf(info));
     return entitled;
   }
 
@@ -124,6 +148,7 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
       });
       const entitled = Boolean(customerInfo.entitlements.active[ENTITLEMENT_ID]);
       setIsEntitled(entitled);
+      setSubscription(subscriptionOf(customerInfo));
       return entitled;
     } catch (error) {
       if (error instanceof PurchasesError && error.errorCode === ErrorCode.UserCancelledError) {
@@ -137,7 +162,7 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
 
   return (
     <PurchasesContext.Provider
-      value={{ isLoading, isEntitled, offering, restore, purchasePackage }}
+      value={{ isLoading, isEntitled, offering, subscription, restore, purchasePackage }}
     >
       {children}
     </PurchasesContext.Provider>

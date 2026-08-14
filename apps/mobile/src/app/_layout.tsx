@@ -109,6 +109,14 @@ function RootNavigator() {
         <Stack.Screen name="(app)" />
       </Stack.Protected>
 
+      {/* Any signed-in reader, subscribed or not: the person standing at the
+          paywall wanting out is exactly who account deletion exists for, so
+          it cannot live inside the entitled group. Declared after the groups
+          above so it is never the initial route. */}
+      <Stack.Protected guard={Boolean(session)}>
+        <Stack.Screen name="delete-account" />
+      </Stack.Protected>
+
       <Stack.Protected guard={!session}>
         <Stack.Screen name="sign-in" />
         <Stack.Screen name="sign-up" />

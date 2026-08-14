@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -148,17 +149,30 @@ export default function Paywall() {
           >
             {isRestoring ? 'Restoring…' : 'Restore Purchase'}
           </ThemedText>
-          {/* The only unsubscribed screen a signed-in reader can reach — without
-              this, an account mismatch (wrong email, shared computer, a test
-              account) leaves them trapped with no way back to sign-in. */}
-          <ThemedText
-            type="small"
-            themeColor="textSecondary"
-            style={styles.center}
-            onPress={() => supabase.auth.signOut()}
-          >
-            Sign out
-          </ThemedText>
+          {/* Two ways out that aren't a purchase: an account mismatch (wrong
+              email, shared computer, a test account) needs a way back to
+              sign-in, and someone done with Witness entirely must be able to
+              delete the account from right here — not only from a screen
+              that requires subscribing first (guideline 5.1.1(v)). */}
+          <View style={styles.legalRow}>
+            <ThemedText
+              type="small"
+              themeColor="textSecondary"
+              onPress={() => supabase.auth.signOut()}
+            >
+              Sign out
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {'  ·  '}
+            </ThemedText>
+            <ThemedText
+              type="small"
+              themeColor="textSecondary"
+              onPress={() => router.push('/delete-account')}
+            >
+              Delete account
+            </ThemedText>
+          </View>
           <View style={styles.legalRow}>
             <ThemedText
               type="small"

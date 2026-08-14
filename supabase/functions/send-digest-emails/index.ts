@@ -12,6 +12,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { requireCronSecret } from '../_shared/cron.ts';
 import { weeklyDigest, type DigestEntry } from '../_shared/digest.ts';
+import { signProfileId } from '../_shared/unsubscribe.ts';
 
 const FROM = 'Witness <hello@witnesslives.com>';
 const APP_URL = 'https://app.witnesslives.com';
@@ -39,7 +40,15 @@ function entryHtml(entry: DigestEntry): string {
     </td></tr>`;
 }
 
-function digestHtml(entries: DigestEntry[]): string {
+// Gmail/Yahoo bulk-sender rules (and plain courtesy) want leaving the list
+// to take one click from the email itself, not a trip into the app.
+async function unsubscribeUrl(profileId: string): Promise<string | null> {
+  const sig = await signProfileId(profileId);
+  if (!sig) return null;
+  return `${Deno.env.get('SUPABASE_URL')}/functions/v1/digest-unsubscribe?uid=${profileId}&sig=${sig}`;
+}
+
+function digestHtml(entries: DigestEntry[], unsubscribe: string | null): string {
   return `
   <div style="background: ${PARCHMENT}; padding: 32px 16px; font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;">
     <table role="presentation" style="max-width: 560px; margin: 0 auto; background: #FFFDFA; border: 1px solid #E7E0D8; border-radius: 12px; padding: 28px; width: 100%;">
@@ -52,7 +61,11 @@ function digestHtml(entries: DigestEntry[]): string {
           <a href="${APP_URL}/digest" style="background: ${AMBER}; color: ${PARCHMENT}; text-decoration: none; padding: 12px 22px; border-radius: 10px; font-weight: 600; font-size: 15px;">Open the week ›</a>
         </div>
         <div style="color: #8A8378; font-size: 12px; margin-top: 24px;">
-          You asked for this weekly note in Witness. Turn it off any time on the You screen.
+          You asked for this weekly note in Witness. Turn it off any time on the You screen${
+            unsubscribe
+              ? `, or <a href="${unsubscribe}" style="color: #8A8378;">unsubscribe</a> with one click`
+              : ''
+          }.
         </div>
       </td></tr>
     </table>
@@ -131,6 +144,7 @@ Deno.serve(async (req) => {
       }
 
       const top = digest.entries[0]!;
+      const unsubscribe = await unsubscribeUrl(profile.id);
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
@@ -138,7 +152,16 @@ Deno.serve(async (req) => {
           from: FROM,
           to: email,
           subject: `This Week in Your Family — ${top.fullName} ${top.eventType === 'birth' ? 'was born' : 'died'} ${top.yearsAgo ?? 'many'} years ago`,
-          html: digestHtml(digest.entries),
+          html: digestHtml(digest.entries, unsubscribe),
+          ...(unsubscribe
+            ? {
+                // RFC 8058 one-click: mail clients POST straight to the URL.
+                headers: {
+                  'List-Unsubscribe': `<${unsubscribe}>`,
+                  'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+                },
+              }
+            : {}),
         }),
       });
       if (!response.ok) {

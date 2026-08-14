@@ -412,3 +412,9 @@ enabled = true
 # declarative_schema_path = "./database"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# digest-unsubscribe is opened from email clients (List-Unsubscribe headers
+# and footer links) that carry no Supabase key — the HMAC token in the URL is
+# the authorization, so the gateway's JWT check must stand down for it.
+[functions.digest-unsubscribe]
+verify_jwt = false

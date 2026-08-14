@@ -19,6 +19,8 @@ import {
   setDigestNotificationEnabled,
 } from '@/lib/digest-notifications';
 import { getLineageScope, setLineageScope } from '@/lib/lineage-scope';
+import { manageSubscriptionUrl, openManageSubscription } from '@/lib/manage-subscription';
+import { usePurchases } from '@/lib/purchases';
 import { invalidateCuriositiesCache } from '@/lib/curiosities-cache';
 import { discardOriginal, isVaultAvailable, restoreToCacheFile } from '@/lib/gedcom-vault';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
@@ -57,6 +59,8 @@ export default function YouTab() {
   } | null>(null);
   const [restoring, setRestoring] = useState<string | null>(null);
   const [vaultReady, setVaultReady] = useState(false);
+  const { subscription, restore: restorePurchase } = usePurchases();
+  const [restoringPurchase, setRestoringPurchase] = useState(false);
 
   useEffect(() => {
     isVaultAvailable().then(setVaultReady);
@@ -246,6 +250,47 @@ export default function YouTab() {
     setNotifyBusy(false);
   }
 
+  async function handleRestorePurchase() {
+    setRestoringPurchase(true);
+    try {
+      const unlocked = await restorePurchase();
+      if (!unlocked) {
+        showAlert('Nothing to restore', 'No active subscription was found for this account.');
+      }
+    } catch (error) {
+      showAlert('Restore failed', error instanceof Error ? error.message : String(error));
+    } finally {
+      setRestoringPurchase(false);
+    }
+  }
+
+  // The paywall promises "Cancel anytime in Settings" — this section is where
+  // that promise resolves to a real status and a real link, and where the
+  // Day-5 trial reminder lands when tapped.
+  const expiresOn = subscription?.expiresAt
+    ? new Date(subscription.expiresAt).toLocaleDateString()
+    : null;
+  const subscriptionLine = !subscription
+    ? null
+    : subscription.isPromotional
+      ? {
+          title: 'Complimentary access',
+          detail: expiresOn ? `Active through ${expiresOn}. Nothing is billed.` : 'Nothing is billed.',
+        }
+      : subscription.isTrial
+        ? {
+            title: 'Free trial',
+            detail: expiresOn
+              ? `Your subscription starts ${expiresOn} unless you cancel before then.`
+              : 'Your subscription starts when the trial ends unless you cancel before then.',
+          }
+        : subscription.willRenew
+          ? { title: 'Active', detail: expiresOn ? `Renews ${expiresOn}.` : 'Renews automatically.' }
+          : {
+              title: 'Active — not renewing',
+              detail: expiresOn ? `Access runs through ${expiresOn}.` : 'No renewal is scheduled.',
+            };
+
   const scopeOptions = [
     { key: 'direct', label: 'Direct line', count: lineageCounts?.direct },
     { key: 'all', label: 'Blood relatives', count: lineageCounts?.all },
@@ -417,6 +462,35 @@ export default function YouTab() {
           </View>
         </Card>
 
+        <SectionHeader>Your subscription</SectionHeader>
+        <Card>
+          {subscriptionLine ? (
+            <>
+              <ThemedText>{subscriptionLine.title}</ThemedText>
+              <ThemedText type="small">{subscriptionLine.detail}</ThemedText>
+            </>
+          ) : (
+            <ThemedText type="small">
+              No subscription is recorded on this account just now — if you have one, Restore
+              purchase below will find it.
+            </ThemedText>
+          )}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: 8 }}>
+            {!subscription?.isPromotional && manageSubscriptionUrl(subscription) && (
+              <ThemedText type="link" onPress={() => openManageSubscription(subscription)}>
+                Manage subscription ›
+              </ThemedText>
+            )}
+            <ThemedText
+              type="link"
+              onPress={restoringPurchase ? undefined : handleRestorePurchase}
+              style={restoringPurchase ? { opacity: 0.4 } : undefined}
+            >
+              {restoringPurchase ? 'Restoring…' : 'Restore purchase'}
+            </ThemedText>
+          </View>
+        </Card>
+
         {shareLinks !== null && shareLinks.length > 0 && (
           <>
             <SectionHeader>Shared stories</SectionHeader>
@@ -476,6 +550,15 @@ export default function YouTab() {
           }}
         >
           Sign out
+        </ThemedText>
+        {/* Muted like the tree delete, and last: leaving for good should be
+            findable without ever being the thing a thumb lands on. */}
+        <ThemedText
+          type="link"
+          onPress={() => router.push('/delete-account')}
+          style={{ opacity: 0.55, alignSelf: 'flex-start' }}
+        >
+          Delete your account ›
         </ThemedText>
 
         {/* Attribution required by NARA's API terms — must remain visible in the app. */}
