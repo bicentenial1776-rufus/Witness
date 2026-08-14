@@ -125,10 +125,10 @@
   <p>People in your tree who appear to be living are treated differently: they are excluded from all AI processing, never appear in shareable content, and are stored with an additional layer of encryption. They never leave your device unprotected.</p>
 
   <h3>Location</h3>
-  <p>Field features like "I'm Here" mode and cemetery search use your device's GPS (or, on the web app, your browser's location permission) to match nearby places against your own tree. Your location is used in the moment you use these features. We do not track, log, or store your movements, and location is never shared with third parties.</p>
+  <p>Field features like "I'm Here" mode and cemetery search use your device's GPS (or, on the web app, your browser's location permission) to match nearby places against your own tree. On iOS, your location is processed on your device and never transmitted to us or anyone else. On the web app, your coordinates are sent once to OpenStreetMap's Nominatim service to put a name to the town you're standing in — nothing about who you are travels with them. We do not track, log, or store your movements.</p>
 
   <h3>Usage and diagnostics</h3>
-  <p>We collect basic diagnostic information (crashes, performance) to keep the app working. We do not sell data, run ads, or use third-party advertising trackers.</p>
+  <p>The app carries no analytics or crash-reporting trackers. Our subscription processor (RevenueCat) receives the basic purchase and device information billing requires, keyed to your account ID. We do not sell data, run ads, or use advertising trackers.</p>
 
   <h2>AI-generated content</h2>
   <p>Witness uses Anthropic's Claude models to generate ancestor biographies, historical context, digest notes, and research briefs. To do this, relevant details from your tree's index — names, dates, places, and family structure of deceased individuals only — are sent to Anthropic's API for processing. Anthropic does not use API data to train its models. Generated results are cached so repeat requests don't require reprocessing.</p>
@@ -154,7 +154,7 @@
   </table>
 
   <h2>Data retention and deletion</h2>
-  <p>Your data is retained while your account is active. You can delete any imported tree from within the app, which removes its index and stored file, and revoke any share link at any time. To delete your account and all associated data, email <a href="mailto:support@witnesslives.com">support@witnesslives.com</a> from your account address; we will confirm removal. Cached AI content tied to your trees is deleted with them.</p>
+  <p>Your data is retained while your account is active. You can delete any imported tree from within the app, which removes its index and stored file, and revoke any share link at any time. To delete your account and all associated data, use <em>Delete your account</em> on the You screen (under Help &amp; account) — it removes every tree, shared link, and stored file, then the account itself. You can also email <a href="mailto:support@witnesslives.com">support@witnesslives.com</a> from your account address and we will do it for you. Cached AI content tied to your trees is deleted with them. Deleting your account does not cancel a subscription — cancel that first (App Store subscriptions in Settings, web subscriptions from the You screen).</p>
 
   <h2>Security</h2>
   <p>Data in transit is encrypted with TLS. Your original GEDCOM file is encrypted on your device before upload with keys we do not hold. Database access is restricted by row-level security so that your tree is queryable only by your authenticated account.</p>
