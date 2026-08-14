@@ -50,6 +50,8 @@ export default function ForgotPassword() {
         placeholder="Email"
         autoCapitalize="none"
         keyboardType="email-address"
+        textContentType="username"
+        autoComplete="email"
         returnKeyType="go"
         value={email}
         onChangeText={setEmail}

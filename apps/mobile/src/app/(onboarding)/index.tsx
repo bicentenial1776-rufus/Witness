@@ -1,12 +1,12 @@
+import { router } from 'expo-router';
 import { type SFSymbol, SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
 import { BrandFonts } from '@/constants/theme';
-import { useProfile } from '@/lib/profile';
-import { useOnboardingPlacement } from '@/lib/superwall';
+import { useNarrative } from '@/lib/narrative';
 
 // Fixed brand colors, not the device theme: this is a scripted narrative
 // sequence (like the marketing preview site and the discovery card), and
@@ -95,15 +95,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
 
-  // Screen 5 — personalize
-  optionCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 18,
-  },
-  optionText: { fontFamily: BrandFonts.sans.medium, fontSize: 16, lineHeight: 22 },
-
-  // Screen 6 — trust
+  // Screen 5 — trust
   curiosityCard: {
     borderRadius: 16,
     borderWidth: 1.5,
@@ -273,38 +265,7 @@ function Screen4({ amber }: Palette) {
   );
 }
 
-const PERSONA_OPTIONS = [
-  { id: 'gedcom-ready', label: 'I have a GEDCOM file ready to explore' },
-  { id: 'just-starting', label: "I'm just starting to research my family" },
-  { id: 'picking-up', label: "I'm picking up where a relative left off" },
-  { id: 'curious', label: "I'm curious what's possible" },
-] as const;
-
-function Screen5({ onSelect }: { onSelect: (id: string) => void }) {
-  return (
-    <>
-      <Text style={[styles.headline, { color: INK }]}>What brings you to Witness?</Text>
-      <View style={{ gap: 12 }}>
-        {PERSONA_OPTIONS.map((option) => (
-          <Pressable
-            key={option.id}
-            accessibilityRole="button"
-            onPress={() => onSelect(option.id)}
-            style={({ pressed }) => [
-              styles.optionCard,
-              { backgroundColor: pressed ? '#F2E9DC' : CARD, borderColor: CARD_BORDER },
-            ]}
-          >
-            <Text style={[styles.optionText, { color: INK }]}>{option.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-      <Text style={[styles.micro, { color: STONE }]}>We&rsquo;ll use this to shape what you see first.</Text>
-    </>
-  );
-}
-
-function Screen6() {
+function Screen5() {
   return (
     <>
       <Text style={[styles.headline, { color: INK }]}>
@@ -328,7 +289,7 @@ function Screen6() {
   );
 }
 
-function Screen7() {
+function Screen6() {
   return (
     <>
       <Text style={[styles.headline, { color: PARCHMENT }]}>
@@ -337,19 +298,22 @@ function Screen7() {
       <Text style={[styles.body, { color: PARCHMENT_MUTED }]}>
         Everything you just saw, built from your own tree.
       </Text>
+      {/* The price, before the wall asks for anything — nobody should
+          invest an email and a story's worth of attention before knowing
+          the terms (ux audit batch 4). */}
+      <Text style={[styles.micro, { color: PARCHMENT_MUTED }]}>
+        Witness is $19.99 a year after a free 7-day trial — that&rsquo;s the only price.
+      </Text>
     </>
   );
 }
 
-const DARK_SCREENS = new Set([0, 3, 6]);
-const SCREEN_COUNT = 7;
+const DARK_SCREENS = new Set([0, 3, 5]);
+const SCREEN_COUNT = 6;
 
 export default function Onboarding() {
-  const { markOnboardingComplete } = useProfile();
-  const registerOnboardingComplete = useOnboardingPlacement();
+  const { markSeen } = useNarrative();
   const [index, setIndex] = useState(0);
-  const [isFinishing, setIsFinishing] = useState(false);
-  const [persona, setPersona] = useState<string | null>(null);
 
   const isLast = index === SCREEN_COUNT - 1;
   const dark = DARK_SCREENS.has(index);
@@ -358,30 +322,19 @@ export default function Onboarding() {
   const amber = dark ? AMBER_LIGHT : AMBER;
   const dotTrack = dark ? 'rgba(247,243,238,0.2)' : 'rgba(28,25,23,0.15)';
 
-  async function finish(selectedPersona: string | null) {
-    setIsFinishing(true);
-    await markOnboardingComplete();
-    // The router's entitlement guard now shows the paywall screen; this
-    // placement lets the Superwall dashboard present its paywall over it
-    // (7-day trial + annual price) and run experiments without an app
-    // release. The persona param lets a dashboard audience segment on it.
-    await registerOnboardingComplete({ persona: selectedPersona ?? 'unspecified' });
+  // The narrative now plays before any account exists, so it ends at the
+  // doors — Create account, or Sign in for a returning reader on a fresh
+  // install. Navigate first, then flip the device flag: the flag unmounts
+  // this group, and the destination should already be on the stack.
+  function leaveFor(destination: '/sign-up' | '/sign-in') {
+    router.replace(destination);
+    markSeen();
   }
 
   function advance() {
-    if (!isLast) {
-      setIndex(index + 1);
-      return;
-    }
-    finish(persona);
+    if (!isLast) setIndex(index + 1);
+    else leaveFor('/sign-up');
   }
-
-  function choosePersona(id: string) {
-    setPersona(id);
-    setIndex(index + 1);
-  }
-
-  const isPersonalizeScreen = index === 4;
 
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: bg }]} edges={['top', 'bottom']}>
@@ -396,25 +349,22 @@ export default function Onboarding() {
         {index === 1 && <Screen2 />}
         {index === 2 && <Screen3 />}
         {index === 3 && <Screen4 fg={PARCHMENT} muted={muted} amber={amber} />}
-        {index === 4 && <Screen5 onSelect={choosePersona} />}
+        {index === 4 && <Screen5 />}
         {index === 5 && <Screen6 />}
-        {index === 6 && <Screen7 />}
       </ScrollView>
 
-      {!isPersonalizeScreen && (
-        <View style={styles.footer}>
-          <Button
-            title={isLast ? 'Start My Free Trial' : 'Continue'}
-            busy={isFinishing}
-            onPress={advance}
-          />
-          {!isLast && (
-            <Text style={[styles.skip, { color: muted }]} onPress={() => setIndex(SCREEN_COUNT - 1)}>
-              Skip
-            </Text>
-          )}
-        </View>
-      )}
+      <View style={styles.footer}>
+        <Button title={isLast ? 'Create my account' : 'Continue'} onPress={advance} />
+        {isLast ? (
+          <Text style={[styles.skip, { color: muted }]} onPress={() => leaveFor('/sign-in')}>
+            Already have Witness? Sign in
+          </Text>
+        ) : (
+          <Text style={[styles.skip, { color: muted }]} onPress={() => setIndex(SCREEN_COUNT - 1)}>
+            Skip
+          </Text>
+        )}
+      </View>
     </SafeAreaView>
   );
 }

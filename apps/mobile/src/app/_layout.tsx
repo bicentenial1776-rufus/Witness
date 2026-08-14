@@ -28,8 +28,8 @@ import {
   installNotificationHandler,
   useNotificationDeepLinks,
 } from '@/lib/notification-routing';
+import { NarrativeProvider, useNarrative } from '@/lib/narrative';
 import { consumePendingImportUri } from '@/lib/pending-import';
-import { ProfileProvider, useProfile } from '@/lib/profile';
 import { PurchasesProvider, usePurchases } from '@/lib/purchases';
 import { SuperwallGate } from '@/lib/superwall';
 
@@ -39,7 +39,7 @@ installNotificationHandler();
 
 function RootNavigator() {
   const { session, isLoading: isSessionLoading } = useSession();
-  const { onboardingCompleted, isLoading: isProfileLoading } = useProfile();
+  const { seen: narrativeSeen } = useNarrative();
   const { isEntitled, isLoading: isPurchasesLoading } = usePurchases();
   const [fontsLoaded] = useFonts({
     PlayfairDisplay_400Regular,
@@ -56,11 +56,13 @@ function RootNavigator() {
     IBMPlexMono_600SemiBold,
   });
 
-  // Profile/entitlement only resolve once there's a session to key them on.
+  // Entitlement only resolves once there's a session to key it on; the
+  // narrative flag is a device read and resolves for everyone.
   const isLoading =
     !fontsLoaded ||
     isSessionLoading ||
-    (Boolean(session) && (isProfileLoading || isPurchasesLoading));
+    narrativeSeen === null ||
+    (Boolean(session) && isPurchasesLoading);
 
   useEffect(() => {
     if (!isLoading) SplashScreen.hideAsync();
@@ -73,7 +75,7 @@ function RootNavigator() {
   // they're fully through the gauntlet, pick it up — on this render and
   // again whenever the app returns to the foreground, since the OS brings
   // Witness forward for "Open In" without necessarily remounting anything.
-  const isReady = Boolean(session) && onboardingCompleted && isEntitled;
+  const isReady = Boolean(session) && isEntitled;
   useEffect(() => {
     if (isLoading || !isReady) return;
 
@@ -92,20 +94,22 @@ function RootNavigator() {
 
   if (isLoading) return null;
 
-  // The gauntlet a signed-in user walks once, in order: the transformation
-  // narrative (once per account), then the hard paywall (every relaunch
-  // until subscribed), then the app itself.
+  // The gauntlet, reordered by the ux audit (batch 4): the transformation
+  // narrative plays FIRST, before any account exists — value and price
+  // shown before the wall asks for an email. Then sign-up/sign-in, then the
+  // hard paywall (every relaunch until subscribed), then the app itself.
+  // The narrative is once per device; a signed-in reader never sees it.
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={Boolean(session) && !onboardingCompleted}>
+      <Stack.Protected guard={!session && narrativeSeen === false}>
         <Stack.Screen name="(onboarding)" />
       </Stack.Protected>
 
-      <Stack.Protected guard={Boolean(session) && onboardingCompleted && !isEntitled}>
+      <Stack.Protected guard={Boolean(session) && !isEntitled}>
         <Stack.Screen name="paywall" />
       </Stack.Protected>
 
-      <Stack.Protected guard={Boolean(session) && onboardingCompleted && isEntitled}>
+      <Stack.Protected guard={Boolean(session) && isEntitled}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>
 
@@ -140,7 +144,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <SessionProvider>
-        <ProfileProvider>
+        <NarrativeProvider>
           <PurchasesProvider>
             <SuperwallGate>
               <ActiveTreeProvider>
@@ -148,7 +152,7 @@ export default function RootLayout() {
               </ActiveTreeProvider>
             </SuperwallGate>
           </PurchasesProvider>
-        </ProfileProvider>
+        </NarrativeProvider>
       </SessionProvider>
     </ThemeProvider>
   );

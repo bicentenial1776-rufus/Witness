@@ -125,6 +125,9 @@ export default function ResetPassword() {
         <TextField
           placeholder="New password"
           secureTextEntry
+          textContentType="newPassword"
+          autoComplete="new-password"
+          passwordRules="minlength: 8;"
           returnKeyType="next"
           submitBehavior="submit"
           onSubmitEditing={() => confirmRef.current?.focus()}
@@ -135,6 +138,8 @@ export default function ResetPassword() {
           ref={confirmRef}
           placeholder="Confirm new password"
           secureTextEntry
+          textContentType="newPassword"
+          autoComplete="new-password"
           returnKeyType="go"
           onSubmitEditing={handleSubmit}
           value={confirmPassword}

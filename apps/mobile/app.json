@@ -68,7 +68,8 @@
         ]
       },
       "buildNumber": "8",
-      "appleTeamId": "SLD65K94V7"
+      "appleTeamId": "SLD65K94V7",
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -94,6 +95,7 @@
         }
       ],
       "expo-sharing",
+      "expo-apple-authentication",
       "./plugins/with-gedcom-guard.js",
       "expo-secure-store"
     ],

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppleSignInButton } from '@/components/apple-sign-in';
 import { Button } from '@/components/button';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
@@ -32,7 +33,15 @@ const PARCHMENT_MUTED = 'rgba(247,243,238,0.78)';
 const AMBER = '#B45309';
 
 export default function SignIn() {
-  const [email, setEmail] = useState('');
+  // Sign-up hands its email over so a just-confirmed reader types it once,
+  // not twice — and `confirm` carries the "check your email" notice that
+  // used to strand them on the sign-up form (ux audit batch 4).
+  const { next, email: handedEmail, confirm } = useLocalSearchParams<{
+    next?: string;
+    email?: string;
+    confirm?: string;
+  }>();
+  const [email, setEmail] = useState(typeof handedEmail === 'string' ? handedEmail : '');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Where to land after sign-in. Allowlisted to shared stories — the one
@@ -40,7 +49,6 @@ export default function SignIn() {
   // to join by a particular ancestor should land back on that ancestor).
   // /shared is public and outside the auth guards, so the replace can't
   // race the guard flip.
-  const { next } = useLocalSearchParams<{ next?: string }>();
   const safeNext = next && /^\/shared\/[A-Za-z0-9_-]+$/.test(next) ? next : null;
 
   // Simulator-driven verification can't type; a gitignored .env opts into
@@ -83,10 +91,17 @@ export default function SignIn() {
 
       <ThemedView type="backgroundElement" style={styles.card}>
         <ThemedText type="subtitle">Sign in</ThemedText>
+        {confirm === 'sent' && (
+          <ThemedText type="small">
+            Check your email to confirm your account — then sign in right here.
+          </ThemedText>
+        )}
         <TextField
           placeholder="Email"
           autoCapitalize="none"
           keyboardType="email-address"
+          textContentType="username"
+          autoComplete="email"
           returnKeyType="next"
           submitBehavior="submit"
           onSubmitEditing={() => passwordRef.current?.focus()}
@@ -97,12 +112,15 @@ export default function SignIn() {
           ref={passwordRef}
           placeholder="Password"
           secureTextEntry
+          textContentType="password"
+          autoComplete="current-password"
           returnKeyType="go"
           onSubmitEditing={handleSignIn}
           value={password}
           onChangeText={setPassword}
         />
         <Button title="Sign in" busy={isSubmitting} onPress={handleSignIn} />
+        <AppleSignInButton intent="sign-in" />
         <Link href="/forgot-password">
           <ThemedText type="link">Forgot password?</ThemedText>
         </Link>
