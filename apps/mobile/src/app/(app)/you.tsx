@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, Switch, View } from 'react-native';
@@ -5,6 +6,7 @@ import { Platform, Pressable, ScrollView, Switch, View } from 'react-native';
 import type { LineageScope } from '@witness/core/family';
 
 import { Card } from '@/components/card';
+import { RecordText } from '@/components/record-text';
 import { openFieldGuide } from '@/components/field-guide';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -74,19 +76,6 @@ export default function YouTab() {
     getLineageScope().then(setLineageScopeState);
   }, []);
 
-  useEffect(() => {
-    if (!activeTree) return;
-    let cancelled = false;
-    getLineageCounts(activeTree.id)
-      .then((counts) => {
-        if (!cancelled) setLineageCounts(counts);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTree?.id]);
-
   async function changeLineageScope(scope: LineageScope) {
     setLineageScopeState(scope);
     await setLineageScope(scope);
@@ -128,6 +117,16 @@ export default function YouTab() {
     useCallback(() => {
       refresh();
       let cancelled = false;
+      // On focus, not mount: the home-person screen rewrites the relationship
+      // rows while this screen sits beneath it, so counts fetched at mount are
+      // stale zeros until refetched. The row cache makes repeat calls free.
+      if (activeTree) {
+        getLineageCounts(activeTree.id)
+          .then((counts) => {
+            if (!cancelled) setLineageCounts(counts);
+          })
+          .catch(() => {});
+      }
       supabase
         .from('share_links')
         .select('token, payload, expires_at')
@@ -144,7 +143,7 @@ export default function YouTab() {
       return () => {
         cancelled = true;
       };
-    }, [refresh]),
+    }, [refresh, activeTree?.id]),
   );
 
   // Decrypt the stored original back onto the device and hand it to the import
@@ -570,6 +569,14 @@ export default function YouTab() {
           the National Archives Catalog API but is not endorsed or certified by the National
           Archives and Records Administration.
         </ThemedText>
+
+        {/* Build number is native-only; web deploys aren't builds. */}
+        <RecordText muted style={{ marginTop: 24, alignSelf: 'center' }}>
+          Witness {Constants.expoConfig?.version ?? ''}
+          {Platform.OS !== 'web' && Constants.expoConfig?.ios?.buildNumber
+            ? ` (${Constants.expoConfig.ios.buildNumber})`
+            : ''}
+        </RecordText>
       </ScrollView>
     </ThemedView>
   );

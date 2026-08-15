@@ -1,6 +1,7 @@
 import {
   fetchRelationshipRows,
   inLineageScope,
+  setHomePerson,
   type CachedRelationship,
 } from '@witness/core/family';
 
@@ -16,10 +17,33 @@ import { supabase } from '@/lib/supabase';
 //    and "your family" filters, honoring the current lineage scope.
 const cache = new Map<string, Promise<CachedRelationship[]>>();
 
+/**
+ * Zero rows with a home person set means the on-device precompute was
+ * interrupted (backgrounded mid-walk — bit the same tree twice, 2026-08-06
+ * and 2026-08-15): the app used to sit wrongly labelless until someone
+ * repaired the tree by hand. Recompute in place instead. A tree whose home
+ * person legitimately has no blood relatives re-walks once per session,
+ * but such trees are tiny — the walk is proportionally tiny too.
+ */
+async function fetchRowsHealingInterruptedPrecompute(
+  treeId: string,
+): Promise<CachedRelationship[]> {
+  const rows = await fetchRelationshipRows(supabase, treeId);
+  if (rows.length > 0) return rows;
+  const { data: tree } = await supabase
+    .from('trees')
+    .select('home_person_id')
+    .eq('id', treeId)
+    .maybeSingle();
+  if (!tree?.home_person_id) return rows;
+  await setHomePerson(supabase, treeId, tree.home_person_id);
+  return fetchRelationshipRows(supabase, treeId);
+}
+
 function getRows(treeId: string): Promise<CachedRelationship[]> {
   let pending = cache.get(treeId);
   if (!pending) {
-    pending = fetchRelationshipRows(supabase, treeId).catch((error: unknown) => {
+    pending = fetchRowsHealingInterruptedPrecompute(treeId).catch((error: unknown) => {
       cache.delete(treeId);
       throw error;
     });
