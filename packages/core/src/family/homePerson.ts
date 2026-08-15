@@ -1,56 +1,7 @@
 import type { WitnessSupabaseClient } from '../supabase/client.js';
-import { fetchAllPages } from '../supabase/paginate.js';
-import {
-  buildGraphFromRows,
-  type FamilyGraph,
-  type GraphFamilyChildRow,
-  type GraphFamilyRow,
-  type GraphIndividualRow,
-} from './graph.js';
-import { ancestorDepths, calculateRelationship } from './relationship.js';
+import { computeRelationshipRows, fetchFamilyGraph } from './precompute.js';
 
 const INSERT_BATCH = 500;
-
-/** Loads the whole tree's parent/spouse structure into a FamilyGraph. */
-export async function fetchFamilyGraph(
-  client: WitnessSupabaseClient,
-  treeId: string,
-): Promise<FamilyGraph> {
-  const [individuals, families, familyChildren] = await Promise.all([
-    fetchAllPages<GraphIndividualRow>(
-      (from, to) =>
-        client
-          .from('individuals')
-          .select('id, full_name, sex, birth_year, death_year, living')
-          .eq('tree_id', treeId)
-          .order('id')
-          .range(from, to),
-      'Fetching individuals failed',
-    ),
-    fetchAllPages<GraphFamilyRow>(
-      (from, to) =>
-        client
-          .from('families')
-          .select('id, husband_id, wife_id')
-          .eq('tree_id', treeId)
-          .order('id')
-          .range(from, to),
-      'Fetching families failed',
-    ),
-    fetchAllPages<GraphFamilyChildRow & { families: { tree_id: string } | null }>(
-      (from, to) =>
-        client
-          .from('family_children')
-          .select('family_id, individual_id, families!inner(tree_id)')
-          .eq('families.tree_id', treeId)
-          .order('family_id')
-          .order('individual_id')
-          .range(from, to),
-      'Fetching family children failed',
-    ),
-  ]);
-  return buildGraphFromRows(individuals, families, familyChildren);
-}
 
 export interface HomePersonCandidate {
   id: string;
@@ -116,39 +67,21 @@ export interface SetHomePersonOptions {
   onProgress?: (computed: number, total: number) => void;
 }
 
-/** All blood relatives of homeId: ancestors, descendants, and anyone
- *  sharing an ancestor. Cheap set-intersection prefilter so the heavier
- *  per-person labeling only runs on actual relatives. */
-function bloodRelativeIds(graph: FamilyGraph, homeId: string): string[] {
-  const homeAncestors = ancestorDepths(graph, homeId);
-  const ids: string[] = [];
-  for (const person of graph.people.values()) {
-    if (person.id === homeId) continue;
-    if (homeAncestors.has(person.id)) {
-      ids.push(person.id);
-      continue;
-    }
-    const theirs = ancestorDepths(graph, person.id);
-    if (theirs.has(homeId)) {
-      ids.push(person.id); // descendant
-      continue;
-    }
-    for (const ancestorId of theirs.keys()) {
-      if (homeAncestors.has(ancestorId)) {
-        ids.push(person.id); // collateral
-        break;
-      }
-    }
-  }
-  return ids;
-}
-
 /**
  * Designates the home person and (by default) pre-computes relationship
  * rows for every blood relative — direct ancestors, descendants, and
  * collaterals (cousins, uncles/aunts), each with its label and path.
- * Existing cached relationships for the tree are replaced — a changed
- * home person invalidates all of them.
+ *
+ * Upsert-then-prune, not delete-then-insert: new rows land keyed to the
+ * new home person (no collision with the old set), and rows for any other
+ * home person are pruned only afterwards. So there is never a zero-rows
+ * window — an interrupted run (the app backgrounded mid-walk, 2026-08-06
+ * and 2026-08-15) leaves either the old rows intact or a partial new set
+ * the self-heal converges on next launch. Upsert with DO UPDATE also
+ * means a re-run refreshes stale labels after algorithm fixes, and two
+ * concurrent runs converge instead of colliding on the unique key. The
+ * prune keys off a re-read of trees.home_person_id so a racing run that
+ * changed the home person after us wins.
  */
 export async function setHomePerson(
   client: WitnessSupabaseClient,
@@ -175,45 +108,34 @@ export async function setHomePerson(
   if (!userId) throw new Error('Not signed in');
 
   const graph = await fetchFamilyGraph(client, treeId);
-  const relativeIds = bloodRelativeIds(graph, individualId);
-
-  const rows = [];
-  let computed = 0;
-  for (const relativeId of relativeIds) {
-    const result = calculateRelationship(graph, individualId, relativeId);
-    computed += 1;
-    options.onProgress?.(computed, relativeIds.length);
-    // Blood only: the prefilter can surface people the labeler resolves
-    // as in-laws (spouse links win over distant blood); skip non-blood.
-    if (!result.isDirectAncestor && !result.isDirectDescendant && !result.isCollateral) continue;
-    if (result.confidence === 'none') continue;
-    rows.push({
-      tree_id: treeId,
-      user_id: userId,
-      home_person_id: individualId,
-      individual_id: relativeId,
-      label: result.label,
-      generation_distance: result.generationDistance,
-      line: result.line,
-      path: result.path,
-      is_direct_ancestor: result.isDirectAncestor,
-      is_direct_descendant: result.isDirectDescendant,
-      is_collateral: result.isCollateral,
-    });
-  }
-
-  // Compute-then-swap: the old rows are cleared only once the replacements
-  // exist. The old order deleted FIRST, so an interrupted compute — the app
-  // backgrounded mid-walk on a large tree — left zero rows and silently
-  // stripped every lineage mark, relationship label, and scope count until
-  // someone noticed (2026-08-08, Rufus's 08-06 import, on device).
-  const { error: clearError } = await client.from('relationships').delete().eq('tree_id', treeId);
-  if (clearError) throw new Error(`Clearing old relationships failed: ${clearError.message}`);
+  const rows = computeRelationshipRows(graph, individualId, options.onProgress).map((row) => ({
+    tree_id: treeId,
+    user_id: userId,
+    home_person_id: individualId,
+    ...row,
+  }));
 
   for (let i = 0; i < rows.length; i += INSERT_BATCH) {
-    const { error } = await client.from('relationships').insert(rows.slice(i, i + INSERT_BATCH));
+    const { error } = await client
+      .from('relationships')
+      .upsert(rows.slice(i, i + INSERT_BATCH), {
+        onConflict: 'tree_id,home_person_id,individual_id',
+      });
     if (error) throw new Error(`Caching relationships failed: ${error.message}`);
   }
+
+  const { data: treeNow } = await client
+    .from('trees')
+    .select('home_person_id')
+    .eq('id', treeId)
+    .maybeSingle();
+  const currentHome = treeNow?.home_person_id ?? individualId;
+  const { error: pruneError } = await client
+    .from('relationships')
+    .delete()
+    .eq('tree_id', treeId)
+    .neq('home_person_id', currentHome);
+  if (pruneError) throw new Error(`Pruning old relationships failed: ${pruneError.message}`);
 
   return { cachedAncestors: rows.length };
 }

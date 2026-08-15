@@ -1,6 +1,6 @@
 import type { WitnessSupabaseClient } from '../supabase/client.js';
 import { aliveDuring, type AliveMatch, type YearRange } from '../query/aliveDuring.js';
-import { fetchFamilyGraph } from './homePerson.js';
+import { fetchFamilyGraph } from './precompute.js';
 import { calculateRelationship, parentLine, type RelationshipResult } from './relationship.js';
 import type { GraphPerson } from './graph.js';
 

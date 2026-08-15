@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseGedcom } from '../../gedcom/index.js';
-import { buildGraphFromParsed } from '../graph.js';
+import { buildGraphFromParsed } from '../gedcomGraph.js';
 import { pickHomePersonCandidate } from '../homePerson.js';
 import { calculateRelationship } from '../relationship.js';
 

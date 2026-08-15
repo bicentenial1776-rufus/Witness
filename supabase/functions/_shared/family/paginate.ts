@@ -1,4 +1,4 @@
-// Mirrored at supabase/functions/_shared/family/paginate.ts — keep in sync
+// Mirrored from packages/core/src/supabase/paginate.ts — keep in sync
 // (portSync.test.ts enforces byte equality outside this header).
 
 export const PAGE_SIZE = 1000;

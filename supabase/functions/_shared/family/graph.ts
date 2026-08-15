@@ -1,4 +1,4 @@
-// Mirrored at supabase/functions/_shared/family/graph.ts — keep in sync
+// Mirrored from packages/core/src/family/graph.ts — keep in sync
 // (portSync.test.ts enforces byte equality outside this header).
 
 /**

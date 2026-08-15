@@ -1,5 +1,7 @@
 export * from './graph.js';
+export * from './gedcomGraph.js';
 export * from './relationship.js';
+export * from './precompute.js';
 export * from './homePerson.js';
 export * from './queries.js';
 export * from './kindred.js';

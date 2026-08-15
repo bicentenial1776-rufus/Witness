@@ -24,7 +24,7 @@ type Step =
   | { name: 'current'; personName: string }
   | { name: 'suggested'; candidate: HomePersonCandidate }
   | { name: 'choosing' }
-  | { name: 'saving'; personName: string; progress: { computed: number; total: number } | null }
+  | { name: 'saving'; personName: string; traced: number | null }
   | { name: 'done'; personName: string; cachedAncestors: number };
 
 export default function HomePersonScreen() {
@@ -82,17 +82,36 @@ export default function HomePersonScreen() {
 
   async function choose(person: { id: string; full_name: string }) {
     if (!treeId) return;
-    setStep({ name: 'saving', personName: person.full_name, progress: null });
+    setStep({ name: 'saving', personName: person.full_name, traced: null });
+    // The compute runs server-side so backgrounding the app can't kill it
+    // mid-walk (it did, twice). Progress is read the map-banner way — count
+    // the rows as they land, keyed to the NEW home person so the old home
+    // person's rows never show as fake progress.
+    const poll = setInterval(async () => {
+      const { count } = await supabase
+        .from('relationships')
+        .select('id', { count: 'exact', head: true })
+        .eq('tree_id', treeId)
+        .eq('home_person_id', person.id);
+      if (count) setStep({ name: 'saving', personName: person.full_name, traced: count });
+    }, 2000);
     try {
-      const { cachedAncestors } = await setHomePerson(supabase, treeId, person.id, {
-        onProgress: (computed, total) =>
-          setStep({ name: 'saving', personName: person.full_name, progress: { computed, total } }),
+      const { data, error } = await supabase.functions.invoke('compute-relationships', {
+        body: { treeId, homePersonId: person.id },
       });
+      let cachedAncestors: number = data?.cachedAncestors ?? 0;
+      if (error) {
+        // Offline or function failure: the on-device walk still works — it
+        // is just killable, and the self-heal covers an interruption.
+        ({ cachedAncestors } = await setHomePerson(supabase, treeId, person.id));
+      }
       invalidateRelationshipCache();
       setStep({ name: 'done', personName: person.full_name, cachedAncestors });
     } catch (error) {
       setStep({ name: 'choosing' });
-      console.error('setHomePerson failed:', error);
+      console.error('setting home person failed:', error);
+    } finally {
+      clearInterval(poll);
     }
   }
 
@@ -161,7 +180,7 @@ export default function HomePersonScreen() {
           <ActivityIndicator />
           <ThemedText>
             Tracing your family lines
-            {step.progress ? ` — ${step.progress.computed} ancestors found` : '…'}
+            {step.traced ? ` — ${step.traced.toLocaleString()} relatives traced` : '…'}
           </ThemedText>
         </View>
       )}

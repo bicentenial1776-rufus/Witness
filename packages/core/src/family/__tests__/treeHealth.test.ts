@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { parseGedcom } from '../../gedcom/index.js';
-import { buildGraphFromParsed } from '../graph.js';
+import { buildGraphFromParsed } from '../gedcomGraph.js';
 import { computeTreeHealth, type TreeHealthModel } from '../treeHealth.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

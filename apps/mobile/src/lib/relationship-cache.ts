@@ -18,12 +18,15 @@ import { supabase } from '@/lib/supabase';
 const cache = new Map<string, Promise<CachedRelationship[]>>();
 
 /**
- * Zero rows with a home person set means the on-device precompute was
- * interrupted (backgrounded mid-walk — bit the same tree twice, 2026-08-06
- * and 2026-08-15): the app used to sit wrongly labelless until someone
- * repaired the tree by hand. Recompute in place instead. A tree whose home
- * person legitimately has no blood relatives re-walks once per session,
- * but such trees are tiny — the walk is proportionally tiny too.
+ * Zero rows with a home person set means the precompute never landed
+ * (interrupted on-device walks bit the same tree twice, 2026-08-06 and
+ * 2026-08-15): the app used to sit wrongly labelless until someone
+ * repaired the tree by hand. Recompute instead — server-side, where
+ * backgrounding the app can't kill the walk; the on-device compute stays
+ * as the offline fallback. The home person id is deliberately not passed:
+ * the function reads the current pointer itself. A tree whose home person
+ * legitimately has no blood relatives re-runs once per session, but such
+ * trees are tiny — the walk is proportionally tiny too.
  */
 async function fetchRowsHealingInterruptedPrecompute(
   treeId: string,
@@ -36,7 +39,10 @@ async function fetchRowsHealingInterruptedPrecompute(
     .eq('id', treeId)
     .maybeSingle();
   if (!tree?.home_person_id) return rows;
-  await setHomePerson(supabase, treeId, tree.home_person_id);
+  const { error } = await supabase.functions.invoke('compute-relationships', {
+    body: { treeId },
+  });
+  if (error) await setHomePerson(supabase, treeId, tree.home_person_id);
   return fetchRelationshipRows(supabase, treeId);
 }
 

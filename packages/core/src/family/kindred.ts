@@ -1,6 +1,6 @@
 import type { WitnessSupabaseClient } from '../supabase/client.js';
 import type { FamilyGraph, GraphPerson } from './graph.js';
-import { fetchFamilyGraph } from './homePerson.js';
+import { fetchFamilyGraph } from './precompute.js';
 
 /**
  * Kindred couples: spouses who share a blood ancestor, as deep as the

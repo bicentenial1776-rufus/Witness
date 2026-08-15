@@ -1,7 +1,7 @@
-// Mirrored at supabase/functions/_shared/family/relationship.ts — keep in sync
+// Mirrored from packages/core/src/family/relationship.ts — keep in sync
 // (portSync.test.ts enforces byte equality outside this header).
 
-import type { FamilyGraph, GraphPerson } from './graph.js';
+import type { FamilyGraph, GraphPerson } from './graph.ts';
 
 /**
  * Relationship calculation between the home person and any target, via
