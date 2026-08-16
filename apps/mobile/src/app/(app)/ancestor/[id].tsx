@@ -19,6 +19,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
 import * as Clipboard from 'expo-clipboard';
 
+import { showAlert } from '@/lib/alert';
 import { ancestryPersonUrl } from '@/lib/ancestry';
 import { getPersonCuriosities, type Curiosity } from '@/lib/curiosities-cache';
 import { getEventLibrary } from '@/lib/event-library';
@@ -29,7 +30,7 @@ import {
   getRelationshipDetailMap,
   type LineageTier,
 } from '@/lib/relationship-cache';
-import { invokeError } from '@/lib/research-brief';
+import { invokeError, openResearchBrief } from '@/lib/research-brief';
 import { supabase } from '@/lib/supabase';
 import { BrandFonts, Fonts, WideContent } from '@/constants/theme';
 
@@ -280,10 +281,17 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   const [tier, setTier] = useState<LineageTier | undefined>(undefined);
   const [ancestryUrl, setAncestryUrl] = useState<string | null>(null);
   // Story / Their World open in place — one panel at a time, the family
-  // register below simply shifts down. Research left this card entirely
-  // (it belongs to Tree Health — a person can't tell a brief is needed).
+  // register below simply shifts down. Research left this card in the
+  // 2026-07-29 redesign meaning to re-land in Tree Health; it never did,
+  // and no screen could start a brief until Katie Grafer's review found
+  // the hole (2026-08-15). It's back among the person's doors below.
   const [openPanel, setOpenPanel] = useState<'story' | 'world' | null>(null);
   const [shareState, setShareState] = useState<'idle' | 'busy' | 'copied'>('idle');
+  // Research left the Portrait in the 2026-07-29 redesign meaning to
+  // re-land in Tree Health — it never did, and for two weeks no screen
+  // could start a brief (Katie Grafer's review found the hole). The
+  // control is back where a person's other doors are.
+  const [briefState, setBriefState] = useState<'idle' | 'busy'>('idle');
   // Re-render tick for the issue band: dismissal mutates module state this
   // screen can't see. MUST live up here with the other hooks — declared
   // below the early returns it broke the Rules of Hooks and crashed every
@@ -903,6 +911,23 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               );
             })}
           <View style={{ flexDirection: 'row', gap: 16, marginLeft: 'auto' }}>
+            {!person.living && (
+              <Text
+                style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}
+                onPress={
+                  briefState === 'busy'
+                    ? undefined
+                    : async () => {
+                        setBriefState('busy');
+                        const message = await openResearchBrief(person.id);
+                        setBriefState('idle');
+                        if (message) showAlert('Research brief', message);
+                      }
+                }
+              >
+                {briefState === 'busy' ? 'Research…' : 'Research ›'}
+              </Text>
+            )}
             {ancestryUrl && (
               <Text
                 style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}

@@ -77,17 +77,32 @@ describe('rankLivedThroughEvents — ranking and cap', () => {
   const overlapping = (overrides: Partial<HistoricalEvent> & { id: string }) =>
     event({ startYear: 1700, endYear: 1710, ...overrides });
 
-  it('ranks by tier: major above regional above local', () => {
+  it('ranks by tier among eligible events: major above matched regional above matched local', () => {
+    const regions = new Set(['Test Region']);
     const tags = rankLivedThroughEvents(
       subject,
       [
-        overlapping({ id: 'local', tier: 'local' }),
-        overlapping({ id: 'regional', tier: 'regional' }),
-        overlapping({ id: 'major', tier: 'major' }),
+        overlapping({ id: 'local', tier: 'local', geoScope: { regions: ['Test Region'] } }),
+        overlapping({ id: 'regional', tier: 'regional', geoScope: { regions: ['Test Region'] } }),
+        overlapping({ id: 'major', tier: 'major', geoScope: { regions: ['Test Region'] } }),
+      ],
+      regions,
+    );
+    expect(tags.map((t) => t.event.id)).toEqual(['major', 'regional', 'local']);
+  });
+
+  it('geography GATES regional and local events — the shelf rule (2026-08-15)', () => {
+    // A regional event somewhere the person never was is absent, not
+    // merely outranked. Zero tags beats a wrong tag.
+    const tags = rankLivedThroughEvents(
+      subject,
+      [
+        overlapping({ id: 'regional-elsewhere', tier: 'regional', geoScope: { regions: ['California'] } }),
+        overlapping({ id: 'local-elsewhere', tier: 'local', geoScope: { regions: ['Massachusetts'] } }),
       ],
       NO_REGIONS,
     );
-    expect(tags.map((t) => t.event.id)).toEqual(['major', 'regional', 'local']);
+    expect(tags).toHaveLength(0);
   });
 
   it('boosts a geo-matched regional event above an unmatched major', () => {
@@ -101,7 +116,7 @@ describe('rankLivedThroughEvents — ranking and cap', () => {
       ],
       regions,
     );
-    expect(tags.map((t) => t.event.id)).toEqual(['regional-here', 'major-elsewhere', 'regional-elsewhere']);
+    expect(tags.map((t) => t.event.id)).toEqual(['regional-here', 'major-elsewhere']);
     expect(tags[0]!.geoMatched).toBe(true);
     expect(tags[1]!.geoMatched).toBe(false);
   });
@@ -130,9 +145,20 @@ describe('rankLivedThroughEvents — ranking and cap', () => {
     expect(tags.every((t) => t.event.tier === 'major')).toBe(true);
   });
 
-  it('caps against the real library: a long 18th–19th century life gets exactly 5 tags', () => {
+  it('caps against the real library: a placeless 18th–19th century life gets majors only', () => {
     const tags = rankLivedThroughEvents(person({ birth_year: 1750, death_year: 1840 }), HISTORICAL_EVENTS, NO_REGIONS);
-    expect(tags).toHaveLength(LIVED_THROUGH_TAG_CAP);
+    expect(tags.length).toBeGreaterThan(0);
+    expect(tags.length).toBeLessThanOrEqual(LIVED_THROUGH_TAG_CAP);
+    expect(tags.every((t) => t.event.tier === 'major')).toBe(true);
+  });
+
+  it("never puts Salem on a German ancestor's card (Katie Grafer, 2026-08-15)", () => {
+    // Her life overlaps the trials; her record's places map to no
+    // region the corpus knows. Salem is local to Massachusetts and
+    // must be absent — not outranked, absent.
+    const tags = rankLivedThroughEvents(person({ birth_year: 1660, death_year: 1710 }), HISTORICAL_EVENTS, NO_REGIONS);
+    expect(tags.map((t) => t.event.id)).not.toContain('salem-witch-trials');
+    expect(tags.every((t) => t.event.tier === 'major' || t.geoMatched)).toBe(true);
   });
 
   it('surfaces the geographically right story from the real library', () => {

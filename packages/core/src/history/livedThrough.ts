@@ -11,8 +11,15 @@ import { fetchHistoricalEvents, type EventTier, type HistoricalEvent } from './e
  * as the alive-during engine, so undocumented deaths get the assumed-
  * lifespan treatment instead of tagging a 1720 birth with World War II.
  *
- * Ranking prefers major tier, with a boost for events whose geo_scope
- * matches the places in this ancestor's own record; capped at 5 tags.
+ * Geography GATES regional and local events — the same eligibility rule
+ * the curated shelf has always applied (shelf.ts): a major-tier event
+ * speaks to everyone, but a regional or local one must intersect the
+ * places in this ancestor's own record. Before 2026-08-15 geography was
+ * only a ranking boost, and a German ancestor's card wore the Salem
+ * Witch Trials because nothing else in the corpus overlapped her years
+ * (Katie Grafer's review). Zero tags beats a wrong tag.
+ *
+ * Ranking then prefers major tier, boosted for geo matches; capped at 5.
  */
 
 export const LIVED_THROUGH_TAG_CAP = 5;
@@ -54,12 +61,17 @@ export function rankLivedThroughEvents(
   for (const event of events) {
     const match = classifyAliveDuring(person, event);
     if (!match) continue;
+    const geoMatched = (event.geoScope?.regions ?? []).some((region) => personRegions.has(region));
+    // The shelf's eligibility rule: regional/local events must be
+    // geographically relevant to this person. Never merely outranked —
+    // absent, so a thin corpus can't push Salem onto a German card.
+    if (event.tier !== 'major' && !geoMatched) continue;
     tags.push({
       event,
       ageAtStart: match.ageAtStart,
       bornDuring: match.bornDuring,
       confidence: match.confidence,
-      geoMatched: (event.geoScope?.regions ?? []).some((region) => personRegions.has(region)),
+      geoMatched,
     });
   }
 
