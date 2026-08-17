@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { AppState, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { PurchasesError } from 'react-native-purchases';
 
@@ -34,9 +34,23 @@ const TIMELINE = [
 
 export default function Paywall() {
   const theme = useTheme();
-  const { offering, purchasePackage, restore } = usePurchases();
+  const { offering, purchasePackage, restore, recheck } = usePurchases();
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+
+  // Self-heal: anyone standing here who is actually entitled — a comped
+  // account whose store handshake was slow or failed on sign-in — gets
+  // re-resolved on arrival and on every return to the foreground; the
+  // router guard swaps to the app the moment entitlement lands. Cheap
+  // no-op for the genuinely unsubscribed.
+  useEffect(() => {
+    void recheck();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void recheck();
+    });
+    return () => subscription.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pkg = offering?.annual ?? offering?.availablePackages[0] ?? null;
 

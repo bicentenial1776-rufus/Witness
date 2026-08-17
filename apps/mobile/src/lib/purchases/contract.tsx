@@ -38,6 +38,13 @@ export interface PurchasesContextValue {
   subscription: SubscriptionStatus | null;
   restore: () => Promise<boolean>;
   purchasePackage: (pkg: PurchasesOffering['availablePackages'][number]) => Promise<boolean>;
+  /**
+   * Re-resolve entitlement for the signed-in identity. The paywall calls
+   * this on mount and on foreground so a comped or already-subscribed
+   * account stranded there by a slow/failed store handshake heals itself
+   * (2026-08-17: comped sign-ins could stick at the paywall). Never throws.
+   */
+  recheck: () => Promise<void>;
 }
 
 export const PurchasesContext = createContext<PurchasesContextValue>({
@@ -47,6 +54,7 @@ export const PurchasesContext = createContext<PurchasesContextValue>({
   subscription: null,
   restore: async () => false,
   purchasePackage: async () => false,
+  recheck: async () => {},
 });
 
 export function usePurchases(): PurchasesContextValue {

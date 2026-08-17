@@ -160,9 +160,20 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
     }
   }
 
+  // On web the identity effect above already keys everything on the session
+  // and blocks behind isLoading, so recheck is just a fresh read — it exists
+  // for the paywall's self-heal contract, and must never throw unattended.
+  async function recheck(): Promise<void> {
+    try {
+      await restore();
+    } catch (error) {
+      console.warn('Entitlement recheck failed', error);
+    }
+  }
+
   return (
     <PurchasesContext.Provider
-      value={{ isLoading, isEntitled, offering, subscription, restore, purchasePackage }}
+      value={{ isLoading, isEntitled, offering, subscription, restore, purchasePackage, recheck }}
     >
       {children}
     </PurchasesContext.Provider>

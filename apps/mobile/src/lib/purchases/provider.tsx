@@ -1,4 +1,4 @@
-import { useEffect, useState, type PropsWithChildren } from 'react';
+import { useEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { LogBox, Platform } from 'react-native';
 
 // The store isn't fully configured yet, so RevenueCat logs noisy (and
@@ -80,6 +80,19 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // While a logIn/logOut identity switch is in flight the entitlement state
+  // is UNKNOWN, not absent — the router must keep showing the splash, never
+  // the paywall, or a comped account flashes (or sticks on) a purchase
+  // demand it doesn't owe (Betsey's iPad, 2026-08-17). Ceilinged below like
+  // the initial load, so a hung store can't hold the splash forever.
+  const [isResolvingIdentity, setIsResolvingIdentity] = useState(false);
+  // Increments on every identity switch. Any in-flight customer-info fetch
+  // captures the epoch it was issued under and is discarded if it resolves
+  // late: without this, the mount-time ANONYMOUS getCustomerInfo — which
+  // StoreKit's first-launch queries can delay past a quick sign-in — was
+  // overwriting the freshly logged-in (entitled) info and stranding comped
+  // users at the paywall.
+  const identityEpoch = useRef(0);
 
   // Render-time so RevenueCat is configured before any child (Superwall) mounts.
   const purchasesActive = ensurePurchasesConfigured();
@@ -114,8 +127,15 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
     // customer-info listener above flip entitlement whenever StoreKit answers.
     const loadingCeiling = setTimeout(() => setIsLoading(false), 5000);
 
+    // Epoch-guarded: this fetch belongs to whatever identity exists at
+    // mount (usually anonymous). If a sign-in switches identity while it's
+    // still in flight, its result is stale — dropping it is what keeps it
+    // from clobbering the logged-in entitlement.
+    const mountEpoch = identityEpoch.current;
     Purchases.getCustomerInfo()
-      .then(applyCustomerInfo)
+      .then((info) => {
+        if (identityEpoch.current === mountEpoch) applyCustomerInfo(info);
+      })
       .catch((error) => console.warn('Failed to load RevenueCat customer info', error))
       .finally(() => {
         clearTimeout(loadingCeiling);
@@ -141,27 +161,37 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
   // in-flight resolution from the prior identity is discarded.
   useEffect(() => {
     if (!apiKey) return;
-    let cancelled = false;
+    identityEpoch.current += 1;
+    const epoch = identityEpoch.current;
     setCustomerInfo(null);
     if (session) {
+      // Unknown-not-absent while the switch resolves (see state above),
+      // with the same 5s ceiling as the initial load so a hung store
+      // degrades to the paywall (which rechecks itself) rather than an
+      // eternal splash.
+      setIsResolvingIdentity(true);
+      const resolvingCeiling = setTimeout(() => setIsResolvingIdentity(false), 5000);
       Purchases.logIn(session.user.id)
         .then(({ customerInfo: info }) => {
-          if (!cancelled) applyCustomerInfo(info);
+          if (identityEpoch.current === epoch) applyCustomerInfo(info);
         })
-        .catch((error) => console.warn('RevenueCat logIn failed', error));
-    } else {
-      // logOut rejects when RevenueCat is already anonymous — the normal
-      // state on a fresh install, where this effect first runs with no
-      // session. There is nothing to undo in that case.
-      Purchases.logOut()
-        .then((info) => {
-          if (!cancelled) applyCustomerInfo(info);
-        })
-        .catch(() => {});
+        .catch((error) => console.warn('RevenueCat logIn failed', error))
+        .finally(() => {
+          clearTimeout(resolvingCeiling);
+          if (identityEpoch.current === epoch) setIsResolvingIdentity(false);
+        });
+      return () => {
+        clearTimeout(resolvingCeiling);
+      };
     }
-    return () => {
-      cancelled = true;
-    };
+    // logOut rejects when RevenueCat is already anonymous — the normal
+    // state on a fresh install, where this effect first runs with no
+    // session. There is nothing to undo in that case.
+    Purchases.logOut()
+      .then((info) => {
+        if (identityEpoch.current === epoch) applyCustomerInfo(info);
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user.id]);
 
@@ -169,6 +199,28 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
     const info = await Purchases.restorePurchases();
     applyCustomerInfo(info);
     return isEntitled(info);
+  }
+
+  // The paywall's self-heal (contract.tsx): re-resolve entitlement for the
+  // signed-in identity. Two stuck states it recovers: a swallowed logIn
+  // failure left the SDK anonymous (retry the logIn), and a completed logIn
+  // whose result never reached state (re-fetch). Guarded by the epoch like
+  // every other fetch, and never throws — it runs unattended on mount and
+  // foreground.
+  async function recheck(): Promise<void> {
+    if (!purchasesActive) return;
+    const epoch = identityEpoch.current;
+    try {
+      let info: CustomerInfo;
+      if (session && (await Purchases.isAnonymous())) {
+        info = (await Purchases.logIn(session.user.id)).customerInfo;
+      } else {
+        info = await Purchases.getCustomerInfo();
+      }
+      if (identityEpoch.current === epoch) applyCustomerInfo(info);
+    } catch (error) {
+      console.warn('Entitlement recheck failed', error);
+    }
   }
 
   async function purchasePackage(
@@ -182,12 +234,13 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
   return (
     <PurchasesContext.Provider
       value={{
-        isLoading,
+        isLoading: isLoading || isResolvingIdentity,
         isEntitled: isEntitled(customerInfo),
         offering,
         subscription: subscriptionOf(customerInfo),
         restore,
         purchasePackage,
+        recheck,
       }}
     >
       {children}
