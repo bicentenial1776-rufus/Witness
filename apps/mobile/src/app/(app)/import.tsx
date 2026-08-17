@@ -95,6 +95,23 @@ async function keepOriginal(
   }
 }
 
+// Desktop genealogy programs hand people their own project databases, which
+// are not interchange files — a tester's betsey.rmtree (2026-08-17) hit the
+// generic "no family tree information" shrug. When the extension names the
+// program, name it back and say exactly where its GEDCOM export lives.
+const DESKTOP_FORMATS = [
+  { pattern: /\.(rmtree|rmgc|rmgb)$/i, app: 'RootsMagic', how: 'File → Export Data → GEDCOM' },
+  { pattern: /\.(ftm|ftmb|ftw)$/i, app: 'Family Tree Maker', how: 'File → Export Tree' },
+  { pattern: /\.(fdb)$/i, app: 'Legacy Family Tree', how: 'File → Export To → GEDCOM File' },
+  { pattern: /\.(gramps|gpkg)$/i, app: 'Gramps', how: 'Family Trees → Export → GEDCOM' },
+  { pattern: /\.(heredis)$/i, app: 'Heredis', how: 'File → Export → GEDCOM' },
+  { pattern: /\.(paf)$/i, app: 'PAF', how: 'File → Export → GEDCOM' },
+] as const;
+
+function desktopFormatOf(fileName: string) {
+  return DESKTOP_FORMATS.find((format) => format.pattern.test(fileName)) ?? null;
+}
+
 export default function ImportGedcom() {
   const { session } = useSession();
   const { selectTree, refresh } = useActiveTree();
@@ -104,6 +121,7 @@ export default function ImportGedcom() {
     refreshTreeId?: string;
   }>();
   const [step, setStep] = useState<Step>({ name: 'pick' });
+  const desktopFormat = step.name === 'error' ? desktopFormatOf(step.fileName) : null;
 
   async function parseAndSet(source: { uri: string; webFile?: Blob }, fileName: string) {
     setStep({ name: 'parsing', fileName });
@@ -425,14 +443,18 @@ export default function ImportGedcom() {
       {step.name === 'error' && (
         <>
           <ThemedText type="subtitle">
-            {step.kind === 'not-gedcom'
-              ? 'That doesn’t look like a family tree file'
-              : 'We couldn’t read that file'}
+            {desktopFormat
+              ? `That’s a ${desktopFormat.app} project file`
+              : step.kind === 'not-gedcom'
+                ? 'That doesn’t look like a family tree file'
+                : 'We couldn’t read that file'}
           </ThemedText>
           <ThemedText>
-            {step.kind === 'not-gedcom'
-              ? `${step.fileName} opened fine, but there’s no family tree information in it — it may be the wrong file, or something got mixed up along the way.`
-              : `${step.fileName} didn’t open the way we expected. Nothing was lost — the original file is untouched, wherever it came from.`}
+            {desktopFormat
+              ? `${step.fileName} is ${desktopFormat.app}’s own working file — programs exchange trees as GEDCOM (.ged) instead. In ${desktopFormat.app}, choose ${desktopFormat.how}, then send the .ged file it creates to this iPhone or iPad and share it to Witness.`
+              : step.kind === 'not-gedcom'
+                ? `${step.fileName} opened fine, but there’s no family tree information in it — it may be the wrong file, or something got mixed up along the way.`
+                : `${step.fileName} didn’t open the way we expected. Nothing was lost — the original file is untouched, wherever it came from.`}
           </ThemedText>
           <Button title="Try a different file" onPress={pickAndParse} />
           <ThemedText type="link" onPress={() => router.push('/import-guide')}>
