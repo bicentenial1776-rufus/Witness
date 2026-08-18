@@ -120,6 +120,12 @@ export interface HealthIndividual {
   id: string;
   /** GEDCOM INDI xref — stable across re-imports of the same file. */
   gedcom_xref: string | null;
+  /**
+   * Vendor person id (_UID / UID) — stable across exports even when the
+   * file is renumbered, which xrefs are not. First key of the refresh
+   * identity match (Katie review: stored + indexed, read by nothing).
+   */
+  ancestry_uid: string | null;
   full_name: string;
   surname: string | null;
   sex: 'M' | 'F' | 'U';
@@ -621,7 +627,7 @@ export async function fetchTreeHealthData(
       (from, to) =>
         client
           .from('individuals')
-          .select('id, gedcom_xref, full_name, surname, sex, birth_year, death_year, living')
+          .select('id, gedcom_xref, ancestry_uid, full_name, surname, sex, birth_year, death_year, living')
           .eq('tree_id', treeId)
           .order('id')
           .range(from, to),

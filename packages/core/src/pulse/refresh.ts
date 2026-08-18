@@ -1,4 +1,4 @@
-import { fetchTreeHealthData } from '../query/treeHealth.js';
+import { fetchTreeHealthData, findingKey, runTreeHealth } from '../query/treeHealth.js';
 import type { WitnessSupabaseClient } from '../supabase/client.js';
 import type { Json } from '../supabase/database.types.js';
 import {
@@ -6,10 +6,12 @@ import {
   diffTrees,
   planCarryForward,
   planFindingsCarry,
+  planMarksCarry,
   pulseSummary,
   remapIndividuals,
   type FindingRow,
   type IdRemap,
+  type MarkRow,
   type TreePulse,
 } from './index.js';
 
@@ -26,9 +28,13 @@ import {
  *
  * - Research Briefs and National Archives verdicts move. They are the
  *   researcher's own work and nothing in the new file recreates them.
- * - Tree Health "fixed" marks do not. If the record really was corrected the
- *   finding will not reappear; if it does reappear, the mark was premature.
- *   Carrying them would let a stale mark hide a live problem.
+ * - Tree Health "fixed" marks GRADUATE (2026-08-18, Katie's round-trip arc):
+ *   each mark is re-checked against the new tree's live findings. Finding
+ *   gone → the file really fixed it, counted and announced. Finding still
+ *   present → the mark carries under its rewritten key. A stale mark can
+ *   never hide a live problem, and a real fix is never deleted silently.
+ * - Shared links move: the tokens readers hold survive the refresh instead
+ *   of dying with the old tree's cascade.
  * - "Not an error" rulings need no help: they are user-scoped and keyed by
  *   xref, so they already survive any number of uploads.
  */
@@ -43,6 +49,13 @@ export interface RefreshPreview {
   strandedArchiveVerdicts: number;
   strandedBackIssues: number;
   homePersonLost: boolean;
+  /** "You marked N fixed — this file confirms M of them." Null without marks. */
+  marksNote: string | null;
+  marksGraduated: number;
+  marksCarrying: number;
+  marksStranded: number;
+  shareLinksMoving: number;
+  shareLinksStranded: number;
 }
 
 interface BriefRow {
@@ -56,8 +69,13 @@ interface CandidateRow {
   na_id: number;
 }
 
+interface ShareLinkRow {
+  token: string;
+  individual_id: string;
+}
+
 async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: string) {
-  const [briefs, candidates, findings] = await Promise.all([
+  const [briefs, candidates, findings, marks, shareLinks] = await Promise.all([
     supabase.from('research_briefs').select('id, individual_id').eq('tree_id', oldTreeId),
     // Only decided candidates are worth carrying. A pending row is a machine
     // suggestion the new tree's enrichment will regenerate anyway; moving it
@@ -75,12 +93,65 @@ async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: strin
       .select('finding_id, source, subject_ids, sentence, edition_key, section, first_seen_at')
       .eq('tree_id', oldTreeId)
       .not('edition_key', 'is', null),
+    // "Fixed" marks now graduate or carry rather than dying (Katie review).
+    supabase.from('tree_health_marks').select('id, finding_key').eq('tree_id', oldTreeId),
+    // Every shared URL used to die with the old tree's cascade — carrying
+    // the row keeps the reader's link alive across a refresh.
+    supabase.from('share_links').select('token, individual_id').eq('tree_id', oldTreeId),
   ]);
   return {
     briefs: (briefs.data ?? []) as BriefRow[],
     candidates: (candidates.data ?? []) as CandidateRow[],
     findings: (findings.data ?? []) as FindingRow[],
+    marks: (marks.data ?? []) as MarkRow[],
+    shareLinks: (shareLinks.data ?? []) as ShareLinkRow[],
   };
+}
+
+export interface RefreshTarget {
+  id: string;
+  name: string;
+  individualCount: number;
+  matchedBy: 'provider_tree_id' | 'name';
+}
+
+/**
+ * The front door of the round-trip (Katie: plain import silently duplicated
+ * the tree). Given a freshly-parsed file's header, find the existing tree it
+ * looks like a newer export of — the vendor tree id is decisive when both
+ * sides carry one; the tree name is the fallback. Returns the largest match
+ * so the import screen can offer "update" as the primary path, with plain
+ * import always available.
+ */
+export async function findRefreshTarget(
+  supabase: WitnessSupabaseClient,
+  metadata: { ancestryTreeId?: string; treeName?: string },
+): Promise<RefreshTarget | null> {
+  if (metadata.ancestryTreeId) {
+    const { data } = await supabase
+      .from('trees')
+      .select('id, name, individual_count')
+      .eq('ancestry_tree_id', metadata.ancestryTreeId)
+      .order('individual_count', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data) {
+      return { id: data.id, name: data.name, individualCount: data.individual_count, matchedBy: 'provider_tree_id' };
+    }
+  }
+  if (metadata.treeName) {
+    const { data } = await supabase
+      .from('trees')
+      .select('id, name, individual_count')
+      .eq('name', metadata.treeName)
+      .order('individual_count', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data) {
+      return { id: data.id, name: data.name, individualCount: data.individual_count, matchedBy: 'name' };
+    }
+  }
+  return null;
 }
 
 /**
@@ -108,6 +179,21 @@ export async function previewRefresh(
   const homePersonId = oldTree.data?.home_person_id ?? null;
   const homePersonLost = Boolean(homePersonId && !remap.map.has(homePersonId));
 
+  // The new tree's live findings, so old marks can graduate against them.
+  const newFindingKeys = new Set(
+    runTreeHealth(after, { currentYear: new Date().getFullYear() }).findings.map(findingKey),
+  );
+  const marksPlan = planMarksCarry(carryables.marks, remap, newFindingKeys);
+  const marksNote =
+    carryables.marks.length > 0
+      ? `You had marked ${carryables.marks.length} finding${
+          carryables.marks.length === 1 ? '' : 's'
+        } fixed — this file confirms ${marksPlan.graduated} of them.`
+      : null;
+
+  const shareLinksMoving = carryables.shareLinks.filter((l) => remap.map.has(l.individual_id)).length;
+  const shareLinksStranded = carryables.shareLinks.length - shareLinksMoving;
+
   return {
     pulse,
     summary: pulseSummary(pulse),
@@ -115,6 +201,8 @@ export async function previewRefresh(
       strandedBriefs: briefPlan.stranded.length,
       strandedArchiveVerdicts: candidatePlan.stranded.length,
       strandedBackIssues: findingsPlan.stranded.length,
+      strandedMarks: marksPlan.stranded,
+      strandedShareLinks: shareLinksStranded,
       homePersonLost,
     }),
     remap,
@@ -122,6 +210,12 @@ export async function previewRefresh(
     strandedArchiveVerdicts: candidatePlan.stranded.length,
     strandedBackIssues: findingsPlan.stranded.length,
     homePersonLost,
+    marksNote,
+    marksGraduated: marksPlan.graduated,
+    marksCarrying: marksPlan.carrying.length,
+    marksStranded: marksPlan.stranded,
+    shareLinksMoving,
+    shareLinksStranded,
   };
 }
 
@@ -129,6 +223,9 @@ export interface RefreshResult {
   briefsMoved: number;
   verdictsMoved: number;
   backIssuePiecesMoved: number;
+  marksCarried: number;
+  marksGraduated: number;
+  shareLinksMoved: number;
   homePersonMoved: boolean;
   oldTreeDeleted: boolean;
 }
@@ -153,6 +250,12 @@ export async function applyRefresh(
   const briefPlan = planCarryForward(carryables.briefs, preview.remap);
   const candidatePlan = planCarryForward(carryables.candidates, preview.remap);
   const findingsPlan = planFindingsCarry(carryables.findings, preview.remap);
+  // Marks re-plan against the new tree's live findings, same as the preview.
+  const newHealth = await fetchTreeHealthData(supabase, newTreeId);
+  const newFindingKeys = new Set(
+    runTreeHealth(newHealth, { currentYear: new Date().getFullYear() }).findings.map(findingKey),
+  );
+  const marksPlan = planMarksCarry(carryables.marks, preview.remap, newFindingKeys);
 
   for (const { row, newIndividualId } of briefPlan.moving) {
     const { error } = await supabase
@@ -214,6 +317,36 @@ export async function applyRefresh(
     }
   }
 
+  // Carry the still-live marks onto the new tree under their rewritten keys.
+  if (marksPlan.carrying.length > 0) {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (userId) {
+      const { error } = await supabase.from('tree_health_marks').upsert(
+        marksPlan.carrying.map(({ newKey }) => ({
+          tree_id: newTreeId,
+          user_id: userId,
+          finding_key: newKey,
+        })),
+        { onConflict: 'tree_id,finding_key', ignoreDuplicates: true },
+      );
+      if (error) throw new Error(`Could not carry the fixed marks: ${error.message}`);
+    }
+  }
+
+  // Re-point shared links so every URL a reader holds survives the refresh.
+  let shareLinksMoved = 0;
+  for (const link of carryables.shareLinks) {
+    const landed = preview.remap.map.get(link.individual_id);
+    if (!landed) continue;
+    const { error } = await supabase
+      .from('share_links')
+      .update({ tree_id: newTreeId, individual_id: landed })
+      .eq('token', link.token);
+    if (error) throw new Error(`Could not carry a shared link: ${error.message}`);
+    shareLinksMoved += 1;
+  }
+
   let movedHome = false;
   if (!preview.homePersonLost) {
     const { data } = await supabase
@@ -247,6 +380,9 @@ export async function applyRefresh(
     briefsMoved: briefPlan.moving.length,
     verdictsMoved: candidatePlan.moving.length,
     backIssuePiecesMoved: findingsPlan.moving.length,
+    marksCarried: marksPlan.carrying.length,
+    marksGraduated: marksPlan.graduated,
+    shareLinksMoved,
     homePersonMoved: movedHome,
     oldTreeDeleted: await retireTree(supabase, oldTreeId),
   };

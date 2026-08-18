@@ -16,7 +16,7 @@ import type { HealthIndividual } from '../query/treeHealth.js';
  */
 
 export interface IdRemap {
-  /** Old individual id → new individual id, for everyone matched by xref. */
+  /** Old individual id → new individual id, for everyone matched. */
   map: Map<string, string>;
   /**
    * Old individual ids with no counterpart in the refreshed file. Rows
@@ -24,6 +24,8 @@ export interface IdRemap {
    * to say so out loud before applying, not to discover it afterwards.
    */
   orphaned: Set<string>;
+  /** How each match landed — the Pulse reports recoveries by name out loud. */
+  tiers: { uid: number; xref: number; conservative: number };
 }
 
 function normalise(xref: string | null): string | null {
@@ -31,32 +33,100 @@ function normalise(xref: string | null): string | null {
   return trimmed ? trimmed : null;
 }
 
+/** _UID values arrive with or without braces/case noise across exports. */
+function normaliseUid(uid: string | null): string | null {
+  const trimmed = uid?.replace(/[{}]/g, '').trim().toUpperCase();
+  return trimmed ? trimmed : null;
+}
+
+/** Name + birth-year fingerprint for the conservative tier. */
+function conservativeKey(person: HealthIndividual): string | null {
+  if (person.birth_year === null) return null;
+  const slug = person.full_name.trim().toLowerCase().replace(/\s+/g, ' ');
+  return slug ? `${slug}|${person.birth_year}` : null;
+}
+
+/** Values appearing exactly once — anything ambiguous is no key at all. */
+function uniqueIndex(
+  people: readonly HealthIndividual[],
+  keyOf: (p: HealthIndividual) => string | null,
+): Map<string, HealthIndividual> {
+  const counts = new Map<string, number>();
+  for (const person of people) {
+    const key = keyOf(person);
+    if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const index = new Map<string, HealthIndividual>();
+  for (const person of people) {
+    const key = keyOf(person);
+    if (key && counts.get(key) === 1) index.set(key, person);
+  }
+  return index;
+}
+
 /**
- * Build the old-id → new-id mapping between two imports of the same tree.
+ * Build the old-id → new-id mapping between two imports of the same tree —
+ * the identity spine of the round-trip arc (Katie review, 2026-08-15).
  *
- * People with no xref on either side are unmappable by construction and land
- * in `orphaned`; guessing at them by name would silently re-point a brief
- * onto the wrong person, which is worse than losing it loudly.
+ * Three tiers, most trustworthy first:
+ * 1. Vendor _UID — survives renumbering, so a tree reworked in Ancestry or
+ *    RootsMagic still matches even when every xref changed.
+ * 2. GEDCOM xref — the same file re-exported keeps its @I12@ pointers.
+ * 3. Conservative name + birth year — only when that pair is UNIQUE on both
+ *    sides; an ambiguous fingerprint matches nobody. This recovers people
+ *    whose export dropped both ids without ever guessing between two Johns.
+ *
+ * Whoever no tier can place lands in `orphaned` — lost loudly, never
+ * silently re-pointed.
  */
 export function remapIndividuals(
   before: readonly HealthIndividual[],
   after: readonly HealthIndividual[],
 ): IdRemap {
-  const newByXref = new Map<string, string>();
-  for (const person of after) {
-    const xref = normalise(person.gedcom_xref);
-    if (xref) newByXref.set(xref, person.id);
-  }
+  const newByUid = uniqueIndex(after, (p) => normaliseUid(p.ancestry_uid));
+  const newByXref = uniqueIndex(after, (p) => normalise(p.gedcom_xref));
+  const newByConservative = uniqueIndex(after, conservativeKey);
+  const oldByUid = uniqueIndex(before, (p) => normaliseUid(p.ancestry_uid));
+  const oldByConservative = uniqueIndex(before, conservativeKey);
 
   const map = new Map<string, string>();
   const orphaned = new Set<string>();
+  const claimed = new Set<string>();
+  const tiers = { uid: 0, xref: 0, conservative: 0 };
+
   for (const person of before) {
+    const uid = normaliseUid(person.ancestry_uid);
+    const uidLanding =
+      uid && oldByUid.get(uid) === person ? newByUid.get(uid) : undefined;
+    if (uidLanding && !claimed.has(uidLanding.id)) {
+      map.set(person.id, uidLanding.id);
+      claimed.add(uidLanding.id);
+      tiers.uid += 1;
+      continue;
+    }
+
     const xref = normalise(person.gedcom_xref);
-    const landed = xref ? newByXref.get(xref) : undefined;
-    if (landed) map.set(person.id, landed);
-    else orphaned.add(person.id);
+    const xrefLanding = xref ? newByXref.get(xref) : undefined;
+    if (xrefLanding && !claimed.has(xrefLanding.id)) {
+      map.set(person.id, xrefLanding.id);
+      claimed.add(xrefLanding.id);
+      tiers.xref += 1;
+      continue;
+    }
+
+    const key = conservativeKey(person);
+    const conservativeLanding =
+      key && oldByConservative.get(key) === person ? newByConservative.get(key) : undefined;
+    if (conservativeLanding && !claimed.has(conservativeLanding.id)) {
+      map.set(person.id, conservativeLanding.id);
+      claimed.add(conservativeLanding.id);
+      tiers.conservative += 1;
+      continue;
+    }
+
+    orphaned.add(person.id);
   }
-  return { map, orphaned };
+  return { map, orphaned, tiers };
 }
 
 export interface CarryableRow {
@@ -167,10 +237,62 @@ export function planFindingsCarry(
  * nothing. Named counts rather than a total, because "2 research briefs" is a
  * thing the reader can weigh and "2 items" is not.
  */
+export interface MarkRow {
+  id: string;
+  finding_key: string;
+}
+
+export interface MarksCarryPlan {
+  /** Marks whose finding persists in the new tree — they move, key rewritten. */
+  carrying: { row: MarkRow; newKey: string }[];
+  /** Marks whose finding is GONE from the new file: the fix is confirmed. */
+  graduated: number;
+  /** Marks accusing people no tier could follow across — lost loudly. */
+  stranded: number;
+}
+
+/**
+ * Marks graduate instead of dying (Katie review: "you marked 17, this file
+ * fixes 12"). A mark's finding_key is check:sorted-db-ids; the ids remap,
+ * and the rewritten key is looked up in the NEW tree's freshly-computed
+ * findings. Present → the problem persists, the mark carries. Absent → the
+ * file really fixed it, and that's a graduation worth announcing, not a
+ * row worth deleting silently.
+ */
+export function planMarksCarry(
+  marks: readonly MarkRow[],
+  remap: IdRemap,
+  newFindingKeys: ReadonlySet<string>,
+): MarksCarryPlan {
+  const carrying: { row: MarkRow; newKey: string }[] = [];
+  let graduated = 0;
+  let stranded = 0;
+  for (const row of marks) {
+    const colon = row.finding_key.indexOf(':');
+    if (colon < 0) {
+      stranded += 1;
+      continue;
+    }
+    const check = row.finding_key.slice(0, colon);
+    const oldIds = row.finding_key.slice(colon + 1).split(',').filter(Boolean);
+    const newIds = oldIds.map((id) => remap.map.get(id));
+    if (oldIds.length === 0 || newIds.some((id) => !id)) {
+      stranded += 1;
+      continue;
+    }
+    const newKey = `${check}:${(newIds as string[]).sort().join(',')}`;
+    if (newFindingKeys.has(newKey)) carrying.push({ row, newKey });
+    else graduated += 1;
+  }
+  return { carrying, graduated, stranded };
+}
+
 export function carryCostWarning(counts: {
   strandedBriefs: number;
   strandedArchiveVerdicts: number;
   strandedBackIssues?: number;
+  strandedMarks?: number;
+  strandedShareLinks?: number;
   homePersonLost: boolean;
 }): string | null {
   const parts: string[] = [];
@@ -191,6 +313,16 @@ export function carryCostWarning(counts: {
       `${counts.strandedBackIssues} back-issue ${
         counts.strandedBackIssues === 1 ? 'piece' : 'pieces'
       }`,
+    );
+  }
+  if ((counts.strandedMarks ?? 0) > 0) {
+    parts.push(
+      `${counts.strandedMarks} fixed ${counts.strandedMarks === 1 ? 'mark' : 'marks'}`,
+    );
+  }
+  if ((counts.strandedShareLinks ?? 0) > 0) {
+    parts.push(
+      `${counts.strandedShareLinks} shared ${counts.strandedShareLinks === 1 ? 'link' : 'links'}`,
     );
   }
   if (counts.homePersonLost) parts.push('your home person');

@@ -8,6 +8,7 @@ let seq = 0;
 function individual(over: Partial<HealthIndividual> & { gedcom_xref: string | null }): HealthIndividual {
   return {
     id: `db-${++seq}`,
+    ancestry_uid: null,
     full_name: 'Ada Howe',
     surname: 'Howe',
     sex: 'F',

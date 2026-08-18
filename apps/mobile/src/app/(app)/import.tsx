@@ -10,9 +10,11 @@ import { extractGedcomText, parseGedcom } from '@witness/core/gedcom';
 import { importParsedGedcom, type ImportProgress } from '@witness/core/supabase';
 import {
   applyRefresh,
+  findRefreshTarget,
   previewRefresh,
   pulseSummary,
   type RefreshPreview,
+  type RefreshTarget,
 } from '@witness/core/pulse';
 
 import { Button } from '@/components/button';
@@ -122,6 +124,30 @@ export default function ImportGedcom() {
   }>();
   const [step, setStep] = useState<Step>({ name: 'pick' });
   const desktopFormat = step.name === 'error' ? desktopFormatOf(step.fileName) : null;
+  // Front door of the round-trip: when a picked file looks like a newer
+  // export of a tree already here, updating is offered as the primary path
+  // — plain import used to silently duplicate the tree (Katie review).
+  const [updateTarget, setUpdateTarget] = useState<RefreshTarget | null>(null);
+
+  useEffect(() => {
+    if (step.name !== 'ready' || refreshTreeId) {
+      setUpdateTarget(null);
+      return;
+    }
+    let cancelled = false;
+    findRefreshTarget(supabase, {
+      ancestryTreeId: step.parsed.metadata.ancestryTreeId,
+      treeName: step.parsed.metadata.treeName,
+    })
+      .then((target) => {
+        if (!cancelled) setUpdateTarget(target);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step.name, refreshTreeId]);
 
   async function parseAndSet(source: { uri: string; webFile?: Blob }, fileName: string) {
     setStep({ name: 'parsing', fileName });
@@ -175,7 +201,15 @@ export default function ImportGedcom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileUri]);
 
-  async function runImport(fileName: string, parsed: ParsedGedcom, original: Uint8Array) {
+  async function runImport(
+    fileName: string,
+    parsed: ParsedGedcom,
+    original: Uint8Array,
+    // The front door: "update this existing tree" chosen on the ready step —
+    // same refresh machinery the /you deep entry uses via the route param.
+    updateTreeId?: string,
+  ) {
+    const refreshInto = updateTreeId ?? refreshTreeId;
     if (!session) return;
     setStep({ name: 'importing', fileName, parsed, original, progress: null });
     try {
@@ -204,22 +238,22 @@ export default function ImportGedcom() {
       // changed before anything is moved or deleted. If the comparison itself
       // fails, this is still a perfectly good ordinary import — say so rather
       // than stranding them mid-flow.
-      if (refreshTreeId) {
+      if (refreshInto) {
         setStep({
           name: 'reviewing',
           treeId,
-          oldTreeId: refreshTreeId,
+          oldTreeId: refreshInto,
           parsed,
           vault,
           preview: null,
           applying: false,
         });
         try {
-          const preview = await previewRefresh(supabase, refreshTreeId, treeId);
+          const preview = await previewRefresh(supabase, refreshInto, treeId);
           setStep({
             name: 'reviewing',
             treeId,
-            oldTreeId: refreshTreeId,
+            oldTreeId: refreshInto,
             parsed,
             vault,
             preview,
@@ -333,6 +367,12 @@ export default function ImportGedcom() {
             </View>
           )}
 
+          {step.preview.marksNote && (
+            <ThemedText type="small" style={{ marginTop: 8 }}>
+              {step.preview.marksNote}
+            </ThemedText>
+          )}
+
           {step.preview.costWarning && (
             <ThemedText type="small" style={{ marginTop: 8, fontWeight: '600' }}>
               {step.preview.costWarning}
@@ -378,10 +418,29 @@ export default function ImportGedcom() {
             This makes a copy inside Witness. Nothing changes on Ancestry, or wherever this file
             came from — your original tree stays exactly as it is.
           </ThemedText>
-          <Button
-            title="Bring them into Witness"
-            onPress={() => runImport(step.fileName, step.parsed, step.original)}
-          />
+          {updateTarget ? (
+            <>
+              <ThemedText type="small">
+                This looks like a newer export of “{updateTarget.name}” (
+                {count(updateTarget.individualCount, 'person', 'people')} here already). Updating
+                keeps your marks, briefs, verdicts, and shared links — and shows you what changed.
+              </ThemedText>
+              <Button
+                title={`Update “${updateTarget.name}”`}
+                onPress={() => runImport(step.fileName, step.parsed, step.original, updateTarget.id)}
+              />
+              <Button
+                variant="secondary"
+                title="Import as a separate tree"
+                onPress={() => runImport(step.fileName, step.parsed, step.original)}
+              />
+            </>
+          ) : (
+            <Button
+              title="Bring them into Witness"
+              onPress={() => runImport(step.fileName, step.parsed, step.original)}
+            />
+          )}
           <Button variant="secondary" title="This isn’t my file" onPress={pickAndParse} />
         </>
       )}

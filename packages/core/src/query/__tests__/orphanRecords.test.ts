@@ -6,6 +6,7 @@ function person(overrides: Partial<HealthIndividual> & { id: string }): HealthIn
   return {
     full_name: overrides.id,
     gedcom_xref: null,
+    ancestry_uid: null,
     surname: null,
     sex: 'U',
     birth_year: null,

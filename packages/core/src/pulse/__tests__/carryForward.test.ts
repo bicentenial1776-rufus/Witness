@@ -7,18 +7,25 @@ import {
   remapIndividuals,
   type FindingRow,
 } from '../carryForward.js';
+import * as carryModule from '../carryForward.js';
 import type { HealthIndividual } from '../../query/treeHealth.js';
 
-function person(id: string, gedcom_xref: string | null): HealthIndividual {
+function person(
+  id: string,
+  gedcom_xref: string | null,
+  extra: Partial<HealthIndividual> = {},
+): HealthIndividual {
   return {
     id,
     gedcom_xref,
+    ancestry_uid: null,
     full_name: `Person ${id}`,
     surname: null,
     sex: 'U',
     birth_year: null,
     death_year: null,
     living: false,
+    ...extra,
   };
 }
 
@@ -231,5 +238,79 @@ describe('carryCostWarning with back issues', () => {
         homePersonLost: false,
       }),
     ).toBeNull();
+  });
+});
+
+describe('tiered matching (round-trip arc, 2026-08-18)', () => {
+  it('matches by _UID when every xref changed', () => {
+    const remap = remapIndividuals(
+      [person('old-1', '@I1@', { ancestry_uid: 'ABC123' })],
+      [person('new-9', '@I999@', { ancestry_uid: '{abc123}' })],
+    );
+    expect(remap.map.get('old-1')).toBe('new-9');
+    expect(remap.tiers.uid).toBe(1);
+  });
+
+  it('recovers a unique name+birth-year pair when both ids are gone', () => {
+    const remap = remapIndividuals(
+      [person('old-1', null, { full_name: 'Renaldo Webber', birth_year: 1762 })],
+      [person('new-1', null, { full_name: 'Renaldo  Webber', birth_year: 1762 })],
+    );
+    expect(remap.map.get('old-1')).toBe('new-1');
+    expect(remap.tiers.conservative).toBe(1);
+  });
+
+  it('never guesses between two people with the same name and year', () => {
+    const remap = remapIndividuals(
+      [person('old-1', null, { full_name: 'John Smith', birth_year: 1850 })],
+      [
+        person('new-1', null, { full_name: 'John Smith', birth_year: 1850 }),
+        person('new-2', null, { full_name: 'John Smith', birth_year: 1850 }),
+      ],
+    );
+    expect(remap.map.size).toBe(0);
+    expect(remap.orphaned.has('old-1')).toBe(true);
+  });
+
+  it('uid outranks a conflicting xref', () => {
+    // Renumbered export: old @I1@ is now a different person; the uid says so.
+    const remap = remapIndividuals(
+      [person('old-1', '@I1@', { ancestry_uid: 'U1' }), person('old-2', '@I2@', { ancestry_uid: 'U2' })],
+      [person('new-a', '@I2@', { ancestry_uid: 'U1' }), person('new-b', '@I1@', { ancestry_uid: 'U2' })],
+    );
+    expect(remap.map.get('old-1')).toBe('new-a');
+    expect(remap.map.get('old-2')).toBe('new-b');
+    expect(remap.tiers.uid).toBe(2);
+  });
+});
+
+describe('planMarksCarry', () => {
+  const { planMarksCarry } = carryModule;
+
+  it('graduates marks whose finding vanished, carries the rest', () => {
+    const remap = remapIndividuals(
+      [person('old-1', '@I1@'), person('old-2', '@I2@')],
+      [person('new-1', '@I1@'), person('new-2', '@I2@')],
+    );
+    const plan = planMarksCarry(
+      [
+        { id: 'm1', finding_key: 'mother_too_old:old-1' },
+        { id: 'm2', finding_key: 'impossible_gap:old-1,old-2' },
+      ],
+      remap,
+      new Set(['impossible_gap:new-1,new-2']),
+    );
+    expect(plan.graduated).toBe(1);
+    expect(plan.carrying).toEqual([
+      { row: { id: 'm2', finding_key: 'impossible_gap:old-1,old-2' }, newKey: 'impossible_gap:new-1,new-2' },
+    ]);
+    expect(plan.stranded).toBe(0);
+  });
+
+  it('strands marks accusing people who did not carry across', () => {
+    const remap = remapIndividuals([person('old-1', '@I1@')], []);
+    const plan = planMarksCarry([{ id: 'm1', finding_key: 'check:old-1' }], remap, new Set());
+    expect(plan.stranded).toBe(1);
+    expect(plan.graduated).toBe(0);
   });
 });
