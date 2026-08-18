@@ -162,3 +162,26 @@ describe('provider detection (2026-08-18: dynamic external links)', () => {
     expect(parsed.metadata.provider).toBe('ancestry');
   });
 });
+
+describe('previously dropped event tags (Katie review 2026-08-15)', () => {
+  it('captures CENS, BAPM, IMMI, EMIG, NATU', () => {
+    const parsed = parseGedcom(
+      '0 HEAD\n1 GEDC\n2 VERS 5.5.1\n1 SOUR Test\n' +
+        '0 @I1@ INDI\n1 NAME Ada /Kin/\n' +
+        '1 BAPM\n2 DATE 12 MAR 1850\n2 PLAC Boston, Massachusetts\n' +
+        '1 CENS\n2 DATE 1860\n2 PLAC Holland, Massachusetts\n' +
+        '1 CENS\n2 DATE 1870\n2 PLAC Holland, Massachusetts\n' +
+        '1 IMMI\n2 DATE 1845\n2 PLAC New York\n' +
+        '1 EMIG\n2 DATE 1844\n' +
+        '1 NATU\n2 DATE 1852\n' +
+        '0 TRLR\n',
+    );
+    const ada = parsed.individuals.get('I1')!;
+    expect(ada.censuses).toHaveLength(2);
+    expect(ada.censuses[0]?.date?.year).toBe(1860);
+    expect(ada.baptisms[0]?.date?.year).toBe(1850);
+    expect(ada.immigrations[0]?.date?.year).toBe(1845);
+    expect(ada.emigrations[0]?.date?.year).toBe(1844);
+    expect(ada.naturalizations[0]?.date?.year).toBe(1852);
+  });
+});

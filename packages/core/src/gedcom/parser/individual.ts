@@ -100,6 +100,12 @@ export function parseIndividual(
     hasDeathRecord,
     burial: parseEvent(child(node, 'BURI'), places),
     residences: parseEvents('RESI'),
+    // Previously dropped on the floor (Katie Grafer review 2026-08-15):
+    censuses: parseEvents('CENS'),
+    baptisms: parseEvents('BAPM'),
+    immigrations: parseEvents('IMMI'),
+    emigrations: parseEvents('EMIG'),
+    naturalizations: parseEvents('NATU'),
     military: parseEvents('_MILT'),
     occupations: children(node, 'OCCU')
       .map((n) => parseDetailedEvent(n, places, shared))

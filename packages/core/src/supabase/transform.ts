@@ -148,6 +148,21 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
     individual.residences.forEach((residence, index) => {
       individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'residence', residence, placeIdMap, index));
     });
+    individual.censuses.forEach((census, index) => {
+      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'census', census, placeIdMap, index));
+    });
+    individual.baptisms.forEach((baptism, index) => {
+      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'baptism', baptism, placeIdMap, index));
+    });
+    individual.immigrations.forEach((immigration, index) => {
+      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'immigration', immigration, placeIdMap, index));
+    });
+    individual.emigrations.forEach((emigration, index) => {
+      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'emigration', emigration, placeIdMap, index));
+    });
+    individual.naturalizations.forEach((naturalization, index) => {
+      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'naturalization', naturalization, placeIdMap, index));
+    });
     individual.military.forEach((service, index) => {
       individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'military', service, placeIdMap, index));
     });

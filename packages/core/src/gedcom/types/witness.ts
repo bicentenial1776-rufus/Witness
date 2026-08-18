@@ -88,6 +88,14 @@ export interface Individual {
   hasDeathRecord: boolean;
   burial?: GedcomEvent;
   residences: GedcomEvent[];
+  /** CENS census enumerations — the raw material of household research. */
+  censuses: GedcomEvent[];
+  /** BAPM baptisms (CHR christenings parse as custom events, unchanged). */
+  baptisms: GedcomEvent[];
+  /** IMMI / EMIG / NATU migration-and-citizenship events. */
+  immigrations: GedcomEvent[];
+  emigrations: GedcomEvent[];
+  naturalizations: GedcomEvent[];
   /** Ancestry _MILT military service events. */
   military: GedcomEvent[];
   /** OCCU facts; the occupation text is in `detail`. */
