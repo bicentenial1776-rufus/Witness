@@ -21,6 +21,8 @@ import * as Clipboard from 'expo-clipboard';
 
 import { showAlert } from '@/lib/alert';
 import { providerPersonLink, type ProviderLink } from '@/lib/ancestry';
+import { PedigreeChart } from '@/components/pedigree-chart';
+import { fetchRelativeFacts, relativesBrief, type RelativeFact } from '@witness/core/family';
 import { getPersonCuriosities, type Curiosity } from '@/lib/curiosities-cache';
 import { getEventLibrary } from '@/lib/event-library';
 import { advanceTrail, dismissTrail, nextTrailPiece } from '@/lib/issue-trail';
@@ -125,8 +127,32 @@ function groupCitations(rows: CitationRow[]): SourceGroup[] {
 type SectionState =
   | { name: 'none' }
   | { name: 'generating' }
-  | { name: 'ready'; text: string }
+  | { name: 'ready'; text: string; general?: string | null; sources?: string[] }
   | { name: 'error'; message: string };
+
+/**
+ * Historical-context cache rows are either legacy prose or the v2 JSON
+ * envelope ({ v: 2, sourced, sources, general }) the two-tier generation
+ * writes (spec §7). Mirrors the Edge Function's parser so a cache-read and
+ * a fresh generation land in the same shape.
+ */
+function parseWorldContent(content: string): { text: string; general: string | null; sources: string[] } {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed && parsed.v === 2 && typeof parsed.sourced === 'string') {
+      return {
+        text: parsed.sourced,
+        general: typeof parsed.general === 'string' && parsed.general.trim() ? parsed.general : null,
+        sources: Array.isArray(parsed.sources)
+          ? parsed.sources.filter((s: unknown): s is string => typeof s === 'string')
+          : [],
+      };
+    }
+  } catch {
+    // Legacy prose falls through.
+  }
+  return { text: content, general: null, sources: [] };
+}
 
 /** One AI-enriched text section backed by a cache row + Edge Function. */
 function useEnrichment(
@@ -148,21 +174,40 @@ function useEnrichment(
       .eq('enrichment_type', enrichmentType)
       .maybeSingle()
       .then(({ data }) => {
-        if (!cancelled && data) setState({ name: 'ready', text: data.content });
+        if (cancelled || !data) return;
+        if (enrichmentType === 'historical_context') {
+          setState({ name: 'ready', ...parseWorldContent(data.content) });
+        } else {
+          setState({ name: 'ready', text: data.content });
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [individualId, enrichmentType]);
 
-  const generate = useCallback(async () => {
-    setState({ name: 'generating' });
-    const { data, error } = await supabase.functions.invoke(fn, {
-      body: { individualId },
-    });
-    if (error) setState({ name: 'error', message: await invokeError(error) });
-    else setState({ name: 'ready', text: data[key] });
-  }, [individualId, fn, key]);
+  // extraBody: the biography call carries the RELATIVES brief assembled by
+  // the same query that draws the pedigree chart (spec §5.4).
+  const generate = useCallback(
+    async (extraBody?: Record<string, unknown>) => {
+      setState({ name: 'generating' });
+      const { data, error } = await supabase.functions.invoke(fn, {
+        body: { individualId, ...(extraBody ?? {}) },
+      });
+      if (error) setState({ name: 'error', message: await invokeError(error) });
+      else if (enrichmentType === 'historical_context') {
+        setState({
+          name: 'ready',
+          text: data[key],
+          general: data.general ?? null,
+          sources: Array.isArray(data.sources) ? data.sources : [],
+        });
+      } else {
+        setState({ name: 'ready', text: data[key] });
+      }
+    },
+    [individualId, fn, key, enrichmentType],
+  );
 
   return { state, generate };
 }
@@ -287,6 +332,11 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // and no screen could start a brief until Katie Grafer's review found
   // the hole (2026-08-15). It's back among the person's doors below.
   const [openPanel, setOpenPanel] = useState<'story' | 'world' | null>(null);
+  // Family context (witness-family-context-spec.md): one RelativeFact[] per
+  // story view, feeding both the pedigree chart and the AI brief. Loaded
+  // lazily the first time the story panel opens; null = not yet fetched.
+  const [relatives, setRelatives] = useState<RelativeFact[] | null>(null);
+  const [parentStories, setParentStories] = useState<Set<string>>(new Set());
   const [shareState, setShareState] = useState<'idle' | 'busy' | 'copied'>('idle');
   // Research left the Portrait in the 2026-07-29 redesign meaning to
   // re-land in Tree Health — it never did, and for two weeks no screen
@@ -301,6 +351,39 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
 
   const biography = useEnrichment(id, 'biography', 'generate-biography', 'biography');
   const worldContext = useEnrichment(id, 'historical_context', 'generate-historical-context', 'context');
+
+  // Family context loads the first time the story panel opens — computed
+  // once per story view, shared by the chart and the narrative brief. A
+  // parent with a story navigates straight to it on tap, so parents'
+  // story flags ride along.
+  useEffect(() => {
+    if (openPanel !== 'story' || relatives !== null || !id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const facts = await fetchRelativeFacts(supabase, id);
+        const parentIds = parents.map((p) => p.id);
+        const { data: parentStoryRows } = parentIds.length
+          ? await supabase
+              .from('enrichment_cache')
+              .select('individual_id')
+              .eq('enrichment_type', 'biography')
+              .in('individual_id', parentIds)
+          : { data: [] };
+        if (cancelled) return;
+        setParentStories(new Set((parentStoryRows ?? []).map((r) => r.individual_id)));
+        setRelatives(facts);
+      } catch {
+        // The chart and brief are enhancements — a failed fetch must never
+        // block the story itself.
+        if (!cancelled) setRelatives([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openPanel, relatives, id, parents]);
 
   useEffect(() => {
     if (!id) return;
@@ -320,6 +403,8 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     setTier(undefined);
     setProviderLink(null);
     setOpenPanel(null);
+    setRelatives(null);
+    setParentStories(new Set());
     (async () => {
       const [{ data: personRow }, { data: eventRows }] = await Promise.all([
         supabase
@@ -966,22 +1051,60 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               sources.length ? ` · drawn from ${sources.length} source${sources.length > 1 ? 's' : ''}` : ''
             }`}
           >
+            {relatives !== null && (parents.length > 0 || relatives.length > 0) && (
+              <PedigreeChart
+                subject={{ id: person.id, name: person.full_name }}
+                parents={parents.map((p) => ({
+                  id: p.id,
+                  name: p.full_name,
+                  relationship: p.sex === 'M' ? 'father' : p.sex === 'F' ? 'mother' : 'parent',
+                  birth_year: p.birth_year,
+                  death_year: p.death_year,
+                  living: p.living,
+                  has_story: parentStories.has(p.id),
+                }))}
+                relatives={relatives}
+                onOpenPortrait={(pid) => router.push(`/ancestor/${pid}` as never)}
+              />
+            )}
             <EnrichmentBody
               buttonTitle="Tell me their story"
               generatingLabel="Writing their story from the record…"
               state={biography.state}
-              onGenerate={biography.generate}
+              onGenerate={() =>
+                void biography.generate(
+                  relatives?.length ? { relatives: relativesBrief(relatives) } : undefined,
+                )
+              }
             />
           </Panel>
         )}
         {!person.living && openPanel === 'world' && (
           <Panel theme={theme} label={`Their World${person.birth_year ? ` · ${person.birth_year}` : ''}`}>
             {worldContext.state.name === 'ready' ? (
-              <ThemedText>{worldContext.state.text}</ThemedText>
+              <View style={{ gap: 10 }}>
+                <ThemedText>{worldContext.state.text}</ThemedText>
+                {(worldContext.state.sources?.length ?? 0) > 0 && (
+                  <ThemedText type="small">
+                    From {worldContext.state.sources!.join(' and ')}
+                  </ThemedText>
+                )}
+                {/* The general-knowledge tier (spec §7.5): generically
+                    labeled so it never reads as archive-sourced. Absent
+                    entirely when the model declined. */}
+                {worldContext.state.general && (
+                  <View style={{ gap: 4, borderTopWidth: 1, borderTopColor: theme.border, paddingTop: 10 }}>
+                    <ThemedText type="small" style={{ fontFamily: Fonts.mono }}>
+                      HISTORICAL CONTEXT
+                    </ThemedText>
+                    <ThemedText>{worldContext.state.general}</ThemedText>
+                  </View>
+                )}
+              </View>
             ) : worldContext.state.name === 'error' ? (
               <>
                 <ThemedText>{worldContext.state.message}</ThemedText>
-                <Button title="Try again" onPress={worldContext.generate} />
+                <Button title="Try again" onPress={() => void worldContext.generate()} />
               </>
             ) : (
               <View style={{ gap: 8, marginVertical: 4 }}>

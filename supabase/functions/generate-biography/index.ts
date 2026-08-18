@@ -25,12 +25,42 @@ Deno.serve(async (req) => {
   if (!authHeader) return json(401, { error: 'Missing authorization' });
 
   let individualId: string;
+  let relativesInput: unknown;
   try {
-    ({ individualId } = await req.json());
+    const body = await req.json();
+    individualId = body.individualId;
+    relativesInput = body.relatives;
     if (typeof individualId !== 'string') throw new Error();
   } catch {
     return json(400, { error: 'Body must be JSON with an individualId string' });
   }
+
+  // The family-context brief (witness-family-context-spec.md §4): assembled
+  // client-side by the same RelativeFact query that draws the pedigree
+  // chart — one source of truth. Client-asserted, so it is re-validated to
+  // exactly the expected shape and clamped; it can only ever describe the
+  // caller's own tree, and living relatives never arrive (the client brief
+  // excludes them by doctrine).
+  const BUCKETS = new Set(['same_town', 'same_county', 'within_100mi', 'elsewhere', 'unknown']);
+  const RELATIONSHIPS = new Set(['sibling', 'aunt', 'uncle']);
+  const relatives = (Array.isArray(relativesInput) ? relativesInput : [])
+    .filter(
+      (r): r is Record<string, unknown> =>
+        !!r &&
+        typeof r === 'object' &&
+        typeof (r as Record<string, unknown>).name === 'string' &&
+        RELATIONSHIPS.has((r as Record<string, unknown>).relationship as string),
+    )
+    .slice(0, 24)
+    .map((r) => ({
+      name: String(r.name).slice(0, 120),
+      relationship: r.relationship as string,
+      birth_year: typeof r.birth_year === 'number' ? r.birth_year : null,
+      death_year: typeof r.death_year === 'number' ? r.death_year : null,
+      proximity_bucket: BUCKETS.has(r.proximity_bucket as string)
+        ? (r.proximity_bucket as string)
+        : 'unknown',
+    }));
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   // RLS-scoped client: acts as the calling user.
@@ -154,6 +184,24 @@ Deno.serve(async (req) => {
     );
   }
 
+  // Family-context weaving (spec §4.3, locked wording): relatives add
+  // texture, never a roll call, and proximity is only ever claimed when the
+  // bucket is known. Same voice as the rest of the biography — no separate
+  // register for family content.
+  const relativesSection = relatives.length
+    ? `\n\nRELATIVES:\n${JSON.stringify(relatives, null, 2)}\n\n` +
+      [
+        'You have access to a RELATIVES list — siblings and aunts/uncles of the subject, with proximity data where available.',
+        'Use these guidelines:',
+        '- Weave relatives into the narrative only where they add genuine texture. Do not list them mechanically or mention every relative in every story.',
+        '- Only make a proximity claim (nearby, same town, etc.) when proximity_bucket is not "unknown". Never infer or guess closeness.',
+        '- proximity_bucket meanings: "same_town"/"same_county" = lived close by during overlapping years; "within_100mi" = lived in the same general region; "elsewhere" = lived far apart; "unknown" = no location data, mention the relationship only, not distance.',
+        '- If a relative has no birth/death years and no proximity data, it\'s fine to omit them from the narrative entirely — sparse facts don\'t need forced inclusion.',
+        '- Prefer specific, human phrasing over relationship labels: "her younger brother Thomas" rather than "sibling Thomas Howe (b. 1847)."',
+        '- Do not fabricate occupations, relationships, or events involving relatives that aren\'t in the provided data.',
+      ].join('\n')
+    : '';
+
   const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
 
   let response;
@@ -177,7 +225,7 @@ Deno.serve(async (req) => {
       messages: [
         {
           role: 'user',
-          content: `Write the biography of this ancestor.\n\nDocumented facts:\n${facts.join('\n')}`,
+          content: `Write the biography of this ancestor.\n\nDocumented facts:\n${facts.join('\n')}${relativesSection}`,
         },
       ],
     });
