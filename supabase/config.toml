@@ -418,3 +418,10 @@ enabled = true
 # the authorization, so the gateway's JWT check must stand down for it.
 [functions.digest-unsubscribe]
 verify_jwt = false
+
+# sympatrn-feedback is called by the Sympatrn beta app, which has no
+# account and no Supabase key of its own — the client-minted pseudonym
+# device_id is the whole identity. See the function header for the
+# accepted abuse surface.
+[functions.sympatrn-feedback]
+verify_jwt = false
