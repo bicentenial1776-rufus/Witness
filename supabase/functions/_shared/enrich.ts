@@ -44,6 +44,58 @@ export async function authenticate(req: Request): Promise<EnrichContext | Respon
 }
 
 /**
+ * The paywall's claim, made true at every layer (Katie review, resolved
+ * 2026-08-18: gate-it over de-list-it). The UI already walls these features,
+ * but a lapsed account with a live session could invoke the functions
+ * directly — so fresh AI generations verify an active `premium` entitlement
+ * with RevenueCat, the same source of truth the apps bill against. Comps
+ * and trialers pass (their entitlement is active). Cache reads never come
+ * here: content someone generated while entitled stays theirs to re-read.
+ *
+ * Failure posture: RevenueCat unreachable or unconfigured fails OPEN with a
+ * loud log — a billing-service blip must never break the feature for real
+ * subscribers. A subscriber RevenueCat has never heard of fails CLOSED:
+ * nobody subscribes without RevenueCat knowing.
+ */
+export async function checkEntitlement(ctx: EnrichContext): Promise<Response | null> {
+  const key = Deno.env.get('REVENUECAT_SECRET_API_KEY');
+  if (!key) {
+    console.error('REVENUECAT_SECRET_API_KEY not set — entitlement gate is open');
+    return null;
+  }
+  try {
+    const res = await fetch(
+      `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(ctx.userId)}`,
+      { headers: { Authorization: `Bearer ${key}` } },
+    );
+    if (res.status === 404) {
+      return json(403, {
+        error: 'AI research features need an active Witness subscription.',
+        code: 'not_entitled',
+      });
+    }
+    if (!res.ok) {
+      console.error('RevenueCat entitlement check failed', res.status);
+      return null;
+    }
+    const body = await res.json();
+    const premium = body?.subscriber?.entitlements?.premium;
+    const entitled =
+      premium && (premium.expires_date === null || Date.parse(premium.expires_date) > Date.now());
+    if (!entitled) {
+      return json(403, {
+        error: 'AI research features need an active Witness subscription.',
+        code: 'not_entitled',
+      });
+    }
+    return null;
+  } catch (error) {
+    console.error('RevenueCat unreachable — entitlement gate is open', error);
+    return null;
+  }
+}
+
+/**
  * Fresh AI generations across all enrichment types share one daily budget.
  * Research briefs live in their own table but count against the same pool.
  */

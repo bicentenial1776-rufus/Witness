@@ -9,9 +9,11 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import {
   DAILY_LIMIT,
+  checkEntitlement,
   corsHeaders,
   json,
   renderEventLine,
+  type EnrichContext,
   type EventRow,
 } from '../_shared/enrich.ts';
 
@@ -118,6 +120,9 @@ Deno.serve(async (req) => {
     .eq('enrichment_type', 'biography')
     .maybeSingle();
   if (cached) return json(200, { biography: cached.content, cached: true });
+
+  const gated = await checkEntitlement({ db, admin, userId } as EnrichContext);
+  if (gated) return gated;
 
   const startOfDay = new Date();
   startOfDay.setUTCHours(0, 0, 0, 0);

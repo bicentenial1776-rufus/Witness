@@ -7,6 +7,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk@0.65.0';
 import {
   authenticate,
   checkDailyLimit,
+  checkEntitlement,
   corsHeaders,
   json,
   loadPersonFacts,
@@ -101,6 +102,8 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (cached) return json(200, { ...parseWorldContent(cached.content), cached: true });
 
+  const gated = await checkEntitlement(ctx);
+  if (gated) return gated;
   const limited = await checkDailyLimit(ctx);
   if (limited) return limited;
 
