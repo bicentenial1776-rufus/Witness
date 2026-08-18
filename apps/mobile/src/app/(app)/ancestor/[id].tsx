@@ -8,7 +8,11 @@ import {
   regionsFromPlaceParts,
   type LivedThroughTag,
 } from '@witness/core/history';
-import { fetchNaraCandidatesForIndividual, type NaraCandidate } from '@witness/core/query';
+import {
+  fetchNaraCandidatesForIndividual,
+  stageKeyForPerson,
+  type NaraCandidate,
+} from '@witness/core/query';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
@@ -26,6 +30,7 @@ import { STORY_SHARE_LABEL, shareStory } from '@/lib/share-story';
 import { fetchRelativeFacts, relativesBrief, type RelativeFact } from '@witness/core/family';
 import { getPersonCuriosities, type Curiosity } from '@/lib/curiosities-cache';
 import { getEventLibrary } from '@/lib/event-library';
+import { getFamilyStages } from '@/lib/family-stage-cache';
 import { advanceTrail, dismissTrail, nextTrailPiece } from '@/lib/issue-trail';
 import { createAncestorShareLink } from '@/lib/share-links';
 import {
@@ -317,6 +322,12 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   const [parents, setParents] = useState<RegisterPerson[]>([]);
   const [siblings, setSiblings] = useState<RegisterPerson[]>([]);
   const [marriages, setMarriages] = useState<Marriage[]>([]);
+  // The resolved Family Stage key for this person's household, or null while
+  // unresolved / when no stage exists. The builder is pickier than the
+  // register (it wants a dated marriage and a birth-dated child, and the head
+  // may be the SPOUSE), so the link is offered only once the real index
+  // says the door opens somewhere.
+  const [stageKey, setStageKey] = useState<string | null>(null);
   const [tags, setTags] = useState<LivedThroughTag[]>([]);
   const [sources, setSources] = useState<SourceGroup[]>([]);
   const [naraCandidates, setNaraCandidates] = useState<NaraCandidate[]>([]);
@@ -386,6 +397,23 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openPanel, relatives, id, parents]);
 
+  // Resolve this person's household against the stage index (cached per
+  // tree, shared with the Family Stage screen). Best-effort: on failure the
+  // link simply stays hidden — a hidden door beats a door into the wrong
+  // family.
+  useEffect(() => {
+    if (!person) return;
+    let cancelled = false;
+    getFamilyStages(person.tree_id)
+      .then((index) => {
+        if (!cancelled) setStageKey(stageKeyForPerson(index, person.id));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [person?.id, person?.tree_id]);
+
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
@@ -395,6 +423,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     setParents([]);
     setSiblings([]);
     setMarriages([]);
+    setStageKey(null);
     setTags([]);
     setSources([]);
     setNaraCandidates([]);
@@ -1215,14 +1244,17 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             })}
             {/* The register answers who; the stage answers how long, and side by
                 side. One link, not one per marriage — the stage has its own
-                set-switcher. Keyed on the person: stage keys are the household
-                head's id, and stageKeyForPerson resolves a spouse to theirs. */}
-            {marriages.length > 0 && (
+                set-switcher. Keyed on the RESOLVED stage key (the household
+                head's id — possibly the spouse's), and rendered only when the
+                stage index actually holds this household: the builder needs a
+                dated marriage and a birth-dated child, so for thinner records
+                the door used to open onto the wrong family. */}
+            {stageKey !== null && (
               <Pressable
                 onPress={() =>
                   router.push({
                     pathname: '/family-stage/[key]',
-                    params: { key: person.id },
+                    params: { key: stageKey },
                   })
                 }
                 style={{ paddingTop: 14, borderTopWidth: 1, borderTopColor: theme.border }}

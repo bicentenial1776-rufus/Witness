@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 
 import {
-  buildFamilyStages,
   stageKeyForPerson,
   type FamilyStage as Stage,
   type FamilyStageIndex,
@@ -25,10 +24,10 @@ import { LineageMark } from '@/components/lineage-mark';
 import { RecordText } from '@/components/record-text';
 import { BrandFonts, Letterpress } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
+import { getFamilyStages } from '@/lib/family-stage-cache';
 import { getParentageMap } from '@/lib/parentage';
 import { getLineageTierMap, type LineageTier } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
-import { getTreeIndex } from '@/lib/tree-index-cache';
 
 const L = Letterpress;
 
@@ -111,10 +110,10 @@ export default function FamilyStageScreen() {
   useEffect(() => {
     if (!activeTree) return;
     let cancelled = false;
-    getTreeIndex(activeTree.id)
+    getFamilyStages(activeTree.id)
       .then((index) => {
         if (cancelled) return;
-        setStages(buildFamilyStages(index, { currentYear }));
+        setStages(index);
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -145,18 +144,27 @@ export default function FamilyStageScreen() {
   }, [activeTree?.id]);
 
   // Pick the household: the route's key, else the household that key names a
-  // parent of, else the picker's first. The middle case is what lets a screen
-  // that knows only a person (the Portrait) link here — stage keys are the
-  // HEAD's id, so a wife's own id never matched and the reader silently landed
-  // on the root family instead of hers.
+  // parent of. The middle case is what lets a screen that knows only a person
+  // (the Portrait) link here — stage keys are the HEAD's id, so a wife's own
+  // id never matches directly.
   //
-  // The final fallback stays: `/family-stage/root` relies on it, and a key that
-  // resolves to nothing must still land somewhere — leaving currentKey null
-  // hangs the screen on "SETTING THE STAGE…" forever.
+  // A PERSON key that resolves to nothing gets the honest empty state below,
+  // never a silent substitute — the old fallback teleported the reader to the
+  // tree's top household, which read as "the stage opened the wrong family"
+  // (Rufus, 2026-08-18). Only `/family-stage/root` (the Tree tab's door, and
+  // resumed pre-rename links) means "any household": it falls to the picker's
+  // first.
+  const unstageable =
+    stages !== null &&
+    !!paramKey &&
+    paramKey !== 'root' &&
+    stageKeyForPerson(stages, paramKey) === null;
   useEffect(() => {
     if (!stages) return;
     const key =
-      (paramKey && stageKeyForPerson(stages, paramKey)) ?? stages.topLevel[0]?.key;
+      paramKey && paramKey !== 'root'
+        ? stageKeyForPerson(stages, paramKey)
+        : stages.topLevel[0]?.key;
     if (key) setCurrentKey(key);
   }, [stages, paramKey]);
 
@@ -314,6 +322,25 @@ export default function FamilyStageScreen() {
         <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 20, color: L.ink, marginTop: 10 }}>
           {failed ? 'The stage could not be set — try again shortly.' : 'No tree yet.'}
         </Text>
+      </View>
+    );
+  }
+
+  if (unstageable) {
+    return (
+      <View style={{ flex: 1, backgroundColor: L.paper, padding: 24, paddingTop: 72 }}>
+        <RecordText eyebrow style={{ color: L.deepAmber }}>
+          The family stage
+        </RecordText>
+        <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 20, color: L.ink, marginTop: 10 }}>
+          This household can&rsquo;t be drawn as a length of time yet.
+        </Text>
+        <Text style={{ ...mono(10.5, L.muted), marginTop: 10, lineHeight: 16 }}>
+          THE STAGE NEEDS A DATED MARRIAGE AND AT LEAST ONE CHILD WITH A RECORDED BIRTH YEAR.
+        </Text>
+        <Pressable onPress={() => router.back()} hitSlop={10} style={{ marginTop: 18, alignSelf: 'flex-start' }}>
+          <Text style={mono(12, L.amber)}>← BACK</Text>
+        </Pressable>
       </View>
     );
   }
