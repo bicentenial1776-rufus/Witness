@@ -118,6 +118,7 @@ export function parseIndividual(
     // Newer Ancestry exports emit bare UID instead of the older _UID.
     uid: value(node, '_UID') ?? value(node, 'UID'),
     apid: findApid(node),
+    familySearchId: value(node, '_FSFTID'),
     citations: collectCitations(node, 'person'),
   };
 }

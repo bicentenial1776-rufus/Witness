@@ -20,7 +20,7 @@ import { useTheme } from '@/hooks/use-theme';
 import * as Clipboard from 'expo-clipboard';
 
 import { showAlert } from '@/lib/alert';
-import { ancestryPersonUrl } from '@/lib/ancestry';
+import { providerPersonLink, type ProviderLink } from '@/lib/ancestry';
 import { getPersonCuriosities, type Curiosity } from '@/lib/curiosities-cache';
 import { getEventLibrary } from '@/lib/event-library';
 import { advanceTrail, dismissTrail, nextTrailPiece } from '@/lib/issue-trail';
@@ -43,6 +43,7 @@ interface Person {
   death_year: number | null;
   living: boolean;
   gedcom_xref: string;
+  familysearch_id: string | null;
 }
 
 interface EventRow {
@@ -279,7 +280,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   const [compass, setCompass] = useState<string | null>(null);
   const [curiosities, setCuriosities] = useState<Curiosity[]>([]);
   const [tier, setTier] = useState<LineageTier | undefined>(undefined);
-  const [ancestryUrl, setAncestryUrl] = useState<string | null>(null);
+  const [providerLink, setProviderLink] = useState<ProviderLink | null>(null);
   // Story / Their World open in place — one panel at a time, the family
   // register below simply shifts down. Research left this card in the
   // 2026-07-29 redesign meaning to re-land in Tree Health; it never did,
@@ -317,13 +318,13 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     setCompass(null);
     setCuriosities([]);
     setTier(undefined);
-    setAncestryUrl(null);
+    setProviderLink(null);
     setOpenPanel(null);
     (async () => {
       const [{ data: personRow }, { data: eventRows }] = await Promise.all([
         supabase
           .from('individuals')
-          .select('id, tree_id, full_name, sex, birth_year, death_year, living, gedcom_xref')
+          .select('id, tree_id, full_name, sex, birth_year, death_year, living, gedcom_xref, familysearch_id')
           .eq('id', id)
           .maybeSingle(),
         supabase
@@ -341,8 +342,11 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
       if (!personRow) setMissing(true);
       setEvents(eventRows ?? []);
 
-      // The Ancestry deep link needs the tree's Ancestry id alongside this
-      // person's xref; both absent for non-Ancestry trees, hiding the link.
+      // The external link is dynamic per provider: Ancestry needs the
+      // tree's Ancestry id + this person's xref, FamilySearch needs the
+      // person's own _FSFTID. Whichever can build a working URL wins;
+      // neither means no button — a reader without that platform's
+      // account is never pointed at it.
       if (personRow) {
         supabase
           .from('trees')
@@ -351,7 +355,13 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           .single()
           .then(({ data }) => {
             if (!cancelled && data) {
-              setAncestryUrl(ancestryPersonUrl(data.ancestry_tree_id, personRow.gedcom_xref));
+              setProviderLink(
+                providerPersonLink({
+                  ancestryTreeId: data.ancestry_tree_id,
+                  xref: personRow.gedcom_xref,
+                  familySearchId: personRow.familysearch_id,
+                }),
+              );
             }
           });
       }
@@ -928,12 +938,12 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 {briefState === 'busy' ? 'Research…' : 'Research ›'}
               </Text>
             )}
-            {ancestryUrl && (
+            {providerLink && (
               <Text
                 style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}
-                onPress={() => openExternal(ancestryUrl)}
+                onPress={() => openExternal(providerLink.url)}
               >
-                Ancestry ›
+                {providerLink.label} ›
               </Text>
             )}
             {!person.living && (

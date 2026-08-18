@@ -6,6 +6,37 @@
  * On a device with the Ancestry app installed, the https URL
  * universal-links straight into the app.
  */
+export interface ProviderLink {
+  /** What the button says: the platform's own name. */
+  label: string;
+  url: string;
+}
+
+/**
+ * The person's page on whichever platform this tree can actually reach:
+ * Ancestry via the tree's numeric id + xref, or FamilySearch via the
+ * person's _FSFTID (carried by RootsMagic and other FamilySearch-synced
+ * exports, regardless of which program wrote the file). Null when no
+ * working URL can be built — a reader whose tree never touched a platform
+ * is never shown its button (2026-08-18: the static "Ancestry ›" confused
+ * readers without Ancestry accounts).
+ */
+export function providerPersonLink(args: {
+  ancestryTreeId: string | null;
+  xref: string;
+  familySearchId: string | null;
+}): ProviderLink | null {
+  const ancestry = ancestryPersonUrl(args.ancestryTreeId, args.xref);
+  if (ancestry) return { label: 'Ancestry', url: ancestry };
+  if (args.familySearchId) {
+    return {
+      label: 'FamilySearch',
+      url: `https://www.familysearch.org/tree/person/details/${encodeURIComponent(args.familySearchId)}`,
+    };
+  }
+  return null;
+}
+
 // Valid person-page tab paths, verified 2026-07-24: /facts and /gallery
 // respond (401 signed-out); /sources is a 404 — Sources is a panel on the
 // facts page, not a routable tab.

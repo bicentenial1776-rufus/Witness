@@ -572,6 +572,7 @@ export type Database = {
           ancestry_uid: string | null
           birth_year: number | null
           death_year: number | null
+          familysearch_id: string | null
           full_name: string
           gedcom_xref: string
           given_name: string | null
@@ -590,6 +591,7 @@ export type Database = {
           ancestry_uid?: string | null
           birth_year?: number | null
           death_year?: number | null
+          familysearch_id?: string | null
           full_name: string
           gedcom_xref: string
           given_name?: string | null
@@ -608,6 +610,7 @@ export type Database = {
           ancestry_uid?: string | null
           birth_year?: number | null
           death_year?: number | null
+          familysearch_id?: string | null
           full_name?: string
           gedcom_xref?: string
           given_name?: string | null
@@ -1234,6 +1237,7 @@ export type Database = {
           name: string
           parse_warnings: Json
           place_count: number
+          provider: string | null
           refreshed_from: string | null
           source_file: string | null
           user_id: string
@@ -1256,6 +1260,7 @@ export type Database = {
           name: string
           parse_warnings?: Json
           place_count?: number
+          provider?: string | null
           refreshed_from?: string | null
           source_file?: string | null
           user_id: string
@@ -1278,6 +1283,7 @@ export type Database = {
           name?: string
           parse_warnings?: Json
           place_count?: number
+          provider?: string | null
           refreshed_from?: string | null
           source_file?: string | null
           user_id?: string

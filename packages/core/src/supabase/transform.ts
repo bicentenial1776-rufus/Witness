@@ -89,6 +89,7 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
     gedcom_version: parsed.metadata.gedcomVersion ?? null,
     charset: parsed.metadata.charset ?? null,
     ancestry_tree_id: parsed.metadata.ancestryTreeId ?? null,
+    provider: parsed.metadata.provider ?? null,
     export_date: parsed.metadata.exportDate ?? null,
     // Zero until the rows actually land. The tree row is inserted first (every
     // other table points at it), so any count written here is a claim about
@@ -132,6 +133,7 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
       death_year: individual.death?.date?.year ?? null,
       ancestry_uid: individual.uid ?? null,
       ancestry_apid: individual.apid ?? null,
+      familysearch_id: individual.familySearchId ?? null,
     });
 
     if (individual.birth) {

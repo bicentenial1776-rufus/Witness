@@ -6,10 +6,50 @@ import { collectSharedRecords } from './parser/records.js';
 import { child, value } from './parser/query.js';
 import { parseSourceRecord } from './parser/sources.js';
 import { buildTree } from './parser/tree.js';
-import type { Family, GedcomMetadata, Individual, ParsedGedcom, SourceRecord } from './types/witness.js';
+import type {
+  Family,
+  GedcomMetadata,
+  Individual,
+  ParsedGedcom,
+  SourceRecord,
+  TreeProvider,
+} from './types/witness.js';
 
 export * from './types/witness.js';
 export { extractGedcomText, isZipData } from './gdz.js';
+
+// HEAD.SOUR payloads seen in the wild, most specific first. FTM before
+// Ancestry: Family Tree Maker headers mention both ("FTM ... Ancestry.com").
+const PROVIDER_PATTERNS: [RegExp, TreeProvider][] = [
+  [/family\s*tree\s*maker|^FTM\b/i, 'familytreemaker'],
+  [/ancestry/i, 'ancestry'],
+  [/familysearch|^FS\b/i, 'familysearch'],
+  [/myheritage/i, 'myheritage'],
+  [/findmypast|find\s*my\s*past/i, 'findmypast'],
+  [/rootsmagic/i, 'rootsmagic'],
+  [/gramps/i, 'gramps'],
+  [/legacy/i, 'legacy'],
+];
+
+/**
+ * Normalizes the exporting program/platform from the HEAD.SOUR payload (the
+ * system id and its NAME sub-line), corroborated by the Ancestry tree id —
+ * some Ancestry exports carry a bare registered id like "AncestryPRD", but
+ * a SOUR._TREE.RIN is Ancestry's alone.
+ */
+export function detectProvider(
+  sourceSystem: string | undefined,
+  sourceName: string | undefined,
+  ancestryTreeId: string | undefined,
+): TreeProvider | undefined {
+  for (const haystack of [sourceSystem, sourceName]) {
+    if (!haystack) continue;
+    for (const [pattern, provider] of PROVIDER_PATTERNS) {
+      if (pattern.test(haystack)) return provider;
+    }
+  }
+  return ancestryTreeId ? 'ancestry' : undefined;
+}
 
 /** Which parsing rules a HEAD.GEDC.VERS payload selects. */
 export function detectSpecVersion(gedcomVersion: string | undefined): GedcomMetadata['specVersion'] {
@@ -49,6 +89,12 @@ export function parseGedcom(text: string, sourceFile?: string): ParsedGedcom {
   // together with each INDI xref (@I<personId>@) it reconstructs the
   // person's URL on ancestry.com. Absent in other vendors' exports.
   const ancestryTreeId = value(child(child(head, 'SOUR'), '_TREE'), 'RIN');
+  // The SOUR payload is the writing program's registered id; NAME beneath it
+  // is the human-readable product name. Either can carry the recognizable
+  // vendor string, so both feed provider detection.
+  const sourceSystem = value(head, 'SOUR');
+  const sourceName = value(child(head, 'SOUR'), 'NAME');
+  const provider = detectProvider(sourceSystem, sourceName, ancestryTreeId);
   const exportDate = value(head, 'DATE');
   const specVersion = detectSpecVersion(gedcomVersion);
   if (specVersion === 'unknown') {
@@ -97,6 +143,8 @@ export function parseGedcom(text: string, sourceFile?: string): ParsedGedcom {
       specVersion,
       charset,
       treeName,
+      sourceSystem,
+      provider,
       ancestryTreeId,
       exportDate,
       individualCount: individuals.size,

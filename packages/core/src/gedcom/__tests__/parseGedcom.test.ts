@@ -118,3 +118,47 @@ describe('occupation, custom event, and probate facts', () => {
     expect(parsed.individuals.get('I1')!.customEvents).toHaveLength(0);
   });
 });
+
+describe('provider detection (2026-08-18: dynamic external links)', () => {
+  function headOf(sourLines: string): string {
+    return `0 HEAD\n1 GEDC\n2 VERS 5.5.1\n${sourLines}\n0 @I1@ INDI\n1 NAME Test /Person/\n0 TRLR\n`;
+  }
+
+  it('recognizes Ancestry from the header and keeps the tree id', () => {
+    const parsed = parseGedcom(
+      headOf('1 SOUR Ancestry.com Member Trees\n2 _TREE Howe Tree\n3 RIN 12345678'),
+    );
+    expect(parsed.metadata.provider).toBe('ancestry');
+    expect(parsed.metadata.ancestryTreeId).toBe('12345678');
+  });
+
+  it('recognizes RootsMagic and captures per-person FamilySearch ids', () => {
+    const parsed = parseGedcom(
+      '0 HEAD\n1 GEDC\n2 VERS 5.5.1\n1 SOUR RootsMagic\n2 NAME RootsMagic\n' +
+        '0 @I1@ INDI\n1 NAME Betsey /Ready/\n1 _FSFTID KWZQ-8Q1\n0 TRLR\n',
+    );
+    expect(parsed.metadata.provider).toBe('rootsmagic');
+    expect(parsed.individuals.get('I1')?.familySearchId).toBe('KWZQ-8Q1');
+  });
+
+  it('recognizes MyHeritage, Findmypast, FamilySearch, and FTM-over-Ancestry', () => {
+    expect(parseGedcom(headOf('1 SOUR MYHERITAGE')).metadata.provider).toBe('myheritage');
+    expect(parseGedcom(headOf('1 SOUR FMP\n2 NAME Findmypast')).metadata.provider).toBe('findmypast');
+    expect(parseGedcom(headOf('1 SOUR FamilySearch')).metadata.provider).toBe('familysearch');
+    // Family Tree Maker mentions Ancestry in its header — FTM must win.
+    expect(
+      parseGedcom(headOf('1 SOUR FTM\n2 NAME Family Tree Maker for Ancestry')).metadata.provider,
+    ).toBe('familytreemaker');
+  });
+
+  it('leaves provider undefined for unknown software, but keeps the raw header', () => {
+    const parsed = parseGedcom(headOf('1 SOUR SomeObscureTool'));
+    expect(parsed.metadata.provider).toBeUndefined();
+    expect(parsed.metadata.sourceSystem).toBe('SomeObscureTool');
+  });
+
+  it('falls back to ancestry when only the tree RIN gives it away', () => {
+    const parsed = parseGedcom(headOf('1 SOUR AGENERICID\n2 _TREE T\n3 RIN 99'));
+    expect(parsed.metadata.provider).toBe('ancestry');
+  });
+});

@@ -105,6 +105,12 @@ export interface Individual {
   uid?: string;
   /** First Ancestry _APID seen in the record (database::record id, for deep links). */
   apid?: string;
+  /**
+   * FamilySearch person id (_FSFTID), present in exports from FamilySearch-
+   * synced software (RootsMagic, Ancestral Quest). Deep-links to the person
+   * at familysearch.org regardless of which program wrote the file.
+   */
+  familySearchId?: string;
   /** Source citations attached to this person and their facts. */
   citations: SourceCitation[];
 }
@@ -145,6 +151,22 @@ export interface Curiosity {
   familyId?: string;
 }
 
+/**
+ * Normalized identity of the program or platform that wrote the file
+ * (HEAD.SOUR, corroborated by vendor-specific ids). Distinct from link
+ * capability: a RootsMagic export synced from FamilySearch links its people
+ * to familysearch.org even though RootsMagic itself has no web pages.
+ */
+export type TreeProvider =
+  | 'ancestry'
+  | 'familysearch'
+  | 'myheritage'
+  | 'findmypast'
+  | 'rootsmagic'
+  | 'familytreemaker'
+  | 'gramps'
+  | 'legacy';
+
 export interface GedcomMetadata {
   sourceFile?: string;
   /** Raw HEAD.GEDC.VERS payload, e.g. "5.5.1" or "7.0.14". */
@@ -153,6 +175,10 @@ export interface GedcomMetadata {
   specVersion: '5.5.1' | '7.0' | 'unknown';
   charset?: string;
   treeName?: string;
+  /** Raw HEAD.SOUR payload, kept verbatim for providers we don't recognize yet. */
+  sourceSystem?: string;
+  /** Normalized provider identity; undefined when the header names none we know. */
+  provider?: TreeProvider;
   /** Ancestry's numeric tree id (HEAD.SOUR._TREE.RIN); only in Ancestry exports. */
   ancestryTreeId?: string;
   exportDate?: string;
