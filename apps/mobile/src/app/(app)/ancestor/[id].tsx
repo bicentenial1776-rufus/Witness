@@ -22,6 +22,7 @@ import * as Clipboard from 'expo-clipboard';
 import { showAlert } from '@/lib/alert';
 import { providerPersonLink, type ProviderLink } from '@/lib/ancestry';
 import { PedigreeChart } from '@/components/pedigree-chart';
+import { STORY_SHARE_LABEL, shareStory } from '@/lib/share-story';
 import { fetchRelativeFacts, relativesBrief, type RelativeFact } from '@witness/core/family';
 import { getPersonCuriosities, type Curiosity } from '@/lib/curiosities-cache';
 import { getEventLibrary } from '@/lib/event-library';
@@ -1077,6 +1078,23 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 )
               }
             />
+            {/* The story leaves the app on the reader's terms: iOS share
+                sheet (a text file, so Save to Files is a real download);
+                web downloads the .txt outright. Only once a story exists. */}
+            {biography.state.name === 'ready' && (
+              <ThemedText
+                type="small"
+                style={{ fontFamily: Fonts.mono, color: theme.accent, marginTop: 8 }}
+                onPress={() => {
+                  const text = biography.state.name === 'ready' ? biography.state.text : '';
+                  void shareStory(person.full_name, spanYears, text).catch((error) =>
+                    console.warn('Story share failed', error),
+                  );
+                }}
+              >
+                {STORY_SHARE_LABEL}
+              </ThemedText>
+            )}
           </Panel>
         )}
         {!person.living && openPanel === 'world' && (
