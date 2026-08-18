@@ -2,7 +2,7 @@
   "expo": {
     "name": "Witness",
     "slug": "witness",
-    "version": "1.5.0",
+    "version": "1.5.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mobile",
@@ -67,7 +67,7 @@
           }
         ]
       },
-      "buildNumber": "9",
+      "buildNumber": "10",
       "appleTeamId": "SLD65K94V7",
       "usesAppleSignIn": true
     },
