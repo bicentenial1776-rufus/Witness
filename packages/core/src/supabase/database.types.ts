@@ -1311,6 +1311,23 @@ export type Database = {
       get_share: { Args: { p_token: string }; Returns: Json }
       recount_tree: { Args: { p_tree_id: string }; Returns: Json }
       reuse_geocodes: { Args: { p_tree_id: string }; Returns: number }
+      search_people: {
+        Args: {
+          p_tree_id: string
+          p_query: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          id: string
+          full_name: string
+          birth_year: number | null
+          death_year: number | null
+          living: boolean
+          place: string | null
+          total: number
+        }[]
+      }
     }
     Enums: {
       curiosity_type:

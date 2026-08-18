@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
 
 import {
   HISTORICAL_EVENTS,
@@ -12,7 +12,7 @@ import {
 import { type GeographyIndex } from '@witness/core/query';
 
 import { useBroadsheet } from '@/components/broadsheet';
-import { ExploreBroadsheet, type EraCount } from '@/components/broadsheet/explore-broadsheet';
+import { ExploreBroadsheet, PEOPLE_PAGE, type EraCount } from '@/components/broadsheet/explore-broadsheet';
 import { getGeographyIndex } from '@/lib/geography-cache';
 
 import { Card } from '@/components/card';
@@ -36,16 +36,15 @@ interface PersonHit {
   place?: string;
 }
 
-/** An event row with its person + place embedded, for the place search. */
-interface PlaceEventRow {
-  individuals: {
-    id: string;
-    full_name: string;
-    birth_year: number | null;
-    death_year: number | null;
-    living: boolean;
-  } | null;
-  places: { raw: string } | null;
+/** One row from the search_people RPC: a PersonHit plus the query's total. */
+interface SearchPersonRow {
+  id: string;
+  full_name: string;
+  birth_year: number | null;
+  death_year: number | null;
+  living: boolean;
+  place: string | null;
+  total: number;
 }
 
 function eventYears(event: HistoricalEvent): string {
@@ -70,6 +69,8 @@ export default function ExploreTab() {
   const [shelfAttempt, setShelfAttempt] = useState(0);
   const [search, setSearch] = useState('');
   const [people, setPeople] = useState<PersonHit[]>([]);
+  const [peopleTotal, setPeopleTotal] = useState(0);
+  const [peoplePage, setPeoplePage] = useState(0);
   const broadsheet = useBroadsheet();
   const [geoIndex, setGeoIndex] = useState<GeographyIndex | null>(null);
   const [eras, setEras] = useState<EraCount[]>([]);
@@ -138,64 +139,46 @@ export default function ExploreTab() {
     }, [shelfFailed]),
   );
 
+  // A new query starts back at the newest page.
+  useEffect(() => {
+    setPeoplePage(0);
+  }, [search, activeTree?.id]);
+
   // People search, debounced a beat: match on name OR place, in one box.
   // "Benjamin" or "Collins" hits the name; "Worcester" hits anyone with an
-  // event recorded there. Name matches lead; place-only matches follow,
-  // each tagged with the place that surfaced them.
+  // event recorded there. The search_people RPC owns the union — deduped by
+  // person, place-only matches tagged with the place that surfaced them,
+  // EVERY match counted — and hands back one page, newest birth year first
+  // (undated people close the final pages). The old client-side merge
+  // capped name matches at the 20 earliest-born, which silently hid people
+  // behind common given names.
   useEffect(() => {
     const q = search.trim();
     if (!q || q.length < 2 || !activeTree) {
       setPeople([]);
+      setPeopleTotal(0);
       return;
     }
     let cancelled = false;
     const timer = setTimeout(async () => {
-      const treeId = activeTree.id;
-      const [nameRes, placeRes] = await Promise.all([
-        supabase
-          .from('individuals')
-          .select('id, full_name, birth_year, death_year, living')
-          .eq('tree_id', treeId)
-          .ilike('full_name', `%${q}%`)
-          .order('birth_year', { ascending: true, nullsFirst: false })
-          .limit(20),
-        // Every event whose place text matches, with the person embedded;
-        // deduped to distinct people client-side (no DISTINCT over a join).
-        supabase
-          .from('individual_events')
-          .select('individuals!inner(id, full_name, birth_year, death_year, living), places!inner(raw)')
-          .eq('tree_id', treeId)
-          .ilike('places.raw', `%${q}%`)
-          .limit(300)
-          .returns<PlaceEventRow[]>(),
-      ]);
+      const { data } = await supabase
+        .rpc('search_people', {
+          p_tree_id: activeTree.id,
+          p_query: q,
+          p_limit: PEOPLE_PAGE,
+          p_offset: peoplePage * PEOPLE_PAGE,
+        })
+        .returns<SearchPersonRow[]>();
       if (cancelled) return;
-
-      const seen = new Set<string>();
-      const merged: PersonHit[] = [];
-      for (const person of nameRes.data ?? []) {
-        if (!seen.has(person.id)) {
-          seen.add(person.id);
-          merged.push(person);
-        }
-      }
-      const placeHits: PersonHit[] = [];
-      for (const row of placeRes.data ?? []) {
-        const person = row.individuals;
-        if (person && !seen.has(person.id)) {
-          seen.add(person.id);
-          placeHits.push({ ...person, place: row.places?.raw ?? undefined });
-        }
-      }
-      placeHits.sort((a, b) => (a.birth_year ?? Infinity) - (b.birth_year ?? Infinity));
-      merged.push(...placeHits);
-      if (!cancelled) setPeople(merged.slice(0, 25));
+      const rows = data ?? [];
+      setPeopleTotal(rows[0]?.total ?? 0);
+      setPeople(rows.map(({ total: _total, place, ...person }) => ({ ...person, place: place ?? undefined })));
     }, 250);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [search, activeTree?.id]);
+  }, [search, activeTree?.id, peoplePage]);
 
   function openEvent(event: HistoricalEvent) {
     if (!activeTree) return;
@@ -204,6 +187,9 @@ export default function ExploreTab() {
 
   const searching = search.trim().length > 0;
   const filtered = searching ? events.filter((event) => eventMatchesSearch(event, search)) : [];
+  const peoplePageCount = Math.ceil(peopleTotal / PEOPLE_PAGE);
+  const peopleFirst = peoplePage * PEOPLE_PAGE + 1;
+  const peopleLast = Math.min((peoplePage + 1) * PEOPLE_PAGE, peopleTotal);
 
   // Broadsheet layout (web ≥900px); phone/native rendering below untouched.
   if (broadsheet && activeTree && geoIndex) {
@@ -214,6 +200,9 @@ export default function ExploreTab() {
         eras={eras}
         treeId={activeTree.id}
         searchPeople={people}
+        searchTotal={peopleTotal}
+        searchPage={peoplePage}
+        onSearchPage={setPeoplePage}
         searchMoments={filtered.slice(0, 8)}
         search={search}
         onSearch={setSearch}
@@ -309,10 +298,14 @@ export default function ExploreTab() {
             </>
           )}
 
-          {searching && people.length > 0 && (
+          {searching && peopleTotal > 0 && (
             <>
               <ThemedText type="subtitle">
-                {people.length === 25 ? 'First 25 people' : `${people.length} ${people.length === 1 ? 'person' : 'people'}`}
+                {peopleTotal === 1
+                  ? '1 person'
+                  : `${peopleTotal.toLocaleString()} people — newest first${
+                      peopleTotal > PEOPLE_PAGE ? `, showing ${peopleFirst}–${peopleLast}` : ''
+                    }`}
               </ThemedText>
               {people.map((person) => (
                 <Card
@@ -328,6 +321,31 @@ export default function ExploreTab() {
                   </ThemedText>
                 </Card>
               ))}
+              {/* Page through time: forward in the list is backward in the
+                  years, so the controls say newer/older, not prev/next. */}
+              {peopleTotal > PEOPLE_PAGE && (
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                  <Pressable
+                    disabled={peoplePage === 0}
+                    onPress={() => setPeoplePage((page) => page - 1)}
+                    hitSlop={8}
+                    style={{ opacity: peoplePage === 0 ? 0.35 : 1 }}
+                  >
+                    <ThemedText type="link">‹ Newer</ThemedText>
+                  </Pressable>
+                  <ThemedText type="small">
+                    Page {peoplePage + 1} of {peoplePageCount}
+                  </ThemedText>
+                  <Pressable
+                    disabled={peoplePage >= peoplePageCount - 1}
+                    onPress={() => setPeoplePage((page) => page + 1)}
+                    hitSlop={8}
+                    style={{ opacity: peoplePage >= peoplePageCount - 1 ? 0.35 : 1 }}
+                  >
+                    <ThemedText type="link">Older ›</ThemedText>
+                  </Pressable>
+                </View>
+              )}
             </>
           )}
 

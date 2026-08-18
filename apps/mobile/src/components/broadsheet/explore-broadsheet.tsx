@@ -29,6 +29,10 @@ interface PersonHit {
   place?: string;
 }
 
+/** People results page size, shared with the phone carrier (explore.tsx
+    imports it from here — the other direction would be a cycle). */
+export const PEOPLE_PAGE = 25;
+
 function Serif({ size = T.ledgerName, color = C.ink, children, ...rest }: React.ComponentProps<typeof Text> & { size?: number; color?: string }) {
   return (
     <Text {...rest} style={{ fontFamily: BrandFonts.serif.regular, fontSize: size, color }}>
@@ -56,6 +60,9 @@ export function ExploreBroadsheet({
   eras,
   treeId,
   searchPeople,
+  searchTotal,
+  searchPage,
+  onSearchPage,
   searchMoments,
   search,
   onSearch,
@@ -65,6 +72,10 @@ export function ExploreBroadsheet({
   eras: EraCount[];
   treeId: string;
   searchPeople: PersonHit[];
+  /** Every person the query matches, of which searchPeople is one page. */
+  searchTotal: number;
+  searchPage: number;
+  onSearchPage: (update: (page: number) => number) => void;
   searchMoments: HistoricalEvent[];
   search: string;
   onSearch: (value: string) => void;
@@ -224,6 +235,14 @@ export function ExploreBroadsheet({
               Nothing matches — try a broader word.
             </Text>
           )}
+          {searchTotal > 0 && (
+            <RecordText muted style={{ marginTop: 14, marginBottom: 4 }}>
+              {searchTotal.toLocaleString()} {searchTotal === 1 ? 'PERSON' : 'PEOPLE'} · NEWEST FIRST
+              {searchTotal > PEOPLE_PAGE
+                ? ` · SHOWING ${searchPage * PEOPLE_PAGE + 1}–${Math.min((searchPage + 1) * PEOPLE_PAGE, searchTotal)}`
+                : ''}
+            </RecordText>
+          )}
           {searchPeople.map((person, i) => (
             <LedgerRow
               key={person.id}
@@ -238,6 +257,37 @@ export function ExploreBroadsheet({
               </RecordText>
             </LedgerRow>
           ))}
+          {/* Page through time: forward is older, so the controls say so. */}
+          {searchTotal > PEOPLE_PAGE && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'baseline',
+                justifyContent: 'space-between',
+                paddingVertical: 10,
+                borderTopWidth: 1,
+                borderTopColor: C.rule,
+              }}
+            >
+              <Pressable
+                disabled={searchPage === 0}
+                onPress={() => onSearchPage((page) => page - 1)}
+                style={{ opacity: searchPage === 0 ? 0.35 : 1 }}
+              >
+                <RecordText accent>‹ NEWER</RecordText>
+              </Pressable>
+              <RecordText muted>
+                PAGE {searchPage + 1} OF {Math.ceil(searchTotal / PEOPLE_PAGE)}
+              </RecordText>
+              <Pressable
+                disabled={searchPage >= Math.ceil(searchTotal / PEOPLE_PAGE) - 1}
+                onPress={() => onSearchPage((page) => page + 1)}
+                style={{ opacity: searchPage >= Math.ceil(searchTotal / PEOPLE_PAGE) - 1 ? 0.35 : 1 }}
+              >
+                <RecordText accent>OLDER ›</RecordText>
+              </Pressable>
+            </View>
+          )}
           {searchMoments.map((event) => (
             <LedgerRow key={event.id} onPress={() => setDrawerEvent(event.id)}>
               <Serif size={19}>{event.name}</Serif>
