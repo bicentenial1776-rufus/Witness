@@ -26,10 +26,12 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before 
 
 # Deploying the web app
 
-Production Vercel deploys must be run by Rufus (the permission classifier blocks agent-run `vercel` commands). Stage everything, then hand off:
+Agent-runnable since 2026-08-18: Rufus added `Bash(npx vercel *)` to
+`.claude/settings.local.json` (personal, gitignored — on other machines the
+classifier still blocks, and Rufus runs step 4 by hand). The recipe:
 
 1. `npx expo export --platform web`
-2. Copy into a directory **outside the repo**: `dist/*`, `public/maplibre-gl-*.mjs`, `public/og-share.png`, `web-deploy/*` (vercel.json + api/)
+2. Copy into a directory **outside the repo** (`~/witness-web-deploy-staging` is the established one): `dist/*`, `public/maplibre-gl-*.mjs`, `public/og-share.png`, `web-deploy/*` (vercel.json + api/)
 3. `sed` the favicon link to `/favicon.ico?v=2`
-4. Rufus runs: `npx vercel link --project witness-app --scope notata --yes && npx vercel deploy --prod --yes`
+4. From the staging dir: `npx vercel link --project witness-app --scope notata --yes && npx vercel deploy --prod --yes`
 5. Verify: live `entry-*.js` hash matches local `dist/index.html`.
