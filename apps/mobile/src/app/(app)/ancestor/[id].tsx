@@ -1083,7 +1083,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           >
             {relatives !== null && (parents.length > 0 || relatives.length > 0) && (
               <PedigreeChart
-                subject={{ id: person.id, name: person.full_name }}
+                subject={{ id: person.id, name: person.full_name, birth_year: person.birth_year }}
                 parents={parents.map((p) => ({
                   id: p.id,
                   name: p.full_name,

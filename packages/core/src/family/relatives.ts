@@ -32,6 +32,10 @@ export interface RelativeFact {
   living: boolean;
   /** Whether a story (biography) has already been generated for this person. */
   has_story: boolean;
+  /** For an aunt/uncle: the subject's parent whose sibling they are, when
+      that is unambiguous — lets a chart seat them beside their own parent.
+      Null when unknown or ambiguous; absent for siblings. */
+  via_parent_id?: string | null;
   proximity_bucket: ProximityBucket;
   /** Up to three dated-or-placed life events, nearest-in-life first. */
   activities: RelativeActivity[];
@@ -156,21 +160,41 @@ export async function fetchRelativeFacts(
   ].filter((sid) => sid !== individualId);
 
   // Parents' parent-families → their siblings = the subject's aunts/uncles.
+  // Each grand-family remembers WHICH parent it belongs to, so an aunt can
+  // be seated beside her own sibling on a chart ('' marks ambiguous).
   let auntUncleIds: string[] = [];
+  const viaParent = new Map<string, string>();
   if (parentIds.length) {
     const { data: parentFamc } = await supabase
       .from('family_children')
-      .select('family_id')
+      .select('individual_id, family_id')
       .in('individual_id', parentIds);
-    const grandFamilyIds = [...new Set((parentFamc ?? []).map((r) => r.family_id))];
+    const parentsByGrandFamily = new Map<string, string[]>();
+    for (const row of parentFamc ?? []) {
+      const list = parentsByGrandFamily.get(row.family_id) ?? [];
+      list.push(row.individual_id);
+      parentsByGrandFamily.set(row.family_id, list);
+    }
+    const grandFamilyIds = [...parentsByGrandFamily.keys()];
     if (grandFamilyIds.length) {
       const { data: parentSiblingLinks } = await supabase
         .from('family_children')
-        .select('individual_id')
+        .select('individual_id, family_id')
         .in('family_id', grandFamilyIds);
       auntUncleIds = [
         ...new Set((parentSiblingLinks ?? []).map((r) => r.individual_id)),
       ].filter((aid) => !parentIds.includes(aid) && aid !== individualId && !siblingIds.includes(aid));
+      for (const row of parentSiblingLinks ?? []) {
+        const owners = parentsByGrandFamily.get(row.family_id) ?? [];
+        const existing = viaParent.get(row.individual_id);
+        if (owners.length !== 1) {
+          viaParent.set(row.individual_id, '');
+        } else if (existing === undefined) {
+          viaParent.set(row.individual_id, owners[0]!);
+        } else if (existing !== owners[0]) {
+          viaParent.set(row.individual_id, '');
+        }
+      }
     }
   }
 
@@ -294,6 +318,9 @@ export async function fetchRelativeFacts(
       death_year: row.death_year ?? undefined,
       living: row.living,
       has_story: hasStory.has(row.id),
+      ...(siblingIds.includes(row.id)
+        ? {}
+        : { via_parent_id: viaParent.get(row.id) || null }),
       proximity_bucket: pickProximity(
         subjectResidences,
         residencesByPerson.get(row.id) ?? [],

@@ -1,17 +1,19 @@
-// Inline pedigree for the story view (witness-family-context-spec.md §5):
-// subject centered, parents on the inner ring above, siblings arced below,
-// aunts/uncles on the outer ring beside their parent generation. Radial-lite
-// per the spec's locked layout — but drawn with plain positioned Views and
-// trig, NOT react-native-skia: the spec assumed a skia stack this repo
-// doesn't have (Street View lives in Greg's project), skia can't render on
-// the web carrier, and circles-with-initials need no canvas. Zero new
-// dependencies; brand tokens throughout.
+// Inline family chart for the story view (witness-family-context-spec.md §5),
+// redrawn 2026-08-18 as GENERATION BANDS after the radial-lite draft read as
+// abstract (initials-only circles needed a legend to decode). Two bands split
+// by time: the parents' generation above — the couple inside an accent
+// hairline tie, aunts/uncles seated beside THEIR OWN sibling when the record
+// says which side (via_parent_id), unplaced ones at the right — and the
+// subject's generation below, the sibship in birth order with the subject
+// lit. Squared tiles, hairline rules, names readable on every node; plain
+// flexbox, no trig, no canvas, both carriers.
 //
 // Tap a node: has_story navigates to that person's Portrait (where their
 // story lives); no story shows the lightweight fact card below the chart —
-// never a dead node. Read-only by design.
+// never a dead node. The subject is not tappable (you are already here).
 
-import { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { RecordText } from '@/components/record-text';
@@ -38,78 +40,63 @@ const PROXIMITY_PHRASE: Record<string, string> = {
   elsewhere: 'lived far apart',
 };
 
-const SIZE = 300;
-const NODE = 44;
-const CENTER_NODE = 56;
-const MAX_ARC_NODES = 8;
+/** Band caps: enough family to read the shape, never a wall of tiles. */
+const MAX_SIBLINGS = 8;
+const MAX_AUNTS_UNCLES = 8;
 
-function initialsOf(name: string): string {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .map((part) => part[0])
-    .filter((_, i, arr) => i === 0 || i === arr.length - 1)
-    .join('')
-    .toUpperCase();
+/** Show/hide is a device preference, remembered across stories. */
+const CHART_HIDDEN_KEY = 'witness.family-chart-hidden';
+
+function givenName(name: string): string {
+  return name.split(' ').filter(Boolean)[0] ?? name;
 }
 
-/** Positions `count` nodes along an arc (degrees, 0 = east, CCW). */
-function arcPositions(count: number, radius: number, startDeg: number, endDeg: number) {
-  if (count === 0) return [];
-  if (count === 1) {
-    const mid = ((startDeg + endDeg) / 2 / 180) * Math.PI;
-    return [{ x: radius * Math.cos(mid), y: -radius * Math.sin(mid) }];
-  }
-  return Array.from({ length: count }, (_, i) => {
-    const deg = startDeg + ((endDeg - startDeg) * i) / (count - 1);
-    const rad = (deg / 180) * Math.PI;
-    return { x: radius * Math.cos(rad), y: -radius * Math.sin(rad) };
-  });
-}
-
-function Node({
+function Tile({
   person,
-  x,
-  y,
-  size,
+  small,
+  lit,
   onPress,
   theme,
 }: {
   person: ChartPerson;
-  x: number;
-  y: number;
-  size: number;
-  onPress: () => void;
+  small?: boolean;
+  /** The subject's own tile — accent-lit, not tappable. */
+  lit?: boolean;
+  onPress?: () => void;
   theme: ReturnType<typeof useTheme>;
 }) {
+  const accented = lit || person.has_story;
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="button"
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : 'text'}
       accessibilityLabel={`${person.name}, ${person.relationship}`}
       style={{
-        position: 'absolute',
-        left: SIZE / 2 + x - size / 2,
-        top: SIZE / 2 + y - size / 2,
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        borderWidth: person.has_story ? 1.5 : 1,
-        borderColor: person.has_story ? theme.accent : theme.border,
+        borderWidth: lit ? 2 : person.has_story ? 1.5 : 1,
+        borderColor: accented ? theme.accent : theme.border,
         backgroundColor: theme.backgroundElement,
+        paddingVertical: small ? 5 : 7,
+        paddingHorizontal: small ? 7 : 9,
         alignItems: 'center',
-        justifyContent: 'center',
+        gap: 1,
+        maxWidth: 96,
       }}
     >
       <ThemedText
+        numberOfLines={1}
         style={{
           fontFamily: Fonts.serif,
-          fontSize: size > NODE ? 18 : 14,
-          color: person.has_story ? theme.accent : theme.text,
+          fontSize: small ? 13 : 15,
+          lineHeight: small ? 17 : 19,
+          color: accented ? theme.accent : theme.text,
         }}
       >
-        {initialsOf(person.name)}
+        {givenName(person.name)}
       </ThemedText>
+      <RecordText muted style={{ fontSize: 9.5 }}>
+        {person.birth_year ?? '·'}
+      </RecordText>
     </Pressable>
   );
 }
@@ -120,31 +107,27 @@ export function PedigreeChart({
   relatives,
   onOpenPortrait,
 }: {
-  subject: { id: string; name: string };
+  subject: { id: string; name: string; birth_year?: number | null };
   parents: ChartPerson[];
   relatives: RelativeFact[];
   onOpenPortrait: (personId: string) => void;
 }) {
   const theme = useTheme();
   const [factCard, setFactCard] = useState<ChartPerson | null>(null);
+  // null = still reading the preference; render nothing that would jump.
+  const [hidden, setHidden] = useState<boolean | null>(null);
 
-  const siblings = relatives.filter((r) => r.relationship === 'sibling');
-  const auntsUncles = relatives.filter((r) => r.relationship !== 'sibling');
-  const shownSiblings = siblings.slice(0, MAX_ARC_NODES);
-  const shownAuntsUncles = auntsUncles.slice(0, MAX_ARC_NODES);
-  const hiddenCount =
-    siblings.length - shownSiblings.length + (auntsUncles.length - shownAuntsUncles.length);
+  useEffect(() => {
+    AsyncStorage.getItem(CHART_HIDDEN_KEY)
+      .then((value) => setHidden(value === '1'))
+      .catch(() => setHidden(false));
+  }, []);
 
-  // Rings: parents at 100px in the upper arc, siblings at 100px below,
-  // aunts/uncles at 140px across the top, outside the parents.
-  const parentSpread = parents.length > 1 ? 34 : 0;
-  const parentPos = arcPositions(parents.length, 96, 90 + parentSpread, 90 - parentSpread);
-  const siblingPos = arcPositions(shownSiblings.length, 100, 205, 335);
-  const auntUnclePos = arcPositions(shownAuntsUncles.length, 142, 160, 20);
-
-  const tap = (person: ChartPerson) => {
-    if (person.has_story) onOpenPortrait(person.id);
-    else setFactCard(person);
+  const toggleHidden = () => {
+    const next = !hidden;
+    setHidden(next);
+    setFactCard(null);
+    AsyncStorage.setItem(CHART_HIDDEN_KEY, next ? '1' : '0').catch(() => {});
   };
 
   const factOf = (r: RelativeFact): ChartPerson => ({
@@ -158,67 +141,148 @@ export function PedigreeChart({
     proximity_bucket: r.proximity_bucket,
   });
 
+  const tap = (person: ChartPerson) => {
+    if (person.has_story) onOpenPortrait(person.id);
+    else setFactCard(person);
+  };
+
+  const byBirth = (a: { birth_year?: number | null }, b: { birth_year?: number | null }) =>
+    (a.birth_year ?? 9999) - (b.birth_year ?? 9999);
+
+  // The sibship, subject seated among them in birth order.
+  const siblings = relatives.filter((r) => r.relationship === 'sibling');
+  const shownSiblings = siblings.slice(0, MAX_SIBLINGS);
+  const subjectRow: (ChartPerson & { isSubject?: boolean })[] = [
+    ...shownSiblings.map(factOf),
+    {
+      id: subject.id,
+      name: subject.name,
+      relationship: 'this story',
+      birth_year: subject.birth_year ?? null,
+      isSubject: true,
+    },
+  ].sort(byBirth);
+
+  // Aunts/uncles seated beside their own sibling where the record says
+  // which parent that is; unplaced ones close the row.
+  const auntsUncles = relatives.filter((r) => r.relationship !== 'sibling').slice(0, MAX_AUNTS_UNCLES);
+  const sideOf = (parentId: string) =>
+    auntsUncles.filter((r) => r.via_parent_id === parentId).map(factOf).sort(byBirth);
+  const placedIds = new Set(parents.flatMap((p) => sideOf(p.id).map((c) => c.id)));
+  const unplaced = auntsUncles
+    .map(factOf)
+    .filter((c) => !placedIds.has(c.id))
+    .sort(byBirth);
+
+  const leftSide = parents.length > 0 ? sideOf(parents[0].id) : [];
+  const rightSide = [...(parents.length > 1 ? sideOf(parents[1].id) : []), ...unplaced];
+
+  const hiddenCount =
+    siblings.length - shownSiblings.length +
+    (relatives.filter((r) => r.relationship !== 'sibling').length - auntsUncles.length);
+
+  const elderBand = parents.length > 0 || leftSide.length > 0 || rightSide.length > 0;
+
+  if (hidden === null) return null;
+
   return (
-    <View style={{ alignItems: 'center', gap: 12 }}>
-      <View style={{ width: SIZE, height: SIZE }}>
-        {/* Ring guides — faint, structural, hairline. */}
-        {[100, 142].map((r) => (
+    <View style={{ alignSelf: 'stretch', gap: 0, marginBottom: 14 }}>
+      {/* The chart is offerable, not obligatory: a reader here for the words
+          can put the diagram away, and the choice sticks on this device. */}
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          marginBottom: 6,
+        }}
+      >
+        <RecordText eyebrow muted>
+          Family chart
+        </RecordText>
+        <Pressable onPress={toggleHidden} hitSlop={8} accessibilityRole="button">
+          <RecordText eyebrow accent>
+            {hidden ? 'Show ›' : 'Hide ›'}
+          </RecordText>
+        </Pressable>
+      </View>
+
+      {!hidden && (
+        <>
+      {/* ELDER BAND — the parents' generation. */}
+      {elderBand && (
+        <>
+          <RecordText eyebrow muted style={{ marginBottom: 6 }}>
+            {parents.length === 0
+              ? 'Aunts & uncles'
+              : leftSide.length + rightSide.length > 0
+                ? 'Parents · aunts & uncles'
+                : 'Parents'}
+          </RecordText>
           <View
-            key={r}
-            pointerEvents="none"
             style={{
-              position: 'absolute',
-              left: SIZE / 2 - r,
-              top: SIZE / 2 - r,
-              width: r * 2,
-              height: r * 2,
-              borderRadius: r,
-              borderWidth: 1,
-              borderColor: theme.border,
-              opacity: 0.45,
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              alignItems: 'flex-end',
+              justifyContent: 'center',
+              gap: 6,
             }}
-          />
-        ))}
+          >
+            {leftSide.map((p) => (
+              <Tile key={p.id} person={p} small onPress={() => tap(p)} theme={theme} />
+            ))}
+            {parents.length > 0 && (
+              // The couple inside one accent hairline — the marriage tie.
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: 6,
+                  padding: 5,
+                  borderWidth: 1,
+                  borderColor: theme.accent,
+                }}
+              >
+                {parents.map((p) => (
+                  <Tile key={p.id} person={p} onPress={() => tap(p)} theme={theme} />
+                ))}
+              </View>
+            )}
+            {rightSide.map((p) => (
+              <Tile key={p.id} person={p} small onPress={() => tap(p)} theme={theme} />
+            ))}
+          </View>
 
-        {/* Subject — center, not tappable (you are already here). */}
-        <View
-          style={{
-            position: 'absolute',
-            left: SIZE / 2 - CENTER_NODE / 2,
-            top: SIZE / 2 - CENTER_NODE / 2,
-            width: CENTER_NODE,
-            height: CENTER_NODE,
-            borderRadius: CENTER_NODE / 2,
-            borderWidth: 2,
-            borderColor: theme.accent,
-            backgroundColor: theme.backgroundElement,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <ThemedText style={{ fontFamily: Fonts.serif, fontSize: 20, color: theme.accent }}>
-            {initialsOf(subject.name)}
-          </ThemedText>
-        </View>
+          {/* The descent line, parents to children. */}
+          <View style={{ alignItems: 'center' }}>
+            <View style={{ width: 1, height: 16, backgroundColor: theme.border }} />
+          </View>
+        </>
+      )}
 
-        {parents.map((p, i) => (
-          <Node key={p.id} person={p} x={parentPos[i].x} y={parentPos[i].y} size={NODE} onPress={() => tap(p)} theme={theme} />
-        ))}
-        {shownSiblings.map((r, i) => (
-          <Node key={r.person_id} person={factOf(r)} x={siblingPos[i].x} y={siblingPos[i].y} size={NODE} onPress={() => tap(factOf(r))} theme={theme} />
-        ))}
-        {shownAuntsUncles.map((r, i) => (
-          <Node key={r.person_id} person={factOf(r)} x={auntUnclePos[i].x} y={auntUnclePos[i].y} size={38} onPress={() => tap(factOf(r))} theme={theme} />
-        ))}
+      {/* SIBSHIP BAND — the subject's generation, in birth order. */}
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          gap: 6,
+        }}
+      >
+        {subjectRow.map((p) =>
+          p.isSubject ? (
+            <Tile key={p.id} person={p} lit theme={theme} />
+          ) : (
+            <Tile key={p.id} person={p} onPress={() => tap(p)} theme={theme} />
+          ),
+        )}
       </View>
-
-      <View style={{ flexDirection: 'row', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
-        <ThemedText type="small">◉ {subject.name.split(' ')[0]}</ThemedText>
-        {parents.length > 0 && <ThemedText type="small">↑ parents</ThemedText>}
-        {shownSiblings.length > 0 && <ThemedText type="small">↓ siblings</ThemedText>}
-        {shownAuntsUncles.length > 0 && <ThemedText type="small">⌒ aunts & uncles</ThemedText>}
-        {hiddenCount > 0 && <ThemedText type="small">+{hiddenCount} more</ThemedText>}
-      </View>
+      {(shownSiblings.length > 0 || hiddenCount > 0) && (
+        <RecordText eyebrow muted style={{ marginTop: 6, alignSelf: 'center' }}>
+          {shownSiblings.length > 0 ? `${givenName(subject.name)} & siblings · birth order` : ''}
+          {hiddenCount > 0 ? `${shownSiblings.length > 0 ? ' · ' : ''}+${hiddenCount} more` : ''}
+        </RecordText>
+      )}
 
       {factCard && (
         <View
@@ -229,6 +293,7 @@ export function PedigreeChart({
             backgroundColor: theme.backgroundElement,
             padding: 12,
             gap: 4,
+            marginTop: 10,
           }}
         >
           <ThemedText style={{ fontFamily: Fonts.serif, fontSize: 16 }}>{factCard.name}</ThemedText>
@@ -261,6 +326,8 @@ export function PedigreeChart({
             </ThemedText>
           </View>
         </View>
+      )}
+        </>
       )}
     </View>
   );
