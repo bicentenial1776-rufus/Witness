@@ -1,7 +1,7 @@
 {
   "comment": "Witness Field Guide manifest \u2014 read by the /field-guide skill. lastSyncedCommit is the apps/mobile commit whose UI this guide's copy describes; the skill diffs it against HEAD to find screens that changed.",
   "baseUrl": "https://witnesslives.com/guide/",
-  "lastSyncedCommit": "6db0c17",
+  "lastSyncedCommit": "1be24c4",
   "pages": [
     {
       "file": "concepts.html",
@@ -117,6 +117,7 @@
       ],
       "appSources": [
         "apps/mobile/src/app/(app)/(tabs)/explore.tsx",
+        "apps/mobile/src/components/broadsheet/explore-broadsheet.tsx",
         "apps/mobile/src/app/(app)/query/[eventId].tsx"
       ],
       "shots": [
@@ -124,6 +125,11 @@
           "file": "shots/explore.png",
           "status": "placed",
           "shows": "Explore tab: search box + From your family's history shelf (Library card a bonus)"
+        },
+        {
+          "file": "shots/explore-search.png",
+          "status": "pending",
+          "stage": "People search on a common name ('Henry'): count line (47 people — newest first, showing 26–50) + ‹ Newer / Older › pager under the list"
         },
         {
           "file": "shots/query-results.png",
@@ -177,13 +183,20 @@
         "nara candidates"
       ],
       "appSources": [
-        "apps/mobile/src/app/(app)/ancestor/[id].tsx"
+        "apps/mobile/src/app/(app)/ancestor/[id].tsx",
+        "apps/mobile/src/components/pedigree-chart.tsx",
+        "packages/core/src/family/relatives.ts"
       ],
       "shots": [
         {
           "file": "shots/person.png",
           "status": "pending",
           "stage": "Direct ancestor reached from the issue: NO. band, compass in record line, running head"
+        },
+        {
+          "file": "shots/person-chart.png",
+          "status": "pending",
+          "stage": "Story panel open on a well-documented ancestor: FAMILY CHART header with HIDE ›, both generation bands, amber marriage tie, subject lit in the sibship"
         }
       ]
     },
