@@ -3,9 +3,11 @@ import * as Notifications from 'expo-notifications';
 import type { PurchasesEntitlementInfo } from 'react-native-purchases';
 
 /**
- * Backstop for the "Day 5 — we'll remind you before your trial ends" promise
- * on the paywall (witness-onboarding-screens.md, Screen 8: a 7-day trial,
- * reminder 2 days before the Day 7 charge). App Store Connect's trial
+ * Backstop for the "we'll remind you before your trial ends" promise on the
+ * paywall (a 1-month trial as of 2026-08-17; reminder 2 days before the
+ * conversion charge — the lead is relative to the entitlement's real
+ * expiration date, so trial-length changes need only copy edits here).
+ * App Store Connect's trial
  * mechanics and any Superwall push campaign live outside this codebase and
  * aren't guaranteed to fire on this exact schedule, so Witness also arms its
  * own local notification the moment a trial starts — same pattern as the
@@ -76,7 +78,7 @@ async function syncTrialReminderNow(
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Your Witness trial ends in 2 days',
-      body: 'Your subscription starts on Day 7 unless you cancel before then. Manage it anytime in Settings.',
+      body: 'Your subscription starts in 2 days unless you cancel before then. Manage it anytime in Settings.',
       data: { url: TRIAL_REMINDER_URL },
     },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireDate },

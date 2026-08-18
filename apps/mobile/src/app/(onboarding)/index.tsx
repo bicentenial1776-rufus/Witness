@@ -302,7 +302,7 @@ function Screen6() {
           invest an email and a story's worth of attention before knowing
           the terms (ux audit batch 4). */}
       <Text style={[styles.micro, { color: PARCHMENT_MUTED }]}>
-        Witness is $19.99 a year after a free 7-day trial — that&rsquo;s the only price.
+        Witness is $19.99 a year after a free 1-month trial — that&rsquo;s the only price.
       </Text>
     </>
   );

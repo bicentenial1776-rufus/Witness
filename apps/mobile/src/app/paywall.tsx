@@ -26,10 +26,13 @@ const UNLOCKED = [
 // meant to feel like one continuous moment, not a separate swipe the reader
 // can skip past — so the trial timeline lives directly on the paywall
 // itself, not behind another screen.
+// Trial went 7 days → 1 month on 2026-08-17 (ASC intro offer). Apple's
+// "1 month" is a calendar month, so the copy speaks in months and days-left
+// rather than day numbers — "Day 30" would overpromise in February.
 const TIMELINE = [
   { day: 'TODAY', body: 'Full access, nothing charged' },
-  { day: 'DAY 5', body: 'We’ll remind you before your trial ends' },
-  { day: 'DAY 7', body: 'Your subscription starts, unless you’ve canceled' },
+  { day: '2 DAYS LEFT', body: 'We’ll remind you before your trial ends' },
+  { day: 'ONE MONTH', body: 'Your subscription starts, unless you’ve canceled' },
 ] as const;
 
 export default function Paywall() {
@@ -101,7 +104,7 @@ export default function Paywall() {
             GET FULL ACCESS
           </ThemedText>
           <ThemedText style={[styles.headline, { color: theme.text }]}>
-            Try Witness free for 7 days.
+            Try Witness free for a month.
           </ThemedText>
 
           <View style={{ gap: 14 }}>
@@ -147,14 +150,14 @@ export default function Paywall() {
 
           <View style={[styles.priceCard, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
             <ThemedText type="subtitle">{pkg?.product.priceString ?? '$19.99'} / year</ThemedText>
-            <ThemedText type="small">Charged on Day 7 unless you cancel before then.</ThemedText>
+            <ThemedText type="small">Charged after one month unless you cancel before then.</ThemedText>
           </View>
         </ScrollView>
 
         <View style={styles.footer}>
           <Button title="Start Free Trial" busy={isPurchasing} onPress={handlePurchase} />
           <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-            Cancel anytime in Settings. No charge until Day 7.
+            Cancel anytime in Settings. Nothing is charged during the trial.
           </ThemedText>
           <ThemedText
             type="link"
