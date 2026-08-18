@@ -43,6 +43,7 @@ Deno.serve(async (req) => {
   // excludes them by doctrine).
   const BUCKETS = new Set(['same_town', 'same_county', 'within_100mi', 'elsewhere', 'unknown']);
   const RELATIONSHIPS = new Set(['sibling', 'aunt', 'uncle']);
+  const ACTIVITY_KINDS = new Set(['marriage', 'death', 'immigration', 'naturalization']);
   const relatives = (Array.isArray(relativesInput) ? relativesInput : [])
     .filter(
       (r): r is Record<string, unknown> =>
@@ -60,6 +61,26 @@ Deno.serve(async (req) => {
       proximity_bucket: BUCKETS.has(r.proximity_bucket as string)
         ? (r.proximity_bucket as string)
         : 'unknown',
+      ...(Array.isArray(r.activities)
+        ? {
+            activities: (r.activities as unknown[])
+              .filter(
+                (a): a is Record<string, unknown> =>
+                  !!a &&
+                  typeof a === 'object' &&
+                  ACTIVITY_KINDS.has((a as Record<string, unknown>).kind as string),
+              )
+              .slice(0, 4)
+              .map((a) => ({
+                kind: a.kind as string,
+                year: typeof a.year === 'number' ? a.year : null,
+                place: typeof a.place === 'string' ? a.place.slice(0, 160) : null,
+                proximity_bucket: BUCKETS.has(a.proximity_bucket as string)
+                  ? (a.proximity_bucket as string)
+                  : 'unknown',
+              })),
+          }
+        : {}),
     }));
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -198,7 +219,9 @@ Deno.serve(async (req) => {
         '- proximity_bucket meanings: "same_town"/"same_county" = lived close by during overlapping years; "within_100mi" = lived in the same general region; "elsewhere" = lived far apart; "unknown" = no location data, mention the relationship only, not distance.',
         '- If a relative has no birth/death years and no proximity data, it\'s fine to omit them from the narrative entirely — sparse facts don\'t need forced inclusion.',
         '- Prefer specific, human phrasing over relationship labels: "her younger brother Thomas" rather than "sibling Thomas Howe (b. 1847)."',
+        '- Some relatives carry an "activities" list — documented moments in their lives (a marriage, a death, an arrival in the country) with year, place, and how near that place was to the subject\'s own whereabouts around that time. These are the family happenings worth weaving in where they touch the subject\'s life ("the year his brother married two towns over"). The same rules apply: mention nearness only when the activity\'s proximity_bucket is known, and let uninteresting ones go unmentioned.',
         '- Do not fabricate occupations, relationships, or events involving relatives that aren\'t in the provided data.',
+        '- Never conjecture causes behind events, even hedged: that several deaths cluster in one year and place is a fact worth noting; naming a probable illness or reason is invention.',
       ].join('\n')
     : '';
 

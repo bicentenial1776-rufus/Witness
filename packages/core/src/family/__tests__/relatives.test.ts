@@ -72,6 +72,7 @@ describe('relativesBrief', () => {
     living: false,
     has_story: false,
     proximity_bucket: 'unknown',
+    activities: [],
     ...over,
   });
 
@@ -93,5 +94,37 @@ describe('relativesBrief', () => {
   it('caps the brief at 24 relatives', () => {
     const many = Array.from({ length: 40 }, (_, i) => fact({ name: `R${i}` }));
     expect(relativesBrief(many)).toHaveLength(24);
+  });
+});
+
+describe('relativesBrief activities', () => {
+  it('carries activities when present, omits the key when empty', () => {
+    const withActivity = relativesBrief([
+      {
+        person_id: 'a',
+        name: 'Thomas Howe',
+        relationship: 'sibling',
+        living: false,
+        has_story: false,
+        proximity_bucket: 'same_county',
+        activities: [
+          { kind: 'marriage', year: 1869, place: 'Wales, Massachusetts', proximity_bucket: 'same_county' },
+        ],
+      },
+    ]);
+    expect((withActivity[0] as { activities?: unknown[] }).activities).toHaveLength(1);
+
+    const without = relativesBrief([
+      {
+        person_id: 'b',
+        name: 'Sarah Howe',
+        relationship: 'sibling',
+        living: false,
+        has_story: false,
+        proximity_bucket: 'unknown',
+        activities: [],
+      },
+    ]);
+    expect('activities' in (without[0] as object)).toBe(false);
   });
 });

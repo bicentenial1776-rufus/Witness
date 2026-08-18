@@ -9,6 +9,19 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type ProximityBucket = 'same_town' | 'same_county' | 'within_100mi' | 'elsewhere' | 'unknown';
 
+/**
+ * A documented event in a relative's life — the raw material of "nearby
+ * family activities" in the story (Rufus, 2026-08-15: the brother marrying
+ * two towns over belongs in the narrative). proximity_bucket relates the
+ * EVENT's place to the subject's own residences around that year.
+ */
+export interface RelativeActivity {
+  kind: 'marriage' | 'death' | 'immigration' | 'naturalization';
+  year: number | null;
+  place: string | null;
+  proximity_bucket: ProximityBucket;
+}
+
 export interface RelativeFact {
   person_id: string;
   name: string;
@@ -20,6 +33,8 @@ export interface RelativeFact {
   /** Whether a story (biography) has already been generated for this person. */
   has_story: boolean;
   proximity_bucket: ProximityBucket;
+  /** Up to three dated-or-placed life events, nearest-in-life first. */
+  activities: RelativeActivity[];
 }
 
 /** A dated, geocoded residence — the raw material of a proximity claim. */
@@ -163,23 +178,37 @@ export async function fetchRelativeFacts(
   if (relativeIds.length === 0) return [];
 
   const allIds = [individualId, ...relativeIds];
-  const [{ data: rows }, { data: stories }, { data: residenceRows }] = await Promise.all([
-    supabase
-      .from('individuals')
-      .select('id, full_name, birth_year, death_year, living, sex')
-      .in('id', relativeIds)
-      .returns<IndividualRow[]>(),
-    supabase
-      .from('enrichment_cache')
-      .select('individual_id')
-      .eq('enrichment_type', 'biography')
-      .in('individual_id', relativeIds),
-    supabase
-      .from('individual_events')
-      .select('individual_id, date_year, places(id, latitude, longitude)')
-      .eq('event_type', 'residence')
-      .in('individual_id', allIds),
-  ]);
+  const [{ data: rows }, { data: stories }, { data: residenceRows }, { data: activityRows }, { data: marriageRows }] =
+    await Promise.all([
+      supabase
+        .from('individuals')
+        .select('id, full_name, birth_year, death_year, living, sex')
+        .in('id', relativeIds)
+        .returns<IndividualRow[]>(),
+      supabase
+        .from('enrichment_cache')
+        .select('individual_id')
+        .eq('enrichment_type', 'biography')
+        .in('individual_id', relativeIds),
+      supabase
+        .from('individual_events')
+        .select('individual_id, date_year, places(id, latitude, longitude)')
+        .eq('event_type', 'residence')
+        .in('individual_id', allIds),
+      // The relatives' own documented moments — deaths and migrations here,
+      // marriages from the families table below.
+      supabase
+        .from('individual_events')
+        .select('individual_id, event_type, date_year, places(id, raw, latitude, longitude)')
+        .in('event_type', ['death', 'immigration', 'naturalization'])
+        .in('individual_id', relativeIds),
+      supabase
+        .from('families')
+        .select('husband_id, wife_id, marriage_date_year, marriage_place:places(id, raw, latitude, longitude)')
+        .or(
+          `husband_id.in.(${relativeIds.join(',')}),wife_id.in.(${relativeIds.join(',')})`,
+        ),
+    ]);
 
   const hasStory = new Set((stories ?? []).map((s) => s.individual_id));
   const residencesByPerson = new Map<string, ResidencePoint[]>();
@@ -200,6 +229,57 @@ export async function fetchRelativeFacts(
   }
   const subjectResidences = residencesByPerson.get(individualId) ?? [];
 
+  // Each relative's documented moments, with the event's own place related
+  // to where the SUBJECT was living around that year.
+  interface EventPlace {
+    id: string;
+    raw: string | null;
+    latitude: number | null;
+    longitude: number | null;
+  }
+  const activityFor = (
+    kind: RelativeActivity['kind'],
+    year: number | null,
+    place: EventPlace | null,
+  ): RelativeActivity | null => {
+    if (year === null && !place?.raw) return null;
+    const proximity =
+      place?.latitude != null && place?.longitude != null
+        ? pickProximity(subjectResidences, [
+            { year, latitude: place.latitude, longitude: place.longitude, placeId: place.id },
+          ])
+        : 'unknown';
+    return { kind, year, place: place?.raw ?? null, proximity_bucket: proximity };
+  };
+
+  const activitiesByPerson = new Map<string, RelativeActivity[]>();
+  const pushActivity = (personId: string, activity: RelativeActivity | null) => {
+    if (!activity) return;
+    const list = activitiesByPerson.get(personId) ?? [];
+    list.push(activity);
+    activitiesByPerson.set(personId, list);
+  };
+  for (const row of (marriageRows ?? []) as unknown as {
+    husband_id: string | null;
+    wife_id: string | null;
+    marriage_date_year: number | null;
+    marriage_place: EventPlace | null;
+  }[]) {
+    for (const spouse of [row.husband_id, row.wife_id]) {
+      if (spouse && relativeIds.includes(spouse)) {
+        pushActivity(spouse, activityFor('marriage', row.marriage_date_year, row.marriage_place));
+      }
+    }
+  }
+  for (const row of (activityRows ?? []) as unknown as {
+    individual_id: string;
+    event_type: 'death' | 'immigration' | 'naturalization';
+    date_year: number | null;
+    places: EventPlace | null;
+  }[]) {
+    pushActivity(row.individual_id, activityFor(row.event_type, row.date_year, row.places));
+  }
+
   const relationshipOf = (row: IndividualRow): RelativeFact['relationship'] => {
     if (siblingIds.includes(row.id)) return 'sibling';
     return row.sex === 'F' ? 'aunt' : 'uncle';
@@ -218,6 +298,9 @@ export async function fetchRelativeFacts(
         subjectResidences,
         residencesByPerson.get(row.id) ?? [],
       ),
+      activities: (activitiesByPerson.get(row.id) ?? [])
+        .sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999))
+        .slice(0, 3),
     }))
     .sort((a, b) => {
       if (a.relationship !== b.relationship) {
@@ -242,5 +325,6 @@ export function relativesBrief(facts: RelativeFact[]): object[] {
       birth_year: f.birth_year ?? null,
       death_year: f.death_year ?? null,
       proximity_bucket: f.proximity_bucket,
+      ...(f.activities.length ? { activities: f.activities } : {}),
     }));
 }
