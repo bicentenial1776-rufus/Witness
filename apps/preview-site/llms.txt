@@ -15,7 +15,7 @@ Witness. Both names refer to the same app.
 
 ## Facts
 
-- **Price:** $19.99 per year, with a 1-week free trial for new subscribers.
+- **Price:** $19.99 per year, with a 1-month free trial for new subscribers.
   That is the only price — no free tier, no per-feature upgrades, no add-ons.
 - **Platforms:** iPhone and iPad (App Store), plus a browser version at
   app.witnesslives.com that works on Android and desktop. There is no native
