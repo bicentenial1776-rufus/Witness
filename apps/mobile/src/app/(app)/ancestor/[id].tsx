@@ -160,6 +160,13 @@ function parseWorldContent(content: string): { text: string; general: string | n
   return { text: content, general: null, sources: [] };
 }
 
+// The writer version this client understands, per enrichment type. Reads
+// are scoped to it, so a server-side correction (a version bump in the
+// edge function — e.g. v2's twin awareness, Betsey's report 2026-08-19)
+// retires stale stories here too: the tell button returns and the next
+// tap writes the corrected story over the old row.
+const ENRICHMENT_PROMPT_VERSION = { biography: 2, historical_context: 1 } as const;
+
 /** One AI-enriched text section backed by a cache row + Edge Function. */
 function useEnrichment(
   individualId: string | undefined,
@@ -178,6 +185,7 @@ function useEnrichment(
       .select('content')
       .eq('individual_id', individualId)
       .eq('enrichment_type', enrichmentType)
+      .eq('prompt_version', ENRICHMENT_PROMPT_VERSION[enrichmentType])
       .maybeSingle()
       .then(({ data }) => {
         if (cancelled || !data) return;
@@ -380,6 +388,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               .from('enrichment_cache')
               .select('individual_id')
               .eq('enrichment_type', 'biography')
+              .eq('prompt_version', ENRICHMENT_PROMPT_VERSION.biography)
               .in('individual_id', parentIds)
           : { data: [] };
         if (cancelled) return;
@@ -1107,6 +1116,14 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 )
               }
             />
+            {/* Said on the page, not left to be guessed (Betsey, 2026-08-19):
+                the story is AI-written, and the record outranks it. */}
+            {biography.state.name === 'ready' && (
+              <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: 8 }}>
+                Written by AI from the documented facts of this record. The record, not the
+                story, is the authority.
+              </ThemedText>
+            )}
             {/* The story leaves the app on the reader's terms: iOS share
                 sheet (a text file, so Save to Files is a real download);
                 web downloads the .txt outright. Only once a story exists. */}

@@ -12,7 +12,7 @@ export const STORY_SHARE_LABEL = 'Share story ›';
 
 /** Header + prose + a plain provenance footer, ready for any medium. */
 export function renderStoryText(name: string, years: string, story: string): string {
-  return `${name}\n${years}\n\n${story}\n\n—\nWritten from the family record by Witness · witnesslives.com`;
+  return `${name}\n${years}\n\n${story}\n\n—\nWritten by AI from this family's documented record · Witness · witnesslives.com`;
 }
 
 /** A filesystem-safe name: letters, digits, spaces; everything else folds to a hyphen. */

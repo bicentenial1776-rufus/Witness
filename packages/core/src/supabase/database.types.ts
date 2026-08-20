@@ -195,6 +195,7 @@ export type Database = {
           input_tokens: number | null
           model: string
           output_tokens: number | null
+          prompt_version: number
           tree_id: string
           user_id: string
         }
@@ -207,6 +208,7 @@ export type Database = {
           input_tokens?: number | null
           model: string
           output_tokens?: number | null
+          prompt_version?: number
           tree_id: string
           user_id: string
         }
@@ -219,6 +221,7 @@ export type Database = {
           input_tokens?: number | null
           model?: string
           output_tokens?: number | null
+          prompt_version?: number
           tree_id?: string
           user_id?: string
         }
