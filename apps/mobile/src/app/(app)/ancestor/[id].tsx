@@ -33,6 +33,7 @@ import { getPersonCuriosities, type Curiosity } from '@/lib/curiosities-cache';
 import { getEventLibrary } from '@/lib/event-library';
 import { getFamilyStages } from '@/lib/family-stage-cache';
 import { advanceTrail, dismissTrail, nextTrailPiece } from '@/lib/issue-trail';
+import { VISITED_MARK, fetchVisitedSet, recordVisit } from '@/lib/visits';
 import { createAncestorShareLink } from '@/lib/share-links';
 import {
   getLineageTierMap,
@@ -471,6 +472,9 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // The reader's own note (Betsey's box) — lifted here so the story
   // export can carry it, labeled, alongside the AI prose.
   const [ancestorNote, setAncestorNote] = useState('');
+  // The read-marks for the family register: which relatives the reader
+  // has already been to (Betsey's star, 2026-08-19).
+  const [visitedIds, setVisitedIds] = useState<Set<string>>(new Set());
   const [tier, setTier] = useState<LineageTier | undefined>(undefined);
   const [providerLink, setProviderLink] = useState<ProviderLink | null>(null);
   // Story / Their World open in place — one panel at a time, the family
@@ -537,6 +541,33 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // tree, shared with the Family Stage screen). Best-effort: on failure the
   // link simply stays hidden — a hidden door beats a door into the wrong
   // family.
+  // Being here is the visit — recorded once per arrival, fire-and-forget
+  // (Betsey's star, 2026-08-19).
+  useEffect(() => {
+    if (person?.id && person.tree_id) recordVisit(person.id, person.tree_id);
+  }, [person?.id, person?.tree_id]);
+
+  // Which register rows earn the star. Self is excluded — you are not a
+  // place you visit.
+  useEffect(() => {
+    const ids = [
+      ...parents.map((p) => p.id),
+      ...siblings.map((p) => p.id),
+      ...marriages.flatMap((m) => m.children.map((c) => c.id)),
+    ].filter((rid) => rid !== person?.id);
+    if (!ids.length) {
+      setVisitedIds(new Set());
+      return;
+    }
+    let cancelled = false;
+    void fetchVisitedSet([...new Set(ids)]).then((set) => {
+      if (!cancelled) setVisitedIds(set);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [parents, siblings, marriages, person?.id]);
+
   useEffect(() => {
     if (!person) return;
     let cancelled = false;
@@ -886,7 +917,15 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // One register row: sex-inked serif name (tappable onward) + mono years.
   // Self is highlighted and inert (you are already here); a life lost young
   // greys out and carries a floor-age (`~` = not-a-fact, per the rules).
-  function RegisterRow({ record, isSelf = false }: { record: RegisterPerson; isSelf?: boolean }) {
+  function RegisterRow({
+    record,
+    isSelf = false,
+    visited = false,
+  }: {
+    record: RegisterPerson;
+    isSelf?: boolean;
+    visited?: boolean;
+  }) {
     const years = `${record.birth_year ?? '?'}–${record.living ? '' : (record.death_year ?? '?')}`;
     const lostYoung =
       record.birth_year != null &&
@@ -925,6 +964,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
         >
           {years}
           {age != null ? `  ~${age}` : ''}
+          {visited && !isSelf ? `  ${VISITED_MARK}` : ''}
         </Text>
       </View>
     );
@@ -1338,7 +1378,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               <View style={{ paddingTop: 14, paddingBottom: 4 }}>
                 <Text style={groupLabelStyle}>Parents</Text>
                 {parents.map((parent) => (
-                  <RegisterRow key={parent.id} record={parent} />
+                  <RegisterRow key={parent.id} record={parent} visited={visitedIds.has(parent.id)} />
                 ))}
               </View>
             )}
@@ -1353,7 +1393,12 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               >
                 <Text style={groupLabelStyle}>Brothers &amp; sisters</Text>
                 {siblings.map((sibling) => (
-                  <RegisterRow key={sibling.id} record={sibling} isSelf={sibling.id === person.id} />
+                  <RegisterRow
+                    key={sibling.id}
+                    record={sibling}
+                    isSelf={sibling.id === person.id}
+                    visited={visitedIds.has(sibling.id)}
+                  />
                 ))}
               </View>
             )}
@@ -1384,7 +1429,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                     <Text style={groupLabelStyle}>{label}</Text>
                   )}
                   {marriage.children.map((child) => (
-                    <RegisterRow key={child.id} record={child} />
+                    <RegisterRow key={child.id} record={child} visited={visitedIds.has(child.id)} />
                   ))}
                 </View>
               );

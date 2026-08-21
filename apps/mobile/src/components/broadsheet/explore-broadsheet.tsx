@@ -6,6 +6,7 @@ import type { GeographyIndex } from '@witness/core/query';
 import type { HistoricalEvent, ShelfEntry } from '@witness/core/history';
 
 import { RecordText } from '@/components/record-text';
+import { VISITED_MARK } from '@/lib/visits';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
 
 import { DataBar, LedgerRow, MarginPanel } from './ledger';
@@ -61,6 +62,7 @@ export function ExploreBroadsheet({
   treeId,
   searchPeople,
   searchTotal,
+  visitedIds,
   searchPage,
   onSearchPage,
   searchMoments,
@@ -74,6 +76,8 @@ export function ExploreBroadsheet({
   searchPeople: PersonHit[];
   /** Every person the query matches, of which searchPeople is one page. */
   searchTotal: number;
+  /** Betsey's star (2026-08-19): results the reader has already been to. */
+  visitedIds: Set<string>;
   searchPage: number;
   onSearchPage: (update: (page: number) => number) => void;
   searchMoments: HistoricalEvent[];
@@ -254,6 +258,7 @@ export function ExploreBroadsheet({
               <RecordText muted>
                 {person.birth_year ?? '?'} – {person.death_year ?? '?'}
                 {person.place ? `  ·  ${person.place}` : ''}
+                {visitedIds.has(person.id) ? `  ${VISITED_MARK}` : ''}
               </RecordText>
             </LedgerRow>
           ))}

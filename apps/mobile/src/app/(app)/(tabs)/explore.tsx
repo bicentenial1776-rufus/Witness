@@ -14,6 +14,7 @@ import { type GeographyIndex } from '@witness/core/query';
 import { useBroadsheet } from '@/components/broadsheet';
 import { ExploreBroadsheet, PEOPLE_PAGE, type EraCount } from '@/components/broadsheet/explore-broadsheet';
 import { getGeographyIndex } from '@/lib/geography-cache';
+import { VISITED_MARK, fetchVisitedSet } from '@/lib/visits';
 
 import { Card } from '@/components/card';
 import { TextField } from '@/components/text-field';
@@ -69,6 +70,22 @@ export default function ExploreTab() {
   const [shelfAttempt, setShelfAttempt] = useState(0);
   const [search, setSearch] = useState('');
   const [people, setPeople] = useState<PersonHit[]>([]);
+  // Betsey's star (2026-08-19): which of these results the reader has
+  // already been to. Owned here so both explore variants share one fetch.
+  const [visitedIds, setVisitedIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!people.length) {
+      setVisitedIds(new Set());
+      return;
+    }
+    let cancelled = false;
+    void fetchVisitedSet(people.map((p) => p.id)).then((set) => {
+      if (!cancelled) setVisitedIds(set);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [people]);
   const [peopleTotal, setPeopleTotal] = useState(0);
   const [peoplePage, setPeoplePage] = useState(0);
   const broadsheet = useBroadsheet();
@@ -200,6 +217,7 @@ export default function ExploreTab() {
         eras={eras}
         treeId={activeTree.id}
         searchPeople={people}
+        visitedIds={visitedIds}
         searchTotal={peopleTotal}
         searchPage={peoplePage}
         onSearchPage={setPeoplePage}
@@ -318,6 +336,7 @@ export default function ExploreTab() {
                     {person.birth_year ?? '?'}–{person.living ? '' : (person.death_year ?? '?')}
                     {person.living ? ' · living' : ''}
                     {person.place ? ` · ${person.place}` : ''}
+                    {visitedIds.has(person.id) ? `  ${VISITED_MARK}` : ''}
                   </ThemedText>
                 </Card>
               ))}

@@ -24,6 +24,7 @@ import { LineageMark } from '@/components/lineage-mark';
 import { RecordText } from '@/components/record-text';
 import { BrandFonts, Letterpress } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
+import { VISITED_MARK, fetchVisitedSet } from '@/lib/visits';
 import { getFamilyStages } from '@/lib/family-stage-cache';
 import { getParentageMap } from '@/lib/parentage';
 import { getLineageTierMap, type LineageTier } from '@/lib/relationship-cache';
@@ -217,6 +218,22 @@ export default function FamilyStageScreen() {
   }, [stage?.key]);
 
   // Briefs for this household's members, fetched when the sheet opens.
+  // Betsey's star (2026-08-19): group-sheet members already visited.
+  const [visitedIds, setVisitedIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!people.length) {
+      setVisitedIds(new Set());
+      return;
+    }
+    let cancelled = false;
+    void fetchVisitedSet(people.map((p) => p.id)).then((set) => {
+      if (!cancelled) setVisitedIds(set);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [people]);
+
   useEffect(() => {
     if (sheet !== 'briefs' || !stage) return;
     let cancelled = false;
@@ -831,6 +848,7 @@ export default function FamilyStageScreen() {
                         {p.n}
                       </Text>
                       <LineageMark tier={tiers.get(p.id)} size={11} color={L.deepAmber} />
+                      {visitedIds.has(p.id) && <Text style={mono(9, L.muted)}>{VISITED_MARK}</Text>}
                     </View>
                     <Text style={mono(9, L.muted)}>
                       {p.b}–{p.living ? '' : (p.d ?? '?')} · {p.role.toUpperCase()}

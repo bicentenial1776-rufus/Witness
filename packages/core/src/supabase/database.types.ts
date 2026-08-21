@@ -185,6 +185,48 @@ export type Database = {
           },
         ]
       }
+      ancestor_visits: {
+        Row: {
+          first_visited_at: string
+          id: string
+          individual_id: string
+          last_visited_at: string
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          first_visited_at?: string
+          id?: string
+          individual_id: string
+          last_visited_at?: string
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          first_visited_at?: string
+          id?: string
+          individual_id?: string
+          last_visited_at?: string
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ancestor_visits_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ancestor_visits_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ancestor_notes: {
         Row: {
           content: string
