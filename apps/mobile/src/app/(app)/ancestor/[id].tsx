@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { getRelationship } from '@witness/core/family';
@@ -16,6 +16,7 @@ import {
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
+import { TextField } from '@/components/text-field';
 import { LineageMark } from '@/components/lineage-mark';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
 import { ThemedText } from '@/components/themed-text';
@@ -254,6 +255,129 @@ function EnrichmentBody({
   );
 }
 
+/**
+ * Betsey's box (her email, 2026-08-19): "just a box below to add what I
+ * have documented or just heard from family lore." One editable note per
+ * ancestor per user, kept with the ANCESTOR — stories are regenerable
+ * derivatives and retire wholesale on a writer version bump; the note
+ * survives every retelling. Deliberately never fed to the story writer
+ * (decided 2026-08-20): the story is the record's voice, this is theirs.
+ * Autosaves after a typing pause and on blur; empty clears the row.
+ */
+function AncestorNote({
+  individualId,
+  treeId,
+  onText,
+}: {
+  individualId: string;
+  treeId: string;
+  onText: (text: string) => void;
+}) {
+  const theme = useTheme();
+  const [text, setText] = useState('');
+  const [loaded, setLoaded] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'dirty' | 'saved' | 'error'>('idle');
+  const onTextRef = useRef(onText);
+  onTextRef.current = onText;
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pending = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setText('');
+    setLoaded(false);
+    setStatus('idle');
+    onTextRef.current('');
+    supabase
+      .from('ancestor_notes')
+      .select('content')
+      .eq('individual_id', individualId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (data?.content) {
+          setText(data.content);
+          onTextRef.current(data.content);
+        }
+        setLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [individualId]);
+
+  const save = useCallback(
+    async (value: string) => {
+      pending.current = null;
+      const content = value.trim();
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+      if (!userId) return;
+      const result = content
+        ? await supabase.from('ancestor_notes').upsert(
+            {
+              individual_id: individualId,
+              tree_id: treeId,
+              user_id: userId,
+              content,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,individual_id' },
+          )
+        : await supabase
+            .from('ancestor_notes')
+            .delete()
+            .eq('individual_id', individualId)
+            .eq('user_id', userId);
+      setStatus(result.error ? 'error' : 'saved');
+    },
+    [individualId, treeId],
+  );
+
+  // A note mid-flight when the reader navigates away still lands.
+  useEffect(
+    () => () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      if (pending.current !== null) void save(pending.current);
+    },
+    [save],
+  );
+
+  function handleChange(value: string) {
+    setText(value);
+    onTextRef.current(value);
+    setStatus('dirty');
+    pending.current = value;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => void save(value), 1200);
+  }
+
+  if (!loaded) return null;
+  return (
+    <View style={{ gap: 6, marginTop: 14 }}>
+      <Text style={{ fontFamily: Fonts.mono, fontSize: 12, letterSpacing: 1, color: theme.textSecondary }}>
+        YOUR NOTE
+      </Text>
+      <TextField
+        value={text}
+        onChangeText={handleChange}
+        onBlur={() => {
+          if (saveTimer.current) clearTimeout(saveTimer.current);
+          if (pending.current !== null) void save(pending.current);
+        }}
+        multiline
+        style={{ minHeight: 96, textAlignVertical: 'top' }}
+        placeholder="What you've documented, or family lore — kept with this ancestor, in your words."
+      />
+      <ThemedText type="small" themeColor="textSecondary">
+        {status === 'error'
+          ? "Couldn't save — check your connection and type a character to retry."
+          : `Only you see this, and it never changes the story above.${status === 'saved' ? ' Saved.' : ''}`}
+      </ThemedText>
+    </View>
+  );
+}
+
 /** The record as a lifeline: amber moments on one vertical thread. */
 function Lifeline({ events }: { events: EventRow[] }) {
   const theme = useTheme();
@@ -344,6 +468,9 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // relationship rows as the label (docs/cohesion-design-brief.md §orientation).
   const [compass, setCompass] = useState<string | null>(null);
   const [curiosities, setCuriosities] = useState<Curiosity[]>([]);
+  // The reader's own note (Betsey's box) — lifted here so the story
+  // export can carry it, labeled, alongside the AI prose.
+  const [ancestorNote, setAncestorNote] = useState('');
   const [tier, setTier] = useState<LineageTier | undefined>(undefined);
   const [providerLink, setProviderLink] = useState<ProviderLink | null>(null);
   // Story / Their World open in place — one panel at a time, the family
@@ -1133,7 +1260,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 style={{ fontFamily: Fonts.mono, color: theme.accent, marginTop: 8 }}
                 onPress={() => {
                   const text = biography.state.name === 'ready' ? biography.state.text : '';
-                  void shareStory(person.full_name, spanYears, text).catch((error) =>
+                  void shareStory(person.full_name, spanYears, text, ancestorNote).catch((error) =>
                     console.warn('Story share failed', error),
                   );
                 }}
@@ -1141,6 +1268,9 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 {STORY_SHARE_LABEL}
               </ThemedText>
             )}
+            {/* Betsey's box, below the story — also present before one
+                exists, since lore doesn't wait for the writer. */}
+            <AncestorNote individualId={person.id} treeId={person.tree_id} onText={setAncestorNote} />
           </Panel>
         )}
         {!person.living && openPanel === 'world' && (

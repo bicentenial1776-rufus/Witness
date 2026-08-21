@@ -11,8 +11,11 @@ import * as Sharing from 'expo-sharing';
 export const STORY_SHARE_LABEL = 'Share story ›';
 
 /** Header + prose + a plain provenance footer, ready for any medium. */
-export function renderStoryText(name: string, years: string, story: string): string {
-  return `${name}\n${years}\n\n${story}\n\n—\nWritten by AI from this family's documented record · Witness · witnesslives.com`;
+export function renderStoryText(name: string, years: string, story: string, note?: string): string {
+  // The reader's own note travels labeled as theirs — the footer's AI
+  // attribution covers the story alone.
+  const noteBlock = note?.trim() ? `\n\nFamily note, in the reader's own words:\n${note.trim()}` : '';
+  return `${name}\n${years}\n\n${story}${noteBlock}\n\n—\nStory written by AI from this family's documented record · Witness · witnesslives.com`;
 }
 
 /** A filesystem-safe name: letters, digits, spaces; everything else folds to a hyphen. */
@@ -21,13 +24,13 @@ export function storyFileName(name: string): string {
   return `${safe || 'Ancestor'} - Witness story.txt`;
 }
 
-export async function shareStory(name: string, years: string, story: string): Promise<void> {
+export async function shareStory(name: string, years: string, story: string, note?: string): Promise<void> {
   const file = new File(Paths.cache, storyFileName(name));
   try {
     if (file.exists) file.delete();
   } catch {}
   file.create();
-  file.write(renderStoryText(name, years, story));
+  file.write(renderStoryText(name, years, story, note));
   await Sharing.shareAsync(file.uri, {
     mimeType: 'text/plain',
     dialogTitle: `${name} — story`,

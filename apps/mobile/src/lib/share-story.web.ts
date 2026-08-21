@@ -5,8 +5,11 @@
 
 export const STORY_SHARE_LABEL = 'Download story ›';
 
-export function renderStoryText(name: string, years: string, story: string): string {
-  return `${name}\n${years}\n\n${story}\n\n—\nWritten by AI from this family's documented record · Witness · witnesslives.com`;
+export function renderStoryText(name: string, years: string, story: string, note?: string): string {
+  // The reader's own note travels labeled as theirs — the footer's AI
+  // attribution covers the story alone.
+  const noteBlock = note?.trim() ? `\n\nFamily note, in the reader's own words:\n${note.trim()}` : '';
+  return `${name}\n${years}\n\n${story}${noteBlock}\n\n—\nStory written by AI from this family's documented record · Witness · witnesslives.com`;
 }
 
 export function storyFileName(name: string): string {
@@ -14,8 +17,8 @@ export function storyFileName(name: string): string {
   return `${safe || 'Ancestor'} - Witness story.txt`;
 }
 
-export async function shareStory(name: string, years: string, story: string): Promise<void> {
-  const text = renderStoryText(name, years, story);
+export async function shareStory(name: string, years: string, story: string, note?: string): Promise<void> {
+  const text = renderStoryText(name, years, story, note);
   if (typeof navigator !== 'undefined' && 'share' in navigator) {
     try {
       await navigator.share({ title: `${name} — story`, text });
