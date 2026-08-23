@@ -272,6 +272,69 @@ export type Database = {
           },
         ]
       }
+      corrections: {
+        Row: {
+          corrected_value: string
+          created_at: string
+          current_value: string | null
+          id: string
+          individual_id: string
+          note: string | null
+          resolved_at: string | null
+          snapshot_key: string | null
+          status: string
+          subject: string
+          tree_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          corrected_value: string
+          created_at?: string
+          current_value?: string | null
+          id?: string
+          individual_id: string
+          note?: string | null
+          resolved_at?: string | null
+          snapshot_key?: string | null
+          status?: string
+          subject: string
+          tree_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          corrected_value?: string
+          created_at?: string
+          current_value?: string | null
+          id?: string
+          individual_id?: string
+          note?: string | null
+          resolved_at?: string | null
+          snapshot_key?: string | null
+          status?: string
+          subject?: string
+          tree_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corrections_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corrections_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enrichment_cache: {
         Row: {
           content: string
