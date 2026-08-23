@@ -14,8 +14,11 @@ import {
   type NaraCandidate,
 } from '@witness/core/query';
 
+import { subjectKey } from '@witness/core/corrections';
+
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
+import { MarginCorrections } from '@/components/margin-corrections';
 import { TextField } from '@/components/text-field';
 import { LineageMark } from '@/components/lineage-mark';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
@@ -26,6 +29,7 @@ import * as Clipboard from 'expo-clipboard';
 
 import { showAlert } from '@/lib/alert';
 import { providerPersonLink, type ProviderLink } from '@/lib/ancestry';
+import { type CorrectionRow } from '@/lib/corrections';
 import { PedigreeChart } from '@/components/pedigree-chart';
 import { STORY_SHARE_LABEL, shareStory } from '@/lib/share-story';
 import { fetchRelativeFacts, relativesBrief, type RelativeFact } from '@witness/core/family';
@@ -379,8 +383,23 @@ function AncestorNote({
   );
 }
 
+/** The subject key an event answers to in the margin. */
+function eventSubject(event: EventRow): string {
+  if (event.event_type === 'birth' || event.event_type === 'death' || event.event_type === 'burial') {
+    return event.event_type;
+  }
+  return subjectKey({ kind: 'event', eventType: event.event_type, year: event.date_year });
+}
+
 /** The record as a lifeline: amber moments on one vertical thread. */
-function Lifeline({ events }: { events: EventRow[] }) {
+function Lifeline({
+  events,
+  correctedSubjects,
+}: {
+  events: EventRow[];
+  /** Facts with an open margin correction get the pencil beside them. */
+  correctedSubjects?: Set<string>;
+}) {
   const theme = useTheme();
   return (
     <View>
@@ -404,6 +423,9 @@ function Lifeline({ events }: { events: EventRow[] }) {
             <ThemedText>
               {event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1)}
               {event.date_raw ? ` · ${event.date_raw}` : event.date_year ? ` · ${event.date_year}` : ''}
+              {correctedSubjects?.has(eventSubject(event)) && (
+                <Text style={{ color: theme.accent }}>{'  ✎'}</Text>
+              )}
             </ThemedText>
             {event.places?.raw && <ThemedText type="small">{event.places.raw}</ThemedText>}
           </View>
@@ -472,6 +494,9 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // The reader's own note (Betsey's box) — lifted here so the story
   // export can carry it, labeled, alongside the AI prose.
   const [ancestorNote, setAncestorNote] = useState('');
+  // Open margin corrections, lifted so the ✎ glyphs can mark the facts
+  // they annotate (the full text lives in the In-the-margin section).
+  const [openCorrections, setOpenCorrections] = useState<CorrectionRow[]>([]);
   // The read-marks for the family register: which relatives the reader
   // has already been to (Betsey's star, 2026-08-19).
   const [visitedIds, setVisitedIds] = useState<Set<string>>(new Set());
@@ -602,6 +627,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     setOpenPanel(null);
     setRelatives(null);
     setParentStories(new Set());
+    setOpenCorrections([]);
     (async () => {
       const [{ data: personRow }, { data: eventRows }] = await Promise.all([
         supabase
@@ -1144,6 +1170,10 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           )}
           {person.living ? '  ·  living' : ''}
           {compass ? `  ·  ${compass}` : ''}
+          {/* The pencil: an open margin correction names a vital fact. */}
+          {openCorrections.some((c) => c.subject === 'name' || c.subject === 'birth' || c.subject === 'death') && (
+            <Text style={{ color: theme.accent }}>{'  ·  ✎'}</Text>
+          )}
         </Text>
         {parents.length > 0 && (
           <Text
@@ -1494,9 +1524,17 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           <ThemedText type="small">No dated events recorded.</ThemedText>
         ) : (
           <Card>
-            <Lifeline events={events} />
+            <Lifeline
+              events={events}
+              correctedSubjects={new Set(openCorrections.map((c) => c.subject))}
+            />
           </Card>
         )}
+
+        {/* The margin: the reader's own corrections, pencilled beside the
+            record and carried to the source on the punch list. Renders for
+            living people too — a census error on a living relative is real. */}
+        <MarginCorrections person={person} events={events} onChanged={setOpenCorrections} />
 
         {sources.length > 0 && (
           <>
