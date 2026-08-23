@@ -25,6 +25,7 @@ const TREE_ROUTES = [
   '/family-stage',
   '/orphan-records',
   '/getting-to-work',
+  '/punch-list',
 ];
 // The Explore shelf's own destinations. Without these the rail highlighted
 // nothing once a reader followed a card off the shelf, which read as having

@@ -236,6 +236,11 @@ export default function TreeTab() {
         detail="Records with no connection to your tree — islands, solo strays, and the ancestors they might belong near"
         onPress={() => router.push('/orphan-records' as never)}
       />
+      <Row
+        title="The punch list"
+        detail="Everything still open — findings, orphans, and your margin corrections, each with its road back to Ancestry"
+        onPress={() => router.push('/punch-list' as never)}
+      />
     </Section>
   );
 

@@ -165,6 +165,14 @@ export default function ResearchTab() {
           </View>
         )}
 
+        {/* The ledger above counts judgments; the punch list is the other
+            half — what is still open (research-ledger.ts names the gap). */}
+        <Pressable onPress={() => router.push('/punch-list' as never)} style={{ marginBottom: 22 }}>
+          <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 17, color: C.ink }}>
+            The punch list — what’s still open <Text style={{ color: C.accent }}>›</Text>
+          </Text>
+        </Pressable>
+
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 24, marginBottom: 22 }}>
           {FILTERS.map(({ key, label, count }) => {
             const active = filter === key;
@@ -269,6 +277,13 @@ export default function ResearchTab() {
           ))}
         </View>
       )}
+
+      <Card style={{ marginTop: 12 }} onPress={() => router.push('/punch-list' as never)}>
+        <ThemedText>The punch list — what’s still open ›</ThemedText>
+        <ThemedText type="small">
+          Findings, orphans, and your margin corrections, each with its road back to the source.
+        </ThemedText>
+      </Card>
 
       {briefs === null ? (
         <ActivityIndicator style={{ marginVertical: 24 }} />

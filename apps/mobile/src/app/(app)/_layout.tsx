@@ -128,6 +128,7 @@ export default function AppLayout() {
         }}
       />
       <Stack.Screen name="orphan-records" options={{ title: 'Orphan Records' }} />
+      <Stack.Screen name="punch-list" options={{ title: 'Punch List' }} />
       <Stack.Screen name="family-stage/[key]" options={{ headerShown: false }} />
       <Stack.Screen name="faq" options={{ title: 'Questions & Answers' }} />
       <Stack.Screen name="nearby" options={{ title: 'Near me' }} />

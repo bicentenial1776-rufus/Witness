@@ -37,7 +37,7 @@ export interface CuriositySummary {
   top: Curiosity[];
 }
 
-interface AuditRun {
+export interface AuditRun {
   data: TreeHealthData;
   report: TreeHealthReport;
   people: Map<string, { gedcom_xref: string | null; surname: string | null; full_name: string }>;
@@ -162,6 +162,15 @@ export async function getPersonCuriosities(
       prompt: f.detail,
       individualId: f.individualIds[0],
     }));
+}
+
+/**
+ * The whole cached run — data included. The punch list needs the raw
+ * TreeHealthData to compute orphan records without re-downloading the
+ * ~30 pages this cache exists to save.
+ */
+export async function getAuditBundle(treeId: string): Promise<AuditRun> {
+  return getAuditRun(treeId);
 }
 
 /**
