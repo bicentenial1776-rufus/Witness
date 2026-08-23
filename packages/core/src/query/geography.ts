@@ -97,6 +97,64 @@ export async function fetchGeographyIndex(
   return { places, events, individuals };
 }
 
+// Event-type vocabulary ------------------------------------------------------
+
+export type GeoEventType = GeoEvent['eventType'];
+
+/**
+ * The reader-facing vocabulary for event types, in life order (birth →
+ * burial). `custom` is the GEDCOM EVEN bucket — christenings, draft cards,
+ * anything without its own tag — so it reads as "Other", last.
+ */
+export const EVENT_TYPE_ORDER: GeoEventType[] = [
+  'birth',
+  'baptism',
+  'residence',
+  'census',
+  'occupation',
+  'military',
+  'immigration',
+  'emigration',
+  'naturalization',
+  'death',
+  'burial',
+  'probate',
+  'custom',
+];
+
+export const EVENT_TYPE_LABELS: Record<GeoEventType, string> = {
+  birth: 'Birth',
+  baptism: 'Baptism',
+  residence: 'Residence',
+  census: 'Census',
+  occupation: 'Occupation',
+  military: 'Military',
+  immigration: 'Immigration',
+  emigration: 'Emigration',
+  naturalization: 'Naturalization',
+  death: 'Death',
+  burial: 'Burial',
+  probate: 'Probate',
+  custom: 'Other',
+};
+
+/** Accepts plain strings too — some rows type event_type loosely. */
+export function eventTypeLabel(type: string): string {
+  return (
+    EVENT_TYPE_LABELS[type as GeoEventType] ??
+    (type ? type.charAt(0).toUpperCase() + type.slice(1) : type)
+  );
+}
+
+/** Event types actually present in a set of nearby results, in life order. */
+export function eventTypesOf(places: NearbyPlace[]): GeoEventType[] {
+  const present = new Set<GeoEventType>();
+  for (const hit of places)
+    for (const resident of hit.residents)
+      for (const event of resident.events) present.add(event.eventType);
+  return EVENT_TYPE_ORDER.filter((type) => present.has(type));
+}
+
 // Rollups ------------------------------------------------------------------
 
 export interface RegionRollup {

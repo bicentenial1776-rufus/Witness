@@ -2,7 +2,7 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList } from 'react-native';
 
-import { ancestorsInRegion, type RegionResident } from '@witness/core/query';
+import { ancestorsInRegion, eventTypeLabel, type RegionResident } from '@witness/core/query';
 
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
@@ -18,7 +18,7 @@ function lifeSpan(resident: RegionResident): string {
 function connection(resident: RegionResident): string {
   return resident.events
     .slice(0, 3)
-    .map((event) => `${event.eventType}${event.year ? ` ${event.year}` : ''} · ${event.placeRaw.split(',')[0]}`)
+    .map((event) => `${eventTypeLabel(event.eventType)}${event.year ? ` ${event.year}` : ''} · ${event.placeRaw.split(',')[0]}`)
     .join('\n');
 }
 

@@ -9,6 +9,7 @@ import {
   type LivedThroughTag,
 } from '@witness/core/history';
 import {
+  eventTypeLabel,
   fetchNaraCandidatesForIndividual,
   stageKeyForPerson,
   type NaraCandidate,
@@ -421,7 +422,7 @@ function Lifeline({
           </View>
           <View style={{ flex: 1, paddingLeft: 10, paddingBottom: index < events.length - 1 ? 20 : 0 }}>
             <ThemedText>
-              {event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1)}
+              {eventTypeLabel(event.event_type)}
               {event.date_raw ? ` · ${event.date_raw}` : event.date_year ? ` · ${event.date_year}` : ''}
               {correctedSubjects?.has(eventSubject(event)) && (
                 <Text style={{ color: theme.accent }}>{'  ✎'}</Text>
@@ -894,7 +895,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           .slice(0, 2)
           .map(
             (e) =>
-              `${e.event_type.charAt(0).toUpperCase() + e.event_type.slice(1)}${
+              `${eventTypeLabel(e.event_type)}${
                 e.date_year ? ` ${e.date_year}` : ''
               }${e.places?.raw ? ` · ${e.places.raw}` : ''}`,
           ),

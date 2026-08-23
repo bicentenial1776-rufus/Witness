@@ -5,7 +5,14 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { nearbyAncestors, type GeographyIndex, type NearbyPlace } from '@witness/core/query';
+import {
+  eventTypeLabel,
+  eventTypesOf,
+  nearbyAncestors,
+  type GeoEventType,
+  type GeographyIndex,
+  type NearbyPlace,
+} from '@witness/core/query';
 
 import { Masthead, MarginPanel, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { Card } from '@/components/card';
@@ -212,6 +219,8 @@ export default function ProximityTab() {
   const [denied, setDenied] = useState(false);
   const [radiusMiles, setRadiusMiles] = useState(5);
   const [century, setCentury] = useState<number | null>(null);
+  // Empty set = no filter; multi-select so Burial + Death can ride together.
+  const [eventTypes, setEventTypes] = useState<Set<GeoEventType>>(new Set());
 
   useEffect(() => {
     if (!treeId) return;
@@ -251,6 +260,7 @@ export default function ProximityTab() {
   }, [index, position, radiusMiles]);
 
   const centuries = useMemo(() => (nearby ? centuriesOf(nearby) : []), [nearby]);
+  const typesPresent = useMemo(() => (nearby ? eventTypesOf(nearby) : []), [nearby]);
 
   const sections = useMemo(() => {
     if (!nearby) return [];
@@ -260,12 +270,22 @@ export default function ProximityTab() {
         placeId: hit.place.id,
         residents: hit.residents.filter(
           (resident) =>
-            century === null ||
-            resident.events.some((e) => e.year && Math.floor(e.year / 100) * 100 === century),
+            (century === null ||
+              resident.events.some((e) => e.year && Math.floor(e.year / 100) * 100 === century)) &&
+            (eventTypes.size === 0 ||
+              resident.events.some((e) => eventTypes.has(e.eventType))),
         ),
       }))
       .filter((section) => section.residents.length > 0);
-  }, [nearby, century]);
+  }, [nearby, century, eventTypes]);
+
+  const toggleEventType = (type: GeoEventType) =>
+    setEventTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
 
   const totalPeople = useMemo(
     () => new Set(sections.flatMap((s) => s.residents.map((r) => r.individual.id))).size,
@@ -377,7 +397,7 @@ export default function ProximityTab() {
                 </Text>
               </Pressable>
               <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14.5, color: BC.inkSecondary }}>
-                {closest.resident.events[0]?.eventType ?? 'recorded'}
+                {closest.resident.events[0] ? eventTypeLabel(closest.resident.events[0].eventType) : 'Recorded'}
                 {closest.resident.events[0]?.year ? ` ${closest.resident.events[0].year}` : ''} at{' '}
                 {closest.place.parts[0] ?? closest.place.raw} — {closest.phrase}.
               </Text>
@@ -432,6 +452,54 @@ export default function ProximityTab() {
                 );
               })}
             </View>
+
+            {typesPresent.length > 1 && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'baseline',
+                  flexWrap: 'wrap',
+                  gap: 22,
+                  rowGap: 10,
+                  marginTop: 12,
+                }}
+              >
+                <RecordText eyebrow muted>
+                  Events
+                </RecordText>
+                <Pressable onPress={() => setEventTypes(new Set())}>
+                  <View
+                    style={{
+                      borderBottomWidth: 2,
+                      borderBottomColor: eventTypes.size === 0 ? BC.accent : 'transparent',
+                      paddingBottom: 3,
+                    }}
+                  >
+                    <RecordText accent={eventTypes.size === 0} muted={eventTypes.size !== 0}>
+                      ALL
+                    </RecordText>
+                  </View>
+                </Pressable>
+                {typesPresent.map((type) => {
+                  const active = eventTypes.has(type);
+                  return (
+                    <Pressable key={type} onPress={() => toggleEventType(type)}>
+                      <View
+                        style={{
+                          borderBottomWidth: 2,
+                          borderBottomColor: active ? BC.accent : 'transparent',
+                          paddingBottom: 3,
+                        }}
+                      >
+                        <RecordText accent={active} muted={!active}>
+                          {eventTypeLabel(type).toUpperCase()}
+                        </RecordText>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
 
             <View style={{ flexDirection: 'row', gap: 30, marginTop: 26, alignItems: 'flex-start' }}>
               <View style={{ width: 440 }}>
@@ -495,7 +563,7 @@ export default function ProximityTab() {
                     )}
                     <View style={{ flex: 1 }} />
                     <RecordText muted>
-                      {resident.events[0]?.eventType?.toUpperCase() ?? ''}{' '}
+                      {resident.events[0] ? eventTypeLabel(resident.events[0].eventType).toUpperCase() : ''}{' '}
                       {resident.events[0]?.year ?? ''}
                     </RecordText>
                   </Pressable>
@@ -586,6 +654,26 @@ export default function ProximityTab() {
               </View>
             )}
 
+            {typesPresent.length > 1 && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                <Chip
+                  label="All events"
+                  active={eventTypes.size === 0}
+                  theme={theme}
+                  onPress={() => setEventTypes(new Set())}
+                />
+                {typesPresent.map((type) => (
+                  <Chip
+                    key={type}
+                    label={eventTypeLabel(type)}
+                    active={eventTypes.has(type)}
+                    theme={theme}
+                    onPress={() => toggleEventType(type)}
+                  />
+                ))}
+              </View>
+            )}
+
             {sections.map((section) => (
               <View key={section.placeId} style={{ gap: 8 }}>
                 <Pressable
@@ -615,7 +703,7 @@ export default function ProximityTab() {
                     )}
                     <ThemedText type="small">
                       {item.events
-                        .map((e) => `${e.eventType}${e.year ? ` ${e.year}` : ''}`)
+                        .map((e) => `${eventTypeLabel(e.eventType)}${e.year ? ` ${e.year}` : ''}`)
                         .join(' · ')}
                     </ThemedText>
                   </Card>

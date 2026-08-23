@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList } from 'react-native';
 
 import {
   ancestorsAtPlace,
+  eventTypeLabel,
   fetchNaraCandidatesForPlace,
   type GeographyIndex,
   type NaraCandidate,
@@ -108,7 +109,7 @@ export default function PlaceScreen() {
                 )}
                 <ThemedText type="small">
                   {item.events
-                    .map((e) => `${e.eventType}${e.year ? ` ${e.year}` : ''}`)
+                    .map((e) => `${eventTypeLabel(e.eventType)}${e.year ? ` ${e.year}` : ''}`)
                     .join(' · ')}
                 </ThemedText>
               </Card>

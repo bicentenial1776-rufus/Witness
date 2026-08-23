@@ -5,7 +5,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, AppState, Linking, Pressable, ScrollView, SectionList, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
-import { nearbyAncestors, type GeographyIndex, type NearbyPlace } from '@witness/core/query';
+import {
+  eventTypeLabel,
+  eventTypesOf,
+  nearbyAncestors,
+  type GeoEventType,
+  type GeographyIndex,
+  type NearbyPlace,
+} from '@witness/core/query';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
@@ -96,6 +103,9 @@ export function NearMe() {
   const [liveT, setLiveT] = useState(Math.log(5) / Math.log(MAX_MILES));
   const [committedT, setCommittedT] = useState(Math.log(5) / Math.log(MAX_MILES));
   const [century, setCentury] = useState<number | null>(null);
+  // Empty set = no filter. Multi-select: standing in a cemetery you want
+  // Burial + Death together, not one at a time.
+  const [eventTypes, setEventTypes] = useState<Set<GeoEventType>>(new Set());
   const [view, setView] = useState<'list' | 'map'>('list');
 
   const liveMiles = milesFromT(liveT);
@@ -169,6 +179,7 @@ export function NearMe() {
   }, [index, position, radiusKm]);
 
   const centuries = useMemo(() => (nearby ? centuriesOf(nearby) : []), [nearby]);
+  const typesPresent = useMemo(() => (nearby ? eventTypesOf(nearby) : []), [nearby]);
 
   const sections = useMemo(() => {
     if (!nearby) return [];
@@ -178,12 +189,22 @@ export function NearMe() {
         placeId: hit.place.id,
         data: hit.residents.filter(
           (resident) =>
-            century === null ||
-            resident.events.some((e) => e.year && Math.floor(e.year / 100) * 100 === century),
+            (century === null ||
+              resident.events.some((e) => e.year && Math.floor(e.year / 100) * 100 === century)) &&
+            (eventTypes.size === 0 ||
+              resident.events.some((e) => eventTypes.has(e.eventType))),
         ),
       }))
       .filter((section) => section.data.length > 0);
-  }, [nearby, century]);
+  }, [nearby, century, eventTypes]);
+
+  const toggleEventType = (type: GeoEventType) =>
+    setEventTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
 
   const totalPeople = useMemo(
     () => new Set(sections.flatMap((s) => s.data.map((r) => r.individual.id))).size,
@@ -321,6 +342,30 @@ export function NearMe() {
                 ))}
               </ScrollView>
             )}
+            {view === 'list' && typesPresent.length > 1 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8 }}
+                style={{ flexGrow: 0, marginTop: 8 }}
+              >
+                <Chip
+                  label="All events"
+                  active={eventTypes.size === 0}
+                  activeColor={theme.accent}
+                  onPress={() => setEventTypes(new Set())}
+                />
+                {typesPresent.map((type) => (
+                  <Chip
+                    key={type}
+                    label={eventTypeLabel(type)}
+                    active={eventTypes.has(type)}
+                    activeColor={theme.accent}
+                    onPress={() => toggleEventType(type)}
+                  />
+                ))}
+              </ScrollView>
+            )}
           </View>
 
           {view === 'list' ? (
@@ -345,7 +390,9 @@ export function NearMe() {
                     <ThemedText type="small">your {relationships.get(item.individual.id)}</ThemedText>
                   )}
                   <ThemedText type="small">
-                    {item.events.map((e) => `${e.eventType}${e.year ? ` ${e.year}` : ''}`).join(' · ')}
+                    {item.events
+                      .map((e) => `${eventTypeLabel(e.eventType)}${e.year ? ` ${e.year}` : ''}`)
+                      .join(' · ')}
                   </ThemedText>
                 </Card>
               )}
