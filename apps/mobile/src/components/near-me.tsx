@@ -78,12 +78,12 @@ function Chip({
       onPress={onPress}
       style={{
         backgroundColor: active ? activeColor : '#1C1917',
-        borderRadius: 16,
-        paddingHorizontal: 14,
-        paddingVertical: 7,
+        borderRadius: 14,
+        paddingHorizontal: 11,
+        paddingVertical: 5,
       }}
     >
-      <ThemedText style={{ color: '#F7F3EE' }}>{label}</ThemedText>
+      <ThemedText type="small" style={{ color: '#F7F3EE' }}>{label}</ThemedText>
     </Pressable>
   );
 }
@@ -299,6 +299,18 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
                 activeColor={theme.accent}
                 onPress={() => setView(view === 'list' ? 'map' : 'list')}
               />
+            </View>
+            {/* The slider owns a full row — sharing one with the chips left
+                a stub of a track on small phones. */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+                marginTop: 8,
+                paddingHorizontal: view === 'map' ? 16 : 0,
+              }}
+            >
               <Slider
                 style={{ flex: 1 }}
                 minimumValue={0}
