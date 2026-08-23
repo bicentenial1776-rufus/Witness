@@ -373,6 +373,12 @@ export default function ImportGedcom() {
             </ThemedText>
           )}
 
+          {step.preview.correctionsNote && (
+            <ThemedText type="small" style={{ marginTop: 8 }}>
+              {step.preview.correctionsNote}
+            </ThemedText>
+          )}
+
           {step.preview.costWarning && (
             <ThemedText type="small" style={{ marginTop: 8, fontWeight: '600' }}>
               {step.preview.costWarning}
@@ -380,8 +386,8 @@ export default function ImportGedcom() {
           )}
 
           <ThemedText type="small" style={{ marginTop: 8 }}>
-            Updating keeps your research briefs and archive verdicts, and replaces the saved copy
-            with this file. Your own GEDCOM is never changed.
+            Updating keeps your research briefs, archive verdicts, and margin corrections, and
+            replaces the saved copy with this file. Your own GEDCOM is never changed.
           </ThemedText>
 
           <Button
@@ -423,7 +429,8 @@ export default function ImportGedcom() {
               <ThemedText type="small">
                 This looks like a newer export of “{updateTarget.name}” (
                 {count(updateTarget.individualCount, 'person', 'people')} here already). Updating
-                keeps your marks, briefs, verdicts, and shared links — and shows you what changed.
+                keeps your marks, briefs, verdicts, corrections, and shared links — and shows you
+                what changed.
               </ThemedText>
               <Button
                 title={`Update “${updateTarget.name}”`}

@@ -215,6 +215,32 @@ describe('planFindingsCarry', () => {
   });
 });
 
+describe('carryCostWarning with margin corrections', () => {
+  it('names stranded corrections alongside the rest', () => {
+    expect(
+      carryCostWarning({
+        strandedBriefs: 1,
+        strandedArchiveVerdicts: 0,
+        strandedCorrections: 2,
+        homePersonLost: false,
+      }),
+    ).toBe(
+      '1 research brief and 2 margin corrections are attached to people who are not in the new file, and will not carry over.',
+    );
+  });
+
+  it('singularises a lone correction', () => {
+    expect(
+      carryCostWarning({
+        strandedBriefs: 0,
+        strandedArchiveVerdicts: 0,
+        strandedCorrections: 1,
+        homePersonLost: false,
+      }),
+    ).toContain('1 margin correction is attached');
+  });
+});
+
 describe('carryCostWarning with back issues', () => {
   it('names the back-issue pieces alongside the rest', () => {
     expect(

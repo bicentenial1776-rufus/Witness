@@ -317,6 +317,7 @@ export function carryCostWarning(counts: {
   strandedBackIssues?: number;
   strandedMarks?: number;
   strandedShareLinks?: number;
+  strandedCorrections?: number;
   homePersonLost: boolean;
 }): string | null {
   const parts: string[] = [];
@@ -347,6 +348,13 @@ export function carryCostWarning(counts: {
   if ((counts.strandedShareLinks ?? 0) > 0) {
     parts.push(
       `${counts.strandedShareLinks} shared ${counts.strandedShareLinks === 1 ? 'link' : 'links'}`,
+    );
+  }
+  if ((counts.strandedCorrections ?? 0) > 0) {
+    parts.push(
+      `${counts.strandedCorrections} margin ${
+        counts.strandedCorrections === 1 ? 'correction' : 'corrections'
+      }`,
     );
   }
   if (counts.homePersonLost) parts.push('your home person');

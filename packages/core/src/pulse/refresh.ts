@@ -1,3 +1,8 @@
+import {
+  countChangedFacts,
+  type CorrectionCarryRow,
+  type SnapshotPerson,
+} from '../corrections/index.js';
 import { findOrphanRecords } from '../query/orphanRecords.js';
 import { fetchTreeHealthData, findingKey, runTreeHealth, type TreeHealthData } from '../query/treeHealth.js';
 import type { WitnessSupabaseClient } from '../supabase/client.js';
@@ -36,6 +41,10 @@ import {
  *   never hide a live problem, and a real fix is never deleted silently.
  * - Shared links move: the tokens readers hold survive the refresh instead
  *   of dying with the old tree's cascade.
+ * - Margin corrections move like briefs — resolved ones too, as the record
+ *   of work already entered at the source. Open ones whose underlying fact
+ *   the new file CHANGED are counted out loud ("may have been adopted"),
+ *   never auto-resolved.
  * - "Not an error" rulings need no help: they are user-scoped and keyed by
  *   xref, so they already survive any number of uploads.
  */
@@ -57,6 +66,12 @@ export interface RefreshPreview {
   marksStranded: number;
   shareLinksMoving: number;
   shareLinksStranded: number;
+  correctionsMoving: number;
+  correctionsStranded: number;
+  /** Open corrections whose underlying fact the new file changed. */
+  correctionsChanged: number;
+  /** "Your N margin corrections come along." Null without corrections. */
+  correctionsNote: string | null;
 }
 
 interface BriefRow {
@@ -76,7 +91,7 @@ interface ShareLinkRow {
 }
 
 async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: string) {
-  const [briefs, candidates, findings, marks, shareLinks] = await Promise.all([
+  const [briefs, candidates, findings, marks, shareLinks, corrections] = await Promise.all([
     supabase.from('research_briefs').select('id, individual_id').eq('tree_id', oldTreeId),
     // Only decided candidates are worth carrying. A pending row is a machine
     // suggestion the new tree's enrichment will regenerate anyway; moving it
@@ -99,6 +114,13 @@ async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: strin
     // Every shared URL used to die with the old tree's cascade — carrying
     // the row keeps the reader's link alive across a refresh.
     supabase.from('share_links').select('token, individual_id').eq('tree_id', oldTreeId),
+    // The researcher's margin — their own authored work, like briefs.
+    // Carried whole, resolved rows included: those are the record of work
+    // already entered at the source.
+    supabase
+      .from('corrections')
+      .select('id, individual_id, subject, snapshot_key, status')
+      .eq('tree_id', oldTreeId),
   ]);
   return {
     briefs: (briefs.data ?? []) as BriefRow[],
@@ -106,6 +128,7 @@ async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: strin
     findings: (findings.data ?? []) as FindingRow[],
     marks: (marks.data ?? []) as MarkRow[],
     shareLinks: (shareLinks.data ?? []) as ShareLinkRow[],
+    corrections: (corrections.data ?? []) as CorrectionCarryRow[],
   };
 }
 
@@ -213,6 +236,29 @@ export async function previewRefresh(
   const shareLinksMoving = carryables.shareLinks.filter((l) => remap.map.has(l.individual_id)).length;
   const shareLinksStranded = carryables.shareLinks.length - shareLinksMoving;
 
+  const correctionsPlan = planCarryForward(carryables.corrections, remap);
+  const newPeopleById = new Map<string, SnapshotPerson>(
+    after.individuals.map((p) => [p.id, p]),
+  );
+  const correctionsChanged = countChangedFacts(correctionsPlan.moving, newPeopleById);
+  // Counts only what moves — stranded corrections are the cost warning's job.
+  const correctionsNote =
+    correctionsPlan.moving.length > 0
+      ? `Your ${correctionsPlan.moving.length} margin correction${
+          correctionsPlan.moving.length === 1 ? ' comes' : 's come'
+        } along.${
+          correctionsChanged > 0
+            ? ` The file has changed the fact behind ${correctionsChanged} of ${
+                correctionsChanged === 1 ? 'it' : 'them'
+              } — ${
+                correctionsChanged === 1 ? 'it' : 'they'
+              } may have been adopted; review ${
+                correctionsChanged === 1 ? 'it' : 'them'
+              } on the punch list.`
+            : ''
+        }`
+      : null;
+
   return {
     pulse,
     summary: pulseSummary(pulse),
@@ -222,6 +268,7 @@ export async function previewRefresh(
       strandedBackIssues: findingsPlan.stranded.length,
       strandedMarks: marksPlan.stranded,
       strandedShareLinks: shareLinksStranded,
+      strandedCorrections: correctionsPlan.stranded.length,
       homePersonLost,
     }),
     remap,
@@ -235,6 +282,10 @@ export async function previewRefresh(
     marksStranded: marksPlan.stranded,
     shareLinksMoving,
     shareLinksStranded,
+    correctionsMoving: correctionsPlan.moving.length,
+    correctionsStranded: correctionsPlan.stranded.length,
+    correctionsChanged,
+    correctionsNote,
   };
 }
 
@@ -245,6 +296,7 @@ export interface RefreshResult {
   marksCarried: number;
   marksGraduated: number;
   shareLinksMoved: number;
+  correctionsMoved: number;
   homePersonMoved: boolean;
   oldTreeDeleted: boolean;
 }
@@ -287,6 +339,17 @@ export async function applyRefresh(
       .update({ tree_id: newTreeId, individual_id: newIndividualId })
       .eq('id', row.id);
     if (error) throw new Error(`Could not move a research brief: ${error.message}`);
+  }
+
+  // The margin moves the same way the briefs do: the researcher's own rows,
+  // re-pointed by primary key onto the people the remap could follow.
+  const correctionsPlan = planCarryForward(carryables.corrections, preview.remap);
+  for (const { row, newIndividualId } of correctionsPlan.moving) {
+    const { error } = await supabase
+      .from('corrections')
+      .update({ tree_id: newTreeId, individual_id: newIndividualId })
+      .eq('id', row.id);
+    if (error) throw new Error(`Could not move a margin correction: ${error.message}`);
   }
 
   for (const { row, newIndividualId } of candidatePlan.moving) {
@@ -407,6 +470,7 @@ export async function applyRefresh(
     marksCarried: marksPlan.carrying.length,
     marksGraduated: marksPlan.graduated,
     shareLinksMoved,
+    correctionsMoved: correctionsPlan.moving.length,
     homePersonMoved: movedHome,
     oldTreeDeleted: await retireTree(supabase, oldTreeId),
   };
