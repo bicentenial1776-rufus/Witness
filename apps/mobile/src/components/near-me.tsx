@@ -30,7 +30,9 @@ import { useTheme } from '@/hooks/use-theme';
  * now a mode of the Map tab (walkthrough audit G4: the tabs were splitting
  * one question — "where?" — by which coordinate was held fixed). The
  * embedded list/map toggle survives because standing in a cemetery you
- * want the list; planning a drive you want the map.
+ * want the list; planning a drive you want the map. The road back to the
+ * Map tab's PLACES mode rides in the control row as `onExit` — a floating
+ * button collided with this row in map view (2026-08-23).
  */
 
 const MILES_TO_KM = 1.60934;
@@ -86,7 +88,7 @@ function Chip({
   );
 }
 
-export function NearMe() {
+export function NearMe({ onExit }: { onExit?: () => void }) {
   const theme = useTheme();
   const { activeTree, loadFailed } = useActiveTree();
   const treeId = activeTree?.id;
@@ -288,6 +290,9 @@ export function NearMe() {
                 paddingHorizontal: view === 'map' ? 16 : 0,
               }}
             >
+              {onExit && (
+                <Chip label="All places" active={false} activeColor={theme.accent} onPress={onExit} />
+              )}
               <Chip
                 label={view === 'list' ? 'Map' : 'List'}
                 active={false}

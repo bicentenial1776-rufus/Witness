@@ -130,24 +130,7 @@ export default function AncestorMapTab() {
   }
 
   if (mode === 'near') {
-    return (
-      <ThemedView style={{ flex: 1 }}>
-        <NearMe />
-        <View style={{ position: 'absolute', top: 60, right: 16 }}>
-          <Pressable
-            onPress={() => setMode('places')}
-            style={{
-              backgroundColor: theme.accent,
-              borderRadius: 16,
-              paddingHorizontal: 12,
-              paddingVertical: 7,
-            }}
-          >
-            <ThemedText type="small" style={{ color: '#F7F3EE' }}>Places</ThemedText>
-          </Pressable>
-        </View>
-      </ThemedView>
-    );
+    return <NearMe onExit={() => setMode('places')} />;
   }
 
   return (
