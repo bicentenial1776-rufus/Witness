@@ -251,6 +251,8 @@ export interface MarksCarryPlan {
   stranded: number;
 }
 
+const ORPHAN_PREFIX = 'orphan:';
+
 /**
  * Marks graduate instead of dying (Katie review: "you marked 17, this file
  * fixes 12"). A mark's finding_key is check:sorted-db-ids; the ids remap,
@@ -258,16 +260,38 @@ export interface MarksCarryPlan {
  * findings. Present → the problem persists, the mark carries. Absent → the
  * file really fixed it, and that's a graduation worth announcing, not a
  * row worth deleting silently.
+ *
+ * The same table also holds Orphan Records marks under an `orphan:<id>` key,
+ * which can never appear among tree-health finding keys — before 2026-08-23
+ * every carried orphan mark was therefore miscounted as graduated and
+ * dropped. Orphan keys now graduate against `newOrphanKeys` (`orphan:<id>`
+ * for everyone still disconnected in the new tree); when the caller cannot
+ * say who that is, they carry — a stale mark is recoverable, a dropped one
+ * is not. One island quirk: the mark keys on the anchor, and if a surviving
+ * island re-anchors, the carried mark shows as open again on the workbench
+ * rather than as fixed. Recoverable, unlike the silent drop it replaces.
  */
 export function planMarksCarry(
   marks: readonly MarkRow[],
   remap: IdRemap,
   newFindingKeys: ReadonlySet<string>,
+  newOrphanKeys?: ReadonlySet<string>,
 ): MarksCarryPlan {
   const carrying: { row: MarkRow; newKey: string }[] = [];
   let graduated = 0;
   let stranded = 0;
   for (const row of marks) {
+    if (row.finding_key.startsWith(ORPHAN_PREFIX)) {
+      const landed = remap.map.get(row.finding_key.slice(ORPHAN_PREFIX.length));
+      if (!landed) {
+        stranded += 1;
+      } else if (newOrphanKeys && !newOrphanKeys.has(`${ORPHAN_PREFIX}${landed}`)) {
+        graduated += 1;
+      } else {
+        carrying.push({ row, newKey: `${ORPHAN_PREFIX}${landed}` });
+      }
+      continue;
+    }
     const colon = row.finding_key.indexOf(':');
     if (colon < 0) {
       stranded += 1;

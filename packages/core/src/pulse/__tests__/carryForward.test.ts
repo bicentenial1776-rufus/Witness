@@ -314,3 +314,74 @@ describe('planMarksCarry', () => {
     expect(plan.graduated).toBe(0);
   });
 });
+
+describe('planMarksCarry — orphan namespace', () => {
+  const { planMarksCarry } = carryModule;
+  const remap = remapIndividuals(
+    [person('old-1', '@I1@'), person('old-2', '@I2@')],
+    [person('new-1', '@I1@'), person('new-2', '@I2@')],
+  );
+
+  it('carries an orphan mark whose person is still disconnected', () => {
+    // Regression: orphan keys can never appear among tree-health finding
+    // keys, so before the fix every one of these was miscounted as
+    // graduated and silently dropped.
+    const plan = planMarksCarry(
+      [{ id: 'm1', finding_key: 'orphan:old-1' }],
+      remap,
+      new Set<string>(),
+      new Set(['orphan:new-1']),
+    );
+    expect(plan.graduated).toBe(0);
+    expect(plan.carrying).toEqual([
+      { row: { id: 'm1', finding_key: 'orphan:old-1' }, newKey: 'orphan:new-1' },
+    ]);
+  });
+
+  it('graduates an orphan mark whose person the file reconnected', () => {
+    const plan = planMarksCarry(
+      [{ id: 'm1', finding_key: 'orphan:old-1' }],
+      remap,
+      new Set<string>(),
+      new Set<string>(),
+    );
+    expect(plan.graduated).toBe(1);
+    expect(plan.carrying).toHaveLength(0);
+  });
+
+  it('always carries orphan marks when the caller cannot say who is orphaned', () => {
+    const plan = planMarksCarry([{ id: 'm1', finding_key: 'orphan:old-1' }], remap, new Set<string>());
+    expect(plan.graduated).toBe(0);
+    expect(plan.carrying[0]?.newKey).toBe('orphan:new-1');
+  });
+
+  it('strands an orphan mark whose person is gone from the file', () => {
+    const goneRemap = remapIndividuals([person('old-9', '@I9@')], []);
+    const plan = planMarksCarry(
+      [{ id: 'm1', finding_key: 'orphan:old-9' }],
+      goneRemap,
+      new Set<string>(),
+      new Set<string>(),
+    );
+    expect(plan.stranded).toBe(1);
+    expect(plan.graduated).toBe(0);
+  });
+
+  it('keeps the tree-health path untouched in a mixed batch', () => {
+    const plan = planMarksCarry(
+      [
+        { id: 'm1', finding_key: 'orphan:old-1' },
+        { id: 'm2', finding_key: 'impossible_gap:old-1,old-2' },
+      ],
+      remap,
+      new Set(['impossible_gap:new-1,new-2']),
+      new Set(['orphan:new-1']),
+    );
+    expect(plan.carrying.map((c) => c.newKey).sort()).toEqual([
+      'impossible_gap:new-1,new-2',
+      'orphan:new-1',
+    ]);
+    expect(plan.graduated).toBe(0);
+    expect(plan.stranded).toBe(0);
+  });
+});

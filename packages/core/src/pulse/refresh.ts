@@ -1,4 +1,5 @@
-import { fetchTreeHealthData, findingKey, runTreeHealth } from '../query/treeHealth.js';
+import { findOrphanRecords } from '../query/orphanRecords.js';
+import { fetchTreeHealthData, findingKey, runTreeHealth, type TreeHealthData } from '../query/treeHealth.js';
 import type { WitnessSupabaseClient } from '../supabase/client.js';
 import type { Json } from '../supabase/database.types.js';
 import {
@@ -108,6 +109,23 @@ async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: strin
   };
 }
 
+/**
+ * `orphan:<id>` for everyone still disconnected in the new tree — the set
+ * orphan-records marks graduate against, mirroring how tree-health marks
+ * graduate against the new tree's finding keys. All island members count,
+ * not just anchors, so a mark graduates only when its person is genuinely
+ * reconnected.
+ */
+function orphanKeysOf(health: TreeHealthData): Set<string> {
+  const report = findOrphanRecords(health);
+  const keys = new Set<string>();
+  for (const island of report.islands) {
+    for (const id of island.memberIds) keys.add(`orphan:${id}`);
+  }
+  for (const solo of report.solos) keys.add(`orphan:${solo.individualId}`);
+  return keys;
+}
+
 export interface RefreshTarget {
   id: string;
   name: string;
@@ -179,11 +197,12 @@ export async function previewRefresh(
   const homePersonId = oldTree.data?.home_person_id ?? null;
   const homePersonLost = Boolean(homePersonId && !remap.map.has(homePersonId));
 
-  // The new tree's live findings, so old marks can graduate against them.
+  // The new tree's live findings, so old marks can graduate against them —
+  // and its still-disconnected people, so orphan marks can do the same.
   const newFindingKeys = new Set(
     runTreeHealth(after, { currentYear: new Date().getFullYear() }).findings.map(findingKey),
   );
-  const marksPlan = planMarksCarry(carryables.marks, remap, newFindingKeys);
+  const marksPlan = planMarksCarry(carryables.marks, remap, newFindingKeys, orphanKeysOf(after));
   const marksNote =
     carryables.marks.length > 0
       ? `You had marked ${carryables.marks.length} finding${
@@ -255,7 +274,12 @@ export async function applyRefresh(
   const newFindingKeys = new Set(
     runTreeHealth(newHealth, { currentYear: new Date().getFullYear() }).findings.map(findingKey),
   );
-  const marksPlan = planMarksCarry(carryables.marks, preview.remap, newFindingKeys);
+  const marksPlan = planMarksCarry(
+    carryables.marks,
+    preview.remap,
+    newFindingKeys,
+    orphanKeysOf(newHealth),
+  );
 
   for (const { row, newIndividualId } of briefPlan.moving) {
     const { error } = await supabase
