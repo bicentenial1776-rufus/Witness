@@ -389,6 +389,9 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
             <SectionList
               sections={sections}
               keyExtractor={(resident, i) => `${resident.individual.id}-${i}`}
+              // Headers are bare text on paper — pinned ones float over the
+              // cards mid-scroll. Let each stay with its own section.
+              stickySectionHeadersEnabled={false}
               style={{ marginTop: 8 }}
               renderSectionHeader={({ section }) => (
                 <ThemedText type="subtitle" style={{ marginTop: 12 }}>
