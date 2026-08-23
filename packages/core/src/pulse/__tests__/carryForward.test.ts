@@ -239,6 +239,17 @@ describe('carryCostWarning with margin corrections', () => {
       }),
     ).toContain('1 margin correction is attached');
   });
+
+  it('names stranded ancestor notes', () => {
+    expect(
+      carryCostWarning({
+        strandedBriefs: 0,
+        strandedArchiveVerdicts: 0,
+        strandedNotes: 3,
+        homePersonLost: false,
+      }),
+    ).toContain('3 ancestor notes are attached');
+  });
 });
 
 describe('carryCostWarning with back issues', () => {

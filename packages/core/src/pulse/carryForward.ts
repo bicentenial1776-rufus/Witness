@@ -318,6 +318,7 @@ export function carryCostWarning(counts: {
   strandedMarks?: number;
   strandedShareLinks?: number;
   strandedCorrections?: number;
+  strandedNotes?: number;
   homePersonLost: boolean;
 }): string | null {
   const parts: string[] = [];
@@ -357,6 +358,11 @@ export function carryCostWarning(counts: {
       }`,
     );
   }
+  if ((counts.strandedNotes ?? 0) > 0) {
+    parts.push(
+      `${counts.strandedNotes} ancestor ${counts.strandedNotes === 1 ? 'note' : 'notes'}`,
+    );
+  }
   if (counts.homePersonLost) parts.push('your home person');
   if (parts.length === 0) return null;
 
@@ -364,5 +370,9 @@ export function carryCostWarning(counts: {
     parts.length === 1
       ? parts[0]
       : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
-  return `${list} ${parts.length === 1 && !counts.homePersonLost ? 'is' : 'are'} attached to people who are not in the new file, and will not carry over.`;
+  // The verb agrees with the whole subject: singular only when the list is
+  // one part naming one thing ("1 research brief is…", "your home person
+  // is…"); "3 ancestor notes are…" like any plural.
+  const singular = parts.length === 1 && !/^([2-9]|\d\d)/.test(parts[0]!);
+  return `${list} ${singular ? 'is' : 'are'} attached to people who are not in the new file, and will not carry over.`;
 }

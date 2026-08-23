@@ -91,7 +91,8 @@ interface ShareLinkRow {
 }
 
 async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: string) {
-  const [briefs, candidates, findings, marks, shareLinks, corrections] = await Promise.all([
+  const [briefs, candidates, findings, marks, shareLinks, corrections, notes, visits] =
+    await Promise.all([
     supabase.from('research_briefs').select('id, individual_id').eq('tree_id', oldTreeId),
     // Only decided candidates are worth carrying. A pending row is a machine
     // suggestion the new tree's enrichment will regenerate anyway; moving it
@@ -121,6 +122,12 @@ async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: strin
       .from('corrections')
       .select('id, individual_id, subject, snapshot_key, status')
       .eq('tree_id', oldTreeId),
+    // Betsey's box and Betsey's star. Both are the reader's own — a note
+    // is family lore nothing regenerates, a visit is the read-mark that
+    // stops her re-reading — and both used to die silently with the old
+    // tree's cascade on every refresh.
+    supabase.from('ancestor_notes').select('id, individual_id').eq('tree_id', oldTreeId),
+    supabase.from('ancestor_visits').select('id, individual_id').eq('tree_id', oldTreeId),
   ]);
   return {
     briefs: (briefs.data ?? []) as BriefRow[],
@@ -129,6 +136,8 @@ async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: strin
     marks: (marks.data ?? []) as MarkRow[],
     shareLinks: (shareLinks.data ?? []) as ShareLinkRow[],
     corrections: (corrections.data ?? []) as CorrectionCarryRow[],
+    notes: (notes.data ?? []) as BriefRow[],
+    visits: (visits.data ?? []) as BriefRow[],
   };
 }
 
@@ -237,6 +246,9 @@ export async function previewRefresh(
   const shareLinksStranded = carryables.shareLinks.length - shareLinksMoving;
 
   const correctionsPlan = planCarryForward(carryables.corrections, remap);
+  // Stranded visits are just read-marks and go quietly; a stranded NOTE is
+  // the reader's own words and belongs in the cost warning.
+  const notesPlan = planCarryForward(carryables.notes, remap);
   const newPeopleById = new Map<string, SnapshotPerson>(
     after.individuals.map((p) => [p.id, p]),
   );
@@ -269,6 +281,7 @@ export async function previewRefresh(
       strandedMarks: marksPlan.stranded,
       strandedShareLinks: shareLinksStranded,
       strandedCorrections: correctionsPlan.stranded.length,
+      strandedNotes: notesPlan.stranded.length,
       homePersonLost,
     }),
     remap,
@@ -350,6 +363,28 @@ export async function applyRefresh(
       .update({ tree_id: newTreeId, individual_id: newIndividualId })
       .eq('id', row.id);
     if (error) throw new Error(`Could not move a margin correction: ${error.message}`);
+  }
+
+  // Betsey's box and star: the reader's notes and read-marks, previously
+  // lost to the cascade on every refresh. Neither can collide on the new
+  // tree — its people are freshly minted rows with no notes or visits, and
+  // the remap never lands two old people on one new one.
+  const notesPlan = planCarryForward(carryables.notes, preview.remap);
+  for (const { row, newIndividualId } of notesPlan.moving) {
+    const { error } = await supabase
+      .from('ancestor_notes')
+      .update({ tree_id: newTreeId, individual_id: newIndividualId })
+      .eq('id', row.id);
+    if (error) throw new Error(`Could not move an ancestor note: ${error.message}`);
+  }
+  const visitsPlan = planCarryForward(carryables.visits, preview.remap);
+  for (const { row, newIndividualId } of visitsPlan.moving) {
+    // A visit is a convenience mark — a failed move is not worth failing
+    // the refresh over, unlike the authored rows above.
+    await supabase
+      .from('ancestor_visits')
+      .update({ tree_id: newTreeId, individual_id: newIndividualId })
+      .eq('id', row.id);
   }
 
   for (const { row, newIndividualId } of candidatePlan.moving) {
