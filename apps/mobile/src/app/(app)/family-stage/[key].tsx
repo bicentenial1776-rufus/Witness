@@ -718,11 +718,15 @@ export default function FamilyStageScreen() {
                         <Text style={mono(12.5, sexInkOf(person.s, L))}>?</Text>
                       </View>
                     )}
+                    {/* The age rides the ribbon's RIGHT edge: the rotated
+                        name owns the left-of-center lane, so a centered chip
+                        covered it whenever the reading line crossed the name
+                        (Rufus, 2026-08-24). The right lane is always free. */}
                     {age !== null && (
                       <View
                         style={{
                           position: 'absolute',
-                          alignSelf: 'center',
+                          right: -6,
                           top: lineY - 9,
                           backgroundColor: L.ink,
                           paddingHorizontal: 4,
@@ -752,7 +756,7 @@ export default function FamilyStageScreen() {
                         }
                         style={{
                           position: 'absolute',
-                          alignSelf: 'center',
+                          left: -6,
                           top: badgeTop,
                           backgroundColor: L.paper,
                           borderWidth: 1,
@@ -772,7 +776,7 @@ export default function FamilyStageScreen() {
                         }
                         style={{
                           position: 'absolute',
-                          alignSelf: 'center',
+                          left: -6,
                           top: bottomBadgeTop,
                           backgroundColor: L.paper,
                           borderWidth: 1,
@@ -792,7 +796,7 @@ export default function FamilyStageScreen() {
                         pointerEvents="none"
                         style={{
                           position: 'absolute',
-                          alignSelf: 'center',
+                          left: -6,
                           top: badgeTop + (hopKey ? 26 : 0),
                           backgroundColor: tier === 'direct' ? L.amber : L.paper,
                           borderWidth: 1,
