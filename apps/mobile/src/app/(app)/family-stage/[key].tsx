@@ -523,34 +523,41 @@ export default function FamilyStageScreen() {
         </View>
 
         {/* Set-switcher — one chip per marriage when the head married more
-            than once (Rufus, 2026-07-26). Each set re-scales the axis. */}
+            than once (Rufus, 2026-07-26). Each set re-scales the axis.
+            Labeled, and each spouse keeps her full maiden name — the chips
+            scroll rather than truncate (Rufus, 2026-08-24). */}
         {stage.marriages.length > 1 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 8, paddingTop: 10, paddingRight: 12 }}
-          >
-            {stage.marriages.map((m, i) => {
-              const active = i === marriageIdx;
-              return (
-                <Pressable
-                  key={`${m.marriageYear}-${i}`}
-                  onPress={() => setMarriageIdx(i)}
-                  style={{
-                    paddingHorizontal: 10,
-                    paddingVertical: 5,
-                    borderWidth: 1,
-                    borderColor: active ? L.amber : L.rule,
-                    backgroundColor: active ? L.amber : 'transparent',
-                  }}
-                >
-                  <Text style={mono(9.5, active ? L.paper : L.ink)}>
-                    {m.spouseName.split(' ')[0].toUpperCase()} · {m.marriageYear}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          <View style={{ paddingTop: 10 }}>
+            <Text style={{ ...mono(9, L.muted), letterSpacing: 1.5 }}>
+              MARRIAGES · TAP TO SWITCH
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 8, paddingTop: 6, paddingRight: 12 }}
+            >
+              {stage.marriages.map((m, i) => {
+                const active = i === marriageIdx;
+                return (
+                  <Pressable
+                    key={`${m.marriageYear}-${i}`}
+                    onPress={() => setMarriageIdx(i)}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderWidth: 1,
+                      borderColor: active ? L.amber : L.rule,
+                      backgroundColor: active ? L.amber : 'transparent',
+                    }}
+                  >
+                    <Text style={mono(9.5, active ? L.paper : L.ink)}>
+                      {m.spouseName.toUpperCase()} · {m.marriageYear}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
         )}
       </View>
 
@@ -638,7 +645,7 @@ export default function FamilyStageScreen() {
                     : childhoodKey.get(person.id) !== stage.key
                       ? (childhoodKey.get(person.id) ?? null)
                       : null;
-                const isDirect = tiers.get(person.id) === 'direct';
+                const tier = tiers.get(person.id);
                 // A spouse who outlived this union is dropped at the head's
                 // next marriage; everyone else runs to their own end.
                 const end =
@@ -656,14 +663,15 @@ export default function FamilyStageScreen() {
                 const diedYoung = person.d !== null && person.d - person.b < 18;
                 const unrecorded = deathUnknown(person) && !leftAtRemarriage;
                 const ink = sexInk(person.s);
-                // The head carries his full name (surname included) so the
-                // husband is identifiable in every set; others show given only.
-                const given = person.role === 'head' ? person.n : person.n.split(' ')[0];
                 const age = person.b <= line && end >= line ? Math.floor(line - person.b) : null;
                 // The name sticks to the top edge as the roll passes — and
                 // steps down past any badges capping the ribbon.
                 const badgeTop = Math.max(top + 3, 3);
-                const nameTop = Math.max(top + 4, 4) + (hopKey ? 26 : 0) + (isDirect ? 26 : 0);
+                const nameTop = Math.max(top + 4, 4) + (hopKey ? 26 : 0) + (tier ? 26 : 0);
+                // Full names for everyone, sized to the ribbon actually on
+                // screen — a name only elides when the ribbon itself is
+                // shorter than the name (Rufus, 2026-08-24).
+                const nameSpan = Math.max(Math.min(bottom, chartHeight) - nameTop - 6, 34);
                 // A long ribbon runs past the window; a child's door repeats
                 // at the bottom end so it's in reach wherever the roll sits.
                 const bottomBadgeTop = Math.min(bottom, chartHeight) - 26;
@@ -674,10 +682,8 @@ export default function FamilyStageScreen() {
                 return (
                   <Pressable
                     key={person.id}
-                    disabled={!hopKey}
                     onPress={() =>
-                      hopKey &&
-                      router.push({ pathname: '/family-stage/[key]', params: { key: hopKey } } as never)
+                      router.push({ pathname: '/ancestor/[id]', params: { id: person.id } })
                     }
                     style={{ position: 'absolute', left: GUTTER + slot.x, width: slot.width, top: 0, bottom: 0 }}
                   >
@@ -701,7 +707,7 @@ export default function FamilyStageScreen() {
                           position: 'absolute',
                           left: slot.width / 2 + 4,
                           top: nameTop,
-                          width: 120,
+                          width: nameSpan,
                           fontFamily: BrandFonts.mono.medium,
                           fontSize: 10.5,
                           letterSpacing: 1,
@@ -710,7 +716,7 @@ export default function FamilyStageScreen() {
                           transformOrigin: 'top left' as never,
                         }}
                       >
-                        {given.toUpperCase()}
+                        {person.n.toUpperCase()}
                       </Text>
                     )}
                     {/* Left at the head's remarriage: an open cap (not a
@@ -762,10 +768,15 @@ export default function FamilyStageScreen() {
                       </View>
                     )}
                     {/* Another graph to view: ↑ = the parents' childhood
-                        household, ↓ = the family this child went on to head. */}
+                        household, ↓ = the family this child went on to head.
+                        The BADGE is the door; the ribbon itself opens the
+                        person (Rufus, 2026-08-24). */}
                     {hopKey && (
-                      <View
-                        pointerEvents="none"
+                      <Pressable
+                        hitSlop={8}
+                        onPress={() =>
+                          router.push({ pathname: '/family-stage/[key]', params: { key: hopKey } } as never)
+                        }
                         style={{
                           position: 'absolute',
                           alignSelf: 'center',
@@ -778,11 +789,14 @@ export default function FamilyStageScreen() {
                         }}
                       >
                         <Text style={mono(14, L.ink)}>{person.role === 'child' ? '↓' : '↑'}</Text>
-                      </View>
+                      </Pressable>
                     )}
                     {showBottomBadge && (
-                      <View
-                        pointerEvents="none"
+                      <Pressable
+                        hitSlop={8}
+                        onPress={() =>
+                          router.push({ pathname: '/family-stage/[key]', params: { key: hopKey! } } as never)
+                        }
                         style={{
                           position: 'absolute',
                           alignSelf: 'center',
@@ -795,25 +809,30 @@ export default function FamilyStageScreen() {
                         }}
                       >
                         <Text style={mono(14, L.ink)}>↓</Text>
-                      </View>
+                      </Pressable>
                     )}
-                    {/* The direct ancestor in this household — the app's
-                        lineage mark, so the eye finds the bloodline child. */}
-                    {isDirect && (
+                    {/* The lineage mark rides directly above the name on the
+                        ribbon — ⇅ in amber for the direct line, the drop for
+                        blood kin — so the eye finds the bloodline at a glance. */}
+                    {tier && (
                       <View
                         pointerEvents="none"
                         style={{
                           position: 'absolute',
                           alignSelf: 'center',
                           top: badgeTop + (hopKey ? 26 : 0),
-                          backgroundColor: L.amber,
+                          backgroundColor: tier === 'direct' ? L.amber : L.paper,
                           borderWidth: 1,
-                          borderColor: L.paper,
+                          borderColor: tier === 'direct' ? L.paper : L.deepAmber,
                           paddingHorizontal: 5,
                           paddingVertical: 2,
                         }}
                       >
-                        <LineageMark tier="direct" size={15} color={L.paper} />
+                        <LineageMark
+                          tier={tier}
+                          size={15}
+                          color={tier === 'direct' ? L.paper : L.deepAmber}
+                        />
                       </View>
                     )}
                   </Pressable>
@@ -859,6 +878,13 @@ export default function FamilyStageScreen() {
             </Text>
           </View>
         ))}
+        {/* What raises a graph — the honest recipe, so a thin tree knows
+            the road: dates make households drawable (Rufus, 2026-08-24). */}
+        <Text style={{ ...mono(8.5, L.muted), lineHeight: 13, marginTop: 4 }}>
+          A FAMILY GRAPH CAN BE DRAWN ONCE THE RECORD DATES IT — A DATED MARRIAGE, A BIRTH-DATED
+          PARENT, AND AT LEAST ONE BIRTH-DATED CHILD. ADD DATES TO YOUR TREE AND REFRESH: MORE
+          HOUSEHOLDS, AND MORE ↑ ↓ DOORS, APPEAR.
+        </Text>
       </View>
 
       {/* Chips · slider · sweep. */}
