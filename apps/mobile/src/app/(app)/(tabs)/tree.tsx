@@ -168,7 +168,7 @@ export default function TreeTab() {
   );
 
   const familyStageDoor = (
-    <Section eyebrow="The family stage">
+    <Section eyebrow="The family graph">
           <Pressable
             onPress={() => router.push('/family-stage/root' as never)}
             style={{
@@ -184,7 +184,7 @@ export default function TreeTab() {
             }}
           >
             <Text style={{ fontFamily: BrandFonts.serif.semiBold, fontSize: 21, color: L.ink }}>
-              The Family Stage
+              The Family Graph
             </Text>
             <Text style={mono(10.5, L.muted)}>ONE HOUSEHOLD DRAWN AS A LENGTH OF TIME</Text>
             <Pressable onPress={() => router.push('/register' as never)} hitSlop={8}>

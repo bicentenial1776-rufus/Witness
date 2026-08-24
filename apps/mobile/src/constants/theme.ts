@@ -152,12 +152,15 @@ export const Letterpress = {
   paper: '#fbf9f5',
   ink: '#1a1815',
   amber: '#b0741f',
-  deepAmber: '#8a5a12',
-  muted: '#6f6a60',
+  // Darkened 2026-08-23 (Rufus, daylight field test): the browns washed
+  // out in sunlight. Sex inks decoupled from the text tokens so a woman's
+  // ribbon and a caption are no longer the same pigment.
+  deepAmber: '#6b4306',
+  muted: '#57524a',
   /** Sex inks (grey for unrecorded — carried rule). */
   inkMen: '#2f2c26',
-  inkWomen: '#8a5a12',
-  inkUnrecorded: '#6f6a60',
+  inkWomen: '#744b0b',
+  inkUnrecorded: '#5f5a51',
   /** Hairline — same value as Broadsheet.color.rule so the two carriers share rules. */
   rule: '#DDD6C9',
 } as const;

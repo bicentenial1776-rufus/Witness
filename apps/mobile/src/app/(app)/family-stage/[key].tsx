@@ -199,6 +199,18 @@ export default function FamilyStageScreen() {
     [viewRows],
   );
 
+  // Up-hops: the graph each person was a CHILD in — an inverse index over
+  // the stages already loaded, no new fetch. Parents hop up through this;
+  // children hop down through their own `mfam`.
+  const childhoodKey = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!stages) return map;
+    for (const s of stages.byKey.values())
+      for (const m of s.marriages)
+        for (const c of m.children) if (!map.has(c.id)) map.set(c.id, s.key);
+    return map;
+  }, [stages]);
+
   // A new household starts on its first marriage.
   useEffect(() => {
     setMarriageIdx(0);
@@ -334,7 +346,7 @@ export default function FamilyStageScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: L.paper, padding: 24, paddingTop: 72 }}>
         <RecordText eyebrow style={{ color: L.deepAmber }}>
-          The family stage
+          The family graph
         </RecordText>
         <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 20, color: L.ink, marginTop: 10 }}>
           {failed ? 'The stage could not be set — try again shortly.' : 'No tree yet.'}
@@ -347,7 +359,7 @@ export default function FamilyStageScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: L.paper, padding: 24, paddingTop: 72 }}>
         <RecordText eyebrow style={{ color: L.deepAmber }}>
-          The family stage
+          The family graph
         </RecordText>
         <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 20, color: L.ink, marginTop: 10 }}>
           This household can&rsquo;t be drawn as a length of time yet.
@@ -452,11 +464,12 @@ export default function FamilyStageScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: L.paper }}>
-      {/* Header — "← Families" returns to the Register, the stage's table
-          of contents. dismissTo POPS back to it (unwinding any chain of
-          "their stage" hops in one tap) rather than pushing a fresh copy —
-          pushing here grew the stack forever and trapped the reader
-          (Rufus, 2026-08-04). */}
+      {/* Header — back means BACK: the reader returns to whatever screen
+          they were just on (a Portrait, the Register, the previous graph
+          in a chain of hops). dismissTo('/register') used to dump readers
+          who arrived from a Portrait onto a screen they'd never seen
+          (Rufus, 2026-08-23). The register stays the no-history fallback
+          for cold deep links. */}
       <View
         style={{
           flexDirection: 'row',
@@ -466,12 +479,15 @@ export default function FamilyStageScreen() {
           paddingHorizontal: 20,
         }}
       >
-        <Pressable onPress={() => router.dismissTo('/register' as never)} hitSlop={10}>
-          <Text style={mono(12, L.amber)}>← FAMILIES</Text>
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.dismissTo('/register' as never))}
+          hitSlop={10}
+        >
+          <Text style={mono(12, L.amber)}>← BACK</Text>
         </Pressable>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <RecordText eyebrow style={{ color: L.muted }}>
-            The family stage
+            The family graph
           </RecordText>
           <GuideHelpButton page="family-stage.html" color={L.amber} />
         </View>
@@ -501,7 +517,7 @@ export default function FamilyStageScreen() {
           ).map(([color, label]) => (
             <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <View style={{ width: 9, height: 9, backgroundColor: color, borderWidth: label === 'DIED BEFORE 18' ? 1 : 0, borderColor: L.rule }} />
-              <Text style={mono(8.5, L.muted)}>{label}</Text>
+              <Text style={mono(9.5, L.muted)}>{label}</Text>
             </View>
           ))}
         </View>
@@ -596,7 +612,7 @@ export default function FamilyStageScreen() {
                     <Text
                       key={`cap-${slot.x}`}
                       style={{
-                        ...mono(8, L.deepAmber),
+                        ...mono(9, L.deepAmber),
                         position: 'absolute',
                         left: GUTTER + slot.x + 12,
                         top: 10,
@@ -611,6 +627,18 @@ export default function FamilyStageScreen() {
                   );
                 }
                 const person = slot.person!;
+                // Where can this ribbon take you? Children hop DOWN to the
+                // graph they head; parents hop UP to the graph they were a
+                // child in. No further family = no press (Rufus's call).
+                const hopKey =
+                  person.role === 'child'
+                    ? person.mfam && person.mfam !== stage.key && stages?.byKey.has(person.mfam)
+                      ? person.mfam
+                      : null
+                    : childhoodKey.get(person.id) !== stage.key
+                      ? (childhoodKey.get(person.id) ?? null)
+                      : null;
+                const isDirect = tiers.get(person.id) === 'direct';
                 // A spouse who outlived this union is dropped at the head's
                 // next marriage; everyone else runs to their own end.
                 const end =
@@ -632,10 +660,20 @@ export default function FamilyStageScreen() {
                 // husband is identifiable in every set; others show given only.
                 const given = person.role === 'head' ? person.n : person.n.split(' ')[0];
                 const age = person.b <= line && end >= line ? Math.floor(line - person.b) : null;
-                // The name sticks to the top edge as the roll passes.
-                const nameTop = Math.max(top + 4, 4);
+                // The name sticks to the top edge as the roll passes — and
+                // steps down past any badges capping the ribbon.
+                const badgeTop = Math.max(top + 3, 3);
+                const nameTop = Math.max(top + 4, 4) + (hopKey ? 19 : 0) + (isDirect ? 19 : 0);
                 return (
-                  <View key={person.id} style={{ position: 'absolute', left: GUTTER + slot.x, width: slot.width, top: 0, bottom: 0 }}>
+                  <Pressable
+                    key={person.id}
+                    disabled={!hopKey}
+                    onPress={() =>
+                      hopKey &&
+                      router.push({ pathname: '/family-stage/[key]', params: { key: hopKey } } as never)
+                    }
+                    style={{ position: 'absolute', left: GUTTER + slot.x, width: slot.width, top: 0, bottom: 0 }}
+                  >
                     <View
                       style={{
                         position: 'absolute',
@@ -716,7 +754,45 @@ export default function FamilyStageScreen() {
                         <Text style={mono(10, L.paper)}>{age}</Text>
                       </View>
                     )}
-                  </View>
+                    {/* Another graph to view: ↑ = the parents' childhood
+                        household, ↓ = the family this child went on to head. */}
+                    {hopKey && (
+                      <View
+                        pointerEvents="none"
+                        style={{
+                          position: 'absolute',
+                          alignSelf: 'center',
+                          top: badgeTop,
+                          backgroundColor: L.paper,
+                          borderWidth: 1,
+                          borderColor: L.ink,
+                          paddingHorizontal: 4,
+                          paddingVertical: 1,
+                        }}
+                      >
+                        <Text style={mono(9.5, L.ink)}>{person.role === 'child' ? '↓' : '↑'}</Text>
+                      </View>
+                    )}
+                    {/* The direct ancestor in this household — the app's
+                        lineage mark, so the eye finds the bloodline child. */}
+                    {isDirect && (
+                      <View
+                        pointerEvents="none"
+                        style={{
+                          position: 'absolute',
+                          alignSelf: 'center',
+                          top: badgeTop + (hopKey ? 19 : 0),
+                          backgroundColor: L.amber,
+                          borderWidth: 1,
+                          borderColor: L.paper,
+                          paddingHorizontal: 4,
+                          paddingVertical: 1,
+                        }}
+                      >
+                        <LineageMark tier="direct" size={10} color={L.paper} />
+                      </View>
+                    )}
+                  </Pressable>
                 );
               })}
           </View>
@@ -733,12 +809,12 @@ export default function FamilyStageScreen() {
       <View style={{ paddingHorizontal: 20, paddingTop: 8, gap: 4 }}>
         {unionText && (
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            <Text style={{ ...mono(8.5, L.muted), width: 62 }}>UNION</Text>
+            <Text style={{ ...mono(9.5, L.muted), width: 62 }}>UNION</Text>
             <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 13, color: L.ink }}>{unionText}</Text>
           </View>
         )}
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Text style={{ ...mono(8.5, L.muted), width: 62 }}>AT HOME</Text>
+          <Text style={{ ...mono(9.5, L.muted), width: 62 }}>AT HOME</Text>
           <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 13, color: L.ink }}>
             {atHome.length === 0
               ? 'no children under eighteen'
@@ -746,14 +822,14 @@ export default function FamilyStageScreen() {
           </Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Text style={{ ...mono(8.5, L.muted), width: 62 }}>LIVING</Text>
+          <Text style={{ ...mono(9.5, L.muted), width: 62 }}>LIVING</Text>
           <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 13, color: L.ink }}>
             {membersAlive.length} of the {people.length} in this group
           </Text>
         </View>
         {passing.map((p) => (
           <View key={`m-${p.id}`} style={{ flexDirection: 'row', gap: 12 }}>
-            <Text style={{ ...mono(8.5, L.deepAmber), width: 62 }}>{p.m!.y}</Text>
+            <Text style={{ ...mono(9.5, L.deepAmber), width: 62 }}>{p.m!.y}</Text>
             <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 13, color: L.ink }}>
               {p.n.split(' ')[0]} married {p.m!.spouse}
             </Text>
@@ -810,8 +886,8 @@ export default function FamilyStageScreen() {
           />
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: -6 }}>
-          <Text style={mono(8.5, L.muted)}>{marriage.marriageYear} · THE MARRIAGE</Text>
-          <Text style={mono(8.5, L.muted)}>{marriage.scrubEnd} · THE LAST CHILD</Text>
+          <Text style={mono(9.5, L.muted)}>{marriage.marriageYear} · THE MARRIAGE</Text>
+          <Text style={mono(9.5, L.muted)}>{marriage.scrubEnd} · THE LAST CHILD</Text>
         </View>
 
         <Pressable
@@ -864,7 +940,7 @@ export default function FamilyStageScreen() {
                         router.push({ pathname: '/family-stage/[key]', params: { key: p.mfam } } as never);
                       }}
                     >
-                      <Text style={mono(9, L.amber)}>THEIR STAGE ›</Text>
+                      <Text style={mono(9, L.amber)}>THEIR GRAPH ›</Text>
                     </Pressable>
                   )}
                 </View>

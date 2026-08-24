@@ -47,7 +47,7 @@ function ageWord(years: number): string {
 }
 
 /**
- * The Family Stage — one household drawn as lifelines against a shared
+ * The Family Graph — one household drawn as lifelines against a shared
  * time axis. Web carrier: the whole family span scales to fit, nothing
  * scrolls off, and a vertical reading line sweeps left to right.
  * Depth comes from shadow only — never translateZ, which slides edges
@@ -145,7 +145,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
     return (
       <View style={{ marginBottom: 28 }}>
         <RecordText eyebrow accent>
-          The Family Stage
+          The Family Graph
         </RecordText>
         <View
           style={{
@@ -396,7 +396,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
   return (
     <View style={{ marginBottom: 8 }}>
       <RecordText eyebrow accent>
-        The Family Stage
+        The Family Graph
       </RecordText>
 
       {/* Household picker — top-level families only */}

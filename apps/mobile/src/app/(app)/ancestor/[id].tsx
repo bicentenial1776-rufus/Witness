@@ -1020,11 +1020,14 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     );
   }
 
+  // Section titles carry the register's structure — full ink and semibold,
+  // not a whisper (Rufus, 2026-08-23: the muted brown vanished in daylight).
   const groupLabelStyle = {
     fontFamily: Fonts.mono,
-    fontSize: 10,
+    fontSize: 11,
+    fontWeight: '600' as const,
     letterSpacing: 1.8,
-    color: theme.textSecondary,
+    color: theme.text,
     textTransform: 'uppercase' as const,
     marginBottom: 6,
   };
@@ -1409,6 +1412,19 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 {runningHead}
               </Text>
             )}
+            {/* The door to the graph rides directly under the house name —
+                it lived at the bottom of the register, below every section,
+                where nobody found it (Rufus, 2026-08-23). */}
+            {stageKey !== null && (
+              <Pressable
+                onPress={() =>
+                  router.push({ pathname: '/family-stage/[key]', params: { key: stageKey } })
+                }
+                style={{ paddingTop: 8 }}
+              >
+                <ThemedText type="link">Family Graph ›</ThemedText>
+              </Pressable>
+            )}
             {parents.length > 0 && (
               <View style={{ paddingTop: 14, paddingBottom: 4 }}>
                 <Text style={groupLabelStyle}>Parents</Text>
@@ -1458,7 +1474,9 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                     <Pressable
                       onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: spouse.id } })}
                     >
-                      <Text style={groupLabelStyle}>{label} ›</Text>
+                      {/* Tappable eyebrow reads tappable: accent, unlike its
+                          inert PARENTS / SIBLINGS neighbors. */}
+                      <Text style={{ ...groupLabelStyle, color: theme.accent }}>{label} ›</Text>
                     </Pressable>
                   ) : (
                     <Text style={groupLabelStyle}>{label}</Text>
@@ -1469,28 +1487,6 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 </View>
               );
             })}
-            {/* The register answers who; the stage answers how long, and side by
-                side. One link, not one per marriage — the stage has its own
-                set-switcher. Keyed on the RESOLVED stage key (the household
-                head's id — possibly the spouse's), and rendered only when the
-                stage index actually holds this household: the builder needs a
-                dated marriage and a birth-dated child, so for thinner records
-                the door used to open onto the wrong family. */}
-            {stageKey !== null && (
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: '/family-stage/[key]',
-                    params: { key: stageKey },
-                  })
-                }
-                style={{ paddingTop: 14, borderTopWidth: 1, borderTopColor: theme.border }}
-              >
-                <ThemedText type="link">
-                  See this household as a length of time ›
-                </ThemedText>
-              </Pressable>
-            )}
           </View>
         )}
 
