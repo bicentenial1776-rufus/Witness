@@ -37,6 +37,7 @@ import { getFeaturedIds, getRelationshipMap } from '@/lib/relationship-cache';
 import { usePurchases } from '@/lib/purchases';
 import { describeResumePoint, getResumePoint } from '@/lib/resume';
 import { getShelf } from '@/lib/shelf-cache';
+import { getTodayArc, type StoryArc } from '@/lib/story-arc';
 import { supabase } from '@/lib/supabase';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
@@ -115,11 +116,32 @@ export default function Home() {
     destination: { pathname: string; params: Record<string, string> };
   } | null>(null);
   const [shelf, setShelf] = useState<ShelfEntry[] | null>(null);
+  // Today's story arc leads the edition; the anniversary hero is the
+  // fallback when the arc can't be told (no entitlement, thin tree, net).
+  const [arc, setArc] = useState<StoryArc | 'loading' | 'failed'>('loading');
   const [generations, setGenerations] = useState<number | null>(null);
   const [resume, setResume] = useState<{ path: string; title: string; ts: number } | null>(null);
 
   // The edition — same all week, everywhere; the seed for the desks' picks.
   const issue = issueOf(new Date());
+
+  // Today's line: cached after its first telling, so this is one cheap
+  // function round-trip on every Home visit after the first of the day.
+  useEffect(() => {
+    if (!activeTree) return;
+    let cancelled = false;
+    setArc('loading');
+    getTodayArc(activeTree.id)
+      .then((a) => {
+        if (!cancelled) setArc(a);
+      })
+      .catch(() => {
+        if (!cancelled) setArc('failed');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTree?.id]);
 
   // The ledger's write path: record what this edition printed, once the
   // desks have picked. Fire-and-forget — a failed write costs a back
@@ -383,9 +405,61 @@ export default function Home() {
                 </Pressable>
               )}
 
-              {/* 1 · The lead */}
+              {/* 1 · The lead — today's story arc: one recorded line,
+                  founder to reader, a new one each day. The anniversary
+                  hero remains the fallback when the arc can't be told. */}
               <Feed eyebrow="The lead">
-                {!digest ? (
+                {typeof arc === 'object' ? (
+                  <Pressable
+                    onPress={() => {
+                      openTrailPiece('lead');
+                      router.push('/story-arc' as never);
+                    }}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: L.rule,
+                      backgroundColor: '#ffffff',
+                      padding: 18,
+                      gap: 7,
+                      shadowColor: L.ink,
+                      shadowOpacity: 0.05,
+                      shadowRadius: 4,
+                      shadowOffset: { width: 0, height: 2 },
+                    }}
+                  >
+                    <Text style={mono(10, L.deepAmber)}>A GENERATIONAL STORY · TODAY'S LINE</Text>
+                    <Text
+                      style={{
+                        fontFamily: BrandFonts.serif.semiBold,
+                        fontSize: 26,
+                        lineHeight: 32,
+                        color: L.ink,
+                      }}
+                    >
+                      {arc.title}
+                    </Text>
+                    <Text style={mono(10.5, L.muted)}>
+                      {`${arc.generations.length} GENERATIONS · ${arc.generations[0]?.birth ?? '?'}–TODAY`}
+                      {arc.generations[0]?.relationLabel
+                        ? ` · FROM YOUR ${arc.generations[0].relationLabel.toUpperCase()}`
+                        : ''}
+                    </Text>
+                    <Text
+                      style={{
+                        fontFamily: BrandFonts.serif.regular,
+                        fontSize: 15.5,
+                        lineHeight: 23,
+                        color: L.ink,
+                        marginTop: 4,
+                      }}
+                    >
+                      {arc.dek}
+                    </Text>
+                    <Text style={{ ...mono(10.5, L.amber), marginTop: 4 }}>READ THE LINE ›</Text>
+                  </Pressable>
+                ) : arc === 'loading' ? (
+                  <Text style={mono(11, L.muted)}>SETTING TODAY'S STORY…</Text>
+                ) : !digest ? (
                   <Text style={mono(11, L.muted)}>SETTING THE WEEK…</Text>
                 ) : !hero ? (
                   <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 17, color: L.ink }}>

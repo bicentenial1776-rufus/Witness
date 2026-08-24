@@ -312,6 +312,12 @@ export default function ExploreTab() {
                   turned out to be kin
                 </ThemedText>
               </Card>
+              <Card onPress={() => router.push('/synthesis' as never)}>
+                <ThemedText type="subtitle">Your whole ancestry, read at once</ThemedText>
+                <ThemedText type="small">
+                  Every recorded ancestor woven into one essay — it grows as your tree does
+                </ThemedText>
+              </Card>
 
             </>
           )}

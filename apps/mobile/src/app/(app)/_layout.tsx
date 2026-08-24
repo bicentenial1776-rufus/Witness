@@ -132,6 +132,8 @@ export default function AppLayout() {
       <Stack.Screen name="family-stage/[key]" options={{ headerShown: false }} />
       <Stack.Screen name="faq" options={{ title: 'Questions & Answers' }} />
       <Stack.Screen name="nearby" options={{ title: 'Near me' }} />
+      <Stack.Screen name="story-arc" options={{ title: "Today's Line" }} />
+      <Stack.Screen name="synthesis" options={{ title: 'The Synthesis' }} />
       <Stack.Screen name="patterns" options={{ title: 'Patterns' }} />
       <Stack.Screen name="origins" options={{ title: 'Where It Began' }} />
       <Stack.Screen name="crossings" options={{ title: 'Ocean Crossings' }} />

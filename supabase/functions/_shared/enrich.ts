@@ -104,20 +104,31 @@ export async function checkDailyLimit(ctx: EnrichContext): Promise<Response | nu
   startOfDay.setUTCHours(0, 0, 0, 0);
   const since = startOfDay.toISOString();
 
-  const [{ count: enrichments }, { count: briefs }] = await Promise.all([
-    ctx.db
-      .from('enrichment_cache')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', ctx.userId)
-      .gte('created_at', since),
-    ctx.db
-      .from('research_briefs')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', ctx.userId)
-      .gte('created_at', since),
-  ]);
+  const [{ count: enrichments }, { count: briefs }, { count: arcs }, { count: syntheses }] =
+    await Promise.all([
+      ctx.db
+        .from('enrichment_cache')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', ctx.userId)
+        .gte('created_at', since),
+      ctx.db
+        .from('research_briefs')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', ctx.userId)
+        .gte('created_at', since),
+      ctx.db
+        .from('story_arcs')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', ctx.userId)
+        .gte('created_at', since),
+      ctx.db
+        .from('tree_syntheses')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', ctx.userId)
+        .gte('created_at', since),
+    ]);
 
-  if ((enrichments ?? 0) + (briefs ?? 0) >= DAILY_LIMIT) {
+  if ((enrichments ?? 0) + (briefs ?? 0) + (arcs ?? 0) + (syntheses ?? 0) >= DAILY_LIMIT) {
     return json(429, {
       error: `Daily limit of ${DAILY_LIMIT} AI generations reached. It resets at midnight UTC.`,
       code: 'rate_limited',
