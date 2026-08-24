@@ -58,7 +58,7 @@ export async function fetchGeographyIndex(
   client: WitnessSupabaseClient,
   treeId: string,
 ): Promise<GeographyIndex> {
-  const [placeRows, eventRows, individualRows, graveRows] = await Promise.all([
+  const [placeRows, eventRows, individualRows, graveRows, confirmedRows] = await Promise.all([
     fetchAllPages<Omit<GeoPlace, 'region' | 'country'>>(
       (from, to) =>
         client
@@ -104,6 +104,17 @@ export async function fetchGeographyIndex(
           .range(from, to),
       'Fetching grave links failed',
     ).catch(() => [] as { individual_id: string | null; url: string | null }[]),
+    // The user's own confirmed memorials — they override imported citations.
+    fetchAllPages<{ individual_id: string; url: string }>(
+      (from, to) =>
+        client
+          .from('grave_confirmations')
+          .select('individual_id, url')
+          .eq('tree_id', treeId)
+          .order('id')
+          .range(from, to),
+      'Fetching grave confirmations failed',
+    ).catch(() => [] as { individual_id: string; url: string }[]),
   ]);
 
   const places = new Map<string, GeoPlace>();
@@ -128,6 +139,8 @@ export async function fetchGeographyIndex(
       graveLinks.set(row.individual_id, row.url);
     }
   }
+  // A personally confirmed memorial beats the imported citation's claim.
+  for (const row of confirmedRows) graveLinks.set(row.individual_id, row.url);
 
   return { places, events, individuals, graveLinks };
 }

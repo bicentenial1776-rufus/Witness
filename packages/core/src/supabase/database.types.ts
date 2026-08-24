@@ -272,6 +272,48 @@ export type Database = {
           },
         ]
       }
+      grave_confirmations: {
+        Row: {
+          confirmed_at: string
+          id: string
+          individual_id: string
+          tree_id: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          confirmed_at?: string
+          id?: string
+          individual_id: string
+          tree_id: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          confirmed_at?: string
+          id?: string
+          individual_id?: string
+          tree_id?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grave_confirmations_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grave_confirmations_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       corrections: {
         Row: {
           corrected_value: string

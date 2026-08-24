@@ -91,7 +91,7 @@ interface ShareLinkRow {
 }
 
 async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: string) {
-  const [briefs, candidates, findings, marks, shareLinks, corrections, notes, visits] =
+  const [briefs, candidates, findings, marks, shareLinks, corrections, notes, visits, graves] =
     await Promise.all([
     supabase.from('research_briefs').select('id, individual_id').eq('tree_id', oldTreeId),
     // Only decided candidates are worth carrying. A pending row is a machine
@@ -128,6 +128,9 @@ async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: strin
     // tree's cascade on every refresh.
     supabase.from('ancestor_notes').select('id, individual_id').eq('tree_id', oldTreeId),
     supabase.from('ancestor_visits').select('id, individual_id').eq('tree_id', oldTreeId),
+    // The user's own confirmed Find a Grave memorial URLs — testimony, not
+    // imported data, so they move like notes.
+    supabase.from('grave_confirmations').select('id, individual_id').eq('tree_id', oldTreeId),
   ]);
   return {
     briefs: (briefs.data ?? []) as BriefRow[],
@@ -138,6 +141,7 @@ async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: strin
     corrections: (corrections.data ?? []) as CorrectionCarryRow[],
     notes: (notes.data ?? []) as BriefRow[],
     visits: (visits.data ?? []) as BriefRow[],
+    graves: (graves.data ?? []) as BriefRow[],
   };
 }
 
@@ -376,6 +380,14 @@ export async function applyRefresh(
       .update({ tree_id: newTreeId, individual_id: newIndividualId })
       .eq('id', row.id);
     if (error) throw new Error(`Could not move an ancestor note: ${error.message}`);
+  }
+  const gravesPlan = planCarryForward(carryables.graves, preview.remap);
+  for (const { row, newIndividualId } of gravesPlan.moving) {
+    const { error } = await supabase
+      .from('grave_confirmations')
+      .update({ tree_id: newTreeId, individual_id: newIndividualId })
+      .eq('id', row.id);
+    if (error) throw new Error(`Could not move a grave confirmation: ${error.message}`);
   }
   const visitsPlan = planCarryForward(carryables.visits, preview.remap);
   for (const { row, newIndividualId } of visitsPlan.moving) {

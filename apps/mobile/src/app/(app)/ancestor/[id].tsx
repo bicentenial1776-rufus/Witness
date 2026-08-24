@@ -28,6 +28,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
 import * as Clipboard from 'expo-clipboard';
+import * as WebBrowser from 'expo-web-browser';
 
 import { showAlert } from '@/lib/alert';
 import { providerPersonLink, type ProviderLink } from '@/lib/ancestry';
@@ -46,6 +47,12 @@ import {
   getRelationshipDetailMap,
   type LineageTier,
 } from '@/lib/relationship-cache';
+import {
+  buildFindAGraveSearchUrl,
+  fetchGraveConfirmation,
+  saveGraveConfirmation,
+  type GraveConfirmation,
+} from '@/lib/grave-link';
 import { invokeError, openResearchBrief } from '@/lib/research-brief';
 import { supabase } from '@/lib/supabase';
 import { BrandFonts, Fonts, WideContent } from '@/constants/theme';
@@ -490,6 +497,60 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   const [stageKey, setStageKey] = useState<string | null>(null);
   const [tags, setTags] = useState<LivedThroughTag[]>([]);
   const [sources, setSources] = useState<SourceGroup[]>([]);
+  // The user-confirmed Find a Grave memorial — testimony beside the record.
+  const [graveConf, setGraveConf] = useState<GraveConfirmation | null>(null);
+  const [graveFlow, setGraveFlow] = useState<'idle' | 'confirm' | 'saving'>('idle');
+  const [graveDraft, setGraveDraft] = useState('');
+
+  // Opens the user's own browser on a Find a Grave SEARCH built from the
+  // record (missing fields simply omitted), then offers a paste-to-confirm
+  // step — with a clipboard assist when they copied the memorial link.
+  async function startGraveSearch() {
+    if (!person) return;
+    const placeOf = (type: string) =>
+      events.find((e) => e.event_type === type && e.places?.raw)?.places?.raw;
+    const location =
+      (placeOf('burial') ?? placeOf('death') ?? placeOf('birth'))
+        ?.split(',')
+        .slice(0, 2)
+        .join(',')
+        .trim() ?? null;
+    const url = buildFindAGraveSearchUrl({
+      fullName: person.full_name,
+      birthYear: person.birth_year,
+      deathYear: person.death_year,
+      location,
+    });
+    if (Platform.OS === 'web') {
+      window.open(url, '_blank', 'noopener');
+    } else {
+      await WebBrowser.openBrowserAsync(url);
+    }
+    let prefill = '';
+    try {
+      const clip = (await Clipboard.getStringAsync())?.trim();
+      if (clip && isFindAGraveUrl(clip)) prefill = clip;
+    } catch {
+      // Clipboard permission denied — manual paste still works.
+    }
+    setGraveDraft(prefill);
+    setGraveFlow('confirm');
+  }
+
+  async function saveGrave() {
+    if (!person) return;
+    const url = graveDraft.trim();
+    if (!isFindAGraveUrl(url)) return;
+    setGraveFlow('saving');
+    try {
+      const conf = await saveGraveConfirmation(person.id, person.tree_id, url);
+      setGraveConf(conf);
+      setGraveFlow('idle');
+    } catch (error) {
+      setGraveFlow('confirm');
+      showAlert('Could not save', error instanceof Error ? error.message : 'Please try again.');
+    }
+  }
   const [naraCandidates, setNaraCandidates] = useState<NaraCandidate[]>([]);
   const [relationship, setRelationship] = useState<string | null>(null);
   // The compass: generation depth + branch side, from the same cached
@@ -700,6 +761,13 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
         .then(({ data }) => {
           if (!cancelled && data) setSources(groupCitations(data));
         });
+
+      // The user's own confirmed memorial, if they've verified one.
+      setGraveConf(null);
+      setGraveFlow('idle');
+      fetchGraveConfirmation(id).then((conf) => {
+        if (!cancelled && conf) setGraveConf(conf);
+      });
 
       // National Archives candidates for this person (pending asks +
       // confirmed documents). Hidden while empty; enrichment is gradual.
@@ -1566,6 +1634,82 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               </Card>
             ))}
           </>
+        )}
+
+        {/* The burial record — deep-link & confirm (Rufus's spec,
+            2026-08-24). Imported citations CLAIM a memorial; only the reader
+            can verify it. The search opens in their own browser; Witness
+            stores nothing but the URL they confirm. */}
+        {person && !person.living && (
+          <View style={{ marginTop: 16, gap: 6 }}>
+            <ThemedText type="subtitle">Burial record</ThemedText>
+            {graveConf && graveFlow === 'idle' && (
+              <>
+                <ThemedText type="small">
+                  Memorial confirmed by you on{' '}
+                  {new Date(graveConf.confirmed_at).toLocaleDateString()}.
+                </ThemedText>
+                <ThemedText type="link" onPress={() => openExternal(graveConf.url)}>
+                  View the memorial on Find A Grave ›
+                </ThemedText>
+                <ThemedText
+                  type="small"
+                  themeColor="accent"
+                  onPress={() => startGraveSearch()}
+                  accessibilityRole="button"
+                >
+                  Re-check burial record ›
+                </ThemedText>
+              </>
+            )}
+            {!graveConf && graveFlow === 'idle' && (
+              <>
+                <ThemedText type="small">
+                  Search Find A Grave with what the record knows, then confirm the right memorial
+                  yourself — Witness saves only the link you verify.
+                </ThemedText>
+                <ThemedText
+                  type="link"
+                  onPress={() => startGraveSearch()}
+                  accessibilityRole="button"
+                >
+                  Find burial record ›
+                </ThemedText>
+              </>
+            )}
+            {(graveFlow === 'confirm' || graveFlow === 'saving') && (
+              <Card style={{ gap: 8 }}>
+                <ThemedText type="small">
+                  Found the right memorial? Copy its link in the browser (Share → Copy Link), then
+                  paste it here to confirm.
+                </ThemedText>
+                <TextField
+                  value={graveDraft}
+                  onChangeText={setGraveDraft}
+                  placeholder="https://www.findagrave.com/memorial/…"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {graveDraft.trim().length > 0 && !isFindAGraveUrl(graveDraft) && (
+                  <ThemedText type="small">
+                    That doesn't look like a Find A Grave link yet.
+                  </ThemedText>
+                )}
+                <Button
+                  title={graveFlow === 'saving' ? 'Saving…' : 'Confirm this memorial'}
+                  onPress={() => void saveGrave()}
+                  disabled={graveFlow === 'saving' || !isFindAGraveUrl(graveDraft)}
+                />
+                <ThemedText
+                  type="small"
+                  onPress={() => setGraveFlow('idle')}
+                  accessibilityRole="button"
+                >
+                  Cancel
+                </ThemedText>
+              </Card>
+            )}
+          </View>
         )}
 
         {/* The third door: what the audit noticed about this person. Same
