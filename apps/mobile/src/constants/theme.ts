@@ -17,8 +17,8 @@ export const Colors = {
     background: '#F7F3EE', // parchment
     backgroundElement: '#FFFDF9', // raised card surface
     backgroundSelected: '#ECE4D8',
-    border: '#E2D9CC',
-    accent: '#B45309', // amber
+    border: '#CFC5B2', // Large Print pass 2026-08-24: structure must be visible
+    accent: '#A54A08', // amber, darkened for real AA margin (was #B45309 at 4.55:1)
     onAccent: '#FFFDF9',
   },
   dark: {
@@ -113,12 +113,15 @@ export const Broadsheet = {
     railBg: '#F0ECE3',
     ink: '#17140F',
     inkSecondary: '#4A443B',
-    inkMuted: '#857C6F',
-    inkFaint: '#A0968A',
+    // Large Print pass 2026-08-24: muted was 3.68:1 and faint 2.60:1 on
+    // paper — below AA. Muted now passes for normal text; faint passes
+    // large-text and is banned below 14px.
+    inkMuted: '#6B6257',
+    inkFaint: '#847A6C',
     accent: '#B4501A',
     accentHover: '#8E3D11',
-    rule: '#DDD6C9',
-    ruleLight: '#E7E1D5',
+    rule: '#C9BEAA',
+    ruleLight: '#D8CFBE',
     barInactive: '#D8CFC0',
   },
   // Calibrated down ~10% on 2026-07-26 (Rufus: web ran a little large);
@@ -131,8 +134,8 @@ export const Broadsheet = {
     ledgerName: 22,
     body: 18,
     ui: 16,
-    caption: 14,
-    monoEyebrow: 12,
+    caption: 15, // Large Print pass 2026-08-24 (was 14)
+    monoEyebrow: 13, // (was 12)
   },
   railWidth: 210,
   marginColumn: 300,
@@ -151,7 +154,10 @@ export const Broadsheet = {
 export const Letterpress = {
   paper: '#fbf9f5',
   ink: '#1a1815',
-  amber: '#b0741f',
+  // Large Print pass 2026-08-24: the old #b0741f measured 3.72:1 as text —
+  // the Home tab's links failed AA. Darkened so amber text passes (5.6:1)
+  // and paper-on-amber fills pass too; the warmth survives.
+  amber: '#8f5a10',
   // Darkened 2026-08-23 (Rufus, daylight field test): the browns washed
   // out in sunlight. Sex inks decoupled from the text tokens so a woman's
   // ribbon and a caption are no longer the same pigment.
@@ -162,8 +168,19 @@ export const Letterpress = {
   inkWomen: '#744b0b',
   inkUnrecorded: '#5f5a51',
   /** Hairline — same value as Broadsheet.color.rule so the two carriers share rules. */
-  rule: '#DDD6C9',
+  rule: '#C9BEAA',
 } as const;
+
+/**
+ * The letterpress record voice, shared — one definition instead of seven
+ * per-file copies (Large Print pass, 2026-08-24), with a hard floor: no
+ * mono text renders below 12px, ever.
+ */
+export const mono = (size: number, color: string = Letterpress.ink) => ({
+  fontFamily: BrandFonts.mono.regular,
+  fontSize: Math.max(size, 12),
+  color,
+});
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;

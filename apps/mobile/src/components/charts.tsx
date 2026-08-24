@@ -172,13 +172,13 @@ function AxisRow({ data, stride }: { data: Datum[]; stride: number }) {
           <Text
             style={{
               fontFamily: BrandFonts.mono.regular,
-              fontSize: 10,
+              fontSize: 12.5,
               color: C.inkFaint,
               // Left-aligned so each label sits near the column it names;
               // centring in a wide shared cell would drift it half a stride.
               textAlign: shown.length > 2 ? 'left' : 'center',
             }}
-            numberOfLines={1}
+            numberOfLines={1} maxFontSizeMultiplier={1.3}
           >
             {d.label}
           </Text>
@@ -216,7 +216,7 @@ export function ColumnChart({ data, height = 130 }: { data: Datum[]; height?: nu
           color: C.inkSecondary,
           marginBottom: 4,
         }}
-        numberOfLines={1}
+        numberOfLines={1} maxFontSizeMultiplier={1.3}
       >
         {peakDatum ? `Peak — ${peakDatum.detail ?? `${peakDatum.label}: ${max.toLocaleString()}`}` : ''}
       </Text>
@@ -272,7 +272,7 @@ export function TrendDots({ data, unit, height = 130 }: { data: Datum[]; unit: s
   return (
     <View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-        <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 11, color: C.inkFaint }}>
+        <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 13, color: C.inkFaint }}>
           scale {lo}–{hi} {unit}
         </Text>
       </View>
@@ -303,11 +303,11 @@ export function TrendDots({ data, unit, height = 130 }: { data: Datum[]; unit: s
                   position: 'absolute',
                   bottom: y + 12,
                   fontFamily: BrandFonts.sans.semiBold,
-                  fontSize: 11,
+                  fontSize: 13,
                   color: C.inkSecondary,
                   opacity: active ? 1 : 0,
                 }}
-                numberOfLines={1}
+                numberOfLines={1} maxFontSizeMultiplier={1.3}
               >
                 {d.value.toFixed(1)}
               </Text>
@@ -355,7 +355,7 @@ export function BarList({ data }: { data: Datum[] }) {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
               <Text
                 style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14, color: C.ink, flex: 1 }}
-                numberOfLines={1}
+                numberOfLines={1} maxFontSizeMultiplier={1.3}
               >
                 {d.label}
               </Text>
@@ -450,7 +450,7 @@ function Tooltip({ datum }: { datum?: Datum }) {
     <View style={{ height: 20, justifyContent: 'center' }}>
       <Text
         style={{ fontFamily: BrandFonts.sans.regular, fontSize: 12, color: C.inkSecondary }}
-        numberOfLines={1}
+        numberOfLines={1} maxFontSizeMultiplier={1.3}
       >
         {datum ? (datum.detail ?? `${datum.label}: ${datum.value.toLocaleString()}`) : ''}
       </Text>

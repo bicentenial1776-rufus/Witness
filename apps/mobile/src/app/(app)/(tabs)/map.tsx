@@ -170,7 +170,7 @@ export default function AncestorMapTab() {
               backgroundColor: '#1C1917',
               borderRadius: 16,
               paddingHorizontal: 12,
-              paddingVertical: 7,
+              paddingVertical: 9,
             }}
           >
             <ThemedText type="small" style={{ color: '#F7F3EE' }}>Near me</ThemedText>
@@ -181,7 +181,7 @@ export default function AncestorMapTab() {
               backgroundColor: mapType === 'hybrid' ? theme.accent : '#1C1917',
               borderRadius: 16,
               paddingHorizontal: 12,
-              paddingVertical: 7,
+              paddingVertical: 9,
             }}
           >
             <ThemedText type="small" style={{ color: '#F7F3EE' }}>Sat</ThemedText>
@@ -193,7 +193,7 @@ export default function AncestorMapTab() {
               backgroundColor: theme.backgroundElement,
               borderRadius: 10,
               paddingHorizontal: 12,
-              paddingVertical: 8,
+              paddingVertical: 9,
               borderWidth: 1,
               borderColor: theme.border,
             }}
@@ -213,7 +213,7 @@ export default function AncestorMapTab() {
               backgroundColor: theme.backgroundElement,
               borderRadius: 10,
               paddingHorizontal: 12,
-              paddingVertical: 8,
+              paddingVertical: 9,
               borderWidth: 1,
               borderColor: theme.border,
             }}

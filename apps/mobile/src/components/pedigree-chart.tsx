@@ -84,7 +84,7 @@ function Tile({
       }}
     >
       <ThemedText
-        numberOfLines={1}
+        numberOfLines={1} maxFontSizeMultiplier={1.3}
         style={{
           fontFamily: Fonts.serif,
           fontSize: small ? 13 : 15,
@@ -94,7 +94,7 @@ function Tile({
       >
         {givenName(person.name)}
       </ThemedText>
-      <RecordText muted style={{ fontSize: 9.5 }}>
+      <RecordText muted style={{ fontSize: 12.5 }}>
         {person.birth_year ?? '·'}
       </RecordText>
     </Pressable>

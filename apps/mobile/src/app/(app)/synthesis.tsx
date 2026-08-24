@@ -2,17 +2,11 @@ import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
-import { BrandFonts, Letterpress } from '@/constants/theme';
+import { BrandFonts, Letterpress, mono } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { getSynthesis, type TreeSynthesis } from '@/lib/story-arc';
 
 const L = Letterpress;
-
-const mono = (size: number, color: string = L.ink) => ({
-  fontFamily: BrandFonts.mono.regular,
-  fontSize: size,
-  color,
-});
 
 /**
  * The Synthesis — the whole ancestry read at once. Every number in the
@@ -53,7 +47,7 @@ export default function SynthesisScreen() {
         {synthesis === null && error === null && (
           <View style={{ gap: 10, marginTop: 40, alignItems: 'center' }}>
             <ActivityIndicator />
-            <Text style={{ ...mono(10.5, L.muted), textAlign: 'center' }}>
+            <Text style={{ ...mono(13, L.muted), textAlign: 'center' }}>
               READING EVERY ANCESTOR AT ONCE — A FRESH SYNTHESIS TAKES A MINUTE
             </Text>
           </View>
@@ -61,7 +55,7 @@ export default function SynthesisScreen() {
 
         {synthesis && (
           <>
-            <Text style={mono(10, L.deepAmber)}>
+            <Text style={mono(13, L.deepAmber)}>
               A SYNTHESIS OF {synthesis.ancestorCount.toLocaleString()} DIRECT ANCESTORS ·{' '}
               {synthesis.factCount.toLocaleString()} RECORDED FACTS
             </Text>
@@ -106,7 +100,7 @@ export default function SynthesisScreen() {
                   <Text style={{ fontFamily: BrandFonts.mono.medium, fontSize: 13, color: L.ink }}>
                     {s.value}
                   </Text>
-                  <Text style={{ ...mono(8.5, L.muted), letterSpacing: 1, marginTop: 1 }}>
+                  <Text style={{ ...mono(12, L.muted), letterSpacing: 1, marginTop: 1 }}>
                     {s.label}
                   </Text>
                 </View>
@@ -141,7 +135,7 @@ export default function SynthesisScreen() {
               </View>
             ))}
 
-            <Text style={{ ...mono(9, L.muted), marginTop: 26, lineHeight: 15 }}>
+            <Text style={{ ...mono(12.5, L.muted), marginTop: 26, lineHeight: 15 }}>
               EVERY NUMBER ABOVE IS COUNTED FROM YOUR TREE'S RECORD, NEVER WRITTEN BY THE MODEL. THE
               ESSAY REGENERATES AS YOUR TREE GROWS — LAST READ{' '}
               {new Date(synthesis.generatedAt).toLocaleDateString().toUpperCase()}.

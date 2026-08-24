@@ -2,17 +2,11 @@ import { Stack, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { BrandFonts, Letterpress } from '@/constants/theme';
+import { BrandFonts, Letterpress, mono } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { getTodayArc, type StoryArc } from '@/lib/story-arc';
 
 const L = Letterpress;
-
-const mono = (size: number, color: string = L.ink) => ({
-  fontFamily: BrandFonts.mono.regular,
-  fontSize: size,
-  color,
-});
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'];
 
@@ -64,13 +58,13 @@ export default function StoryArcScreen() {
         {arc === null && error === null && (
           <View style={{ gap: 10, marginTop: 40, alignItems: 'center' }}>
             <ActivityIndicator />
-            <Text style={mono(10.5, L.muted)}>SETTING TODAY'S STORY — A FIRST TELLING TAKES A MINUTE</Text>
+            <Text style={mono(13, L.muted)}>SETTING TODAY'S STORY — A FIRST TELLING TAKES A MINUTE</Text>
           </View>
         )}
 
         {arc && (
           <>
-            <Text style={mono(10, L.deepAmber)}>
+            <Text style={mono(13, L.deepAmber)}>
               A GENERATIONAL STORY · ONE OF YOUR FAMILY'S RECORDED LINES
             </Text>
             <Text
@@ -128,9 +122,9 @@ export default function StoryArcScreen() {
                         }}
                       />
                       <Text
-                        numberOfLines={1}
+                        numberOfLines={1} maxFontSizeMultiplier={1.3}
                         style={{
-                          ...mono(8.5, labelInside ? L.paper : L.muted),
+                          ...mono(12, labelInside ? L.paper : L.muted),
                           position: 'absolute',
                           left: labelInside ? `${left}%` : `${Math.min(left + width, 88)}%`,
                           paddingLeft: 4,
@@ -144,8 +138,8 @@ export default function StoryArcScreen() {
                   );
                 })}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-                  <Text style={mono(9, L.muted)}>{lives.start}</Text>
-                  <Text style={mono(9, L.muted)}>TODAY</Text>
+                  <Text style={mono(12.5, L.muted)}>{lives.start}</Text>
+                  <Text style={mono(12.5, L.muted)}>TODAY</Text>
                 </View>
               </View>
             )}
@@ -162,7 +156,7 @@ export default function StoryArcScreen() {
                     borderLeftColor: L.amber,
                   }}
                 >
-                  <Text style={mono(9.5, L.deepAmber)}>
+                  <Text style={mono(12.5, L.deepAmber)}>
                     {ROMAN[i] ?? String(i + 1)}
                     {g.relationLabel ? ` · YOUR ${g.relationLabel.toUpperCase()}` : ''}
                   </Text>
@@ -181,14 +175,14 @@ export default function StoryArcScreen() {
                       }}
                     >
                       {g.name}
-                      <Text style={mono(12, L.muted)}>
+                      <Text style={mono(13, L.muted)}>
                         {'  '}
                         {g.living ? `b. ${g.birth ?? '?'}` : `${g.birth ?? '?'}–${g.death ?? '?'}`}
                       </Text>
                     </Text>
                   </Pressable>
                   {g.factLine && (
-                    <Text style={{ ...mono(9.5, L.deepAmber), marginTop: 3 }}>
+                    <Text style={{ ...mono(12.5, L.deepAmber), marginTop: 3 }}>
                       {g.factLine.toUpperCase()}
                     </Text>
                   )}
@@ -207,7 +201,7 @@ export default function StoryArcScreen() {
                   )}
                   {g.world.length > 0 && (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                      <Text style={{ ...mono(8.5, L.muted), letterSpacing: 1.5, alignSelf: 'center' }}>
+                      <Text style={{ ...mono(12, L.muted), letterSpacing: 1.5, alignSelf: 'center' }}>
                         THE WORLD
                       </Text>
                       {g.world.map((w) => (
@@ -221,7 +215,7 @@ export default function StoryArcScreen() {
                             paddingVertical: 2,
                           }}
                         >
-                          <Text style={mono(9.5, L.ink)}>{w}</Text>
+                          <Text style={mono(12.5, L.ink)}>{w}</Text>
                         </View>
                       ))}
                     </View>
@@ -230,7 +224,7 @@ export default function StoryArcScreen() {
               ))}
             </View>
 
-            <Text style={{ ...mono(9, L.muted), marginTop: 26, lineHeight: 15 }}>
+            <Text style={{ ...mono(12.5, L.muted), marginTop: 26, lineHeight: 15 }}>
               EVERY NAME, DATE, PLACE, AND MARRIAGE IS FROM YOUR TREE'S RECORD. THE CONNECTING PROSE
               AND WORLD EVENTS ARE WRITTEN FROM IT — GENERAL HISTORY APPEARS ONLY WHERE THE RECORD'S
               TIME AND PLACE SUPPORT IT. A NEW LINE TAKES THE LEAD EACH DAY.

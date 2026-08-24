@@ -989,7 +989,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
         <Text
           style={{
             fontFamily: Fonts.mono,
-            fontSize: 11,
+            fontSize: 13,
             color: isSelf ? theme.accent : theme.textSecondary,
           }}
         >
@@ -1024,7 +1024,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // not a whisper (Rufus, 2026-08-23: the muted brown vanished in daylight).
   const groupLabelStyle = {
     fontFamily: Fonts.mono,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600' as const,
     letterSpacing: 1.8,
     color: theme.text,
@@ -1109,7 +1109,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             <Text
               style={{
                 fontFamily: Fonts.mono,
-                fontSize: 10.5,
+                fontSize: 13,
                 letterSpacing: 1.2,
                 color: theme.accent,
               }}
@@ -1244,7 +1244,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                     }}
                   >
                     {panel === 'story' ? 'Story' : 'Their World'}{' '}
-                    <Text style={{ fontSize: 9, color: open ? theme.accent : theme.textSecondary }}>▾</Text>
+                    <Text style={{ fontSize: 12, color: open ? theme.accent : theme.textSecondary }}>▾</Text>
                   </Text>
                 </Pressable>
               );
@@ -1647,7 +1647,7 @@ function Panel({
       <Text
         style={{
           fontFamily: Fonts.mono,
-          fontSize: 10,
+          fontSize: 12.5,
           letterSpacing: 1.6,
           textTransform: 'uppercase',
           color: theme.accent,

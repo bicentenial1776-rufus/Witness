@@ -11,7 +11,7 @@ import {
 } from '@witness/core/query';
 
 import { RecordText } from '@/components/record-text';
-import { Broadsheet, BrandFonts, Letterpress } from '@/constants/theme';
+import { Broadsheet, BrandFonts, Letterpress, mono } from '@/constants/theme';
 import { consumePendingStage } from '@/lib/stage-handoff';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
@@ -34,12 +34,6 @@ const BOND_HEIGHT = 12;
 const SWEEP_MS_PER_YEAR = 110;
 
 const sexInk = (s: StagePerson['s']) => (s === 'M' ? INK_MEN : s === 'F' ? INK_WOMEN : INK_UNRECORDED);
-
-const mono = (size: number, color: string = INK) => ({
-  fontFamily: BrandFonts.mono.regular,
-  fontSize: size,
-  color,
-});
 
 function ageWord(years: number): string {
   if (years < 1) return 'in infancy';
@@ -158,7 +152,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
             justifyContent: 'center',
           }}
         >
-          <Text style={mono(12, INK_UNRECORDED)}>SETTING THE STAGE…</Text>
+          <Text style={mono(13, INK_UNRECORDED)}>SETTING THE STAGE…</Text>
         </View>
       </View>
     );
@@ -224,7 +218,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
       return (
         <View key={`bond-${i}`} style={{ flexDirection: 'row', height: BOND_HEIGHT + 4, alignItems: 'center' }}>
           <View style={{ width: NAME_GUTTER, paddingRight: 10, alignItems: 'flex-end' }}>
-            <Text style={mono(9.5, DEEP_AMBER)}>{row.note.toUpperCase()}</Text>
+            <Text style={mono(12.5, DEEP_AMBER)}>{row.note.toUpperCase()}</Text>
           </View>
           <View style={{ flex: 1, height: BOND_HEIGHT }}>
             {/* the whole marriage, faint */}
@@ -287,7 +281,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
           >
             {row.n}
           </Text>
-          <Text style={mono(9, INK_UNRECORDED)}>
+          <Text style={mono(12.5, INK_UNRECORDED)}>
             {row.b}–{row.d ?? (row.living ? '' : '?')}
             {diedYoung ? ` · ${ageWord(row.d! - row.b)}` : ''}
           </Text>
@@ -353,7 +347,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
                   backgroundColor: year >= row.m.y ? AMBER : 'rgba(176,116,31,0.3)',
                 }}
               />
-              <Text style={mono(8.5, year >= row.m.y ? DEEP_AMBER : INK_UNRECORDED)} numberOfLines={1}>
+              <Text style={mono(12, year >= row.m.y ? DEEP_AMBER : INK_UNRECORDED)} numberOfLines={1}>
                 m. {row.m.spouse.split(' ')[0]}
                 {row.mfam ? ' →' : ''}
               </Text>
@@ -374,7 +368,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
                 justifyContent: 'center',
               }}
             >
-              <Text style={mono(9, INK)}>
+              <Text style={mono(12.5, INK)}>
                 {approxAge ? '~' : ''}
                 {age}
               </Text>
@@ -415,20 +409,20 @@ export function FamilyStage({ treeId }: { treeId: string }) {
                 backgroundColor: active ? AMBER : 'transparent',
               }}
             >
-              <Text style={mono(10, active ? PAPER : INK)}>{option.label.toUpperCase()}</Text>
+              <Text style={mono(13, active ? PAPER : INK)}>{option.label.toUpperCase()}</Text>
             </Pressable>
           );
         })}
         {!stages.topLevel.some((option) => option.key === stage.key) && (
           <View style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: AMBER }}>
-            <Text style={mono(10, PAPER)}>{stage.label.toUpperCase()}</Text>
+            <Text style={mono(13, PAPER)}>{stage.label.toUpperCase()}</Text>
           </View>
         )}
         <Pressable
           onPress={() => router.push('/register' as never)}
           style={{ paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: DEEP_AMBER, borderStyle: 'dashed' as never }}
         >
-          <Text style={mono(10, DEEP_AMBER)}>THE REGISTER — ALL {stages.byKey.size} ›</Text>
+          <Text style={mono(13, DEEP_AMBER)}>THE REGISTER — ALL {stages.byKey.size} ›</Text>
         </Pressable>
       </View>
 
@@ -449,7 +443,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
         <Text style={{ fontFamily: BrandFonts.serif.semiBold, fontSize: 21, color: INK }}>
           {stage.title}
         </Text>
-        <Text style={{ ...mono(10.5, INK_UNRECORDED), marginTop: 3 }}>{stage.sub.toUpperCase()}</Text>
+        <Text style={{ ...mono(13, INK_UNRECORDED), marginTop: 3 }}>{stage.sub.toUpperCase()}</Text>
 
         <View style={{ marginTop: 16 }}>
           {/* chart area with washes + reading line behind/above the rows */}
@@ -490,7 +484,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
                         borderLeftColor: 'rgba(176,116,31,0.25)',
                       }}
                     >
-                      <Text numberOfLines={1} style={{ ...mono(8, DEEP_AMBER), opacity: 0.8 }}>
+                      <Text numberOfLines={1} style={{ ...mono(12, DEEP_AMBER), opacity: 0.8 }}>
                         {e.name}
                       </Text>
                     </View>
@@ -509,7 +503,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
                       justifyContent: 'flex-end',
                     }}
                   >
-                    <Text numberOfLines={1} style={mono(7.5, INK_UNRECORDED)}>
+                    <Text numberOfLines={1} style={mono(12, INK_UNRECORDED)}>
                       {p.name}
                     </Text>
                   </View>
@@ -527,7 +521,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
                 }}
               >
                 <View style={{ position: 'absolute', top: -2, left: -16, backgroundColor: AMBER, paddingHorizontal: 4 }}>
-                  <Text style={mono(10, PAPER)}>{year}</Text>
+                  <Text style={mono(13, PAPER)}>{year}</Text>
                 </View>
               </View>
             </View>
@@ -540,7 +534,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
             <View style={{ width: NAME_GUTTER }} />
             <View style={{ flex: 1, height: 16, borderTopWidth: 1, borderTopColor: C.rule }}>
               {decadeTicks.map((yr) => (
-                <Text key={yr} style={{ ...mono(8.5, INK_UNRECORDED), position: 'absolute', left: x(yr) - 12, top: 2 }}>
+                <Text key={yr} style={{ ...mono(12, INK_UNRECORDED), position: 'absolute', left: x(yr) - 12, top: 2 }}>
                   {yr}
                 </Text>
               ))}
@@ -554,7 +548,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
             onPress={toggleSweep}
             style={{ borderWidth: 1, borderColor: AMBER, backgroundColor: sweeping ? AMBER : 'transparent', paddingHorizontal: 12, paddingVertical: 6 }}
           >
-            <Text style={mono(10.5, sweeping ? PAPER : DEEP_AMBER)}>
+            <Text style={mono(13, sweeping ? PAPER : DEEP_AMBER)}>
               {sweeping ? 'HOLD' : 'SWEEP THE YEARS'}
             </Text>
           </Pressable>
@@ -591,7 +585,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
               }}
             />
           </View>
-          <Text style={mono(10, INK_UNRECORDED)}>
+          <Text style={mono(13, INK_UNRECORDED)}>
             {stage.scrubStart}–{stage.scrubEnd}
           </Text>
         </View>
@@ -608,7 +602,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
               <View
                 style={{ width: 11, height: 11, borderWidth: 1, borderColor: DEEP_AMBER, backgroundColor: on ? AMBER : 'transparent' }}
               />
-              <Text style={mono(9.5, INK)}>{label}</Text>
+              <Text style={mono(12.5, INK)}>{label}</Text>
             </Pressable>
           ))}
           <View style={{ flex: 1 }} />
@@ -621,7 +615,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
           ).map(([label, color]) => (
             <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <View style={{ width: 14, height: 7, backgroundColor: color }} />
-              <Text style={mono(9, INK_UNRECORDED)}>{label}</Text>
+              <Text style={mono(12.5, INK_UNRECORDED)}>{label}</Text>
             </View>
           ))}
         </View>
@@ -643,12 +637,12 @@ export function FamilyStage({ treeId }: { treeId: string }) {
           <RecordText eyebrow muted>
             In {year}
           </RecordText>
-          <Text style={mono(11, INK)}>{marriageState}</Text>
-          <Text style={mono(11, INK)}>
+          <Text style={mono(13.5, INK)}>{marriageState}</Text>
+          <Text style={mono(13.5, INK)}>
             {atHome.length} {atHome.length === 1 ? 'child' : 'children'} at home
           </Text>
           {gone.length > 0 && (
-            <Text style={mono(10, INK_UNRECORDED)} numberOfLines={2}>
+            <Text style={mono(13, INK_UNRECORDED)} numberOfLines={2}>
               gone: {gone.map((p) => p.n.split(' ')[0]).join(', ')}
             </Text>
           )}
@@ -657,11 +651,11 @@ export function FamilyStage({ treeId }: { treeId: string }) {
           <RecordText eyebrow muted>
             The whole of it
           </RecordText>
-          <Text style={mono(11, INK)}>
+          <Text style={mono(13.5, INK)}>
             {stage.scrubStart}–{stage.scrubEnd} · {stage.scrubEnd - stage.scrubStart} years
           </Text>
-          <Text style={mono(11, INK)}>{childYears} years with a child under eighteen</Text>
-          <Text style={mono(10, INK_UNRECORDED)}>
+          <Text style={mono(13.5, INK)}>{childYears} years with a child under eighteen</Text>
+          <Text style={mono(13, INK_UNRECORDED)}>
             {children.length} born{lostYoung.length > 0 ? ` · ${lostYoung.length} lost young` : ''}
           </Text>
         </View>
@@ -671,14 +665,14 @@ export function FamilyStage({ treeId }: { treeId: string }) {
           </RecordText>
           {marriedChildren.slice(0, 3).map((child) => (
             <Pressable key={child.id} disabled={!child.mfam} onPress={() => child.mfam && openStage(child.mfam)}>
-              <Text style={mono(10.5, child.mfam ? DEEP_AMBER : INK_UNRECORDED)} numberOfLines={1}>
+              <Text style={mono(13, child.mfam ? DEEP_AMBER : INK_UNRECORDED)} numberOfLines={1}>
                 {child.mfam ? '→ ' : ''}
                 {child.n.split(' ')[0]} m. {child.m!.spouse.split(' ')[0]}, {child.m!.y}
               </Text>
             </Pressable>
           ))}
           <Pressable onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: stage.key } })}>
-            <Text style={mono(10.5, DEEP_AMBER)}>Open {persons.find((p) => p.role === 'head')?.n.split(' ')[0]} ›</Text>
+            <Text style={mono(13, DEEP_AMBER)}>Open {persons.find((p) => p.role === 'head')?.n.split(' ')[0]} ›</Text>
           </Pressable>
         </View>
       </View>

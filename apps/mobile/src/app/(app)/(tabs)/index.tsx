@@ -26,7 +26,7 @@ import { Masthead, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { Card } from '@/components/card';
 import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
-import { BrandFonts, Letterpress, WideContent } from '@/constants/theme';
+import { BrandFonts, Letterpress, WideContent, mono } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { getCuriosities, type CuriositySummary } from '@/lib/curiosities-cache';
 import { recordEditionPieces } from '@/lib/edition-ledger';
@@ -42,12 +42,6 @@ import { supabase } from '@/lib/supabase';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
 const L = Letterpress;
-
-const mono = (size: number, color: string = L.ink) => ({
-  fontFamily: BrandFonts.mono.regular,
-  fontSize: size,
-  color,
-});
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 const isToday = (d: Date) => startOfDay(d) === startOfDay(new Date());
@@ -360,7 +354,7 @@ export default function Home() {
               {/* 0 · The edition dateline — phone only; the broadsheet's
                   masthead already carries the edition number. */}
               {!broadsheet && (
-                <Text style={{ ...mono(10, L.muted), marginTop: 20, letterSpacing: 1.4 }}>
+                <Text style={{ ...mono(13, L.muted), marginTop: 20, letterSpacing: 1.4 }}>
                   {`NO. ${issue.number} · ${issue.weekOfLabel.toUpperCase()}`}
                 </Text>
               )}
@@ -427,7 +421,7 @@ export default function Home() {
                       shadowOffset: { width: 0, height: 2 },
                     }}
                   >
-                    <Text style={mono(10, L.deepAmber)}>A GENERATIONAL STORY · TODAY'S LINE</Text>
+                    <Text style={mono(13, L.deepAmber)}>A GENERATIONAL STORY · TODAY'S LINE</Text>
                     <Text
                       style={{
                         fontFamily: BrandFonts.serif.semiBold,
@@ -438,7 +432,7 @@ export default function Home() {
                     >
                       {arc.title}
                     </Text>
-                    <Text style={mono(10.5, L.muted)}>
+                    <Text style={mono(13, L.muted)}>
                       {`${arc.generations.length} GENERATIONS · ${arc.generations[0]?.birth ?? '?'}–TODAY`}
                       {arc.generations[0]?.relationLabel
                         ? ` · FROM YOUR ${arc.generations[0].relationLabel.toUpperCase()}`
@@ -455,12 +449,12 @@ export default function Home() {
                     >
                       {arc.dek}
                     </Text>
-                    <Text style={{ ...mono(10.5, L.amber), marginTop: 4 }}>READ THE LINE ›</Text>
+                    <Text style={{ ...mono(13, L.amber), marginTop: 4 }}>READ THE LINE ›</Text>
                   </Pressable>
                 ) : arc === 'loading' ? (
-                  <Text style={mono(11, L.muted)}>SETTING TODAY'S STORY…</Text>
+                  <Text style={mono(13.5, L.muted)}>SETTING TODAY'S STORY…</Text>
                 ) : !digest ? (
-                  <Text style={mono(11, L.muted)}>SETTING THE WEEK…</Text>
+                  <Text style={mono(13.5, L.muted)}>SETTING THE WEEK…</Text>
                 ) : !hero ? (
                   <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 17, color: L.ink }}>
                     A quiet week — no dated anniversaries fall in the next seven days.
@@ -493,9 +487,9 @@ export default function Home() {
                     >
                       {hero.fullName}
                     </Text>
-                    <Text style={mono(10.5, L.muted)}>{heroRecordLine(hero).toUpperCase()}</Text>
+                    <Text style={mono(13, L.muted)}>{heroRecordLine(hero).toUpperCase()}</Text>
                     {heroRelationship && (
-                      <Text style={mono(10.5, L.deepAmber)}>YOUR {heroRelationship.toUpperCase()}</Text>
+                      <Text style={mono(13, L.deepAmber)}>YOUR {heroRelationship.toUpperCase()}</Text>
                     )}
                     <Text
                       style={{
@@ -509,7 +503,7 @@ export default function Home() {
                       {heroNote ??
                         `${anniversaryLine(hero)}${hero.placeRaw ? ` · ${hero.placeRaw.split(',')[0]}` : ''}.`}
                     </Text>
-                    <Text style={{ ...mono(10.5, L.amber), marginTop: 4 }}>THEIR FULL STORY ›</Text>
+                    <Text style={{ ...mono(13, L.amber), marginTop: 4 }}>THEIR FULL STORY ›</Text>
                   </Pressable>
                 )}
               </Feed>
@@ -554,7 +548,7 @@ export default function Home() {
                         </Text>
                       </Pressable>
                       <Pressable onPress={() => router.push('/tree-health' as never)} hitSlop={6}>
-                        <Text style={mono(10, L.muted)}>
+                        <Text style={mono(13, L.muted)}>
                           {`THIS WEEK'S CURIOSITY · ${curiosities.total.toLocaleString()} OPEN${
                             curiosities.lineName ? ` · MOST IN THE ${curiosities.lineName.toUpperCase()} LINE` : ''
                           } ›`}
@@ -581,7 +575,7 @@ export default function Home() {
                         ? 'One federal record awaits your judgment — a match the Archives cannot decide without you.'
                         : `${naraCounts.pending} federal records await your judgment — matches the Archives cannot decide without you.`}
                     </Text>
-                    <Text style={{ ...mono(10.5, L.amber), marginTop: 4 }}>TO THE ARCHIVES ›</Text>
+                    <Text style={{ ...mono(13, L.amber), marginTop: 4 }}>TO THE ARCHIVES ›</Text>
                   </Pressable>
                 </Feed>
               )}
@@ -608,7 +602,7 @@ export default function Home() {
                     }
                     hitSlop={6}
                   >
-                    <Text style={mono(10.5, L.amber)}>MORE PATTERNS ›</Text>
+                    <Text style={mono(13, L.amber)}>MORE PATTERNS ›</Text>
                   </Pressable>
                 </Feed>
               )}
@@ -650,7 +644,7 @@ export default function Home() {
                     </Pressable>
                   ) : null}
                   <Pressable onPress={() => activeTree && router.push({ pathname: '/digest', params: { treeId: activeTree.id } })}>
-                    <Text style={mono(10.5, L.amber)}>THIS WEEK IN YOUR FAMILY ›</Text>
+                    <Text style={mono(13, L.amber)}>THIS WEEK IN YOUR FAMILY ›</Text>
                   </Pressable>
                 </Feed>
               )}
@@ -658,7 +652,7 @@ export default function Home() {
               {/* 6 · Your Tree stat strip */}
               <Feed eyebrow="Your tree">
                 <Pressable onPress={() => router.push('/tree' as never)}>
-                  <Text style={mono(11.5, L.ink)}>
+                  <Text style={mono(13.5, L.ink)}>
                     {[
                       `${Number(activeTree.individual_count).toLocaleString()} PEOPLE`,
                       `${Number(activeTree.family_count).toLocaleString()} FAMILIES`,
@@ -681,9 +675,9 @@ export default function Home() {
                       <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 19, color: L.ink }}>
                         {resume.title}
                       </Text>
-                      <Text style={mono(10, L.muted)}>{resumeAgeLabel(resume.ts).toUpperCase()}</Text>
+                      <Text style={mono(13, L.muted)}>{resumeAgeLabel(resume.ts).toUpperCase()}</Text>
                     </View>
-                    <Text style={mono(12, L.amber)}>›</Text>
+                    <Text style={mono(13, L.amber)}>›</Text>
                   </Pressable>
                 </Feed>
               )}
@@ -717,7 +711,7 @@ export default function Home() {
                         }}
                       >
                         <View style={{ gap: 6 }}>
-                          <Text style={mono(9.5, L.deepAmber)}>{String(entry.event.startYear)}</Text>
+                          <Text style={mono(12.5, L.deepAmber)}>{String(entry.event.startYear)}</Text>
                           <Text
                             numberOfLines={3}
                             style={{ fontFamily: BrandFonts.serif.regular, fontSize: 16, lineHeight: 21, color: L.ink }}
@@ -725,7 +719,7 @@ export default function Home() {
                             {entry.event.name}
                           </Text>
                         </View>
-                        <Text style={mono(9.5, L.muted)}>
+                        <Text style={mono(12.5, L.muted)}>
                           {entry.aliveCount.toLocaleString()} ALIVE
                         </Text>
                       </Pressable>
@@ -741,7 +735,7 @@ export default function Home() {
                         justifyContent: 'center',
                       }}
                     >
-                      <Text style={mono(10, L.deepAmber)}>THE LIBRARY ›</Text>
+                      <Text style={mono(13, L.deepAmber)}>THE LIBRARY ›</Text>
                     </Pressable>
                   </ScrollView>
                 </Feed>

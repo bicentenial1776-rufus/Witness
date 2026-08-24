@@ -22,7 +22,7 @@ import {
 import { GuideHelpButton } from '@/components/field-guide';
 import { LineageMark } from '@/components/lineage-mark';
 import { RecordText } from '@/components/record-text';
-import { BrandFonts, Letterpress } from '@/constants/theme';
+import { BrandFonts, Letterpress, mono } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { VISITED_MARK, fetchVisitedSet } from '@/lib/visits';
 import { getFamilyStages } from '@/lib/family-stage-cache';
@@ -48,12 +48,6 @@ const MIN_THREAD_W = 20;
 const GUTTER = 42; // year scale on the left edge
 
 const PALE = '#efe8da'; // died before 18 — the pale ribbon of the legend
-
-const mono = (size: number, color: string = L.ink) => ({
-  fontFamily: BrandFonts.mono.regular,
-  fontSize: size,
-  color,
-});
 
 const sexInk = (s: StagePerson['s']) =>
   s === 'M' ? L.inkMen : s === 'F' ? L.inkWomen : L.inkUnrecorded;
@@ -364,11 +358,11 @@ export default function FamilyStageScreen() {
         <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 20, color: L.ink, marginTop: 10 }}>
           This household can&rsquo;t be drawn as a length of time yet.
         </Text>
-        <Text style={{ ...mono(10.5, L.muted), marginTop: 10, lineHeight: 16 }}>
+        <Text style={{ ...mono(13, L.muted), marginTop: 10, lineHeight: 16 }}>
           THE STAGE NEEDS A DATED MARRIAGE AND AT LEAST ONE CHILD WITH A RECORDED BIRTH YEAR.
         </Text>
         <Pressable onPress={() => router.back()} hitSlop={10} style={{ marginTop: 18, alignSelf: 'flex-start' }}>
-          <Text style={mono(12, L.amber)}>← BACK</Text>
+          <Text style={mono(13, L.amber)}>← BACK</Text>
         </Pressable>
       </View>
     );
@@ -377,7 +371,7 @@ export default function FamilyStageScreen() {
   if (!stage || !marriage) {
     return (
       <View style={{ flex: 1, backgroundColor: L.paper, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={mono(12, L.inkUnrecorded)}>SETTING THE STAGE…</Text>
+        <Text style={mono(13, L.inkUnrecorded)}>SETTING THE STAGE…</Text>
       </View>
     );
   }
@@ -483,7 +477,7 @@ export default function FamilyStageScreen() {
           onPress={() => (router.canGoBack() ? router.back() : router.dismissTo('/register' as never))}
           hitSlop={10}
         >
-          <Text style={mono(12, L.amber)}>← BACK</Text>
+          <Text style={mono(13, L.amber)}>← BACK</Text>
         </Pressable>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <RecordText eyebrow style={{ color: L.muted }}>
@@ -500,9 +494,9 @@ export default function FamilyStageScreen() {
         >
           {stage.title}
         </Text>
-        <Text style={{ ...mono(10.5, L.muted), marginTop: 5 }}>{stage.sub.toUpperCase()}</Text>
+        <Text style={{ ...mono(13, L.muted), marginTop: 5 }}>{stage.sub.toUpperCase()}</Text>
         {stage.scrubEnd > stage.marriage && (
-          <Text style={{ ...mono(10.5, L.deepAmber), marginTop: 3 }}>
+          <Text style={{ ...mono(13, L.deepAmber), marginTop: 3 }}>
             THE FAMILY LASTED {stage.scrubEnd - stage.marriage} YEARS · {stage.marriage}–{stage.scrubEnd}
           </Text>
         )}
@@ -517,7 +511,7 @@ export default function FamilyStageScreen() {
           ).map(([color, label]) => (
             <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <View style={{ width: 9, height: 9, backgroundColor: color, borderWidth: label === 'DIED BEFORE 18' ? 1 : 0, borderColor: L.rule }} />
-              <Text style={mono(9.5, L.muted)}>{label}</Text>
+              <Text style={mono(12.5, L.muted)}>{label}</Text>
             </View>
           ))}
         </View>
@@ -528,7 +522,7 @@ export default function FamilyStageScreen() {
             scroll rather than truncate (Rufus, 2026-08-24). */}
         {stage.marriages.length > 1 && (
           <View style={{ paddingTop: 10 }}>
-            <Text style={{ ...mono(9, L.muted), letterSpacing: 1.5 }}>
+            <Text style={{ ...mono(12.5, L.muted), letterSpacing: 1.5 }}>
               MARRIAGES · TAP TO SWITCH
             </Text>
             <ScrollView
@@ -544,13 +538,13 @@ export default function FamilyStageScreen() {
                     onPress={() => setMarriageIdx(i)}
                     style={{
                       paddingHorizontal: 10,
-                      paddingVertical: 5,
+                      paddingVertical: 9,
                       borderWidth: 1,
                       borderColor: active ? L.amber : L.rule,
                       backgroundColor: active ? L.amber : 'transparent',
                     }}
                   >
-                    <Text style={mono(9.5, active ? L.paper : L.ink)}>
+                    <Text style={mono(12.5, active ? L.paper : L.ink)}>
                       {m.spouseName.toUpperCase()} · {m.marriageYear}
                     </Text>
                   </Pressable>
@@ -581,7 +575,7 @@ export default function FamilyStageScreen() {
                 return (
                   <View key={decade} style={{ position: 'absolute', left: 0, right: 0, top: dy }}>
                     <View style={{ position: 'absolute', left: GUTTER - 6, right: 0, height: 1, backgroundColor: L.rule, opacity: 0.6 }} />
-                    <Text style={{ ...mono(9.5, L.inkUnrecorded), position: 'absolute', left: 0, top: -4 }}>
+                    <Text style={{ ...mono(12.5, L.inkUnrecorded), position: 'absolute', left: 0, top: -4 }}>
                       {decade}
                     </Text>
                   </View>
@@ -619,7 +613,7 @@ export default function FamilyStageScreen() {
                     <Text
                       key={`cap-${slot.x}`}
                       style={{
-                        ...mono(9, L.deepAmber),
+                        ...mono(12.5, L.deepAmber),
                         position: 'absolute',
                         left: GUTTER + slot.x + 12,
                         top: 10,
@@ -627,7 +621,7 @@ export default function FamilyStageScreen() {
                         transform: [{ rotate: '90deg' }],
                         transformOrigin: 'top left' as never,
                       }}
-                      numberOfLines={1}
+                      numberOfLines={1} maxFontSizeMultiplier={1.3}
                     >
                       {slot.caption.toUpperCase()}
                     </Text>
@@ -702,7 +696,7 @@ export default function FamilyStageScreen() {
                     />
                     {bottom > 30 && (
                       <Text
-                        numberOfLines={1}
+                        numberOfLines={1} maxFontSizeMultiplier={1.3}
                         style={{
                           position: 'absolute',
                           left: slot.width / 2 + 4,
@@ -748,7 +742,7 @@ export default function FamilyStageScreen() {
                           paddingHorizontal: 3,
                         }}
                       >
-                        <Text style={mono(9.5, sexInk(person.s))}>?</Text>
+                        <Text style={mono(12.5, sexInk(person.s))}>?</Text>
                       </View>
                     )}
                     {age !== null && (
@@ -764,7 +758,7 @@ export default function FamilyStageScreen() {
                           borderColor: L.paper,
                         }}
                       >
-                        <Text style={mono(10, L.paper)}>{age}</Text>
+                        <Text maxFontSizeMultiplier={1.3} style={mono(13, L.paper)}>{age}</Text>
                       </View>
                     )}
                     {/* Another graph to view: ↑ = the parents' childhood
@@ -844,7 +838,7 @@ export default function FamilyStageScreen() {
         {/* The reading line — fixed; the years roll beneath it. */}
         <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: lineY, height: 1, backgroundColor: L.amber }} />
         <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: lineY - 8, backgroundColor: L.amber, paddingHorizontal: 3, paddingVertical: 1 }}>
-          <Text style={mono(9, L.paper)}>{Math.floor(line)}</Text>
+          <Text style={mono(12.5, L.paper)}>{Math.floor(line)}</Text>
         </View>
       </View>
 
@@ -852,12 +846,12 @@ export default function FamilyStageScreen() {
       <View style={{ paddingHorizontal: 20, paddingTop: 8, gap: 4 }}>
         {unionText && (
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            <Text style={{ ...mono(9.5, L.muted), width: 62 }}>UNION</Text>
+            <Text style={{ ...mono(12.5, L.muted), width: 62 }}>UNION</Text>
             <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 13, color: L.ink }}>{unionText}</Text>
           </View>
         )}
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Text style={{ ...mono(9.5, L.muted), width: 62 }}>AT HOME</Text>
+          <Text style={{ ...mono(12.5, L.muted), width: 62 }}>AT HOME</Text>
           <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 13, color: L.ink }}>
             {atHome.length === 0
               ? 'no children under eighteen'
@@ -865,14 +859,14 @@ export default function FamilyStageScreen() {
           </Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Text style={{ ...mono(9.5, L.muted), width: 62 }}>LIVING</Text>
+          <Text style={{ ...mono(12.5, L.muted), width: 62 }}>LIVING</Text>
           <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 13, color: L.ink }}>
             {membersAlive.length} of the {people.length} in this group
           </Text>
         </View>
         {passing.map((p) => (
           <View key={`m-${p.id}`} style={{ flexDirection: 'row', gap: 12 }}>
-            <Text style={{ ...mono(9.5, L.deepAmber), width: 62 }}>{p.m!.y}</Text>
+            <Text style={{ ...mono(12.5, L.deepAmber), width: 62 }}>{p.m!.y}</Text>
             <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 13, color: L.ink }}>
               {p.n.split(' ')[0]} married {p.m!.spouse}
             </Text>
@@ -880,7 +874,7 @@ export default function FamilyStageScreen() {
         ))}
         {/* What raises a graph — the honest recipe, so a thin tree knows
             the road: dates make households drawable (Rufus, 2026-08-24). */}
-        <Text style={{ ...mono(8.5, L.muted), lineHeight: 13, marginTop: 4 }}>
+        <Text style={{ ...mono(12, L.muted), lineHeight: 13, marginTop: 4 }}>
           A FAMILY GRAPH CAN BE DRAWN ONCE THE RECORD DATES IT — A DATED MARRIAGE, A BIRTH-DATED
           PARENT, AND AT LEAST ONE BIRTH-DATED CHILD. ADD DATES TO YOUR TREE AND REFRESH: MORE
           HOUSEHOLDS, AND MORE ↑ ↓ DOORS, APPEAR.
@@ -903,13 +897,13 @@ export default function FamilyStageScreen() {
               disabled={!enabled}
               style={{
                 paddingHorizontal: 10,
-                paddingVertical: 5,
+                paddingVertical: 9,
                 borderWidth: 1,
                 borderColor: enabled ? L.ink : L.rule,
                 opacity: enabled ? 1 : 0.6,
               }}
             >
-              <Text style={mono(9, enabled ? L.ink : L.muted)}>{label}</Text>
+              <Text style={mono(12.5, enabled ? L.ink : L.muted)}>{label}</Text>
             </Pressable>
           ))}
         </View>
@@ -936,15 +930,15 @@ export default function FamilyStageScreen() {
           />
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: -6 }}>
-          <Text style={mono(9.5, L.muted)}>{marriage.marriageYear} · THE MARRIAGE</Text>
-          <Text style={mono(9.5, L.muted)}>{marriage.scrubEnd} · THE LAST CHILD</Text>
+          <Text style={mono(12.5, L.muted)}>{marriage.marriageYear} · THE MARRIAGE</Text>
+          <Text style={mono(12.5, L.muted)}>{marriage.scrubEnd} · THE LAST CHILD</Text>
         </View>
 
         <Pressable
           onPress={() => (sweeping ? stopSweep() : startSweep())}
           style={{ backgroundColor: sweeping ? L.deepAmber : L.ink, paddingVertical: 12, alignItems: 'center' }}
         >
-          <Text style={mono(10.5, L.paper)}>{sweeping ? 'HOLD THE YEAR' : 'SWEEP THE YEARS'}</Text>
+          <Text style={mono(13, L.paper)}>{sweeping ? 'HOLD THE YEAR' : 'SWEEP THE YEARS'}</Text>
         </Pressable>
       </View>
 
@@ -960,7 +954,7 @@ export default function FamilyStageScreen() {
               people.map((p) => (
                 <View
                   key={p.id}
-                  style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: L.rule }}
+                  style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: L.rule }}
                 >
                   <Pressable
                     style={{ flexShrink: 1 }}
@@ -974,13 +968,13 @@ export default function FamilyStageScreen() {
                         {p.n}
                       </Text>
                       <LineageMark tier={tiers.get(p.id)} size={11} color={L.deepAmber} />
-                      {visitedIds.has(p.id) && <Text style={mono(9, L.muted)}>{VISITED_MARK}</Text>}
+                      {visitedIds.has(p.id) && <Text style={mono(12.5, L.muted)}>{VISITED_MARK}</Text>}
                     </View>
-                    <Text style={mono(9, L.muted)}>
+                    <Text style={mono(12.5, L.muted)}>
                       {p.b}–{p.living ? '' : (p.d ?? '?')} · {p.role.toUpperCase()}
                     </Text>
                     {parentage.has(p.id) && (
-                      <Text style={mono(9, L.muted)}>{parentage.get(p.id)!.toUpperCase()}</Text>
+                      <Text style={mono(12.5, L.muted)}>{parentage.get(p.id)!.toUpperCase()}</Text>
                     )}
                   </Pressable>
                   {p.mfam && stages?.byKey.has(p.mfam) && (
@@ -990,14 +984,14 @@ export default function FamilyStageScreen() {
                         router.push({ pathname: '/family-stage/[key]', params: { key: p.mfam } } as never);
                       }}
                     >
-                      <Text style={mono(9, L.amber)}>THEIR GRAPH ›</Text>
+                      <Text style={mono(12.5, L.amber)}>THEIR GRAPH ›</Text>
                     </Pressable>
                   )}
                 </View>
               ))}
             {sheet === 'briefs' &&
               (briefs === null ? (
-                <Text style={mono(10, L.muted)}>READING THE DESK…</Text>
+                <Text style={mono(13, L.muted)}>READING THE DESK…</Text>
               ) : briefs.length === 0 ? (
                 <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15, color: L.ink }}>
                   No briefs yet for this household — start one from any member's page.
@@ -1006,14 +1000,14 @@ export default function FamilyStageScreen() {
                 briefs.map((brief) => (
                   <Pressable
                     key={brief.id}
-                    style={{ paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: L.rule }}
+                    style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: L.rule }}
                     onPress={() => {
                       setSheet(null);
                       router.push({ pathname: '/research/[briefId]', params: { briefId: brief.id } });
                     }}
                   >
                     <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 16, color: L.ink }}>{brief.title}</Text>
-                    <Text style={mono(9, L.muted)}>{brief.status.toUpperCase()}</Text>
+                    <Text style={mono(12.5, L.muted)}>{brief.status.toUpperCase()}</Text>
                   </Pressable>
                 ))
               ))}

@@ -52,13 +52,13 @@ export function WitnessTabBar() {
             accessibilityRole="button"
             accessibilityLabel={tab.title}
             onPress={() => router.navigate(tab.href as never)}
-            style={{ flex: 1, alignItems: 'center', gap: 2, paddingVertical: 2 }}
+            style={{ flex: 1, alignItems: 'center', gap: 2, paddingVertical: 4 }}
           >
             <SymbolView name={tab.icon} tintColor={String(color)} size={24} />
             <Text
               style={{
                 fontFamily: BrandFonts.sans.regular,
-                fontSize: 11.5,
+                fontSize: 12.5,
                 fontWeight: active ? '600' : '400',
                 color,
               }}

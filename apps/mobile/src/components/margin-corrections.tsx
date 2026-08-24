@@ -219,7 +219,7 @@ export function MarginCorrections({
           <Text
             style={{
               fontFamily: Fonts.mono,
-              fontSize: 11,
+              fontSize: 13,
               letterSpacing: 1.2,
               textTransform: 'uppercase',
               color: row.status === 'open' ? theme.accent : theme.textSecondary,
@@ -278,7 +278,7 @@ export function MarginCorrections({
           <Text
             style={{
               fontFamily: Fonts.mono,
-              fontSize: 10,
+              fontSize: 12.5,
               letterSpacing: 1.6,
               textTransform: 'uppercase',
               color: theme.accent,
@@ -304,7 +304,7 @@ export function MarginCorrections({
                   <Text
                     style={{
                       fontFamily: Fonts.mono,
-                      fontSize: 11,
+                      fontSize: 13,
                       color: selected ? theme.accent : theme.textSecondary,
                     }}
                   >

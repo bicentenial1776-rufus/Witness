@@ -42,42 +42,45 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
   );
 }
 
+// Large Print pass 2026-08-24: the whole scale up one notch — small
+// 14→15.5, body 17→18 — the audience skews 55+, and this preset sheet is
+// most of the app's rendered text.
 const styles = StyleSheet.create({
   small: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15.5,
+    lineHeight: 22,
     fontWeight: 500,
   },
   smallBold: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15.5,
+    lineHeight: 22,
     fontWeight: 700,
   },
   default: {
-    fontSize: 17,
-    lineHeight: 25,
+    fontSize: 18,
+    lineHeight: 26,
     fontWeight: 400,
   },
   title: {
     fontFamily: Fonts.serif,
     fontSize: 34,
-    lineHeight: 40,
+    lineHeight: 41,
     fontWeight: 700,
   },
   subtitle: {
     fontFamily: Fonts.serif,
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 23,
+    lineHeight: 30,
     fontWeight: 600,
   },
   link: {
-    lineHeight: 25,
-    fontSize: 17,
+    lineHeight: 26,
+    fontSize: 18,
     fontWeight: 500,
   },
   linkPrimary: {
-    lineHeight: 25,
-    fontSize: 17,
+    lineHeight: 26,
+    fontSize: 18,
     fontWeight: 600,
   },
   code: {

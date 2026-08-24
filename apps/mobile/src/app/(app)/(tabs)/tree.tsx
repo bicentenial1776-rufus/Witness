@@ -7,19 +7,13 @@ import { buildFamilyStages, fetchNaraCounts, treeGenerationSpan, type NaraCounts
 import { Masthead, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { FamilyStage } from '@/components/broadsheet/family-stage';
 import { RecordText } from '@/components/record-text';
-import { BrandFonts, Letterpress, WideContent } from '@/constants/theme';
+import { BrandFonts, Letterpress, WideContent, mono } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { getCuriosities, type CuriositySummary } from '@/lib/curiosities-cache';
 import { supabase } from '@/lib/supabase';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
 const L = Letterpress;
-
-const mono = (size: number, color: string = L.ink) => ({
-  fontFamily: BrandFonts.mono.regular,
-  fontSize: size,
-  color,
-});
 
 function Section({ eyebrow, children }: { eyebrow: string; children: ReactNode }) {
   return (
@@ -40,9 +34,9 @@ function Row({ title, detail, onPress }: { title: string; detail?: string; onPre
     >
       <View style={{ flexShrink: 1, gap: 3 }}>
         <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 19, color: L.ink }}>{title}</Text>
-        {detail ? <Text style={mono(10.5, L.muted)}>{detail.toUpperCase()}</Text> : null}
+        {detail ? <Text style={mono(13, L.muted)}>{detail.toUpperCase()}</Text> : null}
       </View>
-      <Text style={mono(12, L.amber)}>›</Text>
+      <Text style={mono(13, L.amber)}>›</Text>
     </Pressable>
   );
 }
@@ -137,7 +131,7 @@ export default function TreeTab() {
   const curiositiesSection = (
     <Section eyebrow="Curiosities">
           {curiosities === null ? (
-            <Text style={mono(11, L.muted)}>READING THE RECORD…</Text>
+            <Text style={mono(13.5, L.muted)}>READING THE RECORD…</Text>
           ) : curiosities.total === 0 ? (
             <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 17, color: L.ink }}>
               The record reads clean — nothing curious to show.
@@ -186,9 +180,9 @@ export default function TreeTab() {
             <Text style={{ fontFamily: BrandFonts.serif.semiBold, fontSize: 21, color: L.ink }}>
               The Family Graph
             </Text>
-            <Text style={mono(10.5, L.muted)}>ONE HOUSEHOLD DRAWN AS A LENGTH OF TIME</Text>
+            <Text style={mono(13, L.muted)}>ONE HOUSEHOLD DRAWN AS A LENGTH OF TIME</Text>
             <Pressable onPress={() => router.push('/register' as never)} hitSlop={8}>
-              <Text style={{ ...mono(10.5, L.deepAmber), marginTop: 4 }}>
+              <Text style={{ ...mono(13, L.deepAmber), marginTop: 4 }}>
                 {households !== null ? `THE REGISTER — ALL ${households.toLocaleString()} HOUSEHOLDS ›` : 'THE REGISTER ›'}
               </Text>
             </Pressable>
@@ -249,7 +243,7 @@ export default function TreeTab() {
       <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 19, color: L.inkUnrecorded }}>
         Family Street View
       </Text>
-      <Text style={mono(10.5, L.muted)}>COMING SOON — A WALK THROUGH THE PLACES THEY LIVED</Text>
+      <Text style={mono(13, L.muted)}>COMING SOON — A WALK THROUGH THE PLACES THEY LIVED</Text>
     </View>
   );
 
@@ -292,7 +286,7 @@ export default function TreeTab() {
         >
           {activeTree.name}
         </Text>
-        <Text style={{ ...mono(11, L.muted), marginTop: 8 }}>{stats.toUpperCase()}</Text>
+        <Text style={{ ...mono(13.5, L.muted), marginTop: 8 }}>{stats.toUpperCase()}</Text>
 
         {curiositiesSection}
         {familyStageDoor}

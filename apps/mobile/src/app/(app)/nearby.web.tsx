@@ -90,7 +90,7 @@ function Chip({
         borderColor: active ? theme.accent : theme.border,
         borderRadius: 16,
         paddingHorizontal: 14,
-        paddingVertical: 7,
+        paddingVertical: 9,
       }}
     >
       <ThemedText type="small" style={{ color: active ? theme.onAccent : theme.text, fontWeight: 600 }}>

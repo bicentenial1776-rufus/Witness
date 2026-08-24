@@ -80,7 +80,7 @@ function Chip({
         backgroundColor: active ? activeColor : '#1C1917',
         borderRadius: 14,
         paddingHorizontal: 11,
-        paddingVertical: 5,
+        paddingVertical: 8,
       }}
     >
       <ThemedText type="small" style={{ color: '#F7F3EE' }}>{label}</ThemedText>
@@ -328,7 +328,7 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
                   backgroundColor: view === 'map' ? '#1C1917' : theme.backgroundElement,
                   borderRadius: 12,
                   paddingHorizontal: 10,
-                  paddingVertical: 5,
+                  paddingVertical: 8,
                   minWidth: 62,
                   alignItems: 'center',
                 }}
