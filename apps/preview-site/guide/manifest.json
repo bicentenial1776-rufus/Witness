@@ -1,7 +1,7 @@
 {
-  "comment": "Witness Field Guide manifest \u2014 read by the /field-guide skill. lastSyncedCommit is the apps/mobile commit whose UI this guide's copy describes; the skill diffs it against HEAD to find screens that changed.",
+  "comment": "Witness Field Guide manifest — read by the /field-guide skill. lastSyncedCommit is the apps/mobile commit whose UI this guide's copy describes; the skill diffs it against HEAD to find screens that changed.",
   "baseUrl": "https://witnesslives.com/guide/",
-  "lastSyncedCommit": "1be24c4",
+  "lastSyncedCommit": "731b25f",
   "pages": [
     {
       "file": "concepts.html",
@@ -51,15 +51,15 @@
     },
     {
       "file": "family-stage.html",
-      "title": "The Family Stage",
+      "title": "The Family Graph",
       "covers": [
-        "threads/ribbons",
-        "marriage enclosure",
-        "reading line + band",
-        "sweep/slider",
-        "set-switcher",
-        "family group sheet",
-        "back to register"
+        "threads & reading line",
+        "tappable ribbons",
+        "generation doors (up/down)",
+        "lineage marks on ribbons",
+        "family details fold",
+        "marriage sets",
+        "what it takes to draw a graph"
       ],
       "appSources": [
         "apps/mobile/src/app/(app)/family-stage/[key].tsx",
@@ -69,13 +69,8 @@
       "shots": [
         {
           "file": "shots/family-stage.png",
-          "status": "placed",
-          "shows": "a household with the reading line mid-family, legend and reading band visible"
-        },
-        {
-          "file": "shots/family-group.png",
-          "status": "placed",
-          "shows": "the FAMILY GROUP sheet open with a child row showing mark + parentage"
+          "status": "pending",
+          "shows": "Family Graph, details folded: full-name ribbons, up-badges on both parents, a lineage mark beside a name, reading line mid-family"
         }
       ]
     },
