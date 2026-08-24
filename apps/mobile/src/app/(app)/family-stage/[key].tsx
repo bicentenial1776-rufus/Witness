@@ -663,7 +663,14 @@ export default function FamilyStageScreen() {
                 // The name sticks to the top edge as the roll passes — and
                 // steps down past any badges capping the ribbon.
                 const badgeTop = Math.max(top + 3, 3);
-                const nameTop = Math.max(top + 4, 4) + (hopKey ? 19 : 0) + (isDirect ? 19 : 0);
+                const nameTop = Math.max(top + 4, 4) + (hopKey ? 26 : 0) + (isDirect ? 26 : 0);
+                // A long ribbon runs past the window; a child's door repeats
+                // at the bottom end so it's in reach wherever the roll sits.
+                const bottomBadgeTop = Math.min(bottom, chartHeight) - 26;
+                const showBottomBadge =
+                  hopKey !== null &&
+                  person.role === 'child' &&
+                  bottomBadgeTop > badgeTop + 30;
                 return (
                   <Pressable
                     key={person.id}
@@ -766,11 +773,28 @@ export default function FamilyStageScreen() {
                           backgroundColor: L.paper,
                           borderWidth: 1,
                           borderColor: L.ink,
-                          paddingHorizontal: 4,
+                          paddingHorizontal: 5,
                           paddingVertical: 1,
                         }}
                       >
-                        <Text style={mono(9.5, L.ink)}>{person.role === 'child' ? '↓' : '↑'}</Text>
+                        <Text style={mono(14, L.ink)}>{person.role === 'child' ? '↓' : '↑'}</Text>
+                      </View>
+                    )}
+                    {showBottomBadge && (
+                      <View
+                        pointerEvents="none"
+                        style={{
+                          position: 'absolute',
+                          alignSelf: 'center',
+                          top: bottomBadgeTop,
+                          backgroundColor: L.paper,
+                          borderWidth: 1,
+                          borderColor: L.ink,
+                          paddingHorizontal: 5,
+                          paddingVertical: 1,
+                        }}
+                      >
+                        <Text style={mono(14, L.ink)}>↓</Text>
                       </View>
                     )}
                     {/* The direct ancestor in this household — the app's
@@ -781,15 +805,15 @@ export default function FamilyStageScreen() {
                         style={{
                           position: 'absolute',
                           alignSelf: 'center',
-                          top: badgeTop + (hopKey ? 19 : 0),
+                          top: badgeTop + (hopKey ? 26 : 0),
                           backgroundColor: L.amber,
                           borderWidth: 1,
                           borderColor: L.paper,
-                          paddingHorizontal: 4,
-                          paddingVertical: 1,
+                          paddingHorizontal: 5,
+                          paddingVertical: 2,
                         }}
                       >
-                        <LineageMark tier="direct" size={10} color={L.paper} />
+                        <LineageMark tier="direct" size={15} color={L.paper} />
                       </View>
                     )}
                   </Pressable>
