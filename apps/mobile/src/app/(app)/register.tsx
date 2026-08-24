@@ -14,16 +14,12 @@ import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Broadsheet, BrandFonts, Letterpress, WideContent, mono } from '@/constants/theme';
+import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { setPendingStage } from '@/lib/stage-handoff';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
 const C = Broadsheet.color;
-const PAPER = Letterpress.paper;
-const INK = Letterpress.ink;
-const AMBER = Letterpress.amber;
-const DEEP_AMBER = Letterpress.deepAmber;
-const MUTED = Letterpress.muted;
 
 type Ordering = 'time' | 'name' | 'place';
 
@@ -41,6 +37,7 @@ interface Group {
  * reading paths, the tree flattened into serials.
  */
 export default function RegisterScreen() {
+  const L = useLetterpress();
   useLocalSearchParams(); // route param plumbing kept for future deep links
   const broadsheet = useBroadsheet();
   const { activeTree } = useActiveTree();
@@ -146,16 +143,16 @@ export default function RegisterScreen() {
         borderBottomColor: 'rgba(120,110,95,0.14)',
       }}
     >
-      <Text style={mono(13.5, DEEP_AMBER)}>{entry.year}</Text>
-      <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15, color: INK, flexShrink: 1 }} numberOfLines={1}>
+      <Text style={mono(13.5, L.deepAmber)}>{entry.year}</Text>
+      <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15, color: L.ink, flexShrink: 1 }} numberOfLines={1}>
         {entry.headName} <Text style={{ fontFamily: BrandFonts.serif.italic }}>m.</Text> {entry.spouseLine}
       </Text>
-      <Text style={mono(12.5, MUTED)} numberOfLines={1}>
+      <Text style={mono(12.5, L.muted)} numberOfLines={1}>
         {entry.childCount} {entry.childCount === 1 ? 'child' : 'children'}
         {entry.place ? ` · ${entry.place}` : ''}
       </Text>
       <View style={{ flex: 1 }} />
-      <Text style={mono(13, AMBER)}>›</Text>
+      <Text style={mono(13, L.amber)}>›</Text>
     </Pressable>
   );
 
@@ -164,13 +161,13 @@ export default function RegisterScreen() {
       <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 64 }}>
         <ThemedText type="title">The Register</ThemedText>
         {register ? (
-          <Text style={{ ...mono(13.5, MUTED), marginTop: 4 }}>
+          <Text style={{ ...mono(13.5, L.muted), marginTop: 4 }}>
             {register.entries.length.toLocaleString()} HOUSEHOLDS · {register.startYear}–{register.endYear}
           </Text>
         ) : failed ? (
           <ThemedText type="small">Couldn’t reach your tree just now — come back to retry.</ThemedText>
         ) : (
-          <Text style={{ ...mono(13.5, MUTED), marginTop: 4 }}>OPENING THE RECORD BOOK…</Text>
+          <Text style={{ ...mono(13.5, L.muted), marginTop: 4 }}>OPENING THE RECORD BOOK…</Text>
         )}
 
         {register && register.threads.length > 0 && (
@@ -186,10 +183,10 @@ export default function RegisterScreen() {
                     onPress={() => setOpenThread(open ? null : thread.surname)}
                     style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingVertical: 8 }}
                   >
-                    <Text style={{ fontFamily: BrandFonts.serif.semiBold, fontSize: 16, color: INK }}>
+                    <Text style={{ fontFamily: BrandFonts.serif.semiBold, fontSize: 16, color: L.ink }}>
                       {open ? '▾' : '▸'} The {thread.surname} thread
                     </Text>
-                    <Text style={mono(13, MUTED)}>
+                    <Text style={mono(13, L.muted)}>
                       {thread.keys.length} HOUSEHOLDS · {thread.startYear}–{thread.endYear}
                     </Text>
                   </Pressable>
@@ -199,14 +196,14 @@ export default function RegisterScreen() {
                         const entry = register.entries.find((e) => e.key === key);
                         return entry ? (
                           <Pressable key={key} onPress={() => openStage(key)} style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
-                            <Text style={mono(13, DEEP_AMBER)}>{i + 1}.</Text>
-                            <Text style={mono(13, DEEP_AMBER)}>{entry.year}</Text>
-                            <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 14, color: INK }}>
+                            <Text style={mono(13, L.deepAmber)}>{i + 1}.</Text>
+                            <Text style={mono(13, L.deepAmber)}>{entry.year}</Text>
+                            <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 14, color: L.ink }}>
                               {entry.headName} m. {entry.spouseLine} ›
                             </Text>
                           </Pressable>
                         ) : (
-                          <Text key={key} style={mono(13, MUTED)}>
+                          <Text key={key} style={mono(13, L.muted)}>
                             {names.get(key) ?? key}
                           </Text>
                         );
@@ -221,7 +218,7 @@ export default function RegisterScreen() {
 
         {register && (
           <>
-            <View style={{ flexDirection: 'row', gap: 18, marginTop: 24, borderBottomWidth: 2, borderBottomColor: INK, paddingBottom: 6 }}>
+            <View style={{ flexDirection: 'row', gap: 18, marginTop: 24, borderBottomWidth: 2, borderBottomColor: L.ink, paddingBottom: 6 }}>
               {(
                 [
                   ['time', 'BY TIME'],
@@ -230,7 +227,7 @@ export default function RegisterScreen() {
                 ] as const
               ).map(([value, label]) => (
                 <Pressable key={value} onPress={() => setOrdering(value)}>
-                  <Text style={mono(13.5, ordering === value ? AMBER : MUTED)}>{label}</Text>
+                  <Text style={mono(13.5, ordering === value ? L.amber : L.muted)}>{label}</Text>
                 </Pressable>
               ))}
             </View>
@@ -250,10 +247,10 @@ export default function RegisterScreen() {
                     }
                     style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingTop: 14, paddingBottom: 4 }}
                   >
-                    <Text style={{ fontFamily: BrandFonts.serif.semiBold, fontSize: 16, color: INK }}>
+                    <Text style={{ fontFamily: BrandFonts.serif.semiBold, fontSize: 16, color: L.ink }}>
                       {open ? '▾' : '▸'} {group.title}
                     </Text>
-                    <Text style={mono(13, MUTED)}>{group.meta.toUpperCase()}</Text>
+                    <Text style={mono(13, L.muted)}>{group.meta.toUpperCase()}</Text>
                   </Pressable>
                   {open && <View style={{ paddingLeft: 4 }}>{group.entries.map(entryRow)}</View>}
                 </View>

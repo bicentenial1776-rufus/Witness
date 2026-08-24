@@ -167,24 +167,24 @@ export default function AncestorMapTab() {
           <Pressable
             onPress={() => setMode('near')}
             style={{
-              backgroundColor: '#1C1917',
+              backgroundColor: theme.text,
               borderRadius: 16,
               paddingHorizontal: 12,
               paddingVertical: 9,
             }}
           >
-            <ThemedText type="small" style={{ color: '#F7F3EE' }}>Near me</ThemedText>
+            <ThemedText type="small" style={{ color: theme.background }}>Near me</ThemedText>
           </Pressable>
           <Pressable
             onPress={() => setMapType(mapType === 'hybrid' ? 'mutedStandard' : 'hybrid')}
             style={{
-              backgroundColor: mapType === 'hybrid' ? theme.accent : '#1C1917',
+              backgroundColor: mapType === 'hybrid' ? theme.accent : theme.text,
               borderRadius: 16,
               paddingHorizontal: 12,
               paddingVertical: 9,
             }}
           >
-            <ThemedText type="small" style={{ color: '#F7F3EE' }}>Sat</ThemedText>
+            <ThemedText type="small" style={{ color: theme.background }}>Sat</ThemedText>
           </Pressable>
         </View>
         {progress && progress.placed < progress.total && (

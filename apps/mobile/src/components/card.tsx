@@ -33,6 +33,7 @@ export function Card({
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
       style={({ pressed }) => [
         surface,
         pressed && { backgroundColor: theme.backgroundSelected },

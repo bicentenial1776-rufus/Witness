@@ -8,14 +8,15 @@ import { Masthead, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { FamilyStage } from '@/components/broadsheet/family-stage';
 import { RecordText } from '@/components/record-text';
 import { BrandFonts, Letterpress, WideContent, mono } from '@/constants/theme';
+import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { getCuriosities, type CuriositySummary } from '@/lib/curiosities-cache';
 import { supabase } from '@/lib/supabase';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
-const L = Letterpress;
 
 function Section({ eyebrow, children }: { eyebrow: string; children: ReactNode }) {
+  const L = useLetterpress();
   return (
     <View style={{ marginTop: 28, borderTopWidth: 1, borderTopColor: L.rule, paddingTop: 14, gap: 10 }}>
       <RecordText eyebrow style={{ color: L.deepAmber }}>
@@ -27,6 +28,7 @@ function Section({ eyebrow, children }: { eyebrow: string; children: ReactNode }
 }
 
 function Row({ title, detail, onPress }: { title: string; detail?: string; onPress: () => void }) {
+  const L = useLetterpress();
   return (
     <Pressable
       onPress={onPress}
@@ -49,6 +51,7 @@ function Row({ title, detail, onPress }: { title: string; detail?: string; onPre
  * its old tab in the 2026-07-26 restructure.
  */
 export default function TreeTab() {
+  const L = useLetterpress();
   const { activeTree, loadFailed, refresh } = useActiveTree();
   const broadsheet = useBroadsheet();
   const [generations, setGenerations] = useState<number | null>(null);
@@ -168,7 +171,7 @@ export default function TreeTab() {
             style={{
               borderWidth: 1,
               borderColor: L.rule,
-              backgroundColor: '#ffffff',
+              backgroundColor: L.raised,
               padding: 16,
               gap: 6,
               shadowColor: L.ink,

@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
 import { BrandFonts, Letterpress, mono } from '@/constants/theme';
+import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { getSynthesis, type TreeSynthesis } from '@/lib/story-arc';
 
-const L = Letterpress;
 
 /**
  * The Synthesis — the whole ancestry read at once. Every number in the
@@ -14,6 +14,7 @@ const L = Letterpress;
  * regenerates when the tree grows, so it morphs with the research.
  */
 export default function SynthesisScreen() {
+  const L = useLetterpress();
   const { activeTree } = useActiveTree();
   const [synthesis, setSynthesis] = useState<TreeSynthesis | null>(null);
   const [error, setError] = useState<string | null>(null);

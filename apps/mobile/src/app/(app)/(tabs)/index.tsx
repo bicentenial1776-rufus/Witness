@@ -27,6 +27,7 @@ import { Card } from '@/components/card';
 import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
 import { BrandFonts, Letterpress, WideContent, mono } from '@/constants/theme';
+import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { getCuriosities, type CuriositySummary } from '@/lib/curiosities-cache';
 import { recordEditionPieces } from '@/lib/edition-ledger';
@@ -41,7 +42,6 @@ import { getTodayArc, type StoryArc } from '@/lib/story-arc';
 import { supabase } from '@/lib/supabase';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
-const L = Letterpress;
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 const isToday = (d: Date) => startOfDay(d) === startOfDay(new Date());
@@ -71,6 +71,7 @@ function resumeAgeLabel(ts: number): string {
 }
 
 function Feed({ eyebrow, children }: { eyebrow: string; children: ReactNode }) {
+  const L = useLetterpress();
   return (
     <View style={{ marginTop: 26, borderTopWidth: 1, borderTopColor: L.rule, paddingTop: 12, gap: 10 }}>
       <RecordText eyebrow style={{ color: L.deepAmber }}>
@@ -94,6 +95,7 @@ function Feed({ eyebrow, children }: { eyebrow: string; children: ReactNode }) {
  * carrier (web ≥900px) runs the same issue under a masthead.
  */
 export default function Home() {
+  const L = useLetterpress();
   const { trees, activeTree, refresh } = useActiveTree();
   const broadsheet = useBroadsheet();
   const { subscription } = usePurchases();
@@ -412,7 +414,7 @@ export default function Home() {
                     style={{
                       borderWidth: 1,
                       borderColor: L.rule,
-                      backgroundColor: '#ffffff',
+                      backgroundColor: L.raised,
                       padding: 18,
                       gap: 7,
                       shadowColor: L.ink,
@@ -468,7 +470,7 @@ export default function Home() {
                     style={{
                       borderWidth: 1,
                       borderColor: L.rule,
-                      backgroundColor: '#ffffff',
+                      backgroundColor: L.raised,
                       padding: 18,
                       gap: 7,
                       shadowColor: L.ink,
@@ -704,7 +706,7 @@ export default function Home() {
                           width: 150,
                           borderWidth: 1,
                           borderColor: L.rule,
-                          backgroundColor: '#ffffff',
+                          backgroundColor: L.raised,
                           padding: 12,
                           gap: 6,
                           justifyContent: 'space-between',

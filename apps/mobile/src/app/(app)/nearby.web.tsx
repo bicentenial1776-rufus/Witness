@@ -84,6 +84,9 @@ function Chip({
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      hitSlop={6}
       style={{
         backgroundColor: active ? theme.accent : theme.backgroundElement,
         borderWidth: 1,

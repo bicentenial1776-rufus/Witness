@@ -22,7 +22,8 @@ import {
 import { GuideHelpButton } from '@/components/field-guide';
 import { LineageMark } from '@/components/lineage-mark';
 import { RecordText } from '@/components/record-text';
-import { BrandFonts, Letterpress, mono } from '@/constants/theme';
+import { BrandFonts, Letterpress, mono, type LetterpressPalette } from '@/constants/theme';
+import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { VISITED_MARK, fetchVisitedSet } from '@/lib/visits';
 import { getFamilyStages } from '@/lib/family-stage-cache';
@@ -30,7 +31,6 @@ import { getParentageMap } from '@/lib/parentage';
 import { getLineageTierMap, type LineageTier } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 
-const L = Letterpress;
 
 // The rolling window (panel 4h): forty-six years — about half a lifetime —
 // visible at once; a vertical drag on the stage is the fine control, the
@@ -47,9 +47,9 @@ const UNION_CHILD_GAP = 22; // extra room between the parents and their children
 const MIN_THREAD_W = 20;
 const GUTTER = 42; // year scale on the left edge
 
-const PALE = '#efe8da'; // died before 18 — the pale ribbon of the legend
 
-const sexInk = (s: StagePerson['s']) =>
+
+const sexInkOf = (s: StagePerson['s'], L: LetterpressPalette) =>
   s === 'M' ? L.inkMen : s === 'F' ? L.inkWomen : L.inkUnrecorded;
 
 /** True when a death is genuinely unrecorded (not living, no death year). */
@@ -83,6 +83,7 @@ interface BriefRow {
  * around the parent threads; widowhood is the thread continuing past it.
  */
 export default function FamilyStageScreen() {
+  const L = useLetterpress();
   const { key: paramKey } = useLocalSearchParams<{ key?: string }>();
   const { activeTree } = useActiveTree();
   const currentYear = new Date().getFullYear();
@@ -505,7 +506,7 @@ export default function FamilyStageScreen() {
             [
               [L.inkMen, 'MAN'],
               [L.inkWomen, 'WOMAN'],
-              [PALE, 'DIED BEFORE 18'],
+              [L.pale, 'DIED BEFORE 18'],
               [L.inkUnrecorded, 'NOT RECORDED'],
             ] as const
           ).map(([color, label]) => (
@@ -535,6 +536,9 @@ export default function FamilyStageScreen() {
                 return (
                   <Pressable
                     key={`${m.marriageYear}-${i}`}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    hitSlop={6}
                     onPress={() => setMarriageIdx(i)}
                     style={{
                       paddingHorizontal: 10,
@@ -656,7 +660,7 @@ export default function FamilyStageScreen() {
                 if (bottom < 0 || top > chartHeight) return null;
                 const diedYoung = person.d !== null && person.d - person.b < 18;
                 const unrecorded = deathUnknown(person) && !leftAtRemarriage;
-                const ink = sexInk(person.s);
+                const ink = sexInkOf(person.s, L);
                 const age = person.b <= line && end >= line ? Math.floor(line - person.b) : null;
                 // The name sticks to the top edge as the roll passes — and
                 // steps down past any badges capping the ribbon.
@@ -676,6 +680,8 @@ export default function FamilyStageScreen() {
                 return (
                   <Pressable
                     key={person.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open ${person.n}${person.b ? `, born ${person.b}` : ''}`}
                     onPress={() =>
                       router.push({ pathname: '/ancestor/[id]', params: { id: person.id } })
                     }
@@ -688,7 +694,7 @@ export default function FamilyStageScreen() {
                         right: 0,
                         top: Math.max(top, -2),
                         height: Math.max(Math.min(bottom, chartHeight + 2) - Math.max(top, -2), 0),
-                        backgroundColor: diedYoung ? PALE : ink,
+                        backgroundColor: diedYoung ? L.pale : ink,
                         opacity: unrecorded ? 0.45 : 1,
                         borderWidth: diedYoung ? 1 : 0,
                         borderColor: ink,
@@ -738,11 +744,11 @@ export default function FamilyStageScreen() {
                           top: Math.min(bottom, chartHeight) - 14,
                           backgroundColor: L.paper,
                           borderWidth: 1,
-                          borderColor: sexInk(person.s),
+                          borderColor: sexInkOf(person.s, L),
                           paddingHorizontal: 3,
                         }}
                       >
-                        <Text style={mono(12.5, sexInk(person.s))}>?</Text>
+                        <Text style={mono(12.5, sexInkOf(person.s, L))}>?</Text>
                       </View>
                     )}
                     {age !== null && (
@@ -768,6 +774,12 @@ export default function FamilyStageScreen() {
                     {hopKey && (
                       <Pressable
                         hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          person.role === 'child'
+                            ? `Go to the family ${person.n} raised`
+                            : `Go to the family ${person.n} grew up in`
+                        }
                         onPress={() =>
                           router.push({ pathname: '/family-stage/[key]', params: { key: hopKey } } as never)
                         }

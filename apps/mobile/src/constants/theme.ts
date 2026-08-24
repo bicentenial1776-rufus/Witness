@@ -153,6 +153,10 @@ export const Broadsheet = {
  */
 export const Letterpress = {
   paper: '#fbf9f5',
+  /** Raised card surface on paper. */
+  raised: '#ffffff',
+  /** Recessed surface — chips, wells. */
+  well: '#f4efe6',
   ink: '#1a1815',
   // Large Print pass 2026-08-24: the old #b0741f measured 3.72:1 as text —
   // the Home tab's links failed AA. Darkened so amber text passes (5.6:1)
@@ -167,8 +171,33 @@ export const Letterpress = {
   inkMen: '#2f2c26',
   inkWomen: '#744b0b',
   inkUnrecorded: '#5f5a51',
+  /** Died before 18 — the pale ribbon of the legend. */
+  pale: '#efe8da',
   /** Hairline — same value as Broadsheet.color.rule so the two carriers share rules. */
   rule: '#C9BEAA',
+} as const;
+
+/**
+ * The ink world — dark-mode letterpress (Large Print phase 2, 2026-08-24).
+ * The metaphor inverts honestly: parchment text on ink paper, the ribbons
+ * printed in parchment so their names (set in `paper`, now dark) still
+ * read. Every text token measured ≥6:1 on the dark paper.
+ */
+export type LetterpressPalette = Record<keyof typeof Letterpress, string>;
+
+export const LetterpressDark: LetterpressPalette = {
+  paper: '#1b1814',
+  raised: '#26221b',
+  well: '#2e2921',
+  ink: '#f0eade',
+  amber: '#d99b42',
+  deepAmber: '#c9994f',
+  muted: '#a69d90',
+  inkMen: '#ddd5c4',
+  inkWomen: '#d3a049',
+  inkUnrecorded: '#98918a',
+  pale: '#332f28',
+  rule: '#453f35',
 } as const;
 
 /**

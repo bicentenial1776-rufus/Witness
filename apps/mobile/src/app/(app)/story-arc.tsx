@@ -3,10 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { BrandFonts, Letterpress, mono } from '@/constants/theme';
+import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { getTodayArc, type StoryArc } from '@/lib/story-arc';
 
-const L = Letterpress;
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'];
 
@@ -17,6 +17,7 @@ const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI'
  * graphic at the top is the argument: this many centuries, no gap.
  */
 export default function StoryArcScreen() {
+  const L = useLetterpress();
   const { activeTree } = useActiveTree();
   const [arc, setArc] = useState<StoryArc | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -210,7 +211,7 @@ export default function StoryArcScreen() {
                           style={{
                             borderWidth: 1,
                             borderColor: L.rule,
-                            backgroundColor: '#f4efe6',
+                            backgroundColor: L.well,
                             paddingHorizontal: 7,
                             paddingVertical: 2,
                           }}

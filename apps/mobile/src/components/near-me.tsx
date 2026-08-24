@@ -73,17 +73,21 @@ function Chip({
   onPress: () => void;
   activeColor: string;
 }) {
+  const theme = useTheme();
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      hitSlop={6}
       style={{
-        backgroundColor: active ? activeColor : '#1C1917',
+        backgroundColor: active ? activeColor : theme.text,
         borderRadius: 14,
         paddingHorizontal: 11,
         paddingVertical: 8,
       }}
     >
-      <ThemedText type="small" style={{ color: '#F7F3EE' }}>{label}</ThemedText>
+      <ThemedText type="small" style={{ color: theme.background }}>{label}</ThemedText>
     </Pressable>
   );
 }
@@ -325,7 +329,7 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
               />
               <View
                 style={{
-                  backgroundColor: view === 'map' ? '#1C1917' : theme.backgroundElement,
+                  backgroundColor: view === 'map' ? theme.text : theme.backgroundElement,
                   borderRadius: 12,
                   paddingHorizontal: 10,
                   paddingVertical: 8,
@@ -335,7 +339,7 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
               >
                 <ThemedText
                   type="smallBold"
-                  style={{ color: view === 'map' ? '#F7F3EE' : theme.text }}
+                  style={{ color: view === 'map' ? theme.background : theme.text }}
                 >
                   {liveMiles} mi
                 </ThemedText>
