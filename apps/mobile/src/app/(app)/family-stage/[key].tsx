@@ -1,7 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Modal,
   PanResponder,
   Pressable,
   ScrollView,
@@ -25,11 +24,8 @@ import { RecordText } from '@/components/record-text';
 import { BrandFonts, Letterpress, mono, type LetterpressPalette } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
-import { VISITED_MARK, fetchVisitedSet } from '@/lib/visits';
 import { getFamilyStages } from '@/lib/family-stage-cache';
-import { getParentageMap } from '@/lib/parentage';
 import { getLineageTierMap, type LineageTier } from '@/lib/relationship-cache';
-import { supabase } from '@/lib/supabase';
 
 
 // The rolling window (panel 4h): forty-six years — about half a lifetime —
@@ -68,13 +64,6 @@ function ribbonEnd(person: StagePerson, currentYear: number, unknownTo: number):
   return Math.min(Math.max(unknownTo, person.b + 1), currentYear);
 }
 
-interface BriefRow {
-  id: string;
-  title: string;
-  status: string;
-  individual_id: string;
-}
-
 /**
  * The Family Stage, turned upright (design panel 4h): the phone rotates
  * the metaphor, not the layout. Time falls down the screen; each person
@@ -94,11 +83,11 @@ export default function FamilyStageScreen() {
   const [chartHeight, setChartHeight] = useState(0);
   const [lineYear, setLineYear] = useState<number | null>(null);
   const [sweeping, setSweeping] = useState(false);
-  const [sheet, setSheet] = useState<'group' | 'briefs' | null>(null);
-  const [briefs, setBriefs] = useState<BriefRow[] | null>(null);
   const [marriageIdx, setMarriageIdx] = useState(0);
+  // Larger print squeezed the chart — the family details fold away by
+  // default so the graph keeps its room (Rufus, 2026-08-24).
+  const [showDetails, setShowDetails] = useState(false);
   const [tiers, setTiers] = useState<Map<string, LineageTier>>(new Map());
-  const [parentage, setParentage] = useState<Map<string, string>>(new Map());
 
   const sweepRaf = useRef<number | null>(null);
   const dragStartYear = useRef(0);
@@ -119,19 +108,14 @@ export default function FamilyStageScreen() {
     };
   }, [activeTree?.id]);
 
-  // Lineage marks + parentage for the family group sheet. Best-effort —
-  // the sheet reads fine without them (no home person → no marks).
+  // Lineage marks for the ribbons. Best-effort — the graph reads fine
+  // without them (no home person → no marks).
   useEffect(() => {
     if (!activeTree) return;
     let cancelled = false;
     getLineageTierMap(activeTree.id)
       .then((map) => {
         if (!cancelled) setTiers(map);
-      })
-      .catch(() => {});
-    getParentageMap(activeTree.id)
-      .then((map) => {
-        if (!cancelled) setParentage(map);
       })
       .catch(() => {});
     return () => {
@@ -223,41 +207,6 @@ export default function FamilyStageScreen() {
       if (sweepRaf.current !== null) cancelAnimationFrame(sweepRaf.current);
     };
   }, [stage?.key]);
-
-  // Briefs for this household's members, fetched when the sheet opens.
-  // Betsey's star (2026-08-19): group-sheet members already visited.
-  const [visitedIds, setVisitedIds] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    if (!people.length) {
-      setVisitedIds(new Set());
-      return;
-    }
-    let cancelled = false;
-    void fetchVisitedSet(people.map((p) => p.id)).then((set) => {
-      if (!cancelled) setVisitedIds(set);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [people]);
-
-  useEffect(() => {
-    if (sheet !== 'briefs' || !stage) return;
-    let cancelled = false;
-    setBriefs(null);
-    const ids = people.map((p) => p.id);
-    supabase
-      .from('research_briefs')
-      .select('id, title, status, individual_id')
-      .in('individual_id', ids)
-      .neq('status', 'archived')
-      .then(({ data }) => {
-        if (!cancelled) setBriefs((data as BriefRow[]) ?? []);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [sheet, stage?.key]);
 
   const pxPerYear = chartHeight > 0 ? chartHeight / WINDOW_YEARS : 0;
   // Axis and slider follow the SELECTED marriage's span, not the whole
@@ -488,6 +437,9 @@ export default function FamilyStageScreen() {
         </View>
       </View>
 
+      {/* The header folds: larger print squeezed the chart, so the family
+          details live behind one tap and the graph keeps its room
+          (Rufus, 2026-08-24). */}
       <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
         <Text
           numberOfLines={2}
@@ -495,27 +447,42 @@ export default function FamilyStageScreen() {
         >
           {stage.title}
         </Text>
-        <Text style={{ ...mono(13, L.muted), marginTop: 5 }}>{stage.sub.toUpperCase()}</Text>
-        {stage.scrubEnd > stage.marriage && (
-          <Text style={{ ...mono(13, L.deepAmber), marginTop: 3 }}>
-            THE FAMILY LASTED {stage.scrubEnd - stage.marriage} YEARS · {stage.marriage}–{stage.scrubEnd}
+        <Pressable
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showDetails }}
+          onPress={() => setShowDetails((s) => !s)}
+          style={{ alignSelf: 'flex-start', marginTop: 4 }}
+        >
+          <Text style={mono(12.5, L.amber)}>
+            {showDetails ? 'HIDE FAMILY DETAILS ▴' : 'FAMILY DETAILS ▾'}
           </Text>
-        )}
-        <View style={{ flexDirection: 'row', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
-          {(
-            [
-              [L.inkMen, 'MAN'],
-              [L.inkWomen, 'WOMAN'],
-              [L.pale, 'DIED BEFORE 18'],
-              [L.inkUnrecorded, 'NOT RECORDED'],
-            ] as const
-          ).map(([color, label]) => (
-            <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <View style={{ width: 9, height: 9, backgroundColor: color, borderWidth: label === 'DIED BEFORE 18' ? 1 : 0, borderColor: L.rule }} />
-              <Text style={mono(12.5, L.muted)}>{label}</Text>
+        </Pressable>
+        {showDetails && (
+          <>
+            <Text style={{ ...mono(13, L.muted), marginTop: 5 }}>{stage.sub.toUpperCase()}</Text>
+            {stage.scrubEnd > stage.marriage && (
+              <Text style={{ ...mono(13, L.deepAmber), marginTop: 3 }}>
+                THE FAMILY LASTED {stage.scrubEnd - stage.marriage} YEARS · {stage.marriage}–{stage.scrubEnd}
+              </Text>
+            )}
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+              {(
+                [
+                  [L.inkMen, 'MAN'],
+                  [L.inkWomen, 'WOMAN'],
+                  [L.pale, 'DIED BEFORE 18'],
+                  [L.inkUnrecorded, 'NOT RECORDED'],
+                ] as const
+              ).map(([color, label]) => (
+                <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <View style={{ width: 9, height: 9, backgroundColor: color, borderWidth: label === 'DIED BEFORE 18' ? 1 : 0, borderColor: L.rule }} />
+                  <Text style={mono(12.5, L.muted)}>{label}</Text>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
+          </>
+        )}
 
         {/* Set-switcher — one chip per marriage when the head married more
             than once (Rufus, 2026-07-26). Each set re-scales the axis.
@@ -884,13 +851,6 @@ export default function FamilyStageScreen() {
             </Text>
           </View>
         ))}
-        {/* What raises a graph — the honest recipe, so a thin tree knows
-            the road: dates make households drawable (Rufus, 2026-08-24). */}
-        <Text style={{ ...mono(12, L.muted), lineHeight: 13, marginTop: 4 }}>
-          A FAMILY GRAPH CAN BE DRAWN ONCE THE RECORD DATES IT — A DATED MARRIAGE, A BIRTH-DATED
-          PARENT, AND AT LEAST ONE BIRTH-DATED CHILD. ADD DATES TO YOUR TREE AND REFRESH: MORE
-          HOUSEHOLDS, AND MORE ↑ ↓ DOORS, APPEAR.
-        </Text>
       </View>
 
       {/* Chips · slider · sweep. */}
@@ -898,8 +858,6 @@ export default function FamilyStageScreen() {
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {(
             [
-              ['FAMILY GROUP', () => setSheet('group'), true],
-              ['BRIEFS', () => setSheet('briefs'), true],
               ['SHARE · SOON', () => {}, false],
             ] as const
           ).map(([label, onPress, enabled]) => (
@@ -954,78 +912,6 @@ export default function FamilyStageScreen() {
         </Pressable>
       </View>
 
-      {/* Sheets — the "whole of it" facts, collapsed into chips (panel 4h). */}
-      <Modal visible={sheet !== null} transparent animationType="slide" onRequestClose={() => setSheet(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(26,24,21,0.35)' }} onPress={() => setSheet(null)} />
-        <View style={{ backgroundColor: L.paper, borderTopWidth: 2, borderTopColor: L.ink, maxHeight: '60%', padding: 20, paddingBottom: 36 }}>
-          <RecordText eyebrow style={{ color: L.deepAmber }}>
-            {sheet === 'group' ? 'The family group' : 'Research briefs'}
-          </RecordText>
-          <ScrollView style={{ marginTop: 10 }}>
-            {sheet === 'group' &&
-              people.map((p) => (
-                <View
-                  key={p.id}
-                  style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: L.rule }}
-                >
-                  <Pressable
-                    style={{ flexShrink: 1 }}
-                    onPress={() => {
-                      setSheet(null);
-                      router.push({ pathname: '/ancestor/[id]', params: { id: p.id } });
-                    }}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 16, color: L.ink, flexShrink: 1 }}>
-                        {p.n}
-                      </Text>
-                      <LineageMark tier={tiers.get(p.id)} size={11} color={L.deepAmber} />
-                      {visitedIds.has(p.id) && <Text style={mono(12.5, L.muted)}>{VISITED_MARK}</Text>}
-                    </View>
-                    <Text style={mono(12.5, L.muted)}>
-                      {p.b}–{p.living ? '' : (p.d ?? '?')} · {p.role.toUpperCase()}
-                    </Text>
-                    {parentage.has(p.id) && (
-                      <Text style={mono(12.5, L.muted)}>{parentage.get(p.id)!.toUpperCase()}</Text>
-                    )}
-                  </Pressable>
-                  {p.mfam && stages?.byKey.has(p.mfam) && (
-                    <Pressable
-                      onPress={() => {
-                        setSheet(null);
-                        router.push({ pathname: '/family-stage/[key]', params: { key: p.mfam } } as never);
-                      }}
-                    >
-                      <Text style={mono(12.5, L.amber)}>THEIR GRAPH ›</Text>
-                    </Pressable>
-                  )}
-                </View>
-              ))}
-            {sheet === 'briefs' &&
-              (briefs === null ? (
-                <Text style={mono(13, L.muted)}>READING THE DESK…</Text>
-              ) : briefs.length === 0 ? (
-                <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15, color: L.ink }}>
-                  No briefs yet for this household — start one from any member's page.
-                </Text>
-              ) : (
-                briefs.map((brief) => (
-                  <Pressable
-                    key={brief.id}
-                    style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: L.rule }}
-                    onPress={() => {
-                      setSheet(null);
-                      router.push({ pathname: '/research/[briefId]', params: { briefId: brief.id } });
-                    }}
-                  >
-                    <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 16, color: L.ink }}>{brief.title}</Text>
-                    <Text style={mono(12.5, L.muted)}>{brief.status.toUpperCase()}</Text>
-                  </Pressable>
-                ))
-              ))}
-          </ScrollView>
-        </View>
-      </Modal>
     </View>
   );
 }
