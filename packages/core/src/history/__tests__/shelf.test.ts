@@ -44,7 +44,7 @@ function indexOf(people: SyntheticPerson[]): GeographyIndex {
     }
     events.push({ individualId: person.id, eventType: 'birth', year: person.birth, placeId });
   }
-  return { places, events, individuals };
+  return { places, events, individuals, graveLinks: new Map<string, string>() };
 }
 
 const GRAND_PRE = ['Grand-Pré', 'Acadia'];

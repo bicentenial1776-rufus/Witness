@@ -11,6 +11,7 @@ import {
 import {
   eventTypeLabel,
   fetchNaraCandidatesForIndividual,
+  isFindAGraveUrl,
   stageKeyForPerson,
   type NaraCandidate,
 } from '@witness/core/query';
@@ -130,7 +131,10 @@ function groupCitations(rows: CitationRow[]): SourceGroup[] {
     if (row.text_excerpt && !group.excerpts.includes(row.text_excerpt)) {
       group.excerpts.push(row.text_excerpt);
     }
-    if (!group.url && row.url) group.url = row.url;
+    // A memorial URL beats any other link the same source happens to carry.
+    if (row.url && (!group.url || (isFindAGraveUrl(row.url) && !isFindAGraveUrl(group.url)))) {
+      group.url = row.url;
+    }
   }
   return [...groups.values()].sort(
     (a, b) => b.facts.length - a.facts.length || a.title.localeCompare(b.title),
@@ -1558,7 +1562,9 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 ))}
                 {source.url && (
                   <ThemedText type="link" onPress={() => openExternal(source.url!)}>
-                    View the record ›
+                    {isFindAGraveUrl(source.url)
+                      ? 'View the memorial on Find A Grave ›'
+                      : 'View the record ›'}
                   </ThemedText>
                 )}
               </Card>

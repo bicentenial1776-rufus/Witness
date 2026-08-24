@@ -706,6 +706,16 @@ export default function ProximityTab() {
                         .map((e) => `${eventTypeLabel(e.eventType)}${e.year ? ` ${e.year}` : ''}`)
                         .join(' · ')}
                     </ThemedText>
+                    {index?.graveLinks.has(item.individual.id) && (
+                      <ThemedText
+                        type="link"
+                        onPress={() =>
+                          window.open(index.graveLinks.get(item.individual.id)!, '_blank', 'noopener')
+                        }
+                      >
+                        Find A Grave ›
+                      </ThemedText>
+                    )}
                   </Card>
                 ))}
               </View>

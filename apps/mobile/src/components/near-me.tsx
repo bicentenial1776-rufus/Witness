@@ -414,6 +414,14 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
                       .map((e) => `${eventTypeLabel(e.eventType)}${e.year ? ` ${e.year}` : ''}`)
                       .join(' · ')}
                   </ThemedText>
+                  {index?.graveLinks.has(item.individual.id) && (
+                    <ThemedText
+                      type="link"
+                      onPress={() => Linking.openURL(index.graveLinks.get(item.individual.id)!)}
+                    >
+                      Find A Grave ›
+                    </ThemedText>
+                  )}
                 </Card>
               )}
             />

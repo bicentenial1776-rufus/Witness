@@ -41,13 +41,24 @@ export interface GeographyIndex {
   places: Map<string, GeoPlace>;
   events: GeoEvent[];
   individuals: Map<string, GeoIndividual>;
+  /** Find A Grave memorial URL per individual, where a citation carries one. */
+  graveLinks: Map<string, string>;
+}
+
+/**
+ * Detect by URL, not source title: Ancestry-direct citations sit under a
+ * "U.S., Find A Grave Index" source, but FamilySearch-mediated ones carry
+ * the same memorial URL under a FamilySearch collection title.
+ */
+export function isFindAGraveUrl(url: string): boolean {
+  return /findagrave\.com/i.test(url);
 }
 
 export async function fetchGeographyIndex(
   client: WitnessSupabaseClient,
   treeId: string,
 ): Promise<GeographyIndex> {
-  const [placeRows, eventRows, individualRows] = await Promise.all([
+  const [placeRows, eventRows, individualRows, graveRows] = await Promise.all([
     fetchAllPages<Omit<GeoPlace, 'region' | 'country'>>(
       (from, to) =>
         client
@@ -78,6 +89,21 @@ export async function fetchGeographyIndex(
           .range(from, to),
       'Fetching individuals failed',
     ),
+    // Filtered server-side: a tree's citations run to the tens of thousands,
+    // but only the Find A Grave ones matter here. A failure yields an index
+    // without links, never a broken map.
+    fetchAllPages<{ individual_id: string | null; url: string | null }>(
+      (from, to) =>
+        client
+          .from('citations')
+          .select('individual_id, url')
+          .eq('tree_id', treeId)
+          .not('individual_id', 'is', null)
+          .ilike('url', '%findagrave.com%')
+          .order('id')
+          .range(from, to),
+      'Fetching grave links failed',
+    ).catch(() => [] as { individual_id: string | null; url: string | null }[]),
   ]);
 
   const places = new Map<string, GeoPlace>();
@@ -94,7 +120,16 @@ export async function fetchGeographyIndex(
   const individuals = new Map<string, GeoIndividual>();
   for (const row of individualRows) individuals.set(row.id, row);
 
-  return { places, events, individuals };
+  // Ancestry attaches the same memorial citation to every fact it touched —
+  // one link per person is the whole story.
+  const graveLinks = new Map<string, string>();
+  for (const row of graveRows) {
+    if (row.individual_id && row.url && !graveLinks.has(row.individual_id)) {
+      graveLinks.set(row.individual_id, row.url);
+    }
+  }
+
+  return { places, events, individuals, graveLinks };
 }
 
 // Event-type vocabulary ------------------------------------------------------

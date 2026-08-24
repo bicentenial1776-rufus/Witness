@@ -70,6 +70,7 @@ function fixtureIndex(): GeographyIndex {
       ] as Omit<GeoPlace, 'region' | 'country'>[]
     ).map((p) => [p.id, { ...p, region: regionOf(p.parts), country: classifyPlace(p.parts).country }]),
   );
+  const graveLinks = new Map<string, string>();
   const individuals = new Map<string, GeoIndividual>([
     ['i1', { id: 'i1', full_name: 'John Howe', surname: 'Howe', birth_year: 1620, death_year: 1700, living: false }],
     ['i2', { id: 'i2', full_name: 'Mary Field', surname: 'Field', birth_year: 1750, death_year: 1820, living: false }],
@@ -78,6 +79,7 @@ function fixtureIndex(): GeographyIndex {
   return {
     places,
     individuals,
+    graveLinks,
     events: [
       // John: born England, resides Sudbury, dies Boston (two MA stops = one migration England→Massachusetts only).
       { individualId: 'i1', eventType: 'birth', year: 1620, placeId: 'p4' },
