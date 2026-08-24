@@ -14,6 +14,20 @@ export interface GraveConfirmation {
 }
 
 /**
+ * Pulls a clean memorial URL out of whatever the user pasted. Find a
+ * Grave's share sheet offers "Copy record details", which puts the WHOLE
+ * record — dates, plot, family, citation — on the clipboard (Rufus hit
+ * this on day one); the memorial link is in there, so take it. Returns
+ * null when no memorial URL is present at all.
+ */
+export function extractFindAGraveUrl(text: string): string | null {
+  const match = text.match(/https?:\/\/(?:[\w.-]*\.)?findagrave\.com\/memorial\/[^\s"'<>)\]]+/i);
+  if (!match) return null;
+  // Trailing punctuation from prose ("…asa-k-howe: accessed…") isn't URL.
+  return match[0].replace(/[.,:;!?]+$/, '');
+}
+
+/**
  * A Find a Grave search URL from whatever the record has. Missing fields
  * are omitted, never blocking: a lone surname still searches.
  */

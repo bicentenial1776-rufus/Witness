@@ -49,6 +49,7 @@ import {
 } from '@/lib/relationship-cache';
 import {
   buildFindAGraveSearchUrl,
+  extractFindAGraveUrl,
   fetchGraveConfirmation,
   saveGraveConfirmation,
   type GraveConfirmation,
@@ -119,7 +120,10 @@ function openExternal(url: string) {
   if (Platform.OS === 'web') {
     window.open(url, '_blank', 'noopener');
   } else {
-    Linking.openURL(url);
+    // Never fail silently — a malformed stored URL should say so.
+    Linking.openURL(url).catch(() => {
+      showAlert('Could not open the link', 'The stored link looks malformed — try re-checking it.');
+    });
   }
 }
 
@@ -528,8 +532,10 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     }
     let prefill = '';
     try {
-      const clip = (await Clipboard.getStringAsync())?.trim();
-      if (clip && isFindAGraveUrl(clip)) prefill = clip;
+      const clip = await Clipboard.getStringAsync();
+      // "Copy Link" gives a URL; "Copy record details" gives the whole
+      // record with the URL inside — extract either way.
+      if (clip) prefill = extractFindAGraveUrl(clip) ?? '';
     } catch {
       // Clipboard permission denied — manual paste still works.
     }
@@ -539,8 +545,8 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
 
   async function saveGrave() {
     if (!person) return;
-    const url = graveDraft.trim();
-    if (!isFindAGraveUrl(url)) return;
+    const url = extractFindAGraveUrl(graveDraft);
+    if (!url) return;
     setGraveFlow('saving');
     try {
       const conf = await saveGraveConfirmation(person.id, person.tree_id, url);
@@ -1690,15 +1696,21 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
-                {graveDraft.trim().length > 0 && !isFindAGraveUrl(graveDraft) && (
+                {graveDraft.trim().length > 0 && extractFindAGraveUrl(graveDraft) === null && (
                   <ThemedText type="small">
-                    That doesn't look like a Find A Grave link yet.
+                    No memorial link found in that yet — either Copy Link or Copy record
+                    details from the memorial page works.
+                  </ThemedText>
+                )}
+                {extractFindAGraveUrl(graveDraft) !== null && (
+                  <ThemedText type="small">
+                    Saving: {extractFindAGraveUrl(graveDraft)}
                   </ThemedText>
                 )}
                 <Button
                   title={graveFlow === 'saving' ? 'Saving…' : 'Confirm this memorial'}
                   onPress={() => void saveGrave()}
-                  disabled={graveFlow === 'saving' || !isFindAGraveUrl(graveDraft)}
+                  disabled={graveFlow === 'saving' || extractFindAGraveUrl(graveDraft) === null}
                 />
                 <ThemedText
                   type="small"
