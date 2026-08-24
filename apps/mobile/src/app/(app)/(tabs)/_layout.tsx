@@ -26,12 +26,10 @@ export default function TabsLayout() {
             headerShown: false,
             tabBarActiveTintColor: theme.accent,
             tabBarInactiveTintColor: theme.textSecondary,
-            tabBarStyle: broadsheet
-              ? { display: 'none' }
-              : {
-                  backgroundColor: theme.backgroundElement,
-                  borderTopColor: theme.border,
-                },
+            // The native bar is retired everywhere: the (app) layout's
+            // WitnessTabBar persists across detail screens instead, and
+            // the broadsheet rail covers wide web.
+            tabBarStyle: { display: 'none' },
             sceneStyle: { backgroundColor: theme.background },
           }}
         >

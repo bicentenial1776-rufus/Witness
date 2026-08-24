@@ -1,8 +1,9 @@
 import { Stack, router, useGlobalSearchParams, usePathname } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 
 import { GuideHelpButton } from '@/components/field-guide';
+import { WitnessTabBar } from '@/components/witness-tab-bar';
 import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { trackResumePoint } from '@/lib/resume';
@@ -90,7 +91,11 @@ export default function AppLayout() {
   const theme = useTheme();
   useResume();
 
+  // The tab bar lives OUTSIDE the Stack so the four doors persist on
+  // every detail screen — changing section never requires unwinding a
+  // deep stack by hand (Rufus, 2026-08-24).
   return (
+    <View style={{ flex: 1 }}>
     <Stack
       screenOptions={{
         headerStyle: { backgroundColor: theme.background },
@@ -158,5 +163,7 @@ export default function AppLayout() {
       <Stack.Screen name="ancestor/[id]" options={{ title: '' }} />
       <Stack.Screen name="relationship/[individualId]" options={{ title: '' }} />
     </Stack>
+    <WitnessTabBar />
+    </View>
   );
 }
