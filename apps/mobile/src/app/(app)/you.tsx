@@ -292,8 +292,18 @@ export default function YouTab() {
 
   const scopeOptions = [
     { key: 'direct', label: 'Direct line', count: lineageCounts?.direct },
-    { key: 'all', label: 'Blood relatives', count: lineageCounts?.all },
+    { key: 'blood', label: 'Blood relatives', count: lineageCounts?.blood },
+    { key: 'distant', label: 'Blood and married-in', count: lineageCounts?.distant },
   ] as const;
+
+  const scopeDescription: Record<LineageScope, string> = {
+    direct:
+      'Your ancestors and descendants — the people you descend from, and who descend from you.',
+    blood:
+      'Your direct line plus everyone who shares an ancestor with you — cousins, great-aunts and great-uncles.',
+    distant:
+      'Everyone above plus the people who married in — in-laws, step-family, and the spouses of your ancestors.',
+  };
 
   return (
     <ThemedView style={{ flex: 1 }}>
@@ -436,9 +446,7 @@ export default function YouTab() {
             })}
           </View>
           <ThemedText type="small" style={{ marginTop: 8 }}>
-            {lineageScope === 'direct'
-              ? 'Your ancestors and descendants — the people you descend from, and who descend from you.'
-              : 'Your direct line plus everyone who shares an ancestor with you — cousins, great-aunts and great-uncles.'}
+            {scopeDescription[lineageScope]}
           </ThemedText>
         </Card>
         <Card>

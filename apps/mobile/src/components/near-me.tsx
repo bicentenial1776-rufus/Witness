@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, AppState, Linking, Pressable, ScrollView, SectionList, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
+import { tierInScope } from '@witness/core/family';
 import {
   eventTypeLabel,
   eventTypesOf,
@@ -139,7 +140,7 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
       .then(([tiers, scope]) => {
         if (cancelled) return;
         const ids = new Set<string>();
-        for (const [pid, tier] of tiers) if (scope === 'all' || tier === 'direct') ids.add(pid);
+        for (const [pid, tier] of tiers) if (tierInScope(tier, scope)) ids.add(pid);
         setFamilyIds(ids);
       })
       .catch(() => {});

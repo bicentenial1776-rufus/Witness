@@ -1,7 +1,12 @@
 import type { WitnessSupabaseClient } from '../supabase/client.js';
 import { aliveDuring, type AliveMatch, type YearRange } from '../query/aliveDuring.js';
 import { fetchFamilyGraph } from './precompute.js';
-import { calculateRelationship, parentLine, type RelationshipResult } from './relationship.js';
+import {
+  calculateRelationship,
+  parentLine,
+  type RelationshipResult,
+  type RelationshipTier,
+} from './relationship.js';
 import type { GraphPerson } from './graph.js';
 
 /**
@@ -13,6 +18,8 @@ import type { GraphPerson } from './graph.js';
 export interface CachedRelationship {
   individual_id: string;
   label: string;
+  tier: RelationshipTier;
+  qualifier: string | null;
   generation_distance: number;
   line: string;
   is_direct_ancestor: boolean;
@@ -21,13 +28,25 @@ export interface CachedRelationship {
 
 /**
  * Which relatives count as "yours" for featuring and family-scoped
- * filters: the direct line (ancestors and descendants) or every blood
- * relative including collaterals (cousins, aunts/uncles).
+ * filters, as a ceiling on the tier: the direct line only, blood
+ * relatives including collaterals, or those plus everyone married in.
+ * 'all' is the legacy spelling of 'blood' and still reads that way, so a
+ * setting chosen before the distant tier existed keeps its meaning.
  */
-export type LineageScope = 'direct' | 'all';
+export type LineageScope = 'direct' | 'blood' | 'distant';
+
+const SCOPE_TIERS: Record<LineageScope, RelationshipTier[]> = {
+  direct: ['direct'],
+  blood: ['direct', 'blood'],
+  distant: ['direct', 'blood', 'distant'],
+};
+
+export function tierInScope(tier: RelationshipTier, scope: LineageScope): boolean {
+  return SCOPE_TIERS[scope].includes(tier);
+}
 
 export function inLineageScope(row: CachedRelationship, scope: LineageScope): boolean {
-  return scope === 'all' || row.is_direct_ancestor || row.is_direct_descendant;
+  return tierInScope(row.tier, scope);
 }
 
 const PAGE_SIZE = 1000;
@@ -42,14 +61,16 @@ export async function fetchRelationshipRows(
     const { data, error } = await client
       .from('relationships')
       .select(
-        'individual_id, label, generation_distance, line, is_direct_ancestor, is_direct_descendant',
+        'individual_id, label, tier, qualifier, generation_distance, line, is_direct_ancestor, is_direct_descendant',
       )
       .eq('tree_id', treeId)
       .order('generation_distance')
       .order('individual_id')
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw new Error(`Fetching relationships failed: ${error.message}`);
-    rows.push(...(data ?? []));
+    // tier is a plain text column with a check constraint; the enum lives
+    // in the code rather than in Postgres, so narrow it on the way in.
+    rows.push(...(data ?? []).map((row) => ({ ...row, tier: row.tier as RelationshipTier })));
     if (!data || data.length < PAGE_SIZE) return rows;
   }
 }

@@ -3,6 +3,7 @@ import {
   inLineageScope,
   setHomePerson,
   type CachedRelationship,
+  type RelationshipTier,
 } from '@witness/core/family';
 
 import { getLineageScope } from '@/lib/lineage-scope';
@@ -84,28 +85,32 @@ export async function getFeaturedIds(treeId: string): Promise<Set<string>> {
 }
 
 /** The three lineage tiers, iconed in list views: the direct line, blood
-    beyond it (collaterals). Non-blood people have no entry — absence is
-    the marker. */
-export type LineageTier = 'direct' | 'blood';
+    beyond it (collaterals), and everyone married in. People with no
+    relationship at all have no entry — absence is the marker. */
+export type LineageTier = Exclude<RelationshipTier, 'none'>;
 
 export async function getLineageTierMap(treeId: string): Promise<Map<string, LineageTier>> {
   const rows = await getRows(treeId);
-  return new Map(
-    rows.map((row) => [row.individual_id, inLineageScope(row, 'direct') ? 'direct' : 'blood']),
-  );
+  return new Map(rows.map((row) => [row.individual_id, row.tier as LineageTier]));
 }
 
 export interface LineageCounts {
   direct: number;
-  all: number;
+  blood: number;
+  distant: number;
 }
 
-/** How many people each lineage scope covers, for the settings UI. */
+/** How many people each lineage scope covers, for the settings UI. Each
+    count is cumulative: the wider scope includes the narrower one. */
 export async function getLineageCounts(treeId: string): Promise<LineageCounts> {
   const rows = await getRows(treeId);
-  let direct = 0;
-  for (const row of rows) if (inLineageScope(row, 'direct')) direct += 1;
-  return { direct, all: rows.length };
+  const counts: LineageCounts = { direct: 0, blood: 0, distant: 0 };
+  for (const row of rows) {
+    if (inLineageScope(row, 'direct')) counts.direct += 1;
+    if (inLineageScope(row, 'blood')) counts.blood += 1;
+    if (inLineageScope(row, 'distant')) counts.distant += 1;
+  }
+  return counts;
 }
 
 /** Call after the home person changes or a tree is imported/deleted. */
