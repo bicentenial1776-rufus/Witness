@@ -11,15 +11,24 @@
 // Without founderId, today's founder is picked deterministically: founders
 // (direct ancestors with no recorded parents, 6+ generations back) ordered
 // by depth then id, rotated by UTC day number.
+//
+// Warm mode — POST { treeId, warm: true, dayOffset?: 0 | 1 } with the
+// x-cron-secret header: the featured-today warmer fans out here nightly so
+// the first reader never waits on generation. Runs AS the tree's owner
+// (their entitlement, their daily budget); dayOffset 1 pre-warms tomorrow's
+// rotation pick for readers who arrive before the next cron run.
 
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk@0.65.0';
 
+import { requireCronSecret } from '../_shared/cron.ts';
 import {
   authenticate,
   checkDailyLimit,
   checkEntitlement,
   corsHeaders,
   json,
+  type EnrichContext,
 } from '../_shared/enrich.ts';
 
 const MODEL = 'claude-opus-5';
@@ -79,16 +88,36 @@ async function chunkedIn<T>(
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  const ctx = await authenticate(req);
-  if (ctx instanceof Response) return ctx;
-
-  let body: { treeId?: string; founderId?: string };
+  let body: { treeId?: string; founderId?: string; warm?: boolean; dayOffset?: number };
   try {
     body = await req.json();
   } catch {
     return json(400, { error: 'Invalid JSON body' });
   }
   if (!body.treeId) return json(400, { error: 'treeId is required' });
+
+  let ctx: EnrichContext;
+  let dayOffset = 0;
+  if (body.warm) {
+    const denied = requireCronSecret(req);
+    if (denied) return denied;
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const { data: warmTree } = await admin
+      .from('trees')
+      .select('user_id')
+      .eq('id', body.treeId)
+      .maybeSingle();
+    if (!warmTree) return json(404, { error: 'Tree not found' });
+    ctx = { db: admin, admin, userId: warmTree.user_id };
+    dayOffset = body.dayOffset === 1 ? 1 : 0;
+  } else {
+    const auth = await authenticate(req);
+    if (auth instanceof Response) return auth;
+    ctx = auth;
+  }
 
   // RLS proves ownership: a foreign tree simply isn't found.
   const { data: tree } = await ctx.db
@@ -142,7 +171,7 @@ Deno.serve(async (req) => {
   const founderId =
     body.founderId && founders.includes(body.founderId)
       ? body.founderId
-      : founders[Math.floor(Date.now() / 86_400_000) % founders.length];
+      : founders[(Math.floor(Date.now() / 86_400_000) + dayOffset) % founders.length];
 
   // Cache first — one arc per founder, forever (per prompt version).
   const { data: cached } = await ctx.db

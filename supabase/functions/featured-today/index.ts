@@ -122,6 +122,67 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Phase 2: warm Today's Line — the story arc the Home lead will ask for
+  // today AND tomorrow (this cron runs at 05:00 UTC; the offset-1 pick
+  // covers readers who arrive after the next UTC midnight but before the
+  // next run). The arc function owns selection, entitlement, and caching —
+  // this loop just knocks on its door as each tree's owner. Cache hits are
+  // near-free; not-entitled and too-thin replies are skips, not errors.
+  const fnBase = `${Deno.env.get('SUPABASE_URL')}/functions/v1`;
+  const arcHeaders = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+    'x-cron-secret': Deno.env.get('CRON_SECRET')!,
+  };
+  let arcsWarmed = 0;
+  let arcsCached = 0;
+  let arcsSkipped = 0;
+  const arcErrors: string[] = [];
+
+  const arcJobs = (trees ?? []).flatMap((tree) =>
+    [0, 1].map((dayOffset) => ({ treeId: tree.id, dayOffset })),
+  );
+  // Opus generations run ~45s each; a small batch keeps the wall clock and
+  // the Anthropic rate limit comfortable.
+  const ARC_CONCURRENCY = 3;
+  for (let i = 0; i < arcJobs.length; i += ARC_CONCURRENCY) {
+    await Promise.all(
+      arcJobs.slice(i, i + ARC_CONCURRENCY).map(async ({ treeId, dayOffset }) => {
+        try {
+          const res = await fetch(`${fnBase}/generate-story-arc`, {
+            method: 'POST',
+            headers: arcHeaders,
+            body: JSON.stringify({ treeId, warm: true, dayOffset }),
+          });
+          const reply = await res.json().catch(() => ({}));
+          if (res.ok) {
+            if (reply.cached) arcsCached++;
+            else arcsWarmed++;
+          } else if ([403, 422, 429].includes(res.status)) {
+            arcsSkipped++;
+          } else {
+            arcErrors.push(`${treeId}+${dayOffset}: ${res.status} ${reply.error ?? ''}`);
+          }
+        } catch (err) {
+          arcErrors.push(
+            `${treeId}+${dayOffset}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }),
+    );
+  }
+
   if (errors.length) console.error('featured-today errors:', errors);
-  return Response.json({ trees: trees?.length ?? 0, warmed, alreadyCached, quiet, errors });
+  if (arcErrors.length) console.error('featured-today arc errors:', arcErrors);
+  return Response.json({
+    trees: trees?.length ?? 0,
+    warmed,
+    alreadyCached,
+    quiet,
+    errors,
+    arcsWarmed,
+    arcsCached,
+    arcsSkipped,
+    arcErrors,
+  });
 });
