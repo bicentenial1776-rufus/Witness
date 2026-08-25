@@ -18,6 +18,26 @@ update relationships
   end
   where tier is null;
 
+-- Shipped clients predate the tier column and still insert rows without
+-- it (the precompute runs on device). Derive the tier from the flags
+-- they do send, so the not-null constraint below doesn't break them.
+create or replace function relationships_default_tier() returns trigger
+language plpgsql as $$
+begin
+  if new.tier is null then
+    new.tier := case
+      when new.is_direct_ancestor or new.is_direct_descendant then 'direct'
+      else 'blood'
+    end;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger relationships_default_tier
+  before insert on relationships
+  for each row execute function relationships_default_tier();
+
 alter table relationships
   alter column tier set not null,
   add constraint relationships_tier_check check (tier in ('direct', 'blood', 'distant')),
