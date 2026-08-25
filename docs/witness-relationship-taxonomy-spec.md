@@ -129,9 +129,7 @@ Sex-unknown people take the neutral form (`parent`, `child`) — already handled
 | father-in-law · mother-in-law · parent-in-law | parent of your spouse | distant |
 | brother-in-law · sister-in-law · sibling-in-law | sibling of your spouse, **or** spouse of your sibling | distant |
 | son-in-law · daughter-in-law · child-in-law | spouse of your child | distant |
-| grandfather-in-law · grandmother-in-law | grandparent of your spouse | distant |
-| uncle-in-law · aunt-in-law | aunt/uncle of your spouse | distant |
-| your wife's *{blood term}* | shape B, no idiomatic term exists | distant |
+| your wife's *{blood term}* | shape B past parent/sibling/child — *your wife's grandfather* | distant |
 | wife of your *{blood term}* · husband of your *{blood term}* | shape A | distant |
 | stepfather · stepmother · stepparent | parent's spouse who isn't your parent | distant |
 | stepson · stepdaughter · stepchild | spouse's child who isn't yours | distant |
@@ -147,8 +145,10 @@ position in the path:
 
 - **Marriage last** (shape A) → `wife of your {B}` / `husband of your {B}`.
   Unbounded: *wife of your 6th great-grandfather* is a perfectly good reading.
-- **Marriage first** (shape B) → the idiomatic in-law term when English has
-  one; otherwise `your wife's {B}`.
+- **Marriage first** (shape B) → the idiomatic in-law term for the six
+  English ones (father-, mother-, brother-, sister-, son-, daughter-in-law);
+  otherwise `your wife's {B}`. Coinages like "grandmother-in-law" are worse
+  than the possessive they replace, so they are not minted.
 - **Marriage in the middle** (shape C) → the idiomatic step- term when English
   has one; otherwise `your {stepparent term}'s {B}`, and only within the
   two-step bound.
