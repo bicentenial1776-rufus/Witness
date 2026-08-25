@@ -22,8 +22,10 @@ import { isSlotLink, type FamilyGraph, type GraphPerson, type ParentLink } from 
  * - Half-relationships: decided at the junction — the two siblings where
  *   the lines meet — by whether they share both parents or one.
  * - Unknown parents: an unshared parent that is *unknown* (rather than
- *   known-different) makes full-vs-half undecidable; the label omits the
- *   "half-" prefix and confidence drops to 'partial'.
+ *   known-different) makes full-vs-half undecidable; the standalone label
+ *   softens the prefix rather than dropping it ("possibly a half-brother")
+ *   and confidence drops to 'partial'. Composed distant labels ("wife of
+ *   your uncle") stay plain — the softener reads badly mid-phrase.
  * - Adoption and fostering keep the tier of the family they sit in and
  *   qualify the label ("adoptive father", "adopted son"); step links
  *   never enter the blood climb at all.
@@ -270,6 +272,13 @@ type BloodShape = 'ancestor' | 'descendant' | 'sibling' | 'auntUncle' | 'nieceNe
 interface BloodReading {
   result: RelationshipResult;
   shape: BloodShape;
+  /** The label without any confidence softener, for use mid-phrase. */
+  composeLabel: string;
+}
+
+/** "possibly a half-sister", "possibly an adoptive half-brother". */
+function possibly(phrase: string): string {
+  return `possibly ${/^[aeiou]/.test(phrase) ? 'an' : 'a'} ${phrase}`;
 }
 
 /**
@@ -291,11 +300,13 @@ function bloodReading(
 
   const asAncestor = fromAncestors.get(toId);
   if (asAncestor) {
+    const label = qualify(ancestorWord(asAncestor.depth, to.sex), asAncestor.qualifier, 'up');
     return {
       shape: 'ancestor',
+      composeLabel: label,
       result: {
         ...NONE,
-        label: qualify(ancestorWord(asAncestor.depth, to.sex), asAncestor.qualifier, 'up'),
+        label,
         tier: 'direct',
         generationDistance: asAncestor.depth,
         line: lineOf(asAncestor),
@@ -309,11 +320,13 @@ function bloodReading(
 
   const asDescendant = toAncestors.get(fromId);
   if (asDescendant) {
+    const label = qualify(descendantWord(asDescendant.depth, to.sex), asDescendant.qualifier, 'down');
     return {
       shape: 'descendant',
+      composeLabel: label,
       result: {
         ...NONE,
-        label: qualify(descendantWord(asDescendant.depth, to.sex), asDescendant.qualifier, 'down'),
+        label,
         tier: 'direct',
         generationDistance: -asDescendant.depth,
         path: pathUp(toAncestors, fromId).reverse(),
@@ -356,27 +369,35 @@ function bloodReading(
   const junctionTo = toPath.length ? (toPath[0] ?? toId) : toId;
   const kind = siblingKind(graph, junctionFrom, junctionTo);
 
-  let label: string;
+  let base: string;
   let shape: BloodShape;
   if (a === 1 && b === 1) {
-    label = `${kind.prefix}${sexWord(to.sex, 'brother', 'sister', 'sibling')}`;
+    base = sexWord(to.sex, 'brother', 'sister', 'sibling');
     shape = 'sibling';
   } else if (b === 1) {
-    label = `${kind.prefix}${auntWord(a - 1, to.sex)}`;
+    base = auntWord(a - 1, to.sex);
     shape = 'auntUncle';
   } else if (a === 1) {
-    label = `${kind.prefix}${nieceWord(b - 1, to.sex)}`;
+    base = nieceWord(b - 1, to.sex);
     shape = 'nieceNephew';
   } else {
-    label = `${kind.prefix}${cousinWord(Math.min(a, b) - 1, Math.abs(a - b))}`;
+    base = cousinWord(Math.min(a, b) - 1, Math.abs(a - b));
     shape = 'cousin';
   }
 
+  // When full-vs-half is undecidable the standalone label softens the
+  // prefix rather than dropping it (§7); the plain form is kept for
+  // composition, where the softener reads badly mid-phrase.
+  const composeLabel = qualify(`${kind.prefix}${base}`, qualifier, 'down');
+  const label =
+    kind.confidence === 'partial' ? possibly(qualify(`half-${base}`, qualifier, 'down')) : composeLabel;
+
   return {
     shape,
+    composeLabel,
     result: {
       ...NONE,
-      label: qualify(label, qualifier, 'down'),
+      label,
       tier: 'blood',
       generationDistance: a - b,
       line: lineOf(fromEntry),
@@ -466,7 +487,7 @@ function affinityReading(
     if (!spouse) continue;
     const reading = bloodReading(graph, context, spouseId, target.id);
     if (!reading) continue;
-    const { result, shape } = reading;
+    const { result, shape, composeLabel } = reading;
     const path = [home.id, ...result.path];
     const generations = result.generationDistance;
     let label: string;
@@ -477,7 +498,7 @@ function affinityReading(
     } else if (shape === 'descendant' && -generations <= STEP_NEAR_MAX) {
       label = stepWord(target, 'child', -generations);
     } else {
-      label = `your ${spouseWord(spouse)}'s ${result.label}`;
+      label = `your ${spouseWord(spouse)}'s ${composeLabel}`;
     }
     return distant(label, path, generations, result.confidence === 'partial' ? 'partial' : 'known');
   }
@@ -486,7 +507,7 @@ function affinityReading(
   for (const spouseId of target.spouses) {
     const reading = bloodReading(graph, context, home.id, spouseId);
     if (!reading) continue;
-    const { result, shape } = reading;
+    const { result, shape, composeLabel } = reading;
     const path = [...result.path, target.id];
     const generations = result.generationDistance;
     let label: string;
@@ -497,7 +518,7 @@ function affinityReading(
     } else if (shape === 'descendant' && generations === -1) {
       label = inLawWord(target, 'child');
     } else {
-      label = `${spouseWord(target)} of your ${result.label}`;
+      label = `${spouseWord(target)} of your ${composeLabel}`;
     }
     return distant(label, path, generations, result.confidence === 'partial' ? 'partial' : 'known');
   }
@@ -526,7 +547,7 @@ function affinityReading(
       const label =
         near.shape === 'ancestor' && far.shape === 'descendant' && far.result.generationDistance === -1
           ? stepWord(target, 'sibling', generations)
-          : `your ${middleLabel}'s ${far.result.label}`;
+          : `your ${middleLabel}'s ${far.composeLabel}`;
       const path = [...near.result.path, ...far.result.path.slice(1)];
       return distant(
         label,

@@ -116,11 +116,24 @@ describe('siblings, aunts, nieces', () => {
     expect(calculateRelationship(graph, 'HOME', 'HALF').label).toBe('half-brother');
   });
 
-  it('omits the half- prefix but lowers confidence when the other parent is unknown', () => {
+  it('softens to "possibly a half-" when the other parent is unknown', () => {
     const graph = makeGraph(['F: husband=DAD children=HOME,MAYBE'], { MAYBE: 'F' });
     const rel = calculateRelationship(graph, 'HOME', 'MAYBE');
-    expect(rel.label).toBe('sister');
+    expect(rel.label).toBe('possibly a half-sister');
     expect(rel.confidence).toBe('partial');
+  });
+
+  it('keeps composed married-in labels plain even when the blood part is partial', () => {
+    // GF's wife is unrecorded, so DAD vs UNC is full-vs-half undecidable;
+    // the softener belongs on UNC's own label, not inside "wife of your …".
+    const graph = makeGraph(
+      ['F: husband=GF children=DAD,UNC', 'F: husband=DAD wife=MOM children=HOME', 'F: husband=UNC wife=AUNTW children='],
+      { UNC: 'M', AUNTW: 'F' },
+    );
+    expect(calculateRelationship(graph, 'HOME', 'UNC').label).toBe('possibly a half-uncle');
+    const married = calculateRelationship(graph, 'HOME', 'AUNTW');
+    expect(married.label).toBe('wife of your uncle');
+    expect(married.confidence).toBe('partial');
   });
 
   it('labels aunts and great-aunts up the generations', () => {
@@ -161,7 +174,7 @@ describe('cousins', () => {
 
   it('labels 2nd cousins and multiple removals', () => {
     const graph = makeGraph([
-      'F: husband=GG children=A1,B1',
+      'F: husband=GG wife=GGW children=A1,B1',
       'F: husband=A1 children=A2',
       'F: husband=A2 children=HOME',
       'F: husband=B1 children=B2',
