@@ -87,6 +87,18 @@ offline beyond the persisted active tree.
 
 ## Verification
 
-Device, not sim: airplane-mode cold start (launch seam), then 1-bar
-simulation via Network Link Conditioner (the timeout paths), walking:
-open app → Explore → search a name → open hit → open Family Graph.
+**Sim-verified 2026-08-24** (Supabase host swapped to an unresolvable
+name whose first label matches the project ref, so the persisted session
+key survives — a full network-down rehearsal without touching the Mac's
+network): app opens signed-in past the gate; Home stands up with the
+tree stat strip computed from the saved copy; the degraded Portrait
+renders vitals, birthplace, parentage, running head, and the full
+register with the saved-copy line; the Family Graph draws completely
+(ribbons, doors, reading line, sweep). The field copy writes itself at
+launch (2.35 MB for a 2,716-person tree). Dev-only LogBox toast from a
+library fetch failure — absent in Release. Core search/portrait logic
+pinned by 8 unit tests.
+
+Still for the device (no tap/type automation in sim): airplane-mode
+walk typing a real Explore search (the "from your saved copy" line),
+and the 1-bar timeout paths via Network Link Conditioner.
