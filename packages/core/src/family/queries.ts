@@ -192,6 +192,7 @@ export interface RelationshipPathPerson {
 
 export interface RelationshipPath {
   label: string;
+  tier: RelationshipTier;
   /** Home person first, target last — the person-by-person chain. */
   people: RelationshipPathPerson[];
 }
@@ -208,17 +209,19 @@ export async function getRelationshipPath(
   individualId: string,
 ): Promise<RelationshipPath | null> {
   let label: string;
+  let tier: RelationshipTier;
   let pathIds: string[];
 
   const { data: cached } = await client
     .from('relationships')
-    .select('label, path')
+    .select('label, tier, path')
     .eq('tree_id', treeId)
     .eq('individual_id', individualId)
     .maybeSingle();
 
   if (cached && Array.isArray(cached.path) && cached.path.length > 0) {
     label = cached.label;
+    tier = cached.tier as RelationshipTier;
     pathIds = cached.path as string[];
   } else {
     const { data: tree } = await client
@@ -230,6 +233,7 @@ export async function getRelationshipPath(
     const live = await getRelationship(client, treeId, tree.home_person_id, individualId);
     if (live.confidence === 'none' || live.path.length === 0) return null;
     label = live.label;
+    tier = live.tier;
     pathIds = live.path;
   }
 
@@ -241,5 +245,5 @@ export async function getRelationshipPath(
   const chain = pathIds
     .map((id) => byId.get(id))
     .filter((p): p is RelationshipPathPerson => Boolean(p));
-  return chain.length ? { label, people: chain } : null;
+  return chain.length ? { label, tier, people: chain } : null;
 }

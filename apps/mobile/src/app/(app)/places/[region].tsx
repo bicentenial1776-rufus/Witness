@@ -5,10 +5,11 @@ import { ActivityIndicator, FlatList } from 'react-native';
 import { ancestorsInRegion, eventTypeLabel, type RegionResident } from '@witness/core/query';
 
 import { Card } from '@/components/card';
+import { KinReveal } from '@/components/kin-reveal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
-import { getRelationshipMap } from '@/lib/relationship-cache';
+import { getKinMap, type Kin } from '@/lib/relationship-cache';
 
 function lifeSpan(resident: RegionResident): string {
   const { birth_year, death_year } = resident.individual;
@@ -25,7 +26,7 @@ function connection(resident: RegionResident): string {
 export default function RegionScreen() {
   const { region, treeId } = useLocalSearchParams<{ region: string; treeId: string }>();
   const [residents, setResidents] = useState<RegionResident[] | null>(null);
-  const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
+  const [relationships, setRelationships] = useState<Map<string, Kin>>(new Map());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,7 +39,7 @@ export default function RegionScreen() {
       .catch((e: unknown) => {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       });
-    getRelationshipMap(treeId).then((map) => {
+    getKinMap(treeId).then((map) => {
       if (!cancelled) setRelationships(map);
     });
     return () => {
@@ -71,7 +72,10 @@ export default function RegionScreen() {
               >
                 <ThemedText>{item.individual.full_name}</ThemedText>
                 {relationships.has(item.individual.id) && (
-                  <ThemedText type="small">your {relationships.get(item.individual.id)}</ThemedText>
+                  <KinReveal
+                    tier={relationships.get(item.individual.id)!.tier}
+                    label={relationships.get(item.individual.id)!.label}
+                  />
                 )}
                 <ThemedText type="small">{lifeSpan(item)}</ThemedText>
                 <ThemedText type="small">{connection(item)}</ThemedText>

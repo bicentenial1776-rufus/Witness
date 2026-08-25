@@ -2,9 +2,11 @@ import { Stack, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { KinReveal } from '@/components/kin-reveal';
 import { BrandFonts, Letterpress, mono } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
+import { getKinMap, type Kin } from '@/lib/relationship-cache';
 import { getTodayArc, type StoryArc } from '@/lib/story-arc';
 
 
@@ -20,6 +22,7 @@ export default function StoryArcScreen() {
   const L = useLetterpress();
   const { activeTree } = useActiveTree();
   const [arc, setArc] = useState<StoryArc | null>(null);
+  const [kin, setKin] = useState<Map<string, Kin>>(new Map());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,6 +35,11 @@ export default function StoryArcScreen() {
       .catch(() => {
         if (!cancelled) setError('The story could not be set just now — nothing has been lost.');
       });
+    getKinMap(activeTree.id)
+      .then((map) => {
+        if (!cancelled) setKin(map);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -157,10 +165,17 @@ export default function StoryArcScreen() {
                     borderLeftColor: L.amber,
                   }}
                 >
-                  <Text style={mono(12.5, L.deepAmber)}>
-                    {ROMAN[i] ?? String(i + 1)}
-                    {g.relationLabel ? ` · YOUR ${g.relationLabel.toUpperCase()}` : ''}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <Text style={mono(12.5, L.deepAmber)}>{ROMAN[i] ?? String(i + 1)}</Text>
+                    {g.relationLabel ? (
+                      <KinReveal
+                        tier={kin.get(g.personId)?.tier ?? 'direct'}
+                        label={g.relationLabel}
+                        uppercase
+                        style={mono(12.5, L.deepAmber)}
+                      />
+                    ) : null}
+                  </View>
                   <Pressable
                     disabled={g.living}
                     onPress={() =>

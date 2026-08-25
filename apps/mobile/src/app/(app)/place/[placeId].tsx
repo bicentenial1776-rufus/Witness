@@ -12,17 +12,18 @@ import {
 } from '@witness/core/query';
 
 import { Card } from '@/components/card';
+import { KinReveal } from '@/components/kin-reveal';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
-import { getRelationshipMap } from '@/lib/relationship-cache';
+import { getKinMap, type Kin } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 
 export default function PlaceScreen() {
   const { placeId, treeId } = useLocalSearchParams<{ placeId: string; treeId: string }>();
   const [index, setIndex] = useState<GeographyIndex | null>(null);
-  const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
+  const [relationships, setRelationships] = useState<Map<string, Kin>>(new Map());
   const [candidates, setCandidates] = useState<NaraCandidate[]>([]);
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function PlaceScreen() {
     getGeographyIndex(treeId).then((i) => {
       if (!cancelled) setIndex(i);
     });
-    getRelationshipMap(treeId).then((map) => {
+    getKinMap(treeId).then((map) => {
       if (!cancelled) setRelationships(map);
     });
     // Papers of this place: NARA documents the worker matched to people
@@ -105,7 +106,10 @@ export default function PlaceScreen() {
               >
                 <ThemedText>{item.individual.full_name}</ThemedText>
                 {relationships.has(item.individual.id) && (
-                  <ThemedText type="small">your {relationships.get(item.individual.id)}</ThemedText>
+                  <KinReveal
+                    tier={relationships.get(item.individual.id)!.tier}
+                    label={relationships.get(item.individual.id)!.label}
+                  />
                 )}
                 <ThemedText type="small">
                   {item.events

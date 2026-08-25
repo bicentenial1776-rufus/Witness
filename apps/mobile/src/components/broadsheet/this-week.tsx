@@ -4,8 +4,10 @@ import { Pressable, Text, View } from 'react-native';
 
 import type { DigestEntry, WeeklyDigest } from '@witness/core/query';
 
+import { KinReveal } from '@/components/kin-reveal';
 import { RecordText } from '@/components/record-text';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
+import type { Kin } from '@/lib/relationship-cache';
 
 import { LedgerRow, MarginPanel } from './ledger';
 import { Masthead, PageShell, SectionBreak } from './page-shell';
@@ -67,7 +69,7 @@ export function ThisWeekBroadsheet({
   treeId,
 }: {
   digest: WeeklyDigest;
-  relationships: Map<string, string>;
+  relationships: Map<string, Kin>;
   topNote: string | null;
   livedThrough: LivedThroughLine[];
   treeId: string;
@@ -140,11 +142,11 @@ export function ThisWeekBroadsheet({
             </Text>
           </Pressable>
           {relationships.get(featured.individualId) && (
-            <Text
+            <KinReveal
+              tier={relationships.get(featured.individualId)!.tier}
+              label={relationships.get(featured.individualId)!.label}
               style={{ fontFamily: BrandFonts.serif.italic, fontSize: 21, color: C.inkSecondary, marginTop: 6 }}
-            >
-              Your {relationships.get(featured.individualId)}
-            </Text>
+            />
           )}
           <RecordText style={{ marginTop: 12 }}>
             {featured.birthYear ?? '?'} – {featured.deathYear ?? '?'} ·{' '}
@@ -203,9 +205,11 @@ export function ThisWeekBroadsheet({
                   </Text>
                 </View>
                 {relationships.get(entry.individualId) && (
-                  <Text style={{ fontFamily: BrandFonts.serif.italic, fontSize: 16, color: C.inkMuted }}>
-                    your {relationships.get(entry.individualId)}
-                  </Text>
+                  <KinReveal
+                    tier={relationships.get(entry.individualId)!.tier}
+                    label={relationships.get(entry.individualId)!.label}
+                    style={{ fontFamily: BrandFonts.serif.italic, fontSize: 16, color: C.inkMuted, maxWidth: 260, textAlign: 'right' }}
+                  />
                 )}
               </LedgerRow>
             ))}

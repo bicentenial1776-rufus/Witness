@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { getRelationshipPath, type RelationshipPath } from '@witness/core/family';
 
 import { Card } from '@/components/card';
+import { TIER_WORD } from '@/components/kin-reveal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
@@ -69,6 +70,11 @@ export default function RelationshipScreen() {
           </ThemedText>
         ) : (
           <>
+            {/* The category first, the exact words beneath it — this screen
+                is the "show" side of the reveal, so the label stays out. */}
+            <ThemedText type="smallBold" themeColor="accent">
+              {TIER_WORD[path.tier].toUpperCase()}
+            </ThemedText>
             <ThemedText type="title">Your {path.label}</ThemedText>
             <ThemedText type="small">
               {path.people.length - 1} steps from you — tap anyone to visit them

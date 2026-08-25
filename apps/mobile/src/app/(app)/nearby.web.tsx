@@ -17,6 +17,7 @@ import {
 
 import { Masthead, MarginPanel, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { Card } from '@/components/card';
+import { KinReveal } from '@/components/kin-reveal';
 import { RecordText } from '@/components/record-text';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
@@ -24,7 +25,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useActiveTree } from '@/lib/active-tree';
 import { getGeographyIndex } from '@/lib/geography-cache';
 import { getLineageScope } from '@/lib/lineage-scope';
-import { getLineageTierMap, getRelationshipMap } from '@/lib/relationship-cache';
+import { getKinMap, getLineageTierMap, type Kin } from '@/lib/relationship-cache';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
@@ -219,7 +220,7 @@ export default function ProximityTab() {
   const { activeTree } = useActiveTree();
   const treeId = activeTree?.id;
   const [index, setIndex] = useState<GeographyIndex | null>(null);
-  const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
+  const [relationships, setRelationships] = useState<Map<string, Kin>>(new Map());
   const [position, setPosition] = useState<{ latitude: number; longitude: number } | null>(null);
   const [denied, setDenied] = useState(false);
   const [radiusMiles, setRadiusMiles] = useState(5);
@@ -239,7 +240,7 @@ export default function ProximityTab() {
     getGeographyIndex(treeId).then((i) => {
       if (!cancelled) setIndex(i);
     });
-    getRelationshipMap(treeId).then((map) => {
+    getKinMap(treeId).then((map) => {
       if (!cancelled) setRelationships(map);
     });
     Promise.all([getLineageTierMap(treeId), getLineageScope()])
@@ -605,9 +606,11 @@ export default function ProximityTab() {
                       {resident.individual.full_name}
                     </Text>
                     {relationships.has(resident.individual.id) && (
-                      <Text style={{ fontFamily: BrandFonts.serif.italic, fontSize: 15, color: BC.inkMuted }}>
-                        your {relationships.get(resident.individual.id)}
-                      </Text>
+                      <KinReveal
+                        tier={relationships.get(resident.individual.id)!.tier}
+                        label={relationships.get(resident.individual.id)!.label}
+                        style={{ fontFamily: BrandFonts.serif.italic, fontSize: 15, color: BC.inkMuted }}
+                      />
                     )}
                     <View style={{ flex: 1 }} />
                     <RecordText muted>
@@ -745,9 +748,10 @@ export default function ProximityTab() {
                   >
                     <ThemedText>{item.individual.full_name}</ThemedText>
                     {relationships.has(item.individual.id) && (
-                      <ThemedText type="small">
-                        your {relationships.get(item.individual.id)}
-                      </ThemedText>
+                      <KinReveal
+                        tier={relationships.get(item.individual.id)!.tier}
+                        label={relationships.get(item.individual.id)!.label}
+                      />
                     )}
                     <ThemedText type="small">
                       {item.events

@@ -22,6 +22,7 @@ import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { MarginCorrections } from '@/components/margin-corrections';
 import { TextField } from '@/components/text-field';
+import { KinReveal } from '@/components/kin-reveal';
 import { LineageMark } from '@/components/lineage-mark';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
 import { ThemedText } from '@/components/themed-text';
@@ -570,6 +571,9 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   }
   const [naraCandidates, setNaraCandidates] = useState<NaraCandidate[]>([]);
   const [relationship, setRelationship] = useState<string | null>(null);
+  // A live walk that found no path: the Portrait states "No relation"
+  // outright, where a list row would just stay blank.
+  const [unrelated, setUnrelated] = useState(false);
   // The compass: generation depth + branch side, from the same cached
   // relationship rows as the label (docs/cohesion-design-brief.md §orientation).
   const [compass, setCompass] = useState<string | null>(null);
@@ -705,6 +709,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     setSources([]);
     setNaraCandidates([]);
     setRelationship(null);
+    setUnrelated(false);
     setCompass(null);
     setCuriosities([]);
     setTier(undefined);
@@ -991,7 +996,14 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             .single();
           if (tree?.home_person_id && tree.home_person_id !== personRow.id) {
             const live = await getRelationship(supabase, personRow.tree_id, tree.home_person_id, personRow.id);
-            if (!cancelled && live.confidence !== 'none') setRelationship(live.label);
+            if (!cancelled) {
+              if (live.confidence !== 'none' && live.tier !== 'none') {
+                setRelationship(live.label);
+                setTier(live.tier);
+              } else {
+                setUnrelated(true);
+              }
+            }
           }
         }
       }
@@ -1326,26 +1338,44 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               parents.map((p) => p.full_name).join(' and ')}
           </Text>
         )}
-        {relationship && (
-          <Pressable
-            onPress={() =>
-              router.push({ pathname: '/relationship/[individualId]', params: { individualId: person.id } })
+        {relationship ? (
+          <KinReveal
+            tier={tier ?? 'blood'}
+            label={relationship}
+            type="default"
+            style={{
+              fontFamily: BrandFonts.serif.italic,
+              fontStyle: 'italic',
+              fontSize: 16,
+              lineHeight: 24,
+              color: theme.textSecondary,
+              marginTop: 12,
+            }}
+            trailing={
+              <Text
+                style={{ color: theme.accent }}
+                onPress={() =>
+                  router.push({ pathname: '/relationship/[individualId]', params: { individualId: person.id } })
+                }
+              >
+                {'  See the path ›'}
+              </Text>
             }
+          />
+        ) : unrelated ? (
+          <Text
+            style={{
+              fontFamily: BrandFonts.serif.italic,
+              fontStyle: 'italic',
+              fontSize: 16,
+              lineHeight: 24,
+              color: theme.textSecondary,
+              marginTop: 12,
+            }}
           >
-            <Text
-              style={{
-                fontFamily: BrandFonts.serif.italic,
-                fontStyle: 'italic',
-                fontSize: 16,
-                lineHeight: 24,
-                color: theme.textSecondary,
-                marginTop: 12,
-              }}
-            >
-              Your {relationship} <Text style={{ color: theme.accent }}>›</Text>
-            </Text>
-          </Pressable>
-        )}
+            No relation — in your tree, not in your family
+          </Text>
+        ) : null}
 
         {/* On the saved copy every control in this row needs the server —
             one quiet line stands in for all of them. */}

@@ -5,15 +5,16 @@ import { ActivityIndicator, FlatList } from 'react-native';
 import { migrationPaths, type MigrationPath } from '@witness/core/query';
 
 import { Card } from '@/components/card';
+import { KinReveal } from '@/components/kin-reveal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
-import { getRelationshipMap } from '@/lib/relationship-cache';
+import { getKinMap, type Kin } from '@/lib/relationship-cache';
 
 export default function MigrationScreen() {
   const { treeId, from, to } = useLocalSearchParams<{ treeId: string; from: string; to: string }>();
   const [path, setPath] = useState<MigrationPath | null | undefined>(undefined);
-  const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
+  const [relationships, setRelationships] = useState<Map<string, Kin>>(new Map());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,7 +28,7 @@ export default function MigrationScreen() {
       .catch((e: unknown) => {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       });
-    getRelationshipMap(treeId).then((map) => {
+    getKinMap(treeId).then((map) => {
       if (!cancelled) setRelationships(map);
     });
     return () => {
@@ -62,7 +63,10 @@ export default function MigrationScreen() {
               >
                 <ThemedText>{item.name}</ThemedText>
                 {relationships.has(item.individualId) && (
-                  <ThemedText type="small">your {relationships.get(item.individualId)}</ThemedText>
+                  <KinReveal
+                    tier={relationships.get(item.individualId)!.tier}
+                    label={relationships.get(item.individualId)!.label}
+                  />
                 )}
                 <ThemedText type="small">
                   {item.fromYear ? `last seen in ${from} ${item.fromYear}` : from}

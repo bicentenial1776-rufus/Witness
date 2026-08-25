@@ -8,6 +8,7 @@ import { aliveDuring, type AliveDuringResult, type AliveMatch } from '@witness/c
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
+import { KinReveal } from '@/components/kin-reveal';
 import { DiscoveryCard, type DiscoveryCardHandle } from '@/components/discovery-card';
 import { LineageMark } from '@/components/lineage-mark';
 import { ThemedText } from '@/components/themed-text';
@@ -16,8 +17,9 @@ import { useTheme } from '@/hooks/use-theme';
 import { getParentageMap } from '@/lib/parentage';
 import {
   getFeaturedIds,
+  getKinMap,
   getLineageTierMap,
-  getRelationshipMap,
+  type Kin,
   type LineageTier,
 } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
@@ -37,7 +39,7 @@ export default function AliveDuringScreen() {
   const theme = useTheme();
   const [event, setEvent] = useState<HistoricalEvent | undefined | 'loading'>('loading');
   const [result, setResult] = useState<AliveDuringResult | null>(null);
-  const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
+  const [relationships, setRelationships] = useState<Map<string, Kin>>(new Map());
   const [tiers, setTiers] = useState<Map<string, LineageTier>>(new Map());
   const [parentage, setParentage] = useState<Map<string, string>>(new Map());
   const [lineIds, setLineIds] = useState<Set<string>>(new Set());
@@ -94,7 +96,7 @@ export default function AliveDuringScreen() {
       .catch((e: unknown) => {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       });
-    getRelationshipMap(treeId).then((map) => {
+    getKinMap(treeId).then((map) => {
       if (!cancelled) setRelationships(map);
     });
     getFeaturedIds(treeId).then((ids) => {
@@ -226,7 +228,10 @@ export default function AliveDuringScreen() {
                   <LineageMark tier={tiers.get(item.individual.id)} color={theme.accent} />
                 </View>
                 {relationships.has(item.individual.id) && (
-                  <ThemedText type="small">your {relationships.get(item.individual.id)}</ThemedText>
+                  <KinReveal
+                    tier={relationships.get(item.individual.id)!.tier}
+                    label={relationships.get(item.individual.id)!.label}
+                  />
                 )}
                 {parentage.has(item.individual.id) && (
                   <ThemedText type="small">{parentage.get(item.individual.id)}</ThemedText>

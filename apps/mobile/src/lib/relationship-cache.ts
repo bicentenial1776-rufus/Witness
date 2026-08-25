@@ -11,9 +11,9 @@ import { supabase } from '@/lib/supabase';
 
 // One fetch of the tree's pre-computed relationship rows, shared by every
 // result list. Two views of it:
-//  - getRelationshipMap: individual_id → label ("7th great-grandmother",
-//    "2nd cousin 5 times removed") for ALL blood relatives — annotation
-//    is information, so it never shrinks with the lineage-scope setting.
+//  - getKinMap: individual_id → { tier, label } ("blood", "2nd cousin 5
+//    times removed") for everyone related — annotation is information, so
+//    it never shrinks with the lineage-scope setting.
 //  - getFeaturedIds: who qualifies for featuring (digest, notifications)
 //    and "your family" filters, honoring the current lineage scope.
 const cache = new Map<string, Promise<CachedRelationship[]>>();
@@ -59,9 +59,17 @@ function getRows(treeId: string): Promise<CachedRelationship[]> {
   return pending;
 }
 
-export async function getRelationshipMap(treeId: string): Promise<Map<string, string>> {
+/** The two facts every list row shows: the category and the exact words. */
+export interface Kin {
+  label: string;
+  tier: LineageTier;
+}
+
+export async function getKinMap(treeId: string): Promise<Map<string, Kin>> {
   const rows = await getRows(treeId);
-  return new Map(rows.map((row) => [row.individual_id, row.label]));
+  return new Map(
+    rows.map((row) => [row.individual_id, { label: row.label, tier: row.tier as LineageTier }]),
+  );
 }
 
 /**

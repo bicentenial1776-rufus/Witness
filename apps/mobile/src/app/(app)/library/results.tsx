@@ -5,9 +5,10 @@ import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
 import type { LibraryCatalogEntry, LibraryMatch } from '@witness/core/query';
 
 import { ThemedText } from '@/components/themed-text';
+import { KinReveal } from '@/components/kin-reveal';
 import { ThemedView } from '@/components/themed-view';
 import { getPinnedIds, runLibraryQuery, setPinned } from '@/lib/library-cache';
-import { getRelationshipMap } from '@/lib/relationship-cache';
+import { getKinMap, type Kin } from '@/lib/relationship-cache';
 import { useTheme } from '@/hooks/use-theme';
 import { WideContent } from '@/constants/theme';
 
@@ -22,7 +23,7 @@ export default function LibraryResultsScreen() {
   const { queryId, treeId } = useLocalSearchParams<{ queryId: string; treeId: string }>();
   const [entry, setEntry] = useState<LibraryCatalogEntry | null>(null);
   const [matches, setMatches] = useState<LibraryMatch[] | null>(null);
-  const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
+  const [relationships, setRelationships] = useState<Map<string, Kin>>(new Map());
   const [pinned, setPinnedState] = useState(false);
 
   useEffect(() => {
@@ -33,7 +34,7 @@ export default function LibraryResultsScreen() {
       setEntry(result.entry);
       setMatches(result.matches);
     });
-    getRelationshipMap(treeId).then((map) => !cancelled && setRelationships(map));
+    getKinMap(treeId).then((map) => !cancelled && setRelationships(map));
     getPinnedIds().then((p) => !cancelled && setPinnedState(p.has(queryId)));
     return () => {
       cancelled = true;
@@ -94,10 +95,8 @@ export default function LibraryResultsScreen() {
                 borderBottomColor: theme.border,
               }}
             >
-              <ThemedText>
-                {item.individual.full_name}
-                {relationship ? <ThemedText type="small"> · your {relationship}</ThemedText> : null}
-              </ThemedText>
+              <ThemedText>{item.individual.full_name}</ThemedText>
+              {relationship ? <KinReveal tier={relationship.tier} label={relationship.label} /> : null}
               <ThemedText type="small">
                 {item.individual.birth_year ?? '?'}–
                 {item.individual.living ? '' : (item.individual.death_year ?? '?')}

@@ -24,6 +24,7 @@ import {
 
 import { Masthead, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { Card } from '@/components/card';
+import { KinReveal } from '@/components/kin-reveal';
 import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
 import { BrandFonts, Letterpress, WideContent, mono } from '@/constants/theme';
@@ -34,7 +35,7 @@ import { recordEditionPieces } from '@/lib/edition-ledger';
 import { getGeographyIndex } from '@/lib/geography-cache';
 import { layIssueTrail, openTrailPiece, type TrailPiece } from '@/lib/issue-trail';
 import { armDigestNotification } from '@/lib/digest-notifications';
-import { getFeaturedIds, getRelationshipMap } from '@/lib/relationship-cache';
+import { getFeaturedIds, getKinMap, type Kin } from '@/lib/relationship-cache';
 import { usePurchases } from '@/lib/purchases';
 import { describeResumePoint, getResumePoint } from '@/lib/resume';
 import { getShelf } from '@/lib/shelf-cache';
@@ -100,7 +101,7 @@ export default function Home() {
   const broadsheet = useBroadsheet();
   const { subscription } = usePurchases();
   const [digest, setDigest] = useState<WeeklyDigest | null>(null);
-  const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
+  const [relationships, setRelationships] = useState<Map<string, Kin>>(new Map());
   const [heroNote, setHeroNote] = useState<string | null>(null);
   const [curiosities, setCuriosities] = useState<CuriositySummary | null>(null);
   const [naraCounts, setNaraCounts] = useState<NaraCounts | null>(null);
@@ -210,8 +211,8 @@ export default function Home() {
       let cancelled = false;
       (async () => {
         try {
-          const relationshipMap = await getRelationshipMap(activeTree.id).catch(
-            () => new Map<string, string>(),
+          const relationshipMap = await getKinMap(activeTree.id).catch(
+            () => new Map<string, Kin>(),
           );
           const featuredIds = await getFeaturedIds(activeTree.id).catch(() => new Set<string>());
           const result = await weeklyDigest(supabase, activeTree.id, new Date(), featuredIds);
@@ -436,10 +437,17 @@ export default function Home() {
                     </Text>
                     <Text style={mono(13, L.muted)}>
                       {`${arc.generations.length} GENERATIONS · ${arc.generations[0]?.birth ?? '?'}–TODAY`}
-                      {arc.generations[0]?.relationLabel
-                        ? ` · FROM YOUR ${arc.generations[0].relationLabel.toUpperCase()}`
-                        : ''}
                     </Text>
+                    {arc.generations[0]?.relationLabel && (
+                      <KinReveal
+                        tier={
+                          relationships.get(arc.generations[0].personId)?.tier ?? 'direct'
+                        }
+                        label={arc.generations[0].relationLabel}
+                        uppercase
+                        style={mono(13, L.muted)}
+                      />
+                    )}
                     <Text
                       style={{
                         fontFamily: BrandFonts.serif.regular,
@@ -491,7 +499,12 @@ export default function Home() {
                     </Text>
                     <Text style={mono(13, L.muted)}>{heroRecordLine(hero).toUpperCase()}</Text>
                     {heroRelationship && (
-                      <Text style={mono(13, L.deepAmber)}>YOUR {heroRelationship.toUpperCase()}</Text>
+                      <KinReveal
+                        tier={heroRelationship.tier}
+                        label={heroRelationship.label}
+                        uppercase
+                        style={mono(13, L.deepAmber)}
+                      />
                     )}
                     <Text
                       style={{

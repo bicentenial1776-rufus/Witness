@@ -17,12 +17,13 @@ import {
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
+import { KinReveal } from '@/components/kin-reveal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { getGeographyIndex } from '@/lib/geography-cache';
 import { getLineageScope } from '@/lib/lineage-scope';
-import { getLineageTierMap, getRelationshipMap } from '@/lib/relationship-cache';
+import { getKinMap, getLineageTierMap, type Kin } from '@/lib/relationship-cache';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
@@ -99,7 +100,7 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
   const { activeTree, loadFailed } = useActiveTree();
   const treeId = activeTree?.id;
   const [index, setIndex] = useState<GeographyIndex | null>(null);
-  const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
+  const [relationships, setRelationships] = useState<Map<string, Kin>>(new Map());
   const [position, setPosition] = useState<{ latitude: number; longitude: number } | null>(null);
   // The OS location dialog used to fire the instant this mounted, context-free.
   // Now: 'ask' renders a priming card whose button is what triggers the dialog,
@@ -133,7 +134,7 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
     getGeographyIndex(treeId).then((i) => {
       if (!cancelled) setIndex(i);
     });
-    getRelationshipMap(treeId).then((map) => {
+    getKinMap(treeId).then((map) => {
       if (!cancelled) setRelationships(map);
     });
     Promise.all([getLineageTierMap(treeId), getLineageScope()])
@@ -463,7 +464,10 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
                 >
                   <ThemedText>{item.individual.full_name}</ThemedText>
                   {relationships.has(item.individual.id) && (
-                    <ThemedText type="small">your {relationships.get(item.individual.id)}</ThemedText>
+                    <KinReveal
+                      tier={relationships.get(item.individual.id)!.tier}
+                      label={relationships.get(item.individual.id)!.label}
+                    />
                   )}
                   <ThemedText type="small">
                     {item.events

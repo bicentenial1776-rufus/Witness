@@ -7,6 +7,7 @@ import { weeklyDigest, type DigestEntry, type WeeklyDigest } from '@witness/core
 import { useBroadsheet } from '@/components/broadsheet';
 import { ThisWeekBroadsheet, type LivedThroughLine } from '@/components/broadsheet/this-week';
 import { Card } from '@/components/card';
+import { KinReveal } from '@/components/kin-reveal';
 import { LineageMark } from '@/components/lineage-mark';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -16,8 +17,9 @@ import { getEventLibrary } from '@/lib/event-library';
 import { getParentageMap } from '@/lib/parentage';
 import {
   getFeaturedIds,
+  getKinMap,
   getLineageTierMap,
-  getRelationshipMap,
+  type Kin,
   type LineageTier,
 } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
@@ -50,7 +52,7 @@ export default function DigestScreen() {
   const theme = useTheme();
   const [digest, setDigest] = useState<WeeklyDigest | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [relationships, setRelationships] = useState<Map<string, string>>(new Map());
+  const [relationships, setRelationships] = useState<Map<string, Kin>>(new Map());
   const [tiers, setTiers] = useState<Map<string, LineageTier>>(new Map());
   const [parentage, setParentage] = useState<Map<string, string>>(new Map());
   const [notes, setNotes] = useState<Record<string, NoteState>>({});
@@ -64,7 +66,7 @@ export default function DigestScreen() {
     setNotes({});
     (async () => {
       try {
-        const relationshipMap = await getRelationshipMap(treeId).catch(() => new Map<string, string>());
+        const relationshipMap = await getKinMap(treeId).catch(() => new Map<string, Kin>());
         const featuredIds = await getFeaturedIds(treeId).catch(() => new Set<string>());
         getLineageTierMap(treeId)
           .then((map) => {
@@ -214,7 +216,9 @@ export default function DigestScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                   <ThemedText style={{ flexShrink: 1 }}>{entry.fullName}</ThemedText>
                   <LineageMark tier={tiers.get(entry.individualId)} color={theme.accent} />
-                  {relationship ? <ThemedText type="small">· your {relationship}</ThemedText> : null}
+                  {relationship ? (
+                    <KinReveal tier={relationship.tier} label={relationship.label} />
+                  ) : null}
                 </View>
                 {parentage.has(entry.individualId) && (
                   <ThemedText type="small">{parentage.get(entry.individualId)}</ThemedText>
@@ -239,7 +243,7 @@ export default function DigestScreen() {
                 </ThemedText>
                 <LineageMark tier={tiers.get(entry.individualId)} size={14} color={theme.accent} />
               </View>
-              {relationship && <ThemedText type="small">Your {relationship}</ThemedText>}
+              {relationship && <KinReveal tier={relationship.tier} label={relationship.label} />}
               {parentage.has(entry.individualId) && (
                 <ThemedText type="small">{parentage.get(entry.individualId)}</ThemedText>
               )}
