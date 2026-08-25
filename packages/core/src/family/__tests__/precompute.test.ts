@@ -49,20 +49,31 @@ describe('precompute (real GEDCOM)', () => {
 
   it('produces row-for-row the same output as unmemoized per-person labeling', () => {
     const rows = computeRelationshipRows(graph, rufus.id);
-    // Baseline: label every person in the tree the slow way and keep blood.
+    // Baseline: label every person in the tree the slow way and keep
+    // everyone who resolves to a tier. This is the real check on the
+    // candidate prefilter — blood and married-in alike — since a missed
+    // candidate shows up here as a row the brute force found and the
+    // walk did not.
     const baseline = new Map<string, ReturnType<typeof calculateRelationship>>();
     for (const person of people) {
       if (person.id === rufus.id) continue;
       const result = calculateRelationship(graph, rufus.id, person.id);
-      if (!result.isDirectAncestor && !result.isDirectDescendant && !result.isCollateral) continue;
-      if (result.confidence === 'none') continue;
+      if (result.tier === 'none' || result.confidence === 'none') continue;
       baseline.set(person.id, result);
+    }
+    for (const id of baseline.keys()) {
+      expect(
+        rows.some((row) => row.individual_id === id),
+        `prefilter missed ${id} (${baseline.get(id)!.tier}: ${baseline.get(id)!.label})`,
+      ).toBe(true);
     }
     expect(rows).toHaveLength(baseline.size);
     for (const row of rows) {
       const expected = baseline.get(row.individual_id);
-      expect(expected, `unexpected blood relative ${row.individual_id}`).toBeDefined();
+      expect(expected, `unexpected relative ${row.individual_id}`).toBeDefined();
       expect(row.label).toBe(expected!.label);
+      expect(row.tier).toBe(expected!.tier);
+      expect(row.qualifier).toBe(expected!.qualifier);
       expect(row.generation_distance).toBe(expected!.generationDistance);
       expect(row.line).toBe(expected!.line);
       expect(row.path).toEqual(expected!.path);
