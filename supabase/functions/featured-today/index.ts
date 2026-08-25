@@ -142,8 +142,9 @@ Deno.serve(async (req) => {
   const arcJobs = (trees ?? []).flatMap((tree) =>
     [0, 1].map((dayOffset) => ({ treeId: tree.id, dayOffset })),
   );
-  // Opus generations run ~45s each; a small batch keeps the wall clock and
-  // the Anthropic rate limit comfortable.
+  // Each call returns fast — a cache hit, a skip, or 202 with the actual
+  // generation running on in the arc worker via waitUntil; overlapping
+  // generations live in their own workers, not on this one's wall clock.
   const ARC_CONCURRENCY = 3;
   for (let i = 0; i < arcJobs.length; i += ARC_CONCURRENCY) {
     await Promise.all(
@@ -156,8 +157,8 @@ Deno.serve(async (req) => {
           });
           const reply = await res.json().catch(() => ({}));
           if (res.ok) {
-            if (reply.cached) arcsCached++;
-            else arcsWarmed++;
+            if (res.status === 202 || !reply.cached) arcsWarmed++;
+            else arcsCached++;
           } else if ([403, 422, 429].includes(res.status)) {
             arcsSkipped++;
           } else {

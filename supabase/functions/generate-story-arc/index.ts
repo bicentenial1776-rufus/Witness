@@ -295,6 +295,11 @@ Deno.serve(async (req) => {
     ].join('\n');
   });
 
+  // Everything up to here is quick queries; only the model call is long.
+  // In warm mode that call runs past the response via EdgeRuntime.waitUntil
+  // so the featured-today fan-out never holds N generations on its own
+  // wall clock (it did once, and died of WORKER_RESOURCE_LIMIT for it).
+  const finish = async (): Promise<Response> => {
   const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
   let response;
   try {
@@ -378,4 +383,20 @@ Deno.serve(async (req) => {
   if (upsertError) console.error('Arc cache upsert failed:', upsertError.message);
 
   return json(200, { arc: content, founderId, cached: false });
+  };
+
+  const runtime = globalThis as unknown as {
+    EdgeRuntime?: { waitUntil(p: Promise<unknown>): void };
+  };
+  if (body.warm && runtime.EdgeRuntime?.waitUntil) {
+    runtime.EdgeRuntime.waitUntil(
+      finish()
+        .then((r) => {
+          if (r.status !== 200) console.error(`warm arc ${founderId} failed: ${r.status}`);
+        })
+        .catch((err) => console.error(`warm arc ${founderId} threw:`, err)),
+    );
+    return json(202, { queued: true, founderId, cached: false });
+  }
+  return await finish();
 });
