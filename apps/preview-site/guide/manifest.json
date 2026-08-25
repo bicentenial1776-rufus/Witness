@@ -249,13 +249,13 @@
       "shots": [
         {
           "file": "shots/person-margin.png",
-          "status": "pending",
-          "stage": "Bottom of a person's page: In the margin with one OPEN correction card (Record says / Should be / italic note) and a ✎ glyph visible beside the corrected fact above"
+          "status": "placed",
+          "shows": "In the margin on a person's page: add flow open, Spouse chip picked (amber), Should-be + note fields filled, Add to the margin button, covenant line"
         },
         {
           "file": "shots/punch-list.png",
-          "status": "pending",
-          "stage": "The punch list: open-items tally + export link, corrections fold expanded on a card with Entered at the source ✓ and the Ancestry link"
+          "status": "placed",
+          "shows": "The punch list: export link, corrections fold open on three cards (Entered at the source ✓ + Ancestry link), Tree Check findings · 449 and Orphan records · 94 folded"
         }
       ]
     }
