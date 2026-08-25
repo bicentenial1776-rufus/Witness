@@ -32,7 +32,9 @@ import {
 } from '../_shared/enrich.ts';
 
 const MODEL = 'claude-opus-5';
-const PROMPT_VERSION = 1;
+// v2: placeholder events (no year/place/detail) no longer reach the
+// prompt or the fact line — cached v1 arcs regenerate via the rotation.
+const PROMPT_VERSION = 2;
 const MIN_FOUNDER_DEPTH = 6;
 const MAX_CHAIN = 20;
 
@@ -261,6 +263,9 @@ Deno.serve(async (req) => {
           .slice(0, 2)
           .join(',')
           .trim();
+        // A placeholder event — no year, no place, no detail — asserts
+        // nothing; skip it rather than render a bare "death ·".
+        if (!e.date_year && !place && !e.detail) continue;
         const name = e.label ?? e.event_type;
         facts.push(`${name}${e.date_year ? ` ${e.date_year}` : ''}${place ? ` — ${place}` : ''}${e.detail ? ` (${e.detail})` : ''}`);
       }
