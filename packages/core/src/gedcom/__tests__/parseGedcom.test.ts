@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { buildGraphFromParsed } from '../../family/gedcomGraph.js';
 import { parseGedcom } from '../index.js';
 
 const fixturePath = fileURLToPath(new URL('../../../fixtures/sample.ged', import.meta.url));
@@ -183,5 +184,74 @@ describe('previously dropped event tags (Katie review 2026-08-15)', () => {
     expect(ada.immigrations[0]?.date?.year).toBe(1845);
     expect(ada.emigrations[0]?.date?.year).toBe(1844);
     expect(ada.naturalizations[0]?.date?.year).toBe(1852);
+  });
+});
+
+// Standard parentage typing, which Witness read from Ancestry's _FREL /
+// _MREL only until now: FAMC.PEDI (5.5.1 and 7) and the ADOP event, whose
+// FAMC.ADOP names which parent adopted.
+const PARENTAGE_GED = [
+  '0 HEAD',
+  '1 GEDC',
+  '2 VERS 7.0',
+  '0 @I1@ INDI',
+  '1 NAME Adopted /Child/',
+  '1 FAMC @F1@',
+  '2 PEDI ADOPTED',
+  '0 @I2@ INDI',
+  '1 NAME Fostered /Child/',
+  '1 FAMC @F1@',
+  '2 PEDI FOSTER',
+  '0 @I3@ INDI',
+  '1 NAME Half /Adopted/',
+  '1 ADOP',
+  '2 FAMC @F1@',
+  '3 ADOP WIFE',
+  '0 @I4@ INDI',
+  '1 NAME Plain /Child/',
+  '1 FAMC @F1@',
+  '0 @I5@ INDI',
+  '1 NAME The /Father/',
+  '1 SEX M',
+  '0 @I6@ INDI',
+  '1 NAME The /Mother/',
+  '1 SEX F',
+  '0 @F1@ FAM',
+  '1 HUSB @I5@',
+  '1 WIFE @I6@',
+  '1 CHIL @I1@',
+  '1 CHIL @I2@',
+  '1 CHIL @I3@',
+  '1 CHIL @I4@',
+  '0 TRLR',
+].join('\n');
+
+describe('parentage typing', () => {
+  const parsed = parseGedcom(PARENTAGE_GED, 'parentage.ged');
+  const parentageOf = (id: string) => parsed.individuals.get(id)?.parentage ?? [];
+
+  it('reads PEDI from the FAMC pointer', () => {
+    expect(parentageOf('I1')).toEqual([{ familyId: 'F1', pedigree: 'adopted' }]);
+    expect(parentageOf('I2')).toEqual([{ familyId: 'F1', pedigree: 'foster' }]);
+  });
+
+  it('reads the ADOP event and which parent it names', () => {
+    expect(parentageOf('I3')).toEqual([
+      { familyId: 'F1', pedigree: 'adopted', adoptedBy: 'mother' },
+    ]);
+  });
+
+  it('leaves an unqualified link alone', () => {
+    expect(parentageOf('I4')).toEqual([]);
+  });
+
+  it('carries the typing into the family graph, per side', () => {
+    const graph = buildGraphFromParsed(parsed);
+    expect(graph.people.get('I1')?.fatherType).toBe('adopted');
+    expect(graph.people.get('I2')?.motherType).toBe('foster');
+    // ADOP named the wife, so only the mother's link is adoptive.
+    expect(graph.people.get('I3')?.motherType).toBe('adopted');
+    expect(graph.people.get('I3')?.fatherType).toBe('birth');
+    expect(graph.people.get('I4')?.fatherType).toBe('birth');
   });
 });

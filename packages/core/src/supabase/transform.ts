@@ -1,4 +1,4 @@
-import type { NormalizedDate, ParsedGedcom, SourceCitation } from '../gedcom/index.js';
+import type { ChildParentage, NormalizedDate, ParsedGedcom, SourceCitation } from '../gedcom/index.js';
 import type { Database } from './database.types.js';
 
 type TreeInsert = Database['public']['Tables']['trees']['Insert'];
@@ -180,6 +180,16 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
   const families: FamilyInsert[] = [];
   const familyChildren: FamilyChildInsert[] = [];
 
+  // A child's own FAMC.PEDI / ADOP, keyed by child and family. Ancestry's
+  // family-side _FREL/_MREL wins where both exist — it is recorded per
+  // parent, where PEDI covers the whole family.
+  const parentageByLink = new Map<string, ChildParentage>();
+  for (const individual of parsed.individuals.values()) {
+    for (const entry of individual.parentage) {
+      parentageByLink.set(`${individual.id}|${entry.familyId}`, entry);
+    }
+  }
+
   for (const family of parsed.families.values()) {
     const familyId = familyIdMap.get(family.id)!;
     const marriageDate = family.marriage?.date;
@@ -209,13 +219,23 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
       const childId = individualIdMap.get(childXref);
       if (!childId) return;
       const relation = relationByChild.get(childXref);
+      const parentage = parentageByLink.get(`${childXref}|${family.id}`);
+      // An ADOP event can name one adopting parent; the other side keeps
+      // whatever the record says it was.
+      const pedigreeFor = (side: 'father' | 'mother'): string | null => {
+        if (!parentage?.pedigree) return null;
+        if (parentage.adoptedBy && parentage.adoptedBy !== 'both' && parentage.adoptedBy !== side) {
+          return null;
+        }
+        return parentage.pedigree;
+      };
       familyChildren.push({
         family_id: familyId,
         individual_id: childId,
         user_id: userId,
         birth_order: index,
-        father_relation: relation?.fatherRelation ?? null,
-        mother_relation: relation?.motherRelation ?? null,
+        father_relation: relation?.fatherRelation ?? pedigreeFor('father'),
+        mother_relation: relation?.motherRelation ?? pedigreeFor('mother'),
       });
     });
   }

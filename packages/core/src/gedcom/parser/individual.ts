@@ -1,5 +1,5 @@
 import type { GedcomNode } from '../types/raw.js';
-import type { GedcomEvent, Individual, IndividualName } from '../types/witness.js';
+import type { ChildParentage, GedcomEvent, Individual, IndividualName } from '../types/witness.js';
 import { flagLiving } from '../analyze/living.js';
 import { normalizeDate } from '../normalize/date.js';
 import type { PlaceRegistry } from '../normalize/places.js';
@@ -60,6 +60,35 @@ function parseName(nameNode: GedcomNode | undefined): IndividualName {
 }
 
 /** First _APID anywhere in the record — Ancestry's database::record id. */
+/**
+ * How this person is linked to each of their parent families, from the
+ * standard tags: PEDI under FAMC, and the ADOP event, whose FAMC.ADOP
+ * names which parent adopted. Ancestry says the same thing with
+ * _FREL/_MREL on the family's CHIL pointer (parser/family.ts); both are
+ * read, and the family-side qualifier wins when they disagree, since it
+ * is recorded per parent rather than per family.
+ */
+function parseParentage(node: GedcomNode): ChildParentage[] {
+  const byFamily = new Map<string, ChildParentage>();
+  for (const famc of children(node, 'FAMC')) {
+    const pedigree = value(famc, 'PEDI')?.toLowerCase();
+    if (!pedigree) continue;
+    byFamily.set(stripXref(famc.value), { familyId: stripXref(famc.value), pedigree });
+  }
+  for (const adoption of children(node, 'ADOP')) {
+    const famc = child(adoption, 'FAMC');
+    if (!famc) continue;
+    const familyId = stripXref(famc.value);
+    const which = value(famc, 'ADOP')?.toUpperCase();
+    byFamily.set(familyId, {
+      familyId,
+      pedigree: 'adopted',
+      adoptedBy: which === 'HUSB' ? 'father' : which === 'WIFE' ? 'mother' : 'both',
+    });
+  }
+  return [...byFamily.values()];
+}
+
 function findApid(node: GedcomNode): string | undefined {
   if (node.tag === '_APID') return node.value.trim() || undefined;
   for (const c of node.children) {
@@ -115,6 +144,7 @@ export function parseIndividual(
       .filter((e): e is GedcomEvent => Boolean(e)),
     probate: parseEvent(child(node, 'PROB'), places),
     familyAsChild: children(node, 'FAMC').map((n) => stripXref(n.value)),
+    parentage: parseParentage(node),
     familyAsSpouse: children(node, 'FAMS').map((n) => stripXref(n.value)),
     living: flagLiving(birth, hasDeathRecord),
     notes: [...children(node, 'NOTE'), ...children(node, 'SNOTE')]

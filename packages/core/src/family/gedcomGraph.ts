@@ -1,4 +1,4 @@
-import type { ParsedGedcom } from '../gedcom/index.js';
+import type { ChildParentage, ParsedGedcom } from '../gedcom/index.js';
 
 import {
   emptyPerson,
@@ -25,6 +25,23 @@ export function buildGraphFromParsed(parsed: ParsedGedcom): FamilyGraph {
       living: individual.living,
     });
   }
+  // Parentage is recorded from either side: Ancestry's _FREL/_MREL on the
+  // family's CHIL pointer, or the child's own FAMC.PEDI / ADOP. The
+  // family side wins, being per parent rather than per family.
+  const parentageByLink = new Map<string, ChildParentage>();
+  for (const individual of parsed.individuals.values()) {
+    for (const entry of individual.parentage) {
+      if (entry.pedigree) parentageByLink.set(`${individual.id}|${entry.familyId}`, entry);
+    }
+  }
+  // An ADOP event can name one adopting parent; the other side keeps
+  // whatever the record says it was.
+  const pedigreeFor = (childId: string, familyId: string, side: 'father' | 'mother') => {
+    const entry = parentageByLink.get(`${childId}|${familyId}`);
+    if (!entry?.pedigree) return undefined;
+    if (entry.adoptedBy && entry.adoptedBy !== 'both' && entry.adoptedBy !== side) return undefined;
+    return entry.pedigree;
+  };
   const families: FamilyLink[] = [...parsed.families.values()].map((f) => {
     const relations = new Map(f.childRelationships.map((r) => [r.childId, r]));
     return {
@@ -32,8 +49,12 @@ export function buildGraphFromParsed(parsed: ParsedGedcom): FamilyGraph {
       wifeId: f.wifeId ?? null,
       children: f.childIds.map((id) => ({
         id,
-        fatherType: normalizeParentLinkType(relations.get(id)?.fatherRelation),
-        motherType: normalizeParentLinkType(relations.get(id)?.motherRelation),
+        fatherType: normalizeParentLinkType(
+          relations.get(id)?.fatherRelation ?? pedigreeFor(id, f.id, 'father'),
+        ),
+        motherType: normalizeParentLinkType(
+          relations.get(id)?.motherRelation ?? pedigreeFor(id, f.id, 'mother'),
+        ),
       })),
     };
   });

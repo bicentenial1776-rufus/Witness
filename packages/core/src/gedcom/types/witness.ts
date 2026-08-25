@@ -104,6 +104,8 @@ export interface Individual {
   customEvents: GedcomEvent[];
   probate?: GedcomEvent;
   familyAsChild: string[];
+  /** Typed view of familyAsChild — only families with a recorded qualifier. */
+  parentage: ChildParentage[];
   familyAsSpouse: string[];
   living: boolean;
   /** Resolved note text: inline notes plus referenced shared (S)NOTE records. */
@@ -121,6 +123,20 @@ export interface Individual {
   familySearchId?: string;
   /** Source citations attached to this person and their facts. */
   citations: SourceCitation[];
+}
+
+/**
+ * A child's link to one of their parent families, from the standard tags:
+ * FAMC.PEDI (GEDCOM 5.5.1 and 7) and the ADOP event's FAMC.ADOP, which
+ * names which parent adopted. Ancestry's _FREL/_MREL say the same thing
+ * from the family's side — see ChildRelationship.
+ */
+export interface ChildParentage {
+  familyId: string;
+  /** birth · adopted · foster · sealing, verbatim from the record. */
+  pedigree?: string;
+  /** Which parent the ADOP event names. */
+  adoptedBy?: 'father' | 'mother' | 'both';
 }
 
 export interface ChildRelationship {
