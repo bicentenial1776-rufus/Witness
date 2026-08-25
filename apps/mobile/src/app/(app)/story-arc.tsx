@@ -1,27 +1,37 @@
 import { Stack, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 
-import { TIER_WORD } from '@/components/kin-reveal';
 import { BrandFonts, Letterpress, mono } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
-import { getKinMap, type Kin } from '@/lib/relationship-cache';
 import { getTodayArc, type ArcGeneration, type StoryArc } from '@/lib/story-arc';
 
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'];
 
+/** "1807-05-25" → "MAY 25, 1807" — the paper card's dateline. */
+function paperDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  return m && d ? `${MONTHS[m - 1]} ${d}, ${y}` : String(y ?? iso);
+}
+
 /**
- * One generation of the descent. The name is the header and the prose is
- * the story — the record detail (relation, fact line, world chips) sits
- * behind a DETAILS toggle so it never interrupts the telling (Rufus,
- * 2026-08-25: "the access to detail is important" — but on request).
+ * One generation of the descent. The header calls out the kinship —
+ * "Joseph Buswell, your 6th great-grandfather" — and the prose is the
+ * story. Everything else (record fact line, world chips, and the
+ * "Their world, further" sources: era facts, a period newspaper page,
+ * an era recording) lives behind ONE DETAILS toggle, so the reveal
+ * gesture stays single and the telling keeps its flow (Rufus,
+ * 2026-08-25).
  */
-function GenerationBlock({ g, index, kin }: { g: ArcGeneration; index: number; kin: Kin | undefined }) {
+function GenerationBlock({ g, index }: { g: ArcGeneration; index: number }) {
   const L = useLetterpress();
   const [open, setOpen] = useState(false);
-  const hasDetails = Boolean(g.relationLabel || g.factLine || g.world.length > 0);
+  const further = Boolean(g.worldFacts?.length || g.paper || g.audio);
+  const hasDetails = Boolean(g.factLine || g.world.length > 0 || further);
   return (
     <View
       style={{
@@ -31,27 +41,39 @@ function GenerationBlock({ g, index, kin }: { g: ArcGeneration; index: number; k
         borderLeftColor: L.amber,
       }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-        <Pressable
-          disabled={g.living}
-          style={{ flexShrink: 1 }}
-          onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: g.personId } })}
+      <Pressable
+        disabled={g.living}
+        onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: g.personId } })}
+      >
+        <Text
+          style={{
+            fontFamily: BrandFonts.serif.semiBold,
+            fontSize: 20,
+            lineHeight: 27,
+            color: L.ink,
+          }}
         >
-          <Text
-            style={{
-              fontFamily: BrandFonts.serif.semiBold,
-              fontSize: 20,
-              color: L.ink,
-            }}
-          >
-            <Text style={mono(12.5, L.deepAmber)}>{ROMAN[index] ?? String(index + 1)}{'  '}</Text>
-            {g.name}
-            <Text style={mono(13, L.muted)}>
-              {'  '}
-              {g.living ? `b. ${g.birth ?? '?'}` : `${g.birth ?? '?'}–${g.death ?? '?'}`}
+          <Text style={mono(12.5, L.deepAmber)}>{ROMAN[index] ?? String(index + 1)}{'  '}</Text>
+          {g.name}
+          {g.relationLabel ? (
+            <Text
+              style={{
+                fontFamily: BrandFonts.serif.italic,
+                fontStyle: 'italic',
+                fontWeight: '400',
+                fontSize: 17,
+                color: L.muted,
+              }}
+            >
+              {`, your ${g.relationLabel}`}
             </Text>
-          </Text>
-        </Pressable>
+          ) : null}
+        </Text>
+      </Pressable>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 14, marginTop: 3 }}>
+        <Text style={mono(12.5, L.muted)}>
+          {g.living ? `b. ${g.birth ?? '?'}` : `${g.birth ?? '?'}–${g.death ?? '?'}`}
+        </Text>
         {hasDetails && (
           <Pressable
             onPress={() => setOpen((o) => !o)}
@@ -65,17 +87,12 @@ function GenerationBlock({ g, index, kin }: { g: ArcGeneration; index: number; k
         )}
       </View>
       {open && (
-        <View style={{ marginTop: 6, gap: 4 }}>
-          {g.relationLabel && (
-            <Text style={mono(12.5, L.deepAmber)}>
-              {`${TIER_WORD[kin?.tier ?? 'direct']} · YOUR ${g.relationLabel}`.toUpperCase()}
-            </Text>
-          )}
+        <View style={{ marginTop: 8, gap: 8 }}>
           {g.factLine && (
             <Text style={mono(12.5, L.deepAmber)}>{g.factLine.toUpperCase()}</Text>
           )}
           {g.world.length > 0 && (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
               <Text style={{ ...mono(12, L.muted), letterSpacing: 1.5, alignSelf: 'center' }}>
                 THE WORLD
               </Text>
@@ -93,6 +110,88 @@ function GenerationBlock({ g, index, kin }: { g: ArcGeneration; index: number; k
                   <Text style={mono(12.5, L.ink)}>{w}</Text>
                 </View>
               ))}
+            </View>
+          )}
+          {further && (
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: L.rule,
+                backgroundColor: L.well,
+                padding: 12,
+                gap: 10,
+                marginTop: 2,
+              }}
+            >
+              <Text style={{ ...mono(11, L.amber), letterSpacing: 2 }}>THEIR WORLD, FURTHER</Text>
+              {(g.worldFacts ?? []).map((f, fi) => (
+                <View key={fi} style={{ gap: 2 }}>
+                  <Text
+                    style={{
+                      fontFamily: BrandFonts.serif.regular,
+                      fontSize: 14,
+                      lineHeight: 21,
+                      color: L.ink,
+                    }}
+                  >
+                    <Text style={{ color: L.amber }}>{'⊕ '}</Text>
+                    {f.text}
+                  </Text>
+                  <Text style={mono(10.5, L.muted)}>— {f.source.toUpperCase()}</Text>
+                </View>
+              ))}
+              {g.audio && (
+                <Pressable
+                  onPress={() => WebBrowser.openBrowserAsync(g.audio!.url)}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Play ${g.audio.title}`}
+                  style={{ gap: 2 }}
+                >
+                  <Text style={mono(12.5, L.amber)}>▸ HEAR THE ERA</Text>
+                  <Text
+                    style={{ fontFamily: BrandFonts.serif.regular, fontSize: 13.5, color: L.ink }}
+                  >
+                    {g.audio.title}
+                  </Text>
+                  <Text style={mono(10.5, L.muted)}>WIKIMEDIA COMMONS · PUBLIC DOMAIN</Text>
+                </Pressable>
+              )}
+              {g.paper && (
+                <Pressable
+                  onPress={() => WebBrowser.openBrowserAsync(g.paper!.url)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Read the full page of ${g.paper.title}`}
+                  style={{ flexDirection: 'row', gap: 10 }}
+                >
+                  <Image
+                    source={{ uri: g.paper.image }}
+                    style={{ width: 74, height: 112, borderWidth: 1, borderColor: L.rule }}
+                    resizeMode="cover"
+                  />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text
+                      style={{
+                        fontFamily: BrandFonts.serif.semiBold,
+                        fontSize: 14,
+                        lineHeight: 19,
+                        color: L.ink,
+                      }}
+                    >
+                      {g.paper.title}
+                    </Text>
+                    <Text style={mono(11, L.muted)}>
+                      {paperDate(g.paper.date)}
+                      {/* Common town names match far beyond the town; a
+                          six-figure count is noise, not a fact. */}
+                      {g.paper.hits > 1 && g.paper.hits < 50_000
+                        ? `\nONE OF ${g.paper.hits.toLocaleString()} PAGES NAMING THEIR TOWN`
+                        : ''}
+                    </Text>
+                    <Text style={{ ...mono(11.5, L.amber), marginTop: 2 }}>READ THE FULL PAGE ›</Text>
+                  </View>
+                </Pressable>
+              )}
             </View>
           )}
         </View>
@@ -124,7 +223,6 @@ export default function StoryArcScreen() {
   const L = useLetterpress();
   const { activeTree } = useActiveTree();
   const [arc, setArc] = useState<StoryArc | null>(null);
-  const [kin, setKin] = useState<Map<string, Kin>>(new Map());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -137,11 +235,6 @@ export default function StoryArcScreen() {
       .catch(() => {
         if (!cancelled) setError('The story could not be set just now — nothing has been lost.');
       });
-    getKinMap(activeTree.id)
-      .then((map) => {
-        if (!cancelled) setKin(map);
-      })
-      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -214,14 +307,24 @@ export default function StoryArcScreen() {
                 }}
               >
                 {arc.generations.map((g) => {
-                  if (g.birth === null) return null;
-                  const end = g.living ? currentYear : (g.death ?? Math.min(g.birth + 1, currentYear));
-                  const left = ((g.birth - lives.start) / lives.span) * 100;
-                  const width = Math.max(((end - g.birth) / lives.span) * 100, 1.5);
-                  const given = g.name.split(' ')[0].toUpperCase();
-                  const labelInside = width > 22;
+                  // Every generation gets a bar, the reader included — a
+                  // living row with no recorded birth becomes a sliver at
+                  // the right edge rather than vanishing.
+                  const noBirth = g.birth === null;
+                  if (noBirth && !g.living) return null;
+                  const birth = g.birth ?? currentYear - 8;
+                  const end = g.living ? currentYear : (g.death ?? Math.min(birth + 1, currentYear));
+                  const left = ((birth - lives.start) / lives.span) * 100;
+                  const width = Math.max(((end - birth) / lives.span) * 100, 1.5);
+                  const surname = (g.name.trim().split(/[\s,]+/).filter(Boolean).pop() ?? '?').toUpperCase();
+                  const label = noBirth
+                    ? `${surname} · YOU`
+                    : g.living
+                      ? `${surname} b. ${g.birth}`
+                      : `${surname} ${g.birth}–${g.death ?? '?'}`;
+                  const labelInside = width > 40;
                   return (
-                    <View key={g.personId} style={{ height: 14 }}>
+                    <View key={g.personId} style={{ height: 15 }}>
                       <View
                         style={{
                           position: 'absolute',
@@ -235,15 +338,16 @@ export default function StoryArcScreen() {
                       <Text
                         numberOfLines={1} maxFontSizeMultiplier={1.3}
                         style={{
-                          ...mono(12, labelInside ? L.paper : L.muted),
+                          ...mono(11, labelInside ? L.paper : L.muted),
                           position: 'absolute',
-                          left: labelInside ? `${left}%` : `${Math.min(left + width, 88)}%`,
-                          paddingLeft: 4,
-                          top: 1.5,
-                          letterSpacing: 1,
+                          ...(labelInside || left + width < 55
+                            ? { left: labelInside ? `${left}%` : `${Math.min(left + width, 62)}%`, paddingLeft: 4 }
+                            : { right: `${Math.min(100 - left, 62)}%`, paddingRight: 4 }),
+                          top: 2,
+                          letterSpacing: 0.6,
                         }}
                       >
-                        {given}
+                        {label}
                       </Text>
                     </View>
                   );
@@ -258,7 +362,7 @@ export default function StoryArcScreen() {
             {/* The descent. */}
             <View style={{ marginTop: 10 }}>
               {arc.generations.map((g, i) => (
-                <GenerationBlock key={g.personId} g={g} index={i} kin={kin.get(g.personId)} />
+                <GenerationBlock key={g.personId} g={g} index={i} />
               ))}
             </View>
 

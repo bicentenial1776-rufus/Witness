@@ -8,6 +8,24 @@ import { supabase } from '@/lib/supabase';
  * day so the Home lead turns over at midnight with the rotation.
  */
 
+export interface ArcWorldFact {
+  text: string;
+  source: string;
+}
+
+export interface ArcPaper {
+  title: string;
+  date: string;
+  image: string;
+  url: string;
+  hits: number;
+}
+
+export interface ArcAudio {
+  title: string;
+  url: string;
+}
+
 export interface ArcGeneration {
   personId: string;
   name: string;
@@ -18,6 +36,10 @@ export interface ArcGeneration {
   factLine: string | null;
   story: string | null;
   world: string[];
+  /** v2 content ("Their world, further") — absent on v1 cached arcs. */
+  worldFacts?: ArcWorldFact[];
+  paper?: ArcPaper | null;
+  audio?: ArcAudio | null;
 }
 
 export interface StoryArc {

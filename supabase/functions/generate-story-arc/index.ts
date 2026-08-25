@@ -32,9 +32,13 @@ import {
 } from '../_shared/enrich.ts';
 
 const MODEL = 'claude-opus-5';
+// v3 (2026-08-25, Rufus's revisions): longer tellings (4–7 sentences),
+// and the "Their world, further" layer — era facts grounded in fetched
+// Wikipedia year articles, a period newspaper page from Chronicling
+// America, and a public-domain era recording where the years allow.
 // v2: placeholder events (no year/place/detail) no longer reach the
-// prompt or the fact line — cached v1 arcs regenerate via the rotation.
-const PROMPT_VERSION = 2;
+// prompt or the fact line. Cached arcs regenerate via the rotation.
+const PROMPT_VERSION = 3;
 const MIN_FOUNDER_DEPTH = 6;
 const MAX_CHAIN = 20;
 
@@ -60,14 +64,27 @@ const ARC_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['personId', 'story', 'world'],
+        required: ['personId', 'story', 'world', 'worldFacts'],
         properties: {
           personId: { type: 'string' },
-          story: { type: 'string', description: '2–6 sentences connecting this life to the line' },
+          story: { type: 'string', description: '4–7 sentences connecting this life to the line' },
           world: {
             type: 'array',
             items: { type: 'string' },
             description: '0–2 short world-event chips, e.g. "King Philip\'s War · 1675–76"',
+          },
+          worldFacts: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['text', 'source'],
+              properties: {
+                text: { type: 'string', description: '1–2 sentences, drawn ONLY from the provided WORLD SOURCES' },
+                source: { type: 'string', description: 'The source tag exactly as given, e.g. "Wikipedia · 1775"' },
+              },
+            },
+            description: '0–3 era facts relevant to this person\'s place and age, from the provided sources only',
           },
         },
       },
@@ -85,6 +102,105 @@ async function chunkedIn<T>(
     out.push(...(await fetchChunk(ids.slice(i, i + size))));
   }
   return out;
+}
+
+// ——— "Their world, further": outside sources, fetched per generation ———
+// Every call is best-effort with a short timeout — a slow archive
+// degrades a panel, never an arc. Sources are baked into the cached
+// content, so each founder pays these calls exactly once.
+
+const UA = 'WitnessLives/1.0 (hello@witnesslives.com)';
+
+async function fetchJson(url: string, ms = 6000): Promise<unknown | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': UA },
+      signal: AbortSignal.timeout(ms),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/** Plain-text slice of a Wikipedia article, or null. */
+async function wikiExtract(title: string, chars = 1300): Promise<string | null> {
+  const d = (await fetchJson(
+    `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&titles=${encodeURIComponent(title)}&format=json&explaintext=1&exchars=${chars}&redirects=1`,
+  )) as { query?: { pages?: Record<string, { extract?: string }> } } | null;
+  const page = d?.query?.pages ? Object.values(d.query.pages)[0] : null;
+  const text = page?.extract?.trim();
+  return text && text.length > 80 ? text : null;
+}
+
+export interface ArcPaper {
+  title: string;
+  date: string;
+  image: string;
+  url: string;
+  hits: number;
+}
+
+/** One period newspaper page mentioning the person's town, from the
+    Library of Congress (Chronicling America now lives in the loc.gov
+    API — the classic endpoint is retired). Coverage 1756–1963, US. */
+async function fetchPaper(town: string, from: number, to: number): Promise<ArcPaper | null> {
+  const y1 = Math.max(from, 1756);
+  const y2 = Math.min(to, 1963);
+  if (!town || y1 >= y2) return null;
+  // loc.gov search regularly takes 30+ seconds — callers must hide this
+  // behind the model call, never hold a prompt on it.
+  const d = (await fetchJson(
+    `https://www.loc.gov/collections/chronicling-america/?q=${encodeURIComponent(town)}&dates=${y1}/${y2}&fo=json&c=3`,
+    50_000,
+  )) as {
+    pagination?: { of?: number };
+    results?: { partof_title?: string[]; date?: string; id?: string; image_url?: string[] }[];
+  } | null;
+  const hit = d?.results?.find((r) => r.image_url?.[0] && r.id && r.date);
+  if (!hit) return null;
+  const rawTitle = hit.partof_title?.[0] ?? 'A period newspaper';
+  return {
+    // "the kentucky gazette (lexington [ky.]) 1789-1803" → "The Kentucky Gazette (Lexington)"
+    title: rawTitle
+      .replace(/\s*\[[^\]]*\]\s*/g, ' ')
+      .replace(/\s*\d{4}-\d{4}\s*$/, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\b\w/g, (ch) => ch.toUpperCase()),
+    date: hit.date!,
+    image: hit.image_url![0],
+    url: hit.id!.replace(/^http:/, 'https:'),
+    hits: d?.pagination?.of ?? 1,
+  };
+}
+
+export interface ArcAudio {
+  title: string;
+  url: string;
+}
+
+/** A public-domain era recording from Wikimedia Commons. Recordings
+    published before 1926 are public domain (rolling window); the search
+    leans on the Victor 78 digitizations that dominate Commons's holdings
+    for those years. Callers clamp the anchor into 1900–1925, so anyone
+    whose life brushed the recorded era gets its sound. */
+async function fetchAudio(year: number): Promise<ArcAudio | null> {
+  if (year < 1900 || year > 1925) return null;
+  const d = (await fetchJson(
+    `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(`Victor ${year} filetype:audio`)}&srnamespace=6&format=json&srlimit=1`,
+  )) as { query?: { search?: { title?: string }[] } } | null;
+  const file = d?.query?.search?.[0]?.title;
+  if (!file) return null;
+  const info = (await fetchJson(
+    `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(file)}&prop=imageinfo&iiprop=url&format=json`,
+  )) as { query?: { pages?: Record<string, { imageinfo?: { url?: string }[] }> } } | null;
+  const url = info?.query?.pages ? Object.values(info.query.pages)[0]?.imageinfo?.[0]?.url : null;
+  if (!url) return null;
+  // "File:April Showers (1921, Paul Whiteman).mp3" → "April Showers (1921, Paul Whiteman)"
+  const title = file.replace(/^File:/, '').replace(/\.(mp3|ogg|oga|flac|wav)$/i, '');
+  return { title, url: url.split('?')[0] };
 }
 
 Deno.serve(async (req) => {
@@ -289,15 +405,86 @@ Deno.serve(async (req) => {
     };
   });
 
+  // ——— outside sources per generation, gathered in parallel ———
+  // Anchor: the year each person turned twenty, clamped to their span.
+  // Towns come from the birth (else death) event's place. Wikipedia year
+  // articles are deduped across generations; every fetch is best-effort.
+  const townOf = (id: string): string => {
+    const rows = (eventRows ?? []).filter((e) => e.individual_id === id);
+    const pick =
+      rows.find((e) => e.event_type === 'birth') ?? rows.find((e) => e.event_type === 'death');
+    const raw = (pick as { places: { raw: string } | null } | undefined)?.places?.raw;
+    return raw ? raw.split(',')[0].trim() : '';
+  };
+  const anchorOf = (c: ChainPerson): number | null =>
+    c.birth === null ? null : Math.min(c.birth + 20, c.death ?? c.birth + 20);
+
+  const yearCache = new Map<number, Promise<string | null>>();
+  const yearArticle = (y: number) => {
+    let p = yearCache.get(y);
+    if (!p) {
+      p = wikiExtract(String(y));
+      yearCache.set(y, p);
+    }
+    return p;
+  };
+
+  // Wikipedia feeds the prompt, so it must land before the model call —
+  // it's fast. The papers and recordings don't: they are fetched inside
+  // finish(), concurrently with the Opus call, because a single loc.gov
+  // search can take 30+ seconds and the model call hides that entirely.
+  const sources = await Promise.all(
+    chain.map(async (c) => {
+      if (c.living) return { wiki: [] as { tag: string; text: string }[] };
+      const anchor = anchorOf(c);
+      const wiki: { tag: string; text: string }[] = [];
+      const [yearText, topics] = await Promise.all([
+        anchor ? yearArticle(anchor) : Promise.resolve(null),
+        anchor && anchor >= 1890
+          ? Promise.all(
+              ['music', 'sports', 'film'].map(async (t) => ({
+                tag: `Wikipedia · ${anchor} in ${t}`,
+                text: await wikiExtract(`${anchor} in ${t}`, 1100),
+              })),
+            )
+          : Promise.resolve([]),
+      ]);
+      if (anchor && yearText) wiki.push({ tag: `Wikipedia · ${anchor}`, text: yearText });
+      for (const t of topics) if (t.text) wiki.push({ tag: t.tag, text: t.text });
+      return { wiki };
+    }),
+  );
+
+  const fetchExtras = () =>
+    Promise.all(
+      chain.map(async (c) => {
+        if (c.living) return { paper: null, audio: null };
+        const anchor = anchorOf(c);
+        const [paper, audio] = await Promise.all([
+          c.birth && c.death ? fetchPaper(townOf(c.id), c.birth, c.death) : Promise.resolve(null),
+          // Anyone alive during the recorded era (1900–1925) gets its
+          // sound: clamp their 20th-year anchor into the window.
+          anchor && c.birth && c.birth <= 1925 && (c.death ?? c.birth + 80) >= 1900
+            ? fetchAudio(Math.max(1900, Math.min(anchor, 1925)))
+            : Promise.resolve(null),
+        ]);
+        return { paper, audio };
+      }),
+    );
+
   // The prompt: living members appear only as anonymous closing generations.
   const promptLines = chain.map((c, i) => {
     if (c.living) {
       return `GENERATION ${i + 1} (id ${c.id}): [a living member of the family — do not name or describe; if this is the last generation, close the arc addressed to "you", the reader]`;
     }
-    return [
+    const lines = [
       `GENERATION ${i + 1} (id ${c.id}): ${c.name} (${c.birth ?? '?'}–${c.death ?? '?'})`,
       ...c.facts.map((f) => `  - ${f}`),
-    ].join('\n');
+    ];
+    for (const w of sources[i].wiki) {
+      lines.push(`  WORLD SOURCE [${w.tag}]: ${w.text.replace(/\s+/g, ' ').slice(0, 1100)}`);
+    }
+    return lines.join('\n');
   });
 
   // Everything up to here is quick queries; only the model call is long.
@@ -305,19 +492,23 @@ Deno.serve(async (req) => {
   // so the featured-today fan-out never holds N generations on its own
   // wall clock (it did once, and died of WORKER_RESOURCE_LIMIT for it).
   const finish = async (): Promise<Response> => {
+  // Papers and recordings ride alongside the model call — both are slow,
+  // and neither needs the other.
+  const extrasPromise = fetchExtras();
   const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
   let response;
   try {
     response = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 6000,
+      max_tokens: 9000,
       output_config: { effort: 'medium', format: { type: 'json_schema', schema: ARC_SCHEMA } },
       system: [
         'You write generational story arcs for Witness, a family history app: one bloodline, founder to reader, told as a flowing descent.',
-        'For each generation write 2–6 sentences (JSON "story"): lead with what the record shows, connect each life to the one before it, and let places and moves carry the narrative. Where the record is rich, use it — more record, more sentences. Where it is thin, be honestly brief; never pad.',
+        'For each generation write 4–7 sentences (JSON "story"): lead with what the record shows — offices held, children counted, marriages, moves — and set the life in its history and geography: the rivers and roads, the wars and revivals, what the place was in that decade. Connect each life to the one before it. Where the record is rich, spend the sentences on it; where it is thin, let well-documented history of the time and place carry more of the weight, and never pad with speculation.',
         'Work ONLY from the facts provided for names, dates, places, marriages, and moves. Never invent record specifics. No claims about personality, feelings, or motivations.',
         'World events (JSON "world", 0–2 per generation, format "Name · years"): well-documented history that genuinely intersects this life\'s time and place, from your own knowledge. Hard rule: if you are not certain enough that a careful historian would state it flatly, omit it — an empty list is the correct failure mode. You may weave a world event into the story prose only under the same certainty rule.',
-        'A living generation gets one or two graceful closing sentences addressed to "you" — never a name, never facts.',
+        'Era facts (JSON "worldFacts", 0–3 per generation): drawn STRICTLY from the WORLD SOURCE blocks provided for that generation — quote or closely paraphrase, never supplement from your own knowledge. Choose only entries that belong to this person\'s place and age; a farmer in Essex County does not get a Frankfurt premiere. Each item carries its source tag exactly as given. No sources provided, or nothing relevant → empty list.',
+        'A living generation gets one or two graceful closing sentences addressed to "you" — never a name, never facts, empty worldFacts.',
         'Title the line by its surname where one dominates ("The Howe Line"). The dek is one sentence: the whole arc\'s shape.',
         'No headers, no lists inside stories. Begin directly.',
       ].join(' '),
@@ -338,7 +529,16 @@ Deno.serve(async (req) => {
     return json(502, { error: 'Story generation was declined. Please try again.' });
   }
 
-  let wire: { title: string; dek: string; generations: { personId: string; story: string; world: string[] }[] };
+  let wire: {
+    title: string;
+    dek: string;
+    generations: {
+      personId: string;
+      story: string;
+      world: string[];
+      worldFacts: { text: string; source: string }[];
+    }[];
+  };
   try {
     wire = JSON.parse(textBlock.text);
     if (!wire.title || !Array.isArray(wire.generations)) throw new Error('malformed');
@@ -347,14 +547,16 @@ Deno.serve(async (req) => {
     return json(502, { error: 'Story generation failed. Please try again.' });
   }
   const storyById = new Map(wire.generations.map((g) => [g.personId, g]));
+  const extras = await extrasPromise;
 
-  // Content = record data (server-assembled) + model prose, zipped by id.
+  // Content = record data (server-assembled) + model prose + outside
+  // sources, zipped by id. v2 content: worldFacts/paper/audio per gen.
   const content = {
-    v: 1,
+    v: 2,
     title: wire.title,
     dek: wire.dek,
     founderId,
-    generations: chain.map((c) => ({
+    generations: chain.map((c, i) => ({
       personId: c.id,
       name: c.name,
       birth: c.birth,
@@ -369,6 +571,9 @@ Deno.serve(async (req) => {
             .join(' · ') || null,
       story: storyById.get(c.id)?.story ?? null,
       world: storyById.get(c.id)?.world ?? [],
+      worldFacts: storyById.get(c.id)?.worldFacts ?? [],
+      paper: extras[i].paper,
+      audio: extras[i].audio,
     })),
   };
 
