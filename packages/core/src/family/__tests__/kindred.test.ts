@@ -1,21 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { FamilyGraph, GraphPerson } from '../graph.js';
+import { emptyPerson, type FamilyGraph, type GraphPerson } from '../graph.js';
 import { sweepKindredCouples } from '../kindred.js';
 
 function person(id: string, overrides: Partial<GraphPerson> = {}): GraphPerson {
-  return {
-    id,
-    name: id,
-    sex: 'U',
-    birthYear: null,
-    deathYear: null,
-    living: false,
-    father: null,
-    mother: null,
-    spouses: [],
-    children: [],
-    ...overrides,
-  };
+  return { ...emptyPerson(id), name: id, ...overrides };
 }
 
 function graphOf(people: GraphPerson[]): FamilyGraph {

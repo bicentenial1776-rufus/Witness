@@ -5,6 +5,9 @@ import { calculateRelationship, parentLine } from '../relationship.js';
 /**
  * Compact fixture builder. Spec lines look like:
  *   'F1: husband=A wife=B children=C,D'
+ * A child's link type can be qualified for the whole family with
+ * `adopted=`, `foster=`, or `step=`, naming children already listed:
+ *   'F2: husband=A wife=B children=C adopted=C'
  * Person sex comes from a `sexes` map; everyone else defaults to 'U'.
  */
 function makeGraph(familySpecs: string[], sexes: Record<string, 'M' | 'F'> = {}): FamilyGraph {
@@ -14,7 +17,13 @@ function makeGraph(familySpecs: string[], sexes: Record<string, 'M' | 'F'> = {})
     const wife = /wife=(\w+)/.exec(spec)?.[1] ?? null;
     const children = /children=([\w,]+)/.exec(spec)?.[1]?.split(',') ?? [];
     for (const id of [husband, wife, ...children]) if (id) ids.add(id);
-    return { id: `F${index}`, husband_id: husband, wife_id: wife, children };
+    const typed = new Map<string, string>();
+    for (const type of ['adopted', 'foster', 'step']) {
+      for (const id of new RegExp(`${type}=([\\w,]+)`).exec(spec)?.[1]?.split(',') ?? []) {
+        typed.set(id, type);
+      }
+    }
+    return { id: `F${index}`, husband_id: husband, wife_id: wife, children, typed };
   });
   const individuals = [...ids].map((id) => ({
     id,
@@ -25,7 +34,12 @@ function makeGraph(familySpecs: string[], sexes: Record<string, 'M' | 'F'> = {})
     living: false,
   }));
   const familyChildren = families.flatMap((f) =>
-    f.children.map((c) => ({ family_id: f.id, individual_id: c })),
+    f.children.map((c) => ({
+      family_id: f.id,
+      individual_id: c,
+      father_relation: f.typed.get(c) ?? null,
+      mother_relation: f.typed.get(c) ?? null,
+    })),
   );
   return buildGraphFromRows(individuals, families, familyChildren);
 }
@@ -239,5 +253,177 @@ describe('parentLine', () => {
     );
     expect(parentLine(graph, 'HOME', 'mother').map((p) => p.id)).toEqual(['MOM', 'MGM']);
     expect(parentLine(graph, 'HOME', 'father').map((p) => p.id)).toEqual(['DAD']);
+  });
+});
+
+describe('tiers', () => {
+  it('tiers the line, the collaterals, and the married-in', () => {
+    expect(calculateRelationship(STEM, 'HOME', 'GF').tier).toBe('direct');
+    expect(calculateRelationship(STEM, 'HOME', 'KID').tier).toBe('direct');
+    expect(calculateRelationship(STEM, 'HOME', 'U').tier).toBe('blood');
+    expect(calculateRelationship(STEM, 'HOME', 'C1').tier).toBe('blood');
+    expect(calculateRelationship(STEM, 'HOME', 'WIFE').tier).toBe('distant');
+    expect(calculateRelationship(STEM, 'HOME', 'UW').tier).toBe('distant');
+  });
+
+  it('gives an unconnected person the none tier and no label', () => {
+    const graph = makeGraph(['F: husband=A children=HOME', 'F: husband=B children=STRANGER']);
+    const rel = calculateRelationship(graph, 'HOME', 'STRANGER');
+    expect(rel.tier).toBe('none');
+    expect(rel.path).toEqual([]);
+  });
+});
+
+describe('married into your line', () => {
+  const REMARRIED = makeGraph(
+    [
+      'F: husband=GGF wife=GGM children=GF',
+      'F: husband=GF wife=GM children=DAD',
+      'F: husband=GF wife=GF2',
+      'F: husband=GGF wife=GGF2',
+      'F: husband=DAD wife=MOM children=HOME',
+    ],
+    { GF2: 'F', GGF2: 'F', GM: 'F', MOM: 'F', GF: 'M', GGF: 'M', DAD: 'M' },
+  );
+
+  it('names a grandfather\'s later wife a step-grandmother', () => {
+    const rel = calculateRelationship(REMARRIED, 'HOME', 'GF2');
+    expect(rel.label).toBe('step-grandmother');
+    expect(rel.tier).toBe('distant');
+  });
+
+  it('composes past the step range', () => {
+    expect(calculateRelationship(REMARRIED, 'HOME', 'GGF2').label).toBe(
+      'wife of your great-grandfather',
+    );
+  });
+
+  it('keeps the in-law words where English has them', () => {
+    const graph = makeGraph(
+      [
+        'F: husband=PIL wife=MIL children=WIFE,SIL',
+        'F: husband=HOME wife=WIFE children=KID',
+        'F: husband=KID wife=KIDW',
+        'F: husband=DAD children=HOME,SIB',
+        'F: husband=SIBH wife=SIB',
+      ],
+      { PIL: 'M', MIL: 'F', WIFE: 'F', SIL: 'F', KIDW: 'F', SIB: 'F', SIBH: 'M' },
+    );
+    expect(calculateRelationship(graph, 'HOME', 'PIL').label).toBe('father-in-law');
+    expect(calculateRelationship(graph, 'HOME', 'SIL').label).toBe('sister-in-law');
+    expect(calculateRelationship(graph, 'HOME', 'KIDW').label).toBe('daughter-in-law');
+    expect(calculateRelationship(graph, 'HOME', 'SIBH').label).toBe('brother-in-law');
+  });
+
+  it('falls back to a possessive for a spouse\'s wider kin', () => {
+    const graph = makeGraph(
+      ['F: husband=WGF wife=WGM children=WMOM', 'F: wife=WMOM children=WIFE', 'F: husband=HOME wife=WIFE'],
+      { WIFE: 'F', WMOM: 'F', WGM: 'F', WGF: 'M' },
+    );
+    expect(calculateRelationship(graph, 'HOME', 'WGF').label).toBe("your wife's grandfather");
+  });
+});
+
+describe('step-family', () => {
+  const BLENDED = makeGraph(
+    [
+      'F: husband=DAD wife=MOM children=HOME',
+      'F: husband=DAD wife=STEPMOM',
+      'F: husband=SMH wife=STEPMOM children=STEPBRO',
+      'F: husband=SMF children=STEPMOM',
+    ],
+    { DAD: 'M', MOM: 'F', STEPMOM: 'F', STEPBRO: 'M', SMF: 'M' },
+  );
+
+  it("names a parent's later wife a stepmother", () => {
+    expect(calculateRelationship(BLENDED, 'HOME', 'STEPMOM').label).toBe('stepmother');
+  });
+
+  it("names the stepmother's own son a stepbrother", () => {
+    const rel = calculateRelationship(BLENDED, 'HOME', 'STEPBRO');
+    expect(rel.label).toBe('stepbrother');
+    expect(rel.tier).toBe('distant');
+  });
+
+  it("reaches the stepmother's father by possessive", () => {
+    expect(calculateRelationship(BLENDED, 'HOME', 'SMF').label).toBe("your stepmother's father");
+  });
+
+  it('stops at two marriage edges', () => {
+    const graph = makeGraph(
+      [
+        'F: husband=DAD children=HOME,SIB',
+        'F: husband=SIB wife=SIBW',
+        'F: husband=SIBWF children=SIBW',
+      ],
+      { SIB: 'M', SIBW: 'F', SIBWF: 'M' },
+    );
+    expect(calculateRelationship(graph, 'HOME', 'SIBW').label).toBe('sister-in-law');
+    expect(calculateRelationship(graph, 'HOME', 'SIBWF').tier).toBe('none');
+  });
+});
+
+describe('blood beats marriage', () => {
+  it('keeps the cousin when you married her', () => {
+    const graph = makeGraph(
+      [
+        'F: husband=GF wife=GM children=DAD,U',
+        'F: husband=DAD wife=MOM children=HOME',
+        'F: husband=U wife=UW children=COUSIN',
+        'F: husband=HOME wife=COUSIN',
+      ],
+      { COUSIN: 'F', DAD: 'M', U: 'M', HOME: 'M' },
+    );
+    const rel = calculateRelationship(graph, 'HOME', 'COUSIN');
+    expect(rel.label).toBe('1st cousin — also your wife');
+    expect(rel.tier).toBe('blood');
+    expect(rel.isCollateral).toBe(true);
+  });
+});
+
+describe('adoption, fostering, and step links', () => {
+  it('keeps an adopted child on the line and says so', () => {
+    const graph = makeGraph(['F: husband=DAD wife=MOM children=HOME adopted=HOME'], {
+      DAD: 'M',
+      MOM: 'F',
+    });
+    const up = calculateRelationship(graph, 'HOME', 'DAD');
+    expect(up.label).toBe('adoptive father');
+    expect(up.tier).toBe('direct');
+    expect(up.qualifier).toBe('adoptive');
+    const down = calculateRelationship(graph, 'DAD', 'HOME');
+    expect(down.label).toBe('adopted child');
+    expect(down.tier).toBe('direct');
+  });
+
+  it('carries the qualifier up past the typed link', () => {
+    const graph = makeGraph(
+      ['F: husband=GF children=DAD', 'F: husband=DAD children=HOME adopted=HOME'],
+      { GF: 'M', DAD: 'M' },
+    );
+    expect(calculateRelationship(graph, 'HOME', 'GF').label).toBe('adoptive grandfather');
+  });
+
+  it('distinguishes a birth parent from an adoptive one', () => {
+    const graph = makeGraph(
+      ['F: husband=BIRTHDAD children=HOME', 'F: husband=ADOPTDAD children=HOME adopted=HOME'],
+      { BIRTHDAD: 'M', ADOPTDAD: 'M' },
+    );
+    expect(calculateRelationship(graph, 'HOME', 'BIRTHDAD').label).toBe('birth father');
+    expect(calculateRelationship(graph, 'HOME', 'ADOPTDAD').label).toBe('adoptive father');
+  });
+
+  it('never lets a step link claim a parent slot', () => {
+    const graph = makeGraph(
+      ['F: husband=STEPDAD children=HOME step=HOME', 'F: husband=DAD children=HOME'],
+      { STEPDAD: 'M', DAD: 'M' },
+    );
+    expect(calculateRelationship(graph, 'HOME', 'DAD').label).toBe('father');
+    expect(calculateRelationship(graph, 'HOME', 'STEPDAD').tier).not.toBe('direct');
+  });
+
+  it('keeps a fostered child on the line with a foster label', () => {
+    const graph = makeGraph(['F: wife=FMOM children=HOME foster=HOME'], { FMOM: 'F' });
+    expect(calculateRelationship(graph, 'HOME', 'FMOM').label).toBe('foster mother');
   });
 });

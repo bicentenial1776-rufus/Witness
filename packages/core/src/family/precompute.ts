@@ -2,7 +2,14 @@
 // (portSync.test.ts enforces byte equality outside this header).
 
 import { buildGraphFromRows, type FamilyGraph, type GraphFamilyChildRow, type GraphFamilyRow, type GraphIndividualRow } from './graph.js';
-import { ancestorDepths, calculateRelationship } from './relationship.js';
+import {
+  bloodWithin,
+  calculateRelationship,
+  ancestorDepths,
+  relationshipContext,
+  type LinkQualifier,
+  type RelationshipTier,
+} from './relationship.js';
 import { fetchAllPages } from '../supabase/paginate.js';
 
 /**
@@ -40,7 +47,7 @@ export async function fetchFamilyGraph(client: DbClient, treeId: string): Promis
       (from, to) =>
         client
           .from('family_children')
-          .select('family_id, individual_id, families!inner(tree_id)')
+          .select('family_id, individual_id, father_relation, mother_relation, families!inner(tree_id)')
           .eq('families.tree_id', treeId)
           .order('family_id')
           .order('individual_id')
@@ -82,10 +89,46 @@ export function bloodRelativeIds(graph: FamilyGraph, homeId: string): string[] {
   return [...visited];
 }
 
+/** How far up or down the line a step junction may sit (mirrors the labeler). */
+const STEP_NEAR_MAX = 2;
+/** How many blood steps past the marriage edge still read as family. */
+const STEP_FAR_MAX = 2;
+
+/**
+ * Candidates for a married-in reading: the spouses of every blood
+ * relative (married into your line), every blood relative of your own
+ * spouses, and the close blood of whoever married into your near line
+ * (step-family). A superset — the labeler makes the final call — but a
+ * far tighter one than "everyone in the tree".
+ */
+function affinityCandidateIds(graph: FamilyGraph, homeId: string, blood: string[]): string[] {
+  const candidates = new Set<string>();
+  const home = graph.people.get(homeId);
+  if (!home) return [];
+
+  for (const id of blood) {
+    for (const spouseId of graph.people.get(id)?.spouses ?? []) candidates.add(spouseId);
+  }
+  for (const spouseId of home.spouses) {
+    for (const id of bloodRelativeIds(graph, spouseId)) candidates.add(id);
+  }
+  // Step-family: the near line, whoever married into it, and their own
+  // close blood.
+  for (const nearId of bloodWithin(graph, homeId, STEP_NEAR_MAX)) {
+    for (const middleId of graph.people.get(nearId)?.spouses ?? []) {
+      for (const id of bloodWithin(graph, middleId, STEP_FAR_MAX)) candidates.add(id);
+    }
+  }
+  candidates.delete(homeId);
+  return [...candidates];
+}
+
 /** A computed relationship row, minus the ownership columns the caller stamps. */
 export interface PrecomputedRelationship {
   individual_id: string;
   label: string;
+  tier: RelationshipTier;
+  qualifier: LinkQualifier | null;
   generation_distance: number;
   line: string;
   path: string[];
@@ -94,27 +137,38 @@ export interface PrecomputedRelationship {
   is_collateral: boolean;
 }
 
-/** Labels every blood relative of homeId. */
+/**
+ * Labels everyone the home person is connected to — blood and married-in
+ * alike. People who resolve to no relationship store no row at all: the
+ * absence is the reading (witness-relationship-taxonomy-spec.md §2).
+ */
 export function computeRelationshipRows(
   graph: FamilyGraph,
   homeId: string,
   onProgress?: (computed: number, total: number) => void,
 ): PrecomputedRelationship[] {
-  const relativeIds = bloodRelativeIds(graph, homeId);
-  const homeAncestors = ancestorDepths(graph, homeId);
+  const blood = bloodRelativeIds(graph, homeId);
+  const seen = new Set(blood);
+  const relativeIds = [...blood];
+  for (const id of affinityCandidateIds(graph, homeId, blood)) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    relativeIds.push(id);
+  }
+
+  const context = relationshipContext(graph, homeId);
   const rows: PrecomputedRelationship[] = [];
   let computed = 0;
   for (const relativeId of relativeIds) {
-    const result = calculateRelationship(graph, homeId, relativeId, homeAncestors);
+    const result = calculateRelationship(graph, homeId, relativeId, context);
     computed += 1;
     onProgress?.(computed, relativeIds.length);
-    // Blood only: the prefilter can surface people the labeler resolves
-    // as in-laws (spouse links win over distant blood); skip non-blood.
-    if (!result.isDirectAncestor && !result.isDirectDescendant && !result.isCollateral) continue;
-    if (result.confidence === 'none') continue;
+    if (result.tier === 'none' || result.confidence === 'none') continue;
     rows.push({
       individual_id: relativeId,
       label: result.label,
+      tier: result.tier,
+      qualifier: result.qualifier,
       generation_distance: result.generationDistance,
       line: result.line,
       path: result.path,

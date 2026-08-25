@@ -1154,6 +1154,8 @@ export type Database = {
           label: string
           line: string
           path: Json
+          qualifier: string | null
+          tier: string
           tree_id: string
           user_id: string
         }
@@ -1169,6 +1171,8 @@ export type Database = {
           label: string
           line: string
           path: Json
+          qualifier?: string | null
+          tier: string
           tree_id: string
           user_id: string
         }
@@ -1184,6 +1188,8 @@ export type Database = {
           label?: string
           line?: string
           path?: Json
+          qualifier?: string | null
+          tier?: string
           tree_id?: string
           user_id?: string
         }
