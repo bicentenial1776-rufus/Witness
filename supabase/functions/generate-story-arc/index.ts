@@ -32,13 +32,17 @@ import {
 } from '../_shared/enrich.ts';
 
 const MODEL = 'claude-opus-5';
+// v4: papers filtered to the person's own state (a Spencer, Mass. family
+// was getting Pennsylvania papers that merely said "Spencer"), thumbnails
+// rehosted to arc-assets at generation (tile.loc.gov takes a minute), and
+// the tap-through goes to the scan itself, not loc.gov's viewer.
 // v3 (2026-08-25, Rufus's revisions): longer tellings (4–7 sentences),
 // and the "Their world, further" layer — era facts grounded in fetched
 // Wikipedia year articles, a period newspaper page from Chronicling
 // America, and a public-domain era recording where the years allow.
 // v2: placeholder events (no year/place/detail) no longer reach the
 // prompt or the fact line. Cached arcs regenerate via the rotation.
-const PROMPT_VERSION = 3;
+const PROMPT_VERSION = 4;
 const MIN_FOUNDER_DEPTH = 6;
 const MAX_CHAIN = 20;
 
@@ -137,22 +141,50 @@ async function wikiExtract(title: string, chars = 1300): Promise<string | null> 
 export interface ArcPaper {
   title: string;
   date: string;
+  /** Card thumbnail — rehosted to the arc-assets bucket at generation
+      time; tile.loc.gov renders on demand and can take a minute. */
   image: string;
+  /** The scan itself at readable width (direct IIIF), for the tap-through
+      — loc.gov's own viewer page is what took the minute. */
+  imageFull: string;
   url: string;
   hits: number;
 }
 
-/** One period newspaper page mentioning the person's town, from the
-    Library of Congress (Chronicling America now lives in the loc.gov
-    API — the classic endpoint is retired). Coverage 1756–1963, US. */
-async function fetchPaper(town: string, from: number, to: number): Promise<ArcPaper | null> {
+/** Swap the size segment of a loc.gov IIIF url: ".../full/pct:6.25/0/default.jpg#h=..." → width-based. */
+function iiifAt(url: string, width: number): string {
+  return url.split('#')[0].replace(/\/full\/[^/]+\/0\/default\.jpg.*$/, `/full/${width},/0/default.jpg`);
+}
+
+const US_STATES = [
+  'alabama','alaska','arizona','arkansas','california','colorado','connecticut','delaware',
+  'florida','georgia','hawaii','idaho','illinois','indiana','iowa','kansas','kentucky',
+  'louisiana','maine','maryland','massachusetts','michigan','minnesota','mississippi',
+  'missouri','montana','nebraska','nevada','new hampshire','new jersey','new mexico',
+  'new york','north carolina','north dakota','ohio','oklahoma','oregon','pennsylvania',
+  'rhode island','south carolina','south dakota','tennessee','texas','utah','vermont',
+  'virginia','washington','west virginia','wisconsin','wyoming','district of columbia',
+];
+
+/** One period newspaper page from the person's own state that mentions
+    their town, via the Library of Congress (Chronicling America now
+    lives in the loc.gov API — the classic endpoint is retired).
+    Coverage 1756–1963, US. The state filter is what keeps a Spencer,
+    Massachusetts family out of Pennsylvania papers that merely contain
+    the word "Spencer". */
+async function fetchPaper(
+  town: string,
+  state: string,
+  from: number,
+  to: number,
+): Promise<ArcPaper | null> {
   const y1 = Math.max(from, 1756);
   const y2 = Math.min(to, 1963);
-  if (!town || y1 >= y2) return null;
+  if (!town || !state || y1 >= y2) return null;
   // loc.gov search regularly takes 30+ seconds — callers must hide this
   // behind the model call, never hold a prompt on it.
   const d = (await fetchJson(
-    `https://www.loc.gov/collections/chronicling-america/?q=${encodeURIComponent(town)}&dates=${y1}/${y2}&fo=json&c=3`,
+    `https://www.loc.gov/collections/chronicling-america/?q=${encodeURIComponent(town)}&fa=${encodeURIComponent(`location_state:${state}`)}&dates=${y1}/${y2}&fo=json&c=3`,
     50_000,
   )) as {
     pagination?: { of?: number };
@@ -170,7 +202,8 @@ async function fetchPaper(town: string, from: number, to: number): Promise<ArcPa
       .trim()
       .replace(/\b\w/g, (ch) => ch.toUpperCase()),
     date: hit.date!,
-    image: hit.image_url![0],
+    image: iiifAt(hit.image_url![0], 500),
+    imageFull: iiifAt(hit.image_url![0], 1800),
     url: hit.id!.replace(/^http:/, 'https:'),
     hits: d?.pagination?.of ?? 1,
   };
@@ -409,12 +442,15 @@ Deno.serve(async (req) => {
   // Anchor: the year each person turned twenty, clamped to their span.
   // Towns come from the birth (else death) event's place. Wikipedia year
   // articles are deduped across generations; every fetch is best-effort.
-  const townOf = (id: string): string => {
+  const placeOf = (id: string): { town: string; state: string } => {
     const rows = (eventRows ?? []).filter((e) => e.individual_id === id);
     const pick =
       rows.find((e) => e.event_type === 'birth') ?? rows.find((e) => e.event_type === 'death');
     const raw = (pick as { places: { raw: string } | null } | undefined)?.places?.raw;
-    return raw ? raw.split(',')[0].trim() : '';
+    if (!raw) return { town: '', state: '' };
+    const parts = raw.split(',').map((p) => p.trim());
+    const state = parts.find((p) => US_STATES.includes(p.toLowerCase()))?.toLowerCase() ?? '';
+    return { town: parts[0] ?? '', state };
   };
   const anchorOf = (c: ChainPerson): number | null =>
     c.birth === null ? null : Math.min(c.birth + 20, c.death ?? c.birth + 20);
@@ -455,13 +491,43 @@ Deno.serve(async (req) => {
     }),
   );
 
+  // Thumbnails rehost to the public arc-assets bucket at generation time:
+  // tile.loc.gov renders images on demand and can take a minute, which is
+  // a fine price once, here, and a terrible one on every reader's screen.
+  const rehostThumb = async (paper: ArcPaper, personId: string): Promise<ArcPaper> => {
+    try {
+      const res = await fetch(paper.image, {
+        headers: { 'User-Agent': UA },
+        signal: AbortSignal.timeout(50_000),
+      });
+      if (!res.ok) return paper;
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      const path = `papers/${founderId}/${personId}.jpg`;
+      const { error } = await ctx.admin.storage
+        .from('arc-assets')
+        .upload(path, bytes, { contentType: 'image/jpeg', upsert: true });
+      if (error) return paper;
+      return {
+        ...paper,
+        image: `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/arc-assets/${path}`,
+      };
+    } catch {
+      return paper;
+    }
+  };
+
   const fetchExtras = () =>
     Promise.all(
       chain.map(async (c) => {
         if (c.living) return { paper: null, audio: null };
         const anchor = anchorOf(c);
+        const { town, state } = placeOf(c.id);
         const [paper, audio] = await Promise.all([
-          c.birth && c.death ? fetchPaper(townOf(c.id), c.birth, c.death) : Promise.resolve(null),
+          c.birth && c.death
+            ? fetchPaper(town, state, c.birth, c.death).then((p) =>
+                p ? rehostThumb(p, c.id) : null,
+              )
+            : Promise.resolve(null),
           // Anyone alive during the recorded era (1900–1925) gets its
           // sound: clamp their 20th-year anchor into the window.
           anchor && c.birth && c.birth <= 1925 && (c.death ?? c.birth + 80) >= 1900

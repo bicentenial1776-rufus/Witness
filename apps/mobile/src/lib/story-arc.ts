@@ -16,7 +16,11 @@ export interface ArcWorldFact {
 export interface ArcPaper {
   title: string;
   date: string;
+  /** Card thumbnail — rehosted to the arc-assets bucket (CDN-fast). */
   image: string;
+  /** The scan at readable width (direct IIIF) — the tap-through target;
+      loc.gov's own viewer page takes a minute to load. */
+  imageFull?: string;
   url: string;
   hits: number;
 }

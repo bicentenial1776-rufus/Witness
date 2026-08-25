@@ -159,7 +159,7 @@ function GenerationBlock({ g, index }: { g: ArcGeneration; index: number }) {
               )}
               {g.paper && (
                 <Pressable
-                  onPress={() => WebBrowser.openBrowserAsync(g.paper!.url)}
+                  onPress={() => WebBrowser.openBrowserAsync(g.paper!.imageFull ?? g.paper!.url)}
                   accessibilityRole="button"
                   accessibilityLabel={`Read the full page of ${g.paper.title}`}
                   style={{ flexDirection: 'row', gap: 10 }}
