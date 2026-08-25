@@ -1,7 +1,7 @@
 {
   "comment": "Witness Field Guide manifest — read by the /field-guide skill. lastSyncedCommit is the apps/mobile commit whose UI this guide's copy describes; the skill diffs it against HEAD to find screens that changed.",
   "baseUrl": "https://witnesslives.com/guide/",
-  "lastSyncedCommit": "731b25f",
+  "lastSyncedCommit": "2813991",
   "pages": [
     {
       "file": "concepts.html",
@@ -180,6 +180,7 @@
       "appSources": [
         "apps/mobile/src/app/(app)/ancestor/[id].tsx",
         "apps/mobile/src/components/pedigree-chart.tsx",
+        "apps/mobile/src/lib/grave-link.ts",
         "packages/core/src/family/relatives.ts"
       ],
       "shots": [
@@ -223,6 +224,38 @@
           "file": "shots/orphan-records.png",
           "status": "placed",
           "shows": "Orphan Records: tally (islands/solo), island card with suggestion, Mark fixed / Not an error"
+        }
+      ]
+    },
+    {
+      "file": "punch-list.html",
+      "title": "The Margin & the Punch List",
+      "covers": [
+        "in-the-margin corrections (add flow, ✎ glyphs, covenant)",
+        "correction vs note distinction",
+        "punch list three folds",
+        "unified CSV export",
+        "entered at the source",
+        "may-have-been-adopted notice",
+        "broadsheet split view"
+      ],
+      "appSources": [
+        "apps/mobile/src/app/(app)/punch-list.tsx",
+        "apps/mobile/src/components/margin-corrections.tsx",
+        "apps/mobile/src/lib/corrections.ts",
+        "packages/core/src/corrections/subjects.ts",
+        "packages/core/src/export/punchList.ts"
+      ],
+      "shots": [
+        {
+          "file": "shots/person-margin.png",
+          "status": "pending",
+          "stage": "Bottom of a person's page: In the margin with one OPEN correction card (Record says / Should be / italic note) and a ✎ glyph visible beside the corrected fact above"
+        },
+        {
+          "file": "shots/punch-list.png",
+          "status": "pending",
+          "stage": "The punch list: open-items tally + export link, corrections fold expanded on a card with Entered at the source ✓ and the Ancestry link"
         }
       ]
     }
