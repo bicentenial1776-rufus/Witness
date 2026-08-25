@@ -20,7 +20,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { getGeographyIndex } from '@/lib/geography-cache';
-import { getRelationshipMap } from '@/lib/relationship-cache';
+import { getLineageScope } from '@/lib/lineage-scope';
+import { getLineageTierMap, getRelationshipMap } from '@/lib/relationship-cache';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
@@ -113,6 +114,13 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
   // Burial + Death together, not one at a time.
   const [eventTypes, setEventTypes] = useState<Set<GeoEventType>>(new Set());
   const [view, setView] = useState<'list' | 'map'>('list');
+  // Ruth's question (2026-08-24): "am I seeing only people related to me?"
+  // She wasn't — every geocoded event in radius showed. Now the default is
+  // your own people, honoring the featuring scope (direct line vs all blood
+  // from the You tab); Everyone is one tap away. null = the relationship
+  // rows couldn't load (offline) — fail open and show everyone, unfiltered.
+  const [familyIds, setFamilyIds] = useState<Set<string> | null>(null);
+  const [kinship, setKinship] = useState<'family' | 'everyone'>('family');
 
   const liveMiles = milesFromT(liveT);
   const radiusMiles = milesFromT(committedT);
@@ -127,6 +135,14 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
     getRelationshipMap(treeId).then((map) => {
       if (!cancelled) setRelationships(map);
     });
+    Promise.all([getLineageTierMap(treeId), getLineageScope()])
+      .then(([tiers, scope]) => {
+        if (cancelled) return;
+        const ids = new Set<string>();
+        for (const [pid, tier] of tiers) if (scope === 'all' || tier === 'direct') ids.add(pid);
+        setFamilyIds(ids);
+      })
+      .catch(() => {});
     (async () => {
       // Look, don't ask: only an already-granted permission proceeds here.
       // The request itself waits for the priming card's button.
@@ -187,22 +203,35 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
   const centuries = useMemo(() => (nearby ? centuriesOf(nearby) : []), [nearby]);
   const typesPresent = useMemo(() => (nearby ? eventTypesOf(nearby) : []), [nearby]);
 
-  const sections = useMemo(() => {
-    if (!nearby) return [];
+  // One filtered view of the hits, shared by the list sections and the map
+  // pins — a marker must never claim people the list would not show.
+  const filteredNearby = useMemo(() => {
+    if (!nearby) return null;
     return nearby
       .map((hit) => ({
-        title: `${hit.place.parts[0] ?? hit.place.raw} · ${distanceLabel(hit.distanceKm)}`,
-        placeId: hit.place.id,
-        data: hit.residents.filter(
+        ...hit,
+        residents: hit.residents.filter(
           (resident) =>
+            (kinship === 'everyone' ||
+              familyIds === null ||
+              familyIds.has(resident.individual.id)) &&
             (century === null ||
               resident.events.some((e) => e.year && Math.floor(e.year / 100) * 100 === century)) &&
             (eventTypes.size === 0 ||
               resident.events.some((e) => eventTypes.has(e.eventType))),
         ),
       }))
-      .filter((section) => section.data.length > 0);
-  }, [nearby, century, eventTypes]);
+      .filter((hit) => hit.residents.length > 0);
+  }, [nearby, century, eventTypes, kinship, familyIds]);
+
+  const sections = useMemo(() => {
+    if (!filteredNearby) return [];
+    return filteredNearby.map((hit) => ({
+      title: `${hit.place.parts[0] ?? hit.place.raw} · ${distanceLabel(hit.distanceKm)}`,
+      placeId: hit.place.id,
+      data: hit.residents,
+    }));
+  }, [filteredNearby]);
 
   const toggleEventType = (type: GeoEventType) =>
     setEventTypes((prev) => {
@@ -275,7 +304,9 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
             <ThemedText type="subtitle">
               {totalPeople > 0
                 ? `${totalPeople.toLocaleString()} of your family's people have history within ${radiusMiles} mi of you`
-                : `No family places within ${radiusMiles} mi — widen the search`}
+                : kinship === 'family' && nearby.length > 0
+                  ? `No relatives within ${radiusMiles} mi — Everyone shows the rest of the tree`
+                  : `No family places within ${radiusMiles} mi — widen the search`}
             </ThemedText>
           )}
 
@@ -345,6 +376,26 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
                 </ThemedText>
               </View>
             </View>
+            {/* Who counts: your own people (per the featuring scope) by
+                default — Ruth's question made plain the old list read as
+                "my relatives" while showing the whole tree. The chip pair
+                only appears when the relationship rows loaded. */}
+            {view === 'list' && familyIds !== null && familyIds.size > 0 && (
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                <Chip
+                  label="Your family"
+                  active={kinship === 'family'}
+                  activeColor={theme.accent}
+                  onPress={() => setKinship('family')}
+                />
+                <Chip
+                  label="Everyone"
+                  active={kinship === 'everyone'}
+                  activeColor={theme.accent}
+                  onPress={() => setKinship('everyone')}
+                />
+              </View>
+            )}
             {view === 'list' && centuries.length > 1 && (
               <ScrollView
                 horizontal
@@ -441,7 +492,7 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
                   longitudeDelta: (radiusKm / 111) * 2.4,
                 }}
               >
-                {nearby.map((hit) => (
+                {(filteredNearby ?? []).map((hit) => (
                   <Marker
                     key={hit.place.id}
                     coordinate={{ latitude: hit.place.latitude!, longitude: hit.place.longitude! }}

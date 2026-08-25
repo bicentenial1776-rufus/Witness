@@ -22,7 +22,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useActiveTree } from '@/lib/active-tree';
 import { getGeographyIndex } from '@/lib/geography-cache';
-import { getRelationshipMap } from '@/lib/relationship-cache';
+import { getLineageScope } from '@/lib/lineage-scope';
+import { getLineageTierMap, getRelationshipMap } from '@/lib/relationship-cache';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
@@ -224,6 +225,12 @@ export default function ProximityTab() {
   const [century, setCentury] = useState<number | null>(null);
   // Empty set = no filter; multi-select so Burial + Death can ride together.
   const [eventTypes, setEventTypes] = useState<Set<GeoEventType>>(new Set());
+  // Ruth's question (2026-08-24): the list read as "my relatives" while
+  // showing every geocoded event in radius. Default now honors the
+  // featuring scope; Everyone is one tap away. null = relationship rows
+  // unavailable — fail open, filter nothing.
+  const [familyIds, setFamilyIds] = useState<Set<string> | null>(null);
+  const [kinship, setKinship] = useState<'family' | 'everyone'>('family');
 
   useEffect(() => {
     if (!treeId) return;
@@ -234,6 +241,14 @@ export default function ProximityTab() {
     getRelationshipMap(treeId).then((map) => {
       if (!cancelled) setRelationships(map);
     });
+    Promise.all([getLineageTierMap(treeId), getLineageScope()])
+      .then(([tiers, scope]) => {
+        if (cancelled) return;
+        const ids = new Set<string>();
+        for (const [pid, tier] of tiers) if (scope === 'all' || tier === 'direct') ids.add(pid);
+        setFamilyIds(ids);
+      })
+      .catch(() => {});
     if (!navigator.geolocation) {
       setDenied(true);
     } else {
@@ -273,6 +288,9 @@ export default function ProximityTab() {
         placeId: hit.place.id,
         residents: hit.residents.filter(
           (resident) =>
+            (kinship === 'everyone' ||
+              familyIds === null ||
+              familyIds.has(resident.individual.id)) &&
             (century === null ||
               resident.events.some((e) => e.year && Math.floor(e.year / 100) * 100 === century)) &&
             (eventTypes.size === 0 ||
@@ -280,7 +298,7 @@ export default function ProximityTab() {
         ),
       }))
       .filter((section) => section.residents.length > 0);
-  }, [nearby, century, eventTypes]);
+  }, [nearby, century, eventTypes, kinship, familyIds]);
 
   const toggleEventType = (type: GeoEventType) =>
     setEventTypes((prev) => {
@@ -455,6 +473,32 @@ export default function ProximityTab() {
                 );
               })}
             </View>
+
+            {familyIds !== null && familyIds.size > 0 && (
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 22, marginTop: 12 }}>
+                <RecordText eyebrow muted>
+                  Showing
+                </RecordText>
+                {(['family', 'everyone'] as const).map((mode) => {
+                  const active = kinship === mode;
+                  return (
+                    <Pressable key={mode} onPress={() => setKinship(mode)}>
+                      <View
+                        style={{
+                          borderBottomWidth: 2,
+                          borderBottomColor: active ? BC.accent : 'transparent',
+                          paddingBottom: 3,
+                        }}
+                      >
+                        <RecordText accent={active} muted={!active}>
+                          {mode === 'family' ? 'YOUR FAMILY' : 'EVERYONE'}
+                        </RecordText>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
 
             {typesPresent.length > 1 && (
               <View
