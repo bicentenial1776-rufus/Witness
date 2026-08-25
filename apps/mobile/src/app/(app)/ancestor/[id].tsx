@@ -36,9 +36,12 @@ import { type CorrectionRow } from '@/lib/corrections';
 import { PedigreeChart } from '@/components/pedigree-chart';
 import { STORY_SHARE_LABEL, shareStory } from '@/lib/share-story';
 import { fetchRelativeFacts, relativesBrief, type RelativeFact } from '@witness/core/family';
+import { portraitFromIndex } from '@witness/core/query';
 import { getPersonCuriosities, type Curiosity } from '@/lib/curiosities-cache';
 import { getEventLibrary } from '@/lib/event-library';
 import { getFamilyStages } from '@/lib/family-stage-cache';
+import { useActiveTree } from '@/lib/active-tree';
+import { getTreeIndex } from '@/lib/tree-index-cache';
 import { advanceTrail, dismissTrail, nextTrailPiece } from '@/lib/issue-trail';
 import { VISITED_MARK, fetchVisitedSet, recordVisit } from '@/lib/visits';
 import { createAncestorShareLink } from '@/lib/share-links';
@@ -487,8 +490,16 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   const params = useLocalSearchParams<{ id: string }>();
   const id = personId ?? params.id;
   const theme = useTheme();
+  const { activeTree } = useActiveTree();
   const [person, setPerson] = useState<Person | null>(null);
   const [missing, setMissing] = useState(false);
+  // The page is standing on the saved field copy: identity, vitals, and the
+  // register are real; everything that needs the server stays quiet
+  // (SPEC_offline-field-mode.md).
+  const [fromFieldCopy, setFromFieldCopy] = useState(false);
+  // Network down AND no saved copy covers this person — say that, not
+  // "this record isn't here anymore".
+  const [unreachable, setUnreachable] = useState(false);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [parents, setParents] = useState<RegisterPerson[]>([]);
   const [siblings, setSiblings] = useState<RegisterPerson[]>([]);
@@ -683,6 +694,8 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     let cancelled = false;
     setPerson(null);
     setMissing(false);
+    setFromFieldCopy(false);
+    setUnreachable(false);
     setEvents([]);
     setParents([]);
     setSiblings([]);
@@ -701,7 +714,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     setParentStories(new Set());
     setOpenCorrections([]);
     (async () => {
-      const [{ data: personRow }, { data: eventRows }] = await Promise.all([
+      const [{ data: personRow, error: personError }, { data: eventRows }] = await Promise.all([
         supabase
           .from('individuals')
           .select('id, tree_id, full_name, sex, birth_year, death_year, living, gedcom_xref, familysearch_id')
@@ -715,6 +728,39 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           .returns<EventRow[]>(),
       ]);
       if (cancelled) return;
+      if (!personRow && personError) {
+        // The server is unreachable, not the record missing — the saved
+        // field copy renders identity, vitals, and the register; the
+        // live-only sections stay quiet (SPEC_offline-field-mode.md).
+        const treeId = activeTree?.id;
+        if (treeId) {
+          try {
+            const index = await getTreeIndex(treeId);
+            const portrait = portraitFromIndex(index, id);
+            if (cancelled) return;
+            if (portrait) {
+              setFromFieldCopy(true);
+              setPerson({ ...portrait.person, tree_id: treeId, gedcom_xref: '', familysearch_id: null });
+              setEvents(
+                portrait.events.map((e) => ({
+                  event_type: e.event_type,
+                  date_year: e.date_year,
+                  date_raw: null,
+                  places: e.place,
+                })),
+              );
+              setParents(dedupeByIdentity(portrait.parents));
+              setSiblings(dedupeByIdentity(portrait.siblings, id));
+              setMarriages(portrait.marriages);
+              return;
+            }
+          } catch {
+            // No copy either — fall through to the honest message.
+          }
+        }
+        if (!cancelled) setUnreachable(true);
+        return;
+      }
       setPerson(personRow);
       // RLS answers null for a record outside the signed-in tree — a stale
       // resume point after re-import or an account switch. Say so rather
@@ -953,7 +999,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, activeTree?.id]);
 
   // One panel open at a time; opening Their World kicks off its lookup.
   function togglePanel(next: 'story' | 'world') {
@@ -997,6 +1043,15 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             <ThemedText type="small">
               It may belong to a tree that was replaced by a new upload, or to a different
               account. The tree tab has the current record.
+            </ThemedText>
+          </>
+        ) : unreachable ? (
+          <>
+            <ThemedText type="subtitle">Couldn’t reach this record</ThemedText>
+            <ThemedText type="small">
+              There’s no connection right now, and no saved copy covers this person. Nothing
+              has been lost — come back within signal, or open the tree once online to save a
+              copy for the field.
             </ThemedText>
           </>
         ) : (
@@ -1292,8 +1347,17 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           </Pressable>
         )}
 
+        {/* On the saved copy every control in this row needs the server —
+            one quiet line stands in for all of them. */}
+        {fromFieldCopy && (
+          <ThemedText type="small" style={{ marginTop: 18 }}>
+            From your saved copy — stories, sources, and notes need a connection.
+          </ThemedText>
+        )}
+
         {/* Controls: Story / Their World open in place; Ancestry and Share
             are the per-person ways off this page, pushed to the right. */}
+        {!fromFieldCopy && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 18 }}>
           {!person.living &&
             (['story', 'world'] as const).map((panel) => {
@@ -1359,6 +1423,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             )}
           </View>
         </View>
+        )}
 
         {/* Inline expanders: the panel opens between the controls and the
             register, which just shifts down — nothing navigates away. */}
@@ -1608,8 +1673,11 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
 
         {/* The margin: the reader's own corrections, pencilled beside the
             record and carried to the source on the punch list. Renders for
-            living people too — a census error on a living relative is real. */}
-        <MarginCorrections person={person} events={events} onChanged={setOpenCorrections} />
+            living people too — a census error on a living relative is real.
+            Not on the saved copy: a pencil that can't save is a broken one. */}
+        {!fromFieldCopy && (
+          <MarginCorrections person={person} events={events} onChanged={setOpenCorrections} />
+        )}
 
         {sources.length > 0 && (
           <>
@@ -1646,7 +1714,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             2026-08-24). Imported citations CLAIM a memorial; only the reader
             can verify it. The search opens in their own browser; Witness
             stores nothing but the URL they confirm. */}
-        {person && !person.living && (
+        {person && !person.living && !fromFieldCopy && (
           <View style={{ marginTop: 16, gap: 6 }}>
             <ThemedText type="subtitle">Burial record</ThemedText>
             {graveConf && graveFlow === 'idle' && (

@@ -9,7 +9,7 @@ import {
   type HistoricalEvent,
   type ShelfEntry,
 } from '@witness/core/history';
-import { type GeographyIndex } from '@witness/core/query';
+import { searchIndex, type GeographyIndex } from '@witness/core/query';
 
 import { useBroadsheet } from '@/components/broadsheet';
 import { ExploreBroadsheet, PEOPLE_PAGE, type EraCount } from '@/components/broadsheet/explore-broadsheet';
@@ -24,6 +24,7 @@ import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { getEventLibrary } from '@/lib/event-library';
 import { getShelf } from '@/lib/shelf-cache';
 import { supabase } from '@/lib/supabase';
+import { getTreeIndex } from '@/lib/tree-index-cache';
 import { WideContent } from '@/constants/theme';
 
 interface PersonHit {
@@ -87,6 +88,8 @@ export default function ExploreTab() {
     };
   }, [people]);
   const [peopleTotal, setPeopleTotal] = useState(0);
+  // True when the hits came from the saved field copy, not the server.
+  const [searchFromCopy, setSearchFromCopy] = useState(false);
   const [peoplePage, setPeoplePage] = useState(0);
   const broadsheet = useBroadsheet();
   const [geoIndex, setGeoIndex] = useState<GeographyIndex | null>(null);
@@ -174,11 +177,15 @@ export default function ExploreTab() {
     if (!q || q.length < 2 || !activeTree) {
       setPeople([]);
       setPeopleTotal(0);
+      setSearchFromCopy(false);
       return;
     }
     let cancelled = false;
     const timer = setTimeout(async () => {
-      const { data } = await supabase
+      // Live search on a short fuse: one bar of LTE hangs, it doesn't fail
+      // (SPEC_offline-field-mode.md). On an error or a stall, the saved
+      // field copy answers the same question locally.
+      const live = supabase
         .rpc('search_people', {
           p_tree_id: activeTree.id,
           p_query: q,
@@ -186,10 +193,31 @@ export default function ExploreTab() {
           p_offset: peoplePage * PEOPLE_PAGE,
         })
         .returns<SearchPersonRow[]>();
+      const result = await Promise.race([
+        live,
+        new Promise<'stalled'>((resolve) => setTimeout(() => resolve('stalled'), 4000)),
+      ]);
       if (cancelled) return;
-      const rows = data ?? [];
-      setPeopleTotal(rows[0]?.total ?? 0);
-      setPeople(rows.map(({ total: _total, place, ...person }) => ({ ...person, place: place ?? undefined })));
+      if (result !== 'stalled' && !result.error) {
+        const rows = result.data ?? [];
+        setSearchFromCopy(false);
+        setPeopleTotal(rows[0]?.total ?? 0);
+        setPeople(rows.map(({ total: _total, place, ...person }) => ({ ...person, place: place ?? undefined })));
+        return;
+      }
+      try {
+        const index = await getTreeIndex(activeTree.id);
+        if (cancelled) return;
+        const page = searchIndex(index, q, PEOPLE_PAGE, peoplePage * PEOPLE_PAGE);
+        setSearchFromCopy(true);
+        setPeopleTotal(page.total);
+        setPeople(page.hits.map(({ place, ...person }) => ({ ...person, place: place ?? undefined })));
+      } catch {
+        if (!cancelled) {
+          setPeople([]);
+          setPeopleTotal(0);
+        }
+      }
     }, 250);
     return () => {
       cancelled = true;
@@ -331,6 +359,11 @@ export default function ExploreTab() {
                       peopleTotal > PEOPLE_PAGE ? `, showing ${peopleFirst}–${peopleLast}` : ''
                     }`}
               </ThemedText>
+              {searchFromCopy && (
+                <ThemedText type="small">
+                  From your saved copy — searched without a connection.
+                </ThemedText>
+              )}
               {people.map((person) => (
                 <Card
                   key={person.id}

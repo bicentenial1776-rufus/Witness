@@ -3,7 +3,9 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 
 import { useSession } from '@/auth/session-provider';
 import { invalidateRelationshipCache } from '@/lib/relationship-cache';
+import { pruneTreeIndexCopies } from '@/lib/offline-tree';
 import { supabase } from '@/lib/supabase';
+import { getTreeIndex } from '@/lib/tree-index-cache';
 
 /**
  * The signed-in user's trees, shared app-wide so tab screens don't need
@@ -18,9 +20,14 @@ import { supabase } from '@/lib/supabase';
  */
 
 const SELECTED_KEY = 'witness.selectedTreeId';
+const TREE_LIST_KEY = 'witness.treeList';
 
 function storageKey(userId: string): string {
   return `${SELECTED_KEY}.${userId}`;
+}
+
+function treeListKey(userId: string): string {
+  return `${TREE_LIST_KEY}.${userId}`;
 }
 
 export interface TreeRow {
@@ -90,9 +97,27 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
       // on the server.
       console.warn('Could not load trees', error.message);
       setLoadFailed(true);
+      // With nothing in memory at all, the saved list is what lets the app
+      // stand up in the field (SPEC_offline-field-mode.md) — every screen
+      // needs an activeTree before it can even reach the saved tree copy.
+      // loadFailed stays true: this data is real, but it is yesterday's.
+      if (userId) {
+        try {
+          const stored = await AsyncStorage.getItem(treeListKey(userId));
+          if (stored) {
+            setTrees((current) => current ?? (JSON.parse(stored) as TreeRow[]));
+          }
+        } catch {
+          // An unreadable saved list is just the pre-offline behavior.
+        }
+      }
       return;
     }
     setLoadFailed(false);
+    if (userId) {
+      AsyncStorage.setItem(treeListKey(userId), JSON.stringify(data ?? [])).catch(() => {});
+    }
+    pruneTreeIndexCopies((data ?? []).map((tree) => tree.id));
     // A home person changed on another device leaves this device's cached
     // relationship labels stale for the whole session — drop them here.
     for (const tree of data ?? []) {
@@ -101,7 +126,7 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
       homePersons.current.set(tree.id, tree.home_person_id);
     }
     setTrees(data);
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     if (session) refresh();
@@ -143,6 +168,15 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
   const activeTree =
     chosen ??
     (trees?.length ? [...trees].sort((a, b) => b.individual_count - a.individual_count)[0] : undefined);
+
+  // Warm the active tree's index once per session (it's session-cached), so
+  // the field copy on disk is as fresh as the last online launch — a
+  // graveside look-up must not depend on having visited the Tree tab
+  // (SPEC_offline-field-mode.md). Fire-and-forget; failure costs nothing.
+  const activeTreeId = activeTree?.id;
+  useEffect(() => {
+    if (activeTreeId && !loadFailed) void getTreeIndex(activeTreeId).catch(() => {});
+  }, [activeTreeId, loadFailed]);
 
   return (
     <ActiveTreeContext.Provider value={{ trees, activeTree, loadFailed, selectTree, refresh }}>

@@ -38,9 +38,12 @@ structure and both target surfaces work offline.
    `fetchTreeIndex`, write it as JSON via expo-file-system, keyed by
    `treeId` + the tree's `imported_at` (a refresh invalidates the copy).
    ~2–4 MB for an 8.6k-person tree; automatic, no "download for offline"
-   chore. Hydrate `tree-index-cache` from disk when the live fetch fails
-   **or times out** — on one bar, requests hang rather than fail, so the
-   offline path engages on a ~4s timeout, not only on hard failure.
+   chore. The index is warmed once per session after the trees load, so
+   the copy is as fresh as the last online launch — the field never
+   depends on having visited the Tree tab. Hydrate `tree-index-cache`
+   from disk when the live fetch fails **or times out** — on one bar,
+   requests hang rather than fail, so the offline path engages on a ~4s
+   timeout, not only on hard failure.
 
 2. **Persist the trees list.** Cache the `TreeRow[]` (tiny) in
    AsyncStorage on every successful load; `ActiveTreeProvider` falls back
@@ -66,12 +69,11 @@ structure and both target surfaces work offline.
    the look-up has to answer questions at the headstone, not stop at a
    card.
 
-6. **Entitlement grace.** First: verify the launch seam with an
-   airplane-mode cold start on a real device (sim can't prove StoreKit
-   caching). If it fails closed to the paywall, persist last-known
-   entitlement ("entitled as of DATE") and honor it offline.
-   **DECIDED (Rufus, 2026-08-24): 7-day grace window** — covers a research
-   trip; lapsed subscribers still meet the wall within a week.
+6. **Entitlement grace.** ~~Verify the launch seam~~ **VERIFIED (Rufus's
+   iPhone, airplane-mode cold start, 2026-08-24): the app opens offline** —
+   RevenueCat serves cached entitlement, the router passes. No grace
+   window needed. (The 7-day decision stands on file should a future SDK
+   or provider change regress this; re-test after RevenueCat upgrades.)
 
 7. **Writes in the field are out of scope for v1.** Visited stars,
    corrections, burial confirmations quietly no-op offline (verify they
