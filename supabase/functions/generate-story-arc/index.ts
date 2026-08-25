@@ -32,6 +32,8 @@ import {
 } from '../_shared/enrich.ts';
 
 const MODEL = 'claude-opus-5';
+// v5: DPLA joins as the third card — a period image of the person's own
+// town from their own years ("SEE THE PLACE"), rehosted like the papers.
 // v4: papers filtered to the person's own state (a Spencer, Mass. family
 // was getting Pennsylvania papers that merely said "Spencer"), thumbnails
 // rehosted to arc-assets at generation (tile.loc.gov takes a minute), and
@@ -42,7 +44,7 @@ const MODEL = 'claude-opus-5';
 // America, and a public-domain era recording where the years allow.
 // v2: placeholder events (no year/place/detail) no longer reach the
 // prompt or the fact line. Cached arcs regenerate via the rotation.
-const PROMPT_VERSION = 4;
+const PROMPT_VERSION = 5;
 const MIN_FOUNDER_DEPTH = 6;
 const MAX_CHAIN = 20;
 
@@ -182,11 +184,10 @@ async function fetchPaper(
   const y2 = Math.min(to, 1963);
   if (!town || !state || y1 >= y2) return null;
   // loc.gov search regularly takes 30+ seconds — callers must hide this
-  // behind the model call, never hold a prompt on it.
-  const d = (await fetchJson(
-    `https://www.loc.gov/collections/chronicling-america/?q=${encodeURIComponent(town)}&fa=${encodeURIComponent(`location_state:${state}`)}&dates=${y1}/${y2}&fo=json&c=3`,
-    50_000,
-  )) as {
+  // behind the model call, never hold a prompt on it. One retry: their
+  // cache usually answers the repeated query quickly.
+  const url = `https://www.loc.gov/collections/chronicling-america/?q=${encodeURIComponent(town)}&fa=${encodeURIComponent(`location_state:${state}`)}&dates=${y1}/${y2}&fo=json&c=3`;
+  const d = ((await fetchJson(url, 50_000)) ?? (await fetchJson(url, 50_000))) as {
     pagination?: { of?: number };
     results?: { partof_title?: string[]; date?: string; id?: string; image_url?: string[] }[];
   } | null;
@@ -212,6 +213,55 @@ async function fetchPaper(
 export interface ArcAudio {
   title: string;
   url: string;
+}
+
+export interface ArcScene {
+  title: string;
+  date: string | null;
+  image: string;
+  url: string;
+  provider: string;
+}
+
+/** A period image of the person's own town from their own years, via the
+    DPLA aggregator (Digital Commonwealth, state archives, LoC…). Prefers
+    a result whose title names the town. */
+async function fetchScene(
+  town: string,
+  state: string,
+  from: number,
+  to: number,
+): Promise<ArcScene | null> {
+  const key = Deno.env.get('DPLA_API_KEY');
+  if (!key || !town || !state) return null;
+  const stateName = state.replace(/\b\w/g, (ch) => ch.toUpperCase());
+  const d = (await fetchJson(
+    `https://api.dp.la/v2/items?sourceResource.spatial.name=${encodeURIComponent(town)}&sourceResource.spatial.state=${encodeURIComponent(stateName)}&sourceResource.type=image&sourceResource.date.after=${from}&sourceResource.date.before=${to}&api_key=${key}&page_size=10&fields=${encodeURIComponent('sourceResource.title,sourceResource.date.displayDate,object,isShownAt,provider.name')}`,
+    15_000,
+  )) as {
+    docs?: {
+      'sourceResource.title'?: string | string[];
+      'sourceResource.date.displayDate'?: string | string[];
+      object?: string | string[];
+      isShownAt?: string;
+      'provider.name'?: string;
+    }[];
+  } | null;
+  const usable = (d?.docs ?? []).filter((doc) => doc.object && doc.isShownAt);
+  const first = (v: string | string[] | undefined): string | null =>
+    Array.isArray(v) ? (v[0] ?? null) : (v ?? null);
+  const pick =
+    usable.find((doc) =>
+      (first(doc['sourceResource.title']) ?? '').toLowerCase().includes(town.toLowerCase()),
+    ) ?? usable[0];
+  if (!pick) return null;
+  return {
+    title: first(pick['sourceResource.title']) ?? `${town}, ${stateName}`,
+    date: first(pick['sourceResource.date.displayDate']),
+    image: first(pick.object)!,
+    url: pick.isShownAt!,
+    provider: pick['provider.name'] ?? 'DPLA',
+  };
 }
 
 /** A public-domain era recording from Wikimedia Commons. Recordings
@@ -492,40 +542,37 @@ Deno.serve(async (req) => {
   );
 
   // Thumbnails rehost to the public arc-assets bucket at generation time:
-  // tile.loc.gov renders images on demand and can take a minute, which is
-  // a fine price once, here, and a terrible one on every reader's screen.
-  const rehostThumb = async (paper: ArcPaper, personId: string): Promise<ArcPaper> => {
+  // source archives render images on demand (tile.loc.gov can take a
+  // minute), which is a fine price once, here, and a terrible one on
+  // every reader's screen.
+  const rehost = async (srcUrl: string, path: string): Promise<string | null> => {
     try {
-      const res = await fetch(paper.image, {
+      const res = await fetch(srcUrl, {
         headers: { 'User-Agent': UA },
         signal: AbortSignal.timeout(50_000),
       });
-      if (!res.ok) return paper;
+      if (!res.ok) return null;
       const bytes = new Uint8Array(await res.arrayBuffer());
-      const path = `papers/${founderId}/${personId}.jpg`;
       const { error } = await ctx.admin.storage
         .from('arc-assets')
-        .upload(path, bytes, { contentType: 'image/jpeg', upsert: true });
-      if (error) return paper;
-      return {
-        ...paper,
-        image: `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/arc-assets/${path}`,
-      };
+        .upload(path, bytes, { contentType: res.headers.get('content-type') ?? 'image/jpeg', upsert: true });
+      if (error) return null;
+      return `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/arc-assets/${path}`;
     } catch {
-      return paper;
+      return null;
     }
   };
 
   const fetchExtras = () =>
     Promise.all(
       chain.map(async (c) => {
-        if (c.living) return { paper: null, audio: null };
+        if (c.living) return { paper: null, audio: null, scene: null };
         const anchor = anchorOf(c);
         const { town, state } = placeOf(c.id);
-        const [paper, audio] = await Promise.all([
+        const [paper, audio, scene] = await Promise.all([
           c.birth && c.death
-            ? fetchPaper(town, state, c.birth, c.death).then((p) =>
-                p ? rehostThumb(p, c.id) : null,
+            ? fetchPaper(town, state, c.birth, c.death).then(async (p) =>
+                p ? { ...p, image: (await rehost(p.image, `papers/${founderId}/${c.id}.jpg`)) ?? p.image } : null,
               )
             : Promise.resolve(null),
           // Anyone alive during the recorded era (1900–1925) gets its
@@ -533,8 +580,13 @@ Deno.serve(async (req) => {
           anchor && c.birth && c.birth <= 1925 && (c.death ?? c.birth + 80) >= 1900
             ? fetchAudio(Math.max(1900, Math.min(anchor, 1925)))
             : Promise.resolve(null),
+          c.birth && c.death
+            ? fetchScene(town, state, c.birth, c.death).then(async (s) =>
+                s ? { ...s, image: (await rehost(s.image, `scenes/${founderId}/${c.id}.jpg`)) ?? s.image } : null,
+              )
+            : Promise.resolve(null),
         ]);
-        return { paper, audio };
+        return { paper, audio, scene };
       }),
     );
 
@@ -640,6 +692,7 @@ Deno.serve(async (req) => {
       worldFacts: storyById.get(c.id)?.worldFacts ?? [],
       paper: extras[i].paper,
       audio: extras[i].audio,
+      scene: extras[i].scene,
     })),
   };
 

@@ -30,7 +30,7 @@ function paperDate(iso: string): string {
 function GenerationBlock({ g, index }: { g: ArcGeneration; index: number }) {
   const L = useLetterpress();
   const [open, setOpen] = useState(false);
-  const further = Boolean(g.worldFacts?.length || g.paper || g.audio);
+  const further = Boolean(g.worldFacts?.length || g.paper || g.audio || g.scene);
   const hasDetails = Boolean(g.factLine || g.world.length > 0 || further);
   return (
     <View
@@ -155,6 +155,28 @@ function GenerationBlock({ g, index }: { g: ArcGeneration; index: number }) {
                     {g.audio.title}
                   </Text>
                   <Text style={mono(10.5, L.muted)}>WIKIMEDIA COMMONS · PUBLIC DOMAIN</Text>
+                </Pressable>
+              )}
+              {g.scene && (
+                <Pressable
+                  onPress={() => WebBrowser.openBrowserAsync(g.scene!.url)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`See the place: ${g.scene.title}`}
+                  style={{ gap: 6 }}
+                >
+                  <Text style={mono(12.5, L.amber)}>SEE THE PLACE</Text>
+                  <Image
+                    source={{ uri: g.scene.image }}
+                    style={{ width: '100%', height: 150, borderWidth: 1, borderColor: L.rule }}
+                    resizeMode="cover"
+                  />
+                  <Text
+                    style={{ fontFamily: BrandFonts.serif.regular, fontSize: 13.5, color: L.ink }}
+                  >
+                    {g.scene.title}
+                    {g.scene.date ? ` · ${g.scene.date}` : ''}
+                  </Text>
+                  <Text style={mono(10.5, L.muted)}>{g.scene.provider.toUpperCase()} · VIA DPLA</Text>
                 </Pressable>
               )}
               {g.paper && (

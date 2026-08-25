@@ -30,6 +30,14 @@ export interface ArcAudio {
   url: string;
 }
 
+export interface ArcScene {
+  title: string;
+  date: string | null;
+  image: string;
+  url: string;
+  provider: string;
+}
+
 export interface ArcGeneration {
   personId: string;
   name: string;
@@ -44,6 +52,8 @@ export interface ArcGeneration {
   worldFacts?: ArcWorldFact[];
   paper?: ArcPaper | null;
   audio?: ArcAudio | null;
+  /** A period image of their town from their years (DPLA). */
+  scene?: ArcScene | null;
 }
 
 export interface StoryArc {
