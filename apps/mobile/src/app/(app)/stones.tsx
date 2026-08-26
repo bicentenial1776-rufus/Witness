@@ -136,14 +136,25 @@ function CandidateCard({
 function CaptureCard({ capture, onChanged }: { capture: GraveCapture; onChanged: () => void }) {
   const L = useLetterpress();
   const [open, setOpen] = useState(false);
-  const [thumb, setThumb] = useState<string | null>(null);
+  const [thumb, setThumb] = useState<{ uri: string; ratio: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const d = capture.divined;
 
   const toggle = () => {
     setOpen((o) => !o);
     if (!thumb && capture.photo_paths[0]) {
-      photoUrl(capture.photo_paths[0]).then(setThumb).catch(() => {});
+      // The whole photo, at its own shape — a cover-crop here reads as
+      // "the camera missed part of the stone" when it didn't.
+      photoUrl(capture.photo_paths[0])
+        .then((url) => {
+          if (!url) return;
+          Image.getSize(
+            url,
+            (w, h) => setThumb({ uri: url, ratio: w > 0 && h > 0 ? w / h : 3 / 4 }),
+            () => setThumb({ uri: url, ratio: 3 / 4 }),
+          );
+        })
+        .catch(() => {});
     }
     if (capture.status === 'failed') {
       rereadCapture(capture.id)
@@ -259,9 +270,9 @@ function CaptureCard({ capture, onChanged }: { capture: GraveCapture; onChanged:
         <View style={{ paddingHorizontal: 12, paddingBottom: 12, gap: 10 }}>
           {thumb && (
             <Image
-              source={{ uri: thumb }}
-              style={{ width: '100%', height: 220, borderWidth: 1, borderColor: L.rule }}
-              resizeMode="cover"
+              source={{ uri: thumb.uri }}
+              style={{ width: '100%', aspectRatio: thumb.ratio, borderWidth: 1, borderColor: L.rule }}
+              resizeMode="contain"
             />
           )}
           {capture.transcription && (
