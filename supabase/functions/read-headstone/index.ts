@@ -99,11 +99,57 @@ interface Candidate {
   reasons: string[];
 }
 
+// ——— the plot graph's scoring leg: the stone's own kinship phrases ———
+
+const HONORIFICS = /\b(mr|mrs|miss|dr|rev|capt|col|gen|hon|dea|esq)\.?\s*/gi;
+
+function cleanName(raw: string): string {
+  return raw
+    .replace(HONORIFICS, '')
+    .replace(/[^A-Za-z .'&]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** "wife of Mr. Asa Haskell" / "dau. of Israel & Polly Bray" → who the
+    stone says this person belongs to. Names missing a surname inherit
+    the last one in the phrase ("Israel & Polly Bray" → Israel Bray). */
+function parseKinHints(phrases: string[]): { spouses: string[]; parents: string[] } {
+  const spouses: string[] = [];
+  const parents: string[] = [];
+  for (const phrase of phrases) {
+    const spouse = /(?:wife|husband)\s+of\s+(.+)/i.exec(phrase);
+    if (spouse) {
+      spouses.push(cleanName(spouse[1]));
+      continue;
+    }
+    const child = /(?:dau(?:ghter)?|son|child)\.?\s+of\s+(.+)/i.exec(phrase);
+    if (child) {
+      const names = cleanName(child[1]).split(/\s*(?:&|and)\s*/i).filter(Boolean);
+      const lastTokens = names[names.length - 1]?.split(' ') ?? [];
+      const surname = lastTokens.length > 1 ? lastTokens[lastTokens.length - 1] : '';
+      for (const n of names) {
+        parents.push(n.includes(' ') || !surname ? n : `${n} ${surname}`);
+      }
+    }
+  }
+  return { spouses, parents };
+}
+
+/** Loose person-name match: every token of the hint appears in the
+    candidate name (or vice versa for single-token hints). */
+function namesAgree(hint: string, treeName: string): boolean {
+  const h = hint.toLowerCase().split(' ').filter((t) => t.length > 1);
+  const t = treeName.toLowerCase();
+  if (!h.length) return false;
+  return h.every((token) => t.includes(token));
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json(405, { error: 'POST only' });
 
-  let body: { captureId?: string };
+  let body: { captureId?: string; rescoreOnly?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -125,10 +171,15 @@ Deno.serve(async (req) => {
     return json(409, { error: `Capture is ${capture.status}` });
   }
 
-  const gate = (await checkEntitlement(ctx)) ?? (await checkDailyLimit(ctx));
-  if (gate) return gate;
+  // Rescore: reuse the stored reading and re-run only the matching —
+  // free (no vision call), used when the scoring learns new tricks.
+  const rescore = Boolean(body.rescoreOnly) && capture.divined && capture.transcription;
 
-  await ctx.db.from('grave_captures').update({ status: 'reading' }).eq('id', capture.id);
+  if (!rescore) {
+    const gate = (await checkEntitlement(ctx)) ?? (await checkDailyLimit(ctx));
+    if (gate) return gate;
+    await ctx.db.from('grave_captures').update({ status: 'reading' }).eq('id', capture.id);
+  }
   const fail = async (message: string, code = 502) => {
     await ctx.db.from('grave_captures').update({ status: 'failed' }).eq('id', capture.id);
     return json(code, { error: message });
@@ -137,7 +188,7 @@ Deno.serve(async (req) => {
   // The photos, from the private bucket. Several angles of one stone go
   // into a single vision request — the model reads across them.
   const images: { type: 'image'; source: { type: 'base64'; media_type: 'image/jpeg'; data: string } }[] = [];
-  for (const path of capture.photo_paths.slice(0, MAX_PHOTOS)) {
+  for (const path of rescore ? [] : capture.photo_paths.slice(0, MAX_PHOTOS)) {
     const { data: blob, error } = await ctx.admin.storage.from('grave-photos').download(path);
     if (error || !blob) continue;
     const bytes = new Uint8Array(await blob.arrayBuffer());
@@ -152,10 +203,27 @@ Deno.serve(async (req) => {
       source: { type: 'base64', media_type: 'image/jpeg', data: btoa(binary) },
     });
   }
-  if (!images.length) return fail('No readable photos for this capture', 422);
+  if (!rescore && !images.length) return fail('No readable photos for this capture', 422);
 
-  const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
   let reading: Reading;
+  if (rescore) {
+    const d = capture.divined as Record<string, unknown>;
+    reading = {
+      transcription: capture.transcription as string,
+      legibility: (d.legibility as Reading['legibility']) ?? 'partial',
+      name: (d.name as string | null) ?? null,
+      death_year: (d.death_year as number | null) ?? null,
+      death_month: (d.death_month as number | null) ?? null,
+      death_day: (d.death_day as number | null) ?? null,
+      birth_year_carved: (d.birth_year_carved as number | null) ?? null,
+      age_years: (d.age_years as number | null) ?? null,
+      age_months: (d.age_months as number | null) ?? null,
+      relationship_phrases: (d.relationship_phrases as string[]) ?? [],
+      military: (d.military as string | null) ?? null,
+      epitaph: (d.epitaph as string | null) ?? null,
+    };
+  } else {
+  const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
   try {
     const response = await anthropic.messages.create({
       model: MODEL,
@@ -186,6 +254,7 @@ Deno.serve(async (req) => {
     console.error('Vision reading failed:', error);
     return fail('The stone could not be read just now. Please try again.');
   }
+  }
 
   // Derived, never carved: the Æ arithmetic. Marked computed in the app.
   const birthComputed =
@@ -199,12 +268,28 @@ Deno.serve(async (req) => {
       ? await reverseGeocode(capture.latitude, capture.longitude)
       : null;
 
-  // ——— the match: name + dates + place ———
+  // ——— the match ———
+  // Two pools: people whose names resemble the stone's, and — the plot
+  // graph — people the stone's kinship phrases point at through the
+  // tree's own links (the spouse of your Asa Haskell is a candidate for
+  // "wife of Mr. Asa Haskell" even when the tree spells her Jemenice
+  // and the stone says Jemima).
   const candidates: Candidate[] = [];
+  const hints = parseKinHints(reading.relationship_phrases ?? []);
   if (reading.name) {
     const tokens = reading.name.replace(/[^A-Za-z .']/g, ' ').trim().split(/\s+/);
     const surname = tokens[tokens.length - 1] ?? '';
     const given = tokens[0] ?? '';
+
+    interface PoolPerson {
+      id: string;
+      full_name: string;
+      birth_year: number | null;
+      death_year: number | null;
+      viaKin: string | null;
+    }
+    const pool = new Map<string, PoolPerson>();
+
     if (surname.length >= 3) {
       const { data: people } = await ctx.db
         .from('individuals')
@@ -212,71 +297,210 @@ Deno.serve(async (req) => {
         .eq('tree_id', capture.tree_id)
         .ilike('full_name', `%${surname}%`)
         .limit(300);
-
-      // Which candidates have events in the cemetery's town?
-      const placeIds = new Set<string>();
-      if (geo?.town && people?.length) {
-        const { data: ev } = await ctx.db
-          .from('individual_events')
-          .select('individual_id, places!inner(raw)')
-          .in('individual_id', people.map((p) => p.id))
-          .ilike('places.raw', `%${geo.town}%`);
-        for (const e of ev ?? []) placeIds.add(e.individual_id as string);
-      }
-
       for (const p of people ?? []) {
-        const parts = (p.full_name as string).replace(/[^A-Za-z .']/g, ' ').trim().split(/\s+/);
-        const pGiven = parts[0]?.toLowerCase() ?? '';
-        const g = given.toLowerCase().replace(/\.$/, '');
-        let score = 15; // surname present
-        const reasons: string[] = ['surname'];
-        if (pGiven === g && g) {
-          score += 20;
-          reasons.push('given name exact');
-        } else if (g && parts.some((t) => t.toLowerCase().startsWith(g))) {
+        pool.set(p.id as string, { ...(p as Omit<PoolPerson, 'viaKin'>), viaKin: null });
+      }
+    }
+
+    // Kin-first pooling: resolve each hinted name to tree people, then
+    // pull their spouses (for "wife/husband of") or children (for
+    // "dau./son of") into the pool.
+    const hintPeople = async (hint: string) => {
+      const last = hint.split(' ').pop() ?? '';
+      if (last.length < 3) return [];
+      const { data } = await ctx.db
+        .from('individuals')
+        .select('id, full_name')
+        .eq('tree_id', capture.tree_id)
+        .ilike('full_name', `%${last}%`)
+        .limit(50);
+      return (data ?? []).filter((p) => namesAgree(hint, p.full_name as string)).slice(0, 3);
+    };
+    const addToPool = async (ids: string[], via: string) => {
+      const fresh = ids.filter((id) => !pool.has(id) || pool.get(id)!.viaKin === null);
+      if (!fresh.length) return;
+      const { data } = await ctx.db
+        .from('individuals')
+        .select('id, full_name, birth_year, death_year')
+        .in('id', fresh.slice(0, 20));
+      for (const p of data ?? []) {
+        pool.set(p.id as string, { ...(p as Omit<PoolPerson, 'viaKin'>), viaKin: via });
+      }
+    };
+    for (const hint of hints.spouses) {
+      for (const person of await hintPeople(hint)) {
+        const [h, w] = await Promise.all([
+          ctx.db.from('families').select('wife_id').eq('husband_id', person.id),
+          ctx.db.from('families').select('husband_id').eq('wife_id', person.id),
+        ]);
+        const partners = [
+          ...(h.data ?? []).map((f) => f.wife_id as string | null),
+          ...(w.data ?? []).map((f) => f.husband_id as string | null),
+        ].filter((id): id is string => Boolean(id));
+        await addToPool(partners, `pointed at by "${hint}"`);
+      }
+    }
+    for (const hint of hints.parents) {
+      for (const person of await hintPeople(hint)) {
+        const [h, w] = await Promise.all([
+          ctx.db.from('families').select('id').eq('husband_id', person.id),
+          ctx.db.from('families').select('id').eq('wife_id', person.id),
+        ]);
+        const famIds = [...(h.data ?? []), ...(w.data ?? [])].map((f) => f.id as string);
+        if (!famIds.length) continue;
+        const { data: kids } = await ctx.db
+          .from('family_children')
+          .select('individual_id')
+          .in('family_id', famIds);
+        await addToPool(
+          (kids ?? []).map((k) => k.individual_id as string),
+          `a child of ${hint}`,
+        );
+      }
+    }
+
+    // Which pool members have events in the cemetery's town?
+    const poolIds = [...pool.keys()];
+    const placeIds = new Set<string>();
+    if (geo?.town && poolIds.length) {
+      const { data: ev } = await ctx.db
+        .from('individual_events')
+        .select('individual_id, places!inner(raw)')
+        .in('individual_id', poolIds)
+        .ilike('places.raw', `%${geo.town}%`);
+      for (const e of ev ?? []) placeIds.add(e.individual_id as string);
+    }
+
+    for (const p of pool.values()) {
+      const parts = p.full_name.replace(/[^A-Za-z .']/g, ' ').trim().split(/\s+/);
+      const pGiven = parts[0]?.toLowerCase() ?? '';
+      const g = given.toLowerCase().replace(/\.$/, '');
+      let score = 0;
+      const reasons: string[] = [];
+      if (surname && p.full_name.toLowerCase().includes(surname.toLowerCase())) {
+        score += 15;
+        reasons.push('surname');
+      }
+      if (p.viaKin) {
+        score += 12;
+        reasons.push(p.viaKin);
+      }
+      if (pGiven === g && g) {
+        score += 20;
+        reasons.push('given name exact');
+      } else if (g && parts.some((t) => t.toLowerCase().startsWith(g))) {
+        score += 12;
+        reasons.push(`"${given}" reads as a called name`);
+      } else if (g && pGiven.startsWith(g[0])) {
+        score += 5;
+        reasons.push('initial');
+      }
+      if (reading.death_year !== null && p.death_year !== null) {
+        const d = Math.abs(reading.death_year - p.death_year);
+        if (d === 0) {
+          score += 25;
+          reasons.push(`death ${reading.death_year} exact`);
+        } else if (d <= 2) {
           score += 12;
-          reasons.push(`"${given}" reads as a called name`);
-        } else if (g && pGiven.startsWith(g[0])) {
-          score += 5;
-          reasons.push('initial');
-        }
-        if (reading.death_year !== null && p.death_year !== null) {
-          const d = Math.abs(reading.death_year - (p.death_year as number));
-          if (d === 0) {
-            score += 25;
-            reasons.push(`death ${reading.death_year} exact`);
-          } else if (d <= 2) {
-            score += 12;
-            reasons.push(`death within ${d}`);
-          } else if (d > 12) score -= 20;
-        }
-        if (birthComputed !== null && p.birth_year !== null) {
-          const d = Math.abs(birthComputed - (p.birth_year as number));
-          if (d <= 2) {
-            score += 15;
-            reasons.push(`birth ~${birthComputed} ≈ ${p.birth_year}`);
-          } else if (d <= 5) {
-            score += 6;
-          } else if (d > 15) score -= 15;
-        }
-        if (placeIds.has(p.id as string)) {
+          reasons.push(`death within ${d}`);
+        } else if (d > 12) score -= 20;
+      }
+      if (birthComputed !== null && p.birth_year !== null) {
+        const d = Math.abs(birthComputed - p.birth_year);
+        if (d <= 2) {
           score += 15;
-          reasons.push(`recorded in ${geo!.town}`);
+          reasons.push(`birth ~${birthComputed} ≈ ${p.birth_year}`);
+        } else if (d <= 5) {
+          score += 6;
+        } else if (d > 15) score -= 15;
+      }
+      if (placeIds.has(p.id)) {
+        score += 15;
+        reasons.push(`recorded in ${geo!.town}`);
+      }
+      if (score >= 20) {
+        candidates.push({
+          individual_id: p.id,
+          full_name: p.full_name,
+          birth_year: p.birth_year,
+          death_year: p.death_year,
+          score,
+          reasons,
+        });
+      }
+    }
+    candidates.sort((a, b) => b.score - a.score);
+    candidates.splice(12);
+
+    // Verify the phrases against each candidate's own recorded kin —
+    // the strongest single signal a stone can give.
+    if ((hints.spouses.length || hints.parents.length) && candidates.length) {
+      const ids = candidates.map((c) => c.individual_id);
+      const [famH, famW, fc] = await Promise.all([
+        ctx.db.from('families').select('husband_id, wife_id').in('husband_id', ids),
+        ctx.db.from('families').select('husband_id, wife_id').in('wife_id', ids),
+        ctx.db.from('family_children').select('individual_id, family_id').in('individual_id', ids),
+      ]);
+      const spousesOf = new Map<string, string[]>();
+      for (const f of famH.data ?? []) {
+        if (f.wife_id) spousesOf.set(f.husband_id, [...(spousesOf.get(f.husband_id) ?? []), f.wife_id]);
+      }
+      for (const f of famW.data ?? []) {
+        if (f.husband_id) spousesOf.set(f.wife_id, [...(spousesOf.get(f.wife_id) ?? []), f.husband_id]);
+      }
+      const famIds = [...new Set((fc.data ?? []).map((r) => r.family_id as string))];
+      const parentFams = famIds.length
+        ? ((await ctx.db.from('families').select('id, husband_id, wife_id').in('id', famIds)).data ?? [])
+        : [];
+      const famById = new Map(parentFams.map((f) => [f.id as string, f]));
+      const parentsOf = new Map<string, string[]>();
+      for (const r of fc.data ?? []) {
+        const fam = famById.get(r.family_id as string);
+        if (!fam) continue;
+        const list = parentsOf.get(r.individual_id as string) ?? [];
+        if (fam.husband_id) list.push(fam.husband_id as string);
+        if (fam.wife_id) list.push(fam.wife_id as string);
+        parentsOf.set(r.individual_id as string, list);
+      }
+      const kinIds = [...new Set([...spousesOf.values(), ...parentsOf.values()].flat())];
+      const kinNames = new Map<string, string>(
+        kinIds.length
+          ? ((await ctx.db.from('individuals').select('id, full_name').in('id', kinIds)).data ?? []).map(
+              (p) => [p.id as string, p.full_name as string],
+            )
+          : [],
+      );
+      for (const cand of candidates) {
+        for (const hint of hints.spouses) {
+          const match = (spousesOf.get(cand.individual_id) ?? [])
+            .map((id) => kinNames.get(id) ?? '')
+            .find((n) => namesAgree(hint, n));
+          if (match) {
+            cand.score += 28;
+            cand.reasons.push(`the stone says "${hint}" — ${match} is their spouse in your tree`);
+            break;
+          }
         }
-        if (score >= 30) {
-          candidates.push({
-            individual_id: p.id as string,
-            full_name: p.full_name as string,
-            birth_year: p.birth_year as number | null,
-            death_year: p.death_year as number | null,
-            score,
-            reasons,
-          });
+        let parentHits = 0;
+        for (const hint of hints.parents) {
+          const match = (parentsOf.get(cand.individual_id) ?? [])
+            .map((id) => kinNames.get(id) ?? '')
+            .find((n) => namesAgree(hint, n));
+          if (match && parentHits < 2) {
+            parentHits += 1;
+            cand.reasons.push(`the stone names ${hint} — ${match} is their parent in your tree`);
+          }
         }
+        cand.score += parentHits * 14;
       }
       candidates.sort((a, b) => b.score - a.score);
-      candidates.splice(5);
     }
+
+    // Below 30 even after kin checks is noise, not a candidate.
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      if (candidates[i].score < 30) candidates.splice(i, 1);
+    }
+    candidates.splice(5);
   }
 
   const divined = {

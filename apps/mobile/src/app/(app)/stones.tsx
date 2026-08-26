@@ -1,6 +1,7 @@
 import { Stack, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, SectionList, Text, View } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 
 import { showAlert } from '@/lib/alert';
 import { ThemedText } from '@/components/themed-text';
@@ -8,22 +9,29 @@ import { ThemedView } from '@/components/themed-view';
 import { mono } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
+import { addCorrection } from '@/lib/corrections';
 import {
   attachCapture,
+  findAGraveUrl,
   flushQueue,
+  leadBrief,
   listCaptures,
   pendingCount,
   photoUrl,
   rereadCapture,
+  rescoreCapture,
   setCaptureStatus,
   type GraveCapture,
+  type MatchCandidate,
 } from '@/lib/grave-captures';
 
 /**
  * Stone readings — the visit's ledger (At the Stone, steps 3 and 5).
- * Every capture ends somewhere: attached to a person, filed as a
- * research lead, or dismissed. Nothing is added to the tree without a
- * person-by-person yes.
+ * Grouped by cemetery, the way the day actually went. Every capture
+ * ends somewhere: attached to a person, filed as a research lead, or
+ * set aside — person by person, never bulk. A stone whose date
+ * disagrees with the tree can file the difference straight into the
+ * margin, the same corrections the punch list carries to Ancestry.
  */
 
 const STATUS_LINE: Record<GraveCapture['status'], string> = {
@@ -36,6 +44,69 @@ const STATUS_LINE: Record<GraveCapture['status'], string> = {
   failed: 'READ FAILED — TAP TO RETRY',
 };
 
+/** The stone's death date, prettily, for corrections and briefs. */
+function stoneDeathDate(capture: GraveCapture): string | null {
+  const d = capture.divined;
+  if (!d?.death_year) return null;
+  return d.death_month ? `${d.death_month}/${d.death_day ?? '?'}/${d.death_year}` : String(d.death_year);
+}
+
+function CandidateCard({
+  capture,
+  cand,
+  busy,
+  onAttach,
+}: {
+  capture: GraveCapture;
+  cand: MatchCandidate;
+  busy: boolean;
+  onAttach: (individualId: string, correction: boolean) => void;
+}) {
+  const L = useLetterpress();
+  const stoneYear = capture.divined?.death_year ?? null;
+  const conflict =
+    stoneYear !== null && cand.death_year !== null && stoneYear !== cand.death_year;
+  return (
+    <View style={{ borderWidth: 1, borderColor: L.rule, backgroundColor: L.well, padding: 10, gap: 6 }}>
+      <Pressable
+        onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: cand.individual_id } })}
+      >
+        <Text style={{ fontSize: 16, fontWeight: '600', color: L.ink }}>
+          {cand.full_name}{' '}
+          <Text style={mono(12, L.muted)}>
+            {cand.birth_year ?? '?'}–{cand.death_year ?? '?'}
+          </Text>
+        </Text>
+      </Pressable>
+      <Text style={mono(10.5, L.deepAmber)}>WHY: {cand.reasons.join(' · ').toUpperCase()}</Text>
+      {conflict && (
+        <Text style={mono(10.5, L.muted)}>
+          THE STONE DISAGREES: DIED {stoneDeathDate(capture)?.toUpperCase()} — THE TREE CARRIES{' '}
+          {cand.death_year}
+        </Text>
+      )}
+      <Pressable
+        disabled={busy}
+        onPress={() => onAttach(cand.individual_id, false)}
+        accessibilityRole="button"
+        style={{ backgroundColor: L.amber, paddingVertical: 10, alignItems: 'center' }}
+      >
+        <Text style={mono(11.5, L.paper)}>THIS IS THEM — ATTACH</Text>
+      </Pressable>
+      {conflict && (
+        <Pressable
+          disabled={busy}
+          onPress={() => onAttach(cand.individual_id, true)}
+          accessibilityRole="button"
+          style={{ borderWidth: 1, borderColor: L.amber, paddingVertical: 10, alignItems: 'center' }}
+        >
+          <Text style={mono(11.5, L.amber)}>ATTACH + NOTE THE DATE IN THE MARGIN</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 function CaptureCard({ capture, onChanged }: { capture: GraveCapture; onChanged: () => void }) {
   const L = useLetterpress();
   const [open, setOpen] = useState(false);
@@ -43,13 +114,11 @@ function CaptureCard({ capture, onChanged }: { capture: GraveCapture; onChanged:
   const [busy, setBusy] = useState(false);
   const d = capture.divined;
 
-  const loadThumb = async () => {
-    if (!thumb && capture.photo_paths[0]) setThumb(await photoUrl(capture.photo_paths[0]));
-  };
-
   const toggle = () => {
     setOpen((o) => !o);
-    loadThumb().catch(() => {});
+    if (!thumb && capture.photo_paths[0]) {
+      photoUrl(capture.photo_paths[0]).then(setThumb).catch(() => {});
+    }
     if (capture.status === 'failed') {
       rereadCapture(capture.id)
         .then(onChanged)
@@ -57,10 +126,22 @@ function CaptureCard({ capture, onChanged }: { capture: GraveCapture; onChanged:
     }
   };
 
-  const attach = async (individualId: string) => {
+  const attach = async (individualId: string, withCorrection: boolean) => {
     setBusy(true);
     try {
       await attachCapture(capture, individualId);
+      if (withCorrection) {
+        const cand = capture.candidates?.find((c) => c.individual_id === individualId);
+        await addCorrection({
+          individualId,
+          treeId: capture.tree_id,
+          subject: 'death',
+          currentValue: cand?.death_year != null ? String(cand.death_year) : null,
+          snapshotKey: null,
+          correctedValue: stoneDeathDate(capture) ?? '',
+          note: `From the headstone${capture.cemetery ? ` at ${capture.cemetery}` : ''}: "${capture.transcription ?? ''}"`,
+        });
+      }
       onChanged();
     } catch (e: unknown) {
       showAlert('Could not attach', e instanceof Error ? e.message : 'Please try again.');
@@ -74,6 +155,18 @@ function CaptureCard({ capture, onChanged }: { capture: GraveCapture; onChanged:
     try {
       await setCaptureStatus(capture.id, status);
       onChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const recheck = async () => {
+    setBusy(true);
+    try {
+      await rescoreCapture(capture.id);
+      onChanged();
+    } catch (e: unknown) {
+      showAlert('Could not re-check', e instanceof Error ? e.message : '');
     } finally {
       setBusy(false);
     }
@@ -94,7 +187,6 @@ function CaptureCard({ capture, onChanged }: { capture: GraveCapture; onChanged:
         <Text style={{ fontSize: 17, fontWeight: '600', color: L.ink }}>{title}</Text>
         <Text style={{ ...mono(11.5, L.muted), marginTop: 3 }} maxFontSizeMultiplier={1.3}>
           {STATUS_LINE[capture.status]}
-          {capture.cemetery ? `\n${capture.cemetery.toUpperCase()}` : ''}
         </Text>
       </Pressable>
       {open && (
@@ -113,7 +205,7 @@ function CaptureCard({ capture, onChanged }: { capture: GraveCapture; onChanged:
               </Text>
             </View>
           )}
-          {d && (
+          {d && capture.status !== 'lead' && (
             <Text style={mono(11.5, L.muted)}>
               {[
                 d.death_year ? `DIED ${d.death_year}` : null,
@@ -130,45 +222,39 @@ function CaptureCard({ capture, onChanged }: { capture: GraveCapture; onChanged:
                 .join(' · ')}
             </Text>
           )}
+          {capture.status === 'lead' && (
+            <>
+              <Text style={{ fontSize: 14.5, lineHeight: 21, color: L.ink }}>{leadBrief(capture)}</Text>
+              <Pressable
+                onPress={() => WebBrowser.openBrowserAsync(findAGraveUrl(capture))}
+                accessibilityRole="button"
+                hitSlop={6}
+              >
+                <Text style={mono(11.5, L.amber)}>SEARCH FIND A GRAVE ›</Text>
+              </Pressable>
+            </>
+          )}
           {capture.status === 'read' &&
             (capture.candidates?.length ? (
               capture.candidates.map((cand) => (
-                <View
+                <CandidateCard
                   key={cand.individual_id}
-                  style={{ borderWidth: 1, borderColor: L.rule, backgroundColor: L.well, padding: 10, gap: 6 }}
-                >
-                  <Pressable
-                    onPress={() =>
-                      router.push({ pathname: '/ancestor/[id]', params: { id: cand.individual_id } })
-                    }
-                  >
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: L.ink }}>
-                      {cand.full_name}{' '}
-                      <Text style={mono(12, L.muted)}>
-                        {cand.birth_year ?? '?'}–{cand.death_year ?? '?'}
-                      </Text>
-                    </Text>
-                  </Pressable>
-                  <Text style={mono(10.5, L.deepAmber)}>
-                    WHY: {cand.reasons.join(' · ').toUpperCase()}
-                  </Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <Pressable
-                      disabled={busy}
-                      onPress={() => attach(cand.individual_id)}
-                      accessibilityRole="button"
-                      style={{ flex: 1, backgroundColor: L.amber, paddingVertical: 10, alignItems: 'center' }}
-                    >
-                      <Text style={mono(11.5, L.paper)}>THIS IS THEM — ATTACH</Text>
-                    </Pressable>
-                  </View>
-                </View>
+                  capture={capture}
+                  cand={cand}
+                  busy={busy}
+                  onAttach={attach}
+                />
               ))
             ) : (
               <Text style={{ fontSize: 14.5, color: L.muted }}>
                 No one in your tree answers to this stone yet.
               </Text>
             ))}
+          {capture.status === 'read' && (
+            <Pressable onPress={recheck} disabled={busy} hitSlop={6} accessibilityRole="button">
+              <Text style={mono(11, L.muted)}>RE-CHECK THE TREE (AFTER EDITS) ›</Text>
+            </Pressable>
+          )}
           {(capture.status === 'read' || capture.status === 'lead') && (
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {capture.status === 'read' && (
@@ -242,13 +328,24 @@ export default function StonesScreen() {
     );
   }
 
+  // The day as it went: one section per cemetery.
+  const sections = (() => {
+    const byCemetery = new Map<string, GraveCapture[]>();
+    for (const capture of captures ?? []) {
+      const key = capture.cemetery ?? 'Unplaced stones';
+      byCemetery.set(key, [...(byCemetery.get(key) ?? []), capture]);
+    }
+    return [...byCemetery.entries()].map(([title, data]) => ({ title, data }));
+  })();
+
   return (
     <ThemedView style={{ flex: 1 }}>
       <Stack.Screen options={{ title: 'Stone readings' }} />
-      <FlatList
+      <SectionList
         contentContainerStyle={{ padding: 20, paddingBottom: 48 }}
-        data={captures ?? []}
+        sections={sections}
         keyExtractor={(item) => item.id}
+        stickySectionHeadersEnabled={false}
         ListHeaderComponent={
           <View style={{ gap: 4 }}>
             <ThemedText type="small">
@@ -269,6 +366,11 @@ export default function StonesScreen() {
             )}
           </View>
         }
+        renderSectionHeader={({ section }) => (
+          <Text style={{ ...mono(11, L.deepAmber), letterSpacing: 1.5, marginTop: 18 }}>
+            {section.title.toUpperCase()}
+          </Text>
+        )}
         renderItem={({ item }) => <CaptureCard capture={item} onChanged={reload} />}
       />
     </ThemedView>

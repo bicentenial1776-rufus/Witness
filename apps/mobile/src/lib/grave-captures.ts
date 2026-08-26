@@ -210,6 +210,54 @@ export async function rereadCapture(id: string): Promise<void> {
   if (error) throw new Error('The reading failed — try again with signal.');
 }
 
+/** Re-run only the tree matching — free, for after the tree changes. */
+export async function rescoreCapture(id: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('read-headstone', {
+    body: { captureId: id, rescoreOnly: true },
+  });
+  if (error) throw new Error('The re-check failed — try again with signal.');
+}
+
+/** The attached stones on a person, for the Portrait's stone block. */
+export async function capturesForPerson(individualId: string): Promise<GraveCapture[]> {
+  const { data } = await supabase
+    .from('grave_captures')
+    .select('*')
+    .eq('matched_individual_id', individualId)
+    .eq('status', 'attached');
+  return (data ?? []) as GraveCapture[];
+}
+
+/** The Find A Grave search for this stone — the research road-back. */
+export function findAGraveUrl(capture: GraveCapture): string {
+  const name = capture.divined?.name?.trim() ?? '';
+  const tokens = name.split(/\s+/);
+  const last = tokens.length > 1 ? tokens[tokens.length - 1] : name;
+  const first = tokens.length > 1 ? tokens[0] : '';
+  const params = new URLSearchParams();
+  if (first) params.set('firstname', first);
+  if (last) params.set('lastname', last);
+  if (capture.divined?.death_year) params.set('deathyear', String(capture.divined.death_year));
+  return `https://www.findagrave.com/memorial/search?${params.toString()}`;
+}
+
+/** A compact research brief assembled from what the stone itself says. */
+export function leadBrief(capture: GraveCapture): string {
+  const d = capture.divined;
+  if (!d) return 'The stone could not be read.';
+  const bits: string[] = [];
+  if (d.death_year) {
+    bits.push(
+      `Died ${d.death_month ? `${d.death_month}/${d.death_day ?? '?'}/` : ''}${d.death_year}${d.age_years !== null ? `, aged ${d.age_years}` : ''}${d.birth_year_computed !== null && d.birth_year_carved === null ? ` — so born about ${d.birth_year_computed}` : ''}.`,
+    );
+  }
+  for (const phrase of d.relationship_phrases ?? []) bits.push(`The stone says "${phrase}".`);
+  if (d.military) bits.push(`Service line: ${d.military}.`);
+  if (capture.cemetery) bits.push(`The stone stands at ${capture.cemetery}.`);
+  bits.push('Not matched to anyone in your tree yet.');
+  return bits.join(' ');
+}
+
 /**
  * The attach: this stone is that person. Marks the capture, and gives
  * the person a burial event carried by a place that arrives already
@@ -248,14 +296,18 @@ export async function attachCapture(capture: GraveCapture, individualId: string)
     }
   }
 
+  // GEDCOM exports often carry a bare BURI tag — a burial event with no
+  // date and no place. The stone fills it in; only a burial that already
+  // says something is left alone.
   const { data: existingBurial } = await supabase
     .from('individual_events')
-    .select('id')
+    .select('id, date_year, place_id')
     .eq('individual_id', individualId)
     .eq('event_type', 'burial')
+    .limit(1)
     .maybeSingle();
   if (!existingBurial) {
-    await supabase.from('individual_events').insert({
+    const { error: eventError } = await supabase.from('individual_events').insert({
       tree_id: capture.tree_id,
       user_id: userId,
       individual_id: individualId,
@@ -265,6 +317,16 @@ export async function attachCapture(capture: GraveCapture, individualId: string)
       place_id: placeId,
       sort_order: 900,
     });
+    if (eventError) throw new Error(`The burial event failed: ${eventError.message}`);
+  } else if (existingBurial.date_year === null && existingBurial.place_id === null) {
+    await supabase
+      .from('individual_events')
+      .update({
+        date_year: capture.divined?.death_year ?? null,
+        place_id: placeId,
+        detail: 'Read from the headstone',
+      })
+      .eq('id', existingBurial.id);
   }
 
   const { error } = await supabase

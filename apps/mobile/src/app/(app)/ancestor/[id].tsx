@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { getRelationship } from '@witness/core/family';
 import {
@@ -23,6 +23,7 @@ import { Card } from '@/components/card';
 import { MarginCorrections } from '@/components/margin-corrections';
 import { TextField } from '@/components/text-field';
 import { KinReveal } from '@/components/kin-reveal';
+import { capturesForPerson, photoUrl, type GraveCapture } from '@/lib/grave-captures';
 import { LineageMark } from '@/components/lineage-mark';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
 import { ThemedText } from '@/components/themed-text';
@@ -588,6 +589,8 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // has already been to (Betsey's star, 2026-08-19).
   const [visitedIds, setVisitedIds] = useState<Set<string>>(new Set());
   const [tier, setTier] = useState<LineageTier | undefined>(undefined);
+  // Attached headstone captures — the stone block under the identity.
+  const [stones, setStones] = useState<{ capture: GraveCapture; thumb: string | null }[]>([]);
   const [providerLink, setProviderLink] = useState<ProviderLink | null>(null);
   // Story / Their World open in place — one panel at a time, the family
   // register below simply shifts down. Research left this card in the
@@ -713,6 +716,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     setCompass(null);
     setCuriosities([]);
     setTier(undefined);
+    setStones([]);
     setProviderLink(null);
     setOpenPanel(null);
     setRelatives(null);
@@ -960,6 +964,17 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
         getLineageTierMap(personRow.tree_id)
           .then((map) => {
             if (!cancelled) setTier(map.get(personRow.id));
+          })
+          .catch(() => {});
+        capturesForPerson(personRow.id)
+          .then(async (caps) => {
+            const withThumbs = await Promise.all(
+              caps.map(async (c) => ({
+                capture: c,
+                thumb: c.photo_paths[0] ? await photoUrl(c.photo_paths[0]) : null,
+              })),
+            );
+            if (!cancelled) setStones(withThumbs);
           })
           .catch(() => {});
         getPersonCuriosities(personRow.tree_id, personRow.id)
@@ -1376,6 +1391,32 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             No relation — in your tree, not in your family
           </Text>
         ) : null}
+        {stones.length > 0 && (
+          <Pressable
+            onPress={() => router.push('/stones')}
+            accessibilityRole="button"
+            accessibilityLabel="Their headstone, read at the stone"
+            style={{ flexDirection: 'row', gap: 10, marginTop: 14, alignItems: 'center' }}
+          >
+            {stones[0].thumb && (
+              <Image
+                source={{ uri: stones[0].thumb }}
+                style={{ width: 48, height: 64, borderWidth: 1, borderColor: theme.border }}
+                resizeMode="cover"
+              />
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: Fonts.mono, fontSize: 12, letterSpacing: 0.5, color: theme.accent }}>
+                READ AT THE STONE ›
+              </Text>
+              {stones[0].capture.cemetery && (
+                <Text style={{ fontFamily: Fonts.mono, fontSize: 11, color: theme.textSecondary, marginTop: 2 }}>
+                  {stones[0].capture.cemetery.toUpperCase()}
+                </Text>
+              )}
+            </View>
+          </Pressable>
+        )}
 
         {/* On the saved copy every control in this row needs the server —
             one quiet line stands in for all of them. */}
