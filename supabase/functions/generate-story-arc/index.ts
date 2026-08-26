@@ -12,6 +12,12 @@
 // (direct ancestors with no recorded parents, 6+ generations back) ordered
 // by depth then id, rotated by UTC day number.
 //
+// Cached per founder, and kept only while the record it was told from still
+// holds: the row remembers the home person, the tree's size, and how many
+// direct ancestors it walked, and drift in any of the three retells the
+// line (migration 20260826090000). An arc is a claim about a descent, so a
+// line that has moved must not go on being told the old way.
+//
 // Warm mode — POST { treeId, warm: true, dayOffset?: 0 | 1 } with the
 // x-cron-secret header: the featured-today warmer fans out here nightly so
 // the first reader never waits on generation. Runs AS the tree's owner
@@ -33,6 +39,9 @@ import {
 } from '../_shared/enrich.ts';
 
 const MODEL = 'claude-opus-5';
+// v6: reads drained and the descent checked (a truncated chain can no
+// longer cache as a finished line) — retold because every earlier arc
+// was written from reads that could silently stop at one page.
 // v5: DPLA joins as the third card — a period image of the person's own
 // town from their own years ("SEE THE PLACE"), rehosted like the papers.
 // v4: papers filtered to the person's own state (a Spencer, Mass. family
@@ -45,7 +54,7 @@ const MODEL = 'claude-opus-5';
 // America, and a public-domain era recording where the years allow.
 // v2: placeholder events (no year/place/detail) no longer reach the
 // prompt or the fact line. Cached arcs regenerate via the rotation.
-const PROMPT_VERSION = 5;
+const PROMPT_VERSION = 6;
 const MIN_FOUNDER_DEPTH = 6;
 const MAX_CHAIN = 20;
 
@@ -372,7 +381,7 @@ Deno.serve(async (req) => {
   // RLS proves ownership: a foreign tree simply isn't found.
   const { data: tree } = await ctx.db
     .from('trees')
-    .select('id, home_person_id')
+    .select('id, home_person_id, individual_count')
     .eq('id', body.treeId)
     .maybeSingle();
   if (!tree) return json(404, { error: 'Tree not found' });
@@ -443,14 +452,25 @@ Deno.serve(async (req) => {
       ? body.founderId
       : founders[(Math.floor(Date.now() / 86_400_000) + dayOffset) % founders.length];
 
-  // Cache first — one arc per founder, forever (per prompt version).
+  // Cache — one arc per founder, kept only while the record it was told
+  // from still holds. All three signals are already in hand here, so a hit
+  // stays as cheap as it was when the row was simply trusted forever.
+  // A row written before the signal existed carries nulls, reads as stale,
+  // and is retold on first sight.
   const { data: cached } = await ctx.db
     .from('story_arcs')
-    .select('content')
+    .select('content, home_person_id, individual_count, ancestor_count')
     .eq('founder_id', founderId)
     .eq('prompt_version', PROMPT_VERSION)
     .maybeSingle();
-  if (cached) return json(200, { arc: cached.content, founderId, cached: true });
+  if (
+    cached &&
+    cached.home_person_id === tree.home_person_id &&
+    cached.individual_count === tree.individual_count &&
+    cached.ancestor_count === rels.length
+  ) {
+    return json(200, { arc: cached.content, founderId, cached: true });
+  }
 
   const gate = (await checkEntitlement(ctx)) ?? (await checkDailyLimit(ctx));
   if (gate) return gate;
@@ -866,6 +886,9 @@ Deno.serve(async (req) => {
       tree_id: tree.id,
       user_id: ctx.userId,
       founder_id: founderId,
+      home_person_id: tree.home_person_id,
+      individual_count: tree.individual_count,
+      ancestor_count: rels.length,
       content,
       model: response.model,
       prompt_version: PROMPT_VERSION,

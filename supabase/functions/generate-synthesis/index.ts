@@ -4,6 +4,9 @@
 // the aggregation, never the model; the model writes prose sections only.
 // Cached per tree; the cached row remembers the tree's individual_count,
 // so when the tree grows the essay regenerates — it morphs with the record.
+// Version 2: the events read used to stop at one page per chunk, so every
+// essay written under version 1 counted short — and individual_count could
+// not detect that, since the tree never changed. The bump retells them.
 //
 // POST { treeId: string } → { synthesis: SynthesisContent, cached: boolean }
 
@@ -19,7 +22,7 @@ import {
 import { fetchAllPages } from '../_shared/family/paginate.ts';
 
 const MODEL = 'claude-opus-5';
-const PROMPT_VERSION = 1;
+const PROMPT_VERSION = 2;
 
 const ESSAY_SCHEMA = {
   type: 'object',
