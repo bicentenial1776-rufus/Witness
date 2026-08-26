@@ -1,9 +1,9 @@
 # Witness — Family History Intelligence
 ### *Witnesses to History*
 
-**Version:** 2.2 — Project Brief (living document)  
-**Date:** July 2026  
-**Status:** In development — Phases 1–5 substantially complete: iOS running on real devices (TestFlight build 5), **web app launched** at app.witnesslives.com (RevenueCat Web Billing, own "Broadsheet" design system), onboarding + hard paywall live. Phase 6 (launch) prep underway — BillionGraves, proactive location notifications, and encrypted-GEDCOM-upload wiring remain open. Build Status section below is authoritative.
+**Version:** 3.0 — Project Brief (living document)  
+**Date:** August 26, 2026  
+**Status:** **LIVE ON THE APP STORE** — 1.5.2 (build 12) approved and distributing as of 2026-08-24, alongside the web app at app.witnesslives.com. All six build phases complete. Current work is post-launch deepening: the storytelling layer (story arcs, whole-ancestry synthesis), the field layer (At the Stone headstone capture, offline field mode), accessibility (Large Print, the dark-mode ink world), and the Immigrant Ships library (in progress). See **August 2026 — The Chronicle Deepens** below for everything shipped since the July brief.
 
 ---
 
@@ -320,9 +320,75 @@ Built during Phase 4–5 in response to what the real 5,495-person tree and fiel
 
 ---
 
+## August 2026 — The Chronicle Deepens (shipped since the July brief)
+
+### App Store Launch
+Witness 1.5.2 (build 12) is **live on the App Store** as of August 24, 2026, after working through a review rejection cycle. The App Store build carries everything below through the Large Print work; At the Stone and the newest story-arc layers ride the next binary.
+
+### Story Arcs — "Today's Line" (the Home lead)
+- Every day, Home leads with one **founder-to-reader descent narrative**: a deep line-founder is chosen by daily rotation, and the arc walks the bloodline down from them to *you*, generation by generation — record facts assembled server-side, connective prose written by **claude-opus-5**, living family members never named in prompts
+- Each generation carries lifespan bars (the reader in amber), a DETAILS fold with the record and relation, and a **"Their world, further"** layer: era facts grounded strictly in fetched Wikipedia year articles, a period newspaper page from the person's own town and state (Chronicling America), a period photograph of their town from their own years (DPLA), and a public-domain era recording where the years allow (1900–1925 Victor digitizations)
+- Arcs are cached per founder and **retold when the record moves** — the cache remembers the home person, tree size, and ancestor count, and drift in any of the three regenerates the line. Reads are drained and the descent is checked: a chain that doesn't reach the reader is refused, never told short (v6, 2026-08-26)
+- Nightly cron pre-warms today's and tomorrow's arcs so the first reader never waits
+
+### Whole-Ancestry Synthesis (Explore)
+- A 1–2 page essay over **all** direct ancestors' facts — origins, migrations, the shape of the whole inheritance — cached per tree and regenerated as the tree grows. The companion piece to the daily arc: the arc is one thread, the synthesis is the cloth
+
+### At the Stone — Headstone Capture (phases 1–3)
+- Point the camera at a headstone in the field: a vision model **reads the inscription**, kin-first matching runs it against the tree, and the stone becomes a record — verdicts (this is her / not her), leads, and corrections, in the reader's hands
+- The stone can **change the tree**: ADD-person and RECORD-marriage mutations with a walk-back, the first supervised write path in a product whose founding rule is "Witness never edits" — the user is the editor; Witness is the scribe. Proven live: a weathered "Jemima" resolved to the tree's Jemenice
+- Stones know each other — captures accumulate into a cemetery record
+
+### Relationship Taxonomy & KinReveal
+- Every relationship label in the app now flows through a **four-tier taxonomy** (direct line / blood kin / by marriage / community), and KinReveal renders category-first with tap-to-reveal precision — "blood kin" first, "second cousin twice removed" on request
+
+### Offline Field Mode (v1)
+- A **field copy** of the tree lives on the device: Explore, the Portrait, and the relationship graph answer with no signal — built for the cemetery, the county archive, the back road where the ancestors actually are
+
+### Large Print & the Ink World (accessibility for the real audience)
+- A 12px floor and darkened tokens across the app; persistent tab bar; **dark mode rebuilt as a letterpress "ink world"** rather than an inverted theme; accessibility roles and labels throughout. The target user is 55+; this is product strategy, not compliance
+
+### Family Context on the Portrait
+- Relatives woven into every Portrait, a **pedigree chart in Views**, and a general-knowledge history tier with an explicit decline log — the model declines rather than guesses, and the declines are recorded
+
+### Reader-Driven Round Trips
+- A professional genealogist's review (Katie) became a fix arc: every bug-tier finding shipped, and the corrections punch list closed 2026-08-24
+- Beta reader requests shipped as features: **twin rendering**, **personal notes on ancestors**, and **starred people** — all web-live
+- A hidden, annotated-screenshot **Field Guide** at witnesslives.com/guide documents every screen
+
+### Immigrant Ships (in progress — data layer built, product layer designed)
+The newest chapter, begun 2026-08-26. See the dedicated section below.
+
+---
+
+## Immigrant Ships — the Crossing Library (in progress)
+
+**The idea:** a shared, provenance-first library of ship passenger lists, matched against every user's tree. *Which of my ancestors came over on a ship — and which ship?*
+
+**Built (2026-08-26):**
+- Dataset shape, CSV importer, and a **soundex + year-plausibility matcher** in core (Howe/How/Howes bucket together; years must agree or at least not contradict; born-after-arrival and dead-before-arrival pairs dropped)
+- Candidates graded **strong / probable / weak**, each carrying plain-language reasons — *"birth 1599 and 1599 agree within 0; alive in 1620, when the Mayflower arrived"*
+- Six voyages imported from public-domain transcriptions (Mayflower, Fortune, Anne, Little James, Jamestown 1607, Winthrop Fleet), 285 passengers, every row citing its source — no passenger fact is authored by Witness
+- First live run against the founder's 5,495-person tree: **23 candidates, 15 strong**, including John Alden, John Howland, Richard Warren, Francis Cooke, and the family clusters history says followed on the Anne
+
+**The library grows for every ancestor profile, not one tree:** Banks' *Planters of the Commonwealth* (~3,500 Great Migration passengers, 1620–1640) and Hotten's London port registers (~10,000 names, 1600–1700) are public domain and next to import; then the Pennsylvania German oath lists (~30,000, 1727–1808), Quaker fleets, Scots-Irish ships, Huguenot arrivals. Post-1820 ports (Castle Garden, Ellis Island) are searchable but not bulk-available — Witness links out rather than pretending to hold them.
+
+**Product integration (designed, not yet implemented):**
+1. **Findings first** — new strong candidates arrive as pieces in the weekly edition, per the cohesion spine. No new shelf.
+2. **The Crossing card on the Portrait** — passenger row, voyage, reasons, and a confirm / not-them verdict (the At the Stone pattern). Confirming writes a real immigration event citing the transcription; Witness never auto-writes.
+3. **The ship badge — the first emoji in Witness.** A confirmed crossing earns the person a small ship glyph with the vessel's name — **⛵ *Anne*, 1623** — on their Portrait and share cards. In a product this typographically austere, the first emoji is an event: it's earned, not decorative, and it's the collectible delight that makes cousins ask "does our line have a ship?"
+4. **Story arcs gain the crossing** — a confirmed voyage becomes a fact line in the founder's generation ("sailed on the Anne, 1623") and the ship a natural "Their World" card
+5. **The Map draws the first leg** — departure port → arrival port → the inland migration paths it already knows
+6. **Tree Health closes the loop** — "N possible passengers are blocked by missing dates": weak candidates become a research queue (the live tree's Priscilla Mullins is one Ancestry lookup from strong)
+7. **Explore ship browser** (last) — voyages with your candidate counts, each ship a page with its history and your people
+
+Matching is deterministic — no AI tokens — so candidates can be free-tier visible with confirm-and-write as the premium gesture. Every surface carries the caution the data demands: *a Mayflower name is the beginning of a question, not a descent.*
+
+---
+
 ## Features Explicitly Deferred
 
-- **Tree editing** — Witness never modifies a GEDCOM. Read-only always.
+- **Tree editing** — Witness never modifies a GEDCOM. Read-only always. *(Amended 2026-08-25 by At the Stone: the user may now make supervised, walk-backable additions — ADD person, RECORD marriage — from field evidence they verify themselves. The user is the editor; Witness is the scribe. The GEDCOM source file itself is still never touched.)*
 - **Ancestry/FamilySearch write API** — not pursued. GEDCOM re-import is the sync model.
 - **Cousin discovery network** — V3 feature. Opt-in, dead ancestors only.
 - **Android** — deferred until iOS demonstrates product-market fit.
@@ -335,12 +401,12 @@ Built during Phase 4–5 in response to what the real 5,495-person tree and fiel
 ### Stack
 - **Frontend:** React Native / Expo (universal — iPhone, iPad, and web, all shipped)
 - **Backend:** Supabase (Postgres + Storage + Auth + Real-time), pg_cron workers for geocoding, NARA matching, and digest generation
-- **AI:** Anthropic Claude Sonnet API (claude-sonnet-4-6)
-- **Subscriptions:** RevenueCat (native IAP) + RevenueCat Web Billing via Stripe (web) + Superwall placements layered on top
+- **AI:** Anthropic Claude API — claude-sonnet-4-6 for enrichment/biographies, **claude-opus-5** for story arcs and whole-ancestry synthesis, vision models for At the Stone headstone reading
+- **Subscriptions:** RevenueCat (native IAP) + RevenueCat Web Billing via Stripe (web). Superwall retired 2026-08-14 in favor of a native narrative pre-auth flow + Apple Sign-In
 - **Maps:** Apple Maps (native, via `react-native-maps` default provider) / MapLibre GL over CARTO basemaps (web)
 - **Web hosting:** Vercel, deployed from `docs/preview-site` at witnesslives.com root; email digest fallback via Resend
 
-### Build Status (July 2026)
+### Build Status (July 2026 — everything after 2026-08-08 lives in **August 2026 — The Chronicle Deepens** above)
 - ✅ GEDCOM parser — complete. Pure TypeScript, 24 tests, validated against real 11MB file. 5,495 individuals, 1,852 families, 3,808 places, parsed in 110ms.
 - ✅ Supabase schema — 8 tables, RLS policies, indexes live on project bdjsahbjptpcmouqozvs
 - ✅ Import pipeline — ParsedGedcom → DB rows, batched insert, 31 tests passing
@@ -493,9 +559,9 @@ Ancestor map, cemetery GPS, "I'm Here" mode, proactive location notifications, i
 Weekly digest notifications, Annual Wrapped, onboarding flow, App Store assets, TestFlight beta.  
 *Milestone: TestFlight live. Family + 20 outside beta testers on real GEDCOMs.* ✅ TestFlight live (build 5, onboarding + hard paywall shipped). Beyond original scope: a full web app also launched in this window (Broadsheet redesign, Web Billing, MapLibre map), plus Tree Health, NARA document matching, and the Family Stage/Register navigation rework. Annual Wrapped still open; outside beta testers not yet recruited.
 
-### Phase 6 — Launch (Weeks 22–24)
+### Phase 6 — Launch (Weeks 22–24) ✅ COMPLETE
 USPTO filing, domain secured, marketing site, community seeding, press outreach, App Store submission.  
-*Milestone: Witness live on the App Store. Week 1 target: 200 downloads, 50 trial conversions.* Domain (witnesslives.com) live and already serving the web app; App Store submission still open.
+*Milestone: Witness live on the App Store.* ✅ **Met 2026-08-24** — 1.5.2 (build 12) approved and live after one rejection cycle. witnesslives.com rebuilt around the three-pillar pitch (Storytelling / Tree Health / Immersive Insights); genealogical-society outbound campaign underway.
 
 ---
 
@@ -516,7 +582,7 @@ Unscheduled ideas live in [docs/IDEAS.md](docs/IDEAS.md).
 
 - Cousin discovery network (opt-in, dead ancestors only, probabilistic matching)
 - Community Research Briefs — share open brick walls with cousin network
-- Photo and document intelligence (handwritten record transcription, gravestone OCR)
+- Photo and document intelligence (handwritten record transcription; ~~gravestone OCR~~ **shipped early as At the Stone, 2026-08-25**)
 - AI-powered relationship path narration for cousin matches
 - Suggested cousin outreach messages
 - Family Street View — spatial navigation through the family tree
@@ -565,7 +631,7 @@ The following documents in /docs/ provide scene-by-scene UI guidance for each co
 
 ## Guiding Principles
 
-**Witness never edits.** The GEDCOM is sacred. The app reads, enriches, and surfaces — never modifies.
+**Witness never edits.** The GEDCOM is sacred. The app reads, enriches, and surfaces — never modifies. Where the field hands the user evidence (At the Stone, a confirmed crossing), the *user* may write, with a walk-back, and the source file is still never touched: the user is the editor, Witness is the scribe.
 
 **Anomalies are curiosities, not errors.** Frame data inconsistencies as research invitations, not quality failures. The user spent years building their tree. Respect that.
 
@@ -585,6 +651,6 @@ The following documents in /docs/ provide scene-by-scene UI guidance for each co
 
 ---
 
-*Brief v2.0 — July 2026. Witness is an independent project by Rufus Howe.*  
+*Brief v3.0 — August 26, 2026. Witness is an independent project by Rufus Howe.*  
 *Repository: bicentenial1776-rufus/Witness*  
 *witnesslives.com*
