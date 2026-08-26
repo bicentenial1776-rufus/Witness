@@ -22,6 +22,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk@0.65.0';
 
 import { requireCronSecret } from '../_shared/cron.ts';
+import { fetchAllPages } from '../_shared/family/paginate.ts';
 import {
   authenticate,
   checkDailyLimit,
@@ -47,6 +48,43 @@ const MODEL = 'claude-opus-5';
 const PROMPT_VERSION = 5;
 const MIN_FOUNDER_DEPTH = 6;
 const MAX_CHAIN = 20;
+
+/** The record rows an arc is assembled from, named so the drains stay typed. */
+interface PersonRow {
+  id: string;
+  full_name: string;
+  birth_year: number | null;
+  death_year: number | null;
+  living: boolean | null;
+}
+
+interface SpouseRow {
+  id: string;
+  full_name: string;
+  living: boolean | null;
+}
+
+interface EventRow {
+  individual_id: string;
+  event_type: string;
+  date_year: number | null;
+  label: string | null;
+  detail: string | null;
+  places: { raw: string } | null;
+}
+
+interface FamilyRow {
+  husband_id: string | null;
+  wife_id: string | null;
+  marriage_date_year: number | null;
+}
+
+/** One cached direct-ancestor row: who, how far up, and what to call them. */
+interface RelRow {
+  individual_id: string;
+  generation_distance: number;
+  label: string | null;
+}
 
 interface ChainPerson {
   id: string;
@@ -98,14 +136,25 @@ const ARC_SCHEMA = {
   },
 } as const;
 
+/**
+ * An `.in(...)` fetch that is safe at tree scale in both directions: the id
+ * list is chunked so the URL stays short, and every chunk is range-drained
+ * so a chunk whose answer runs past one page is not silently truncated.
+ */
 async function chunkedIn<T>(
-  fetchChunk: (ids: string[]) => Promise<T[]>,
+  buildQuery: (
+    ids: string[],
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
   ids: string[],
+  errorPrefix: string,
   size = 150,
 ): Promise<T[]> {
   const out: T[] = [];
   for (let i = 0; i < ids.length; i += size) {
-    out.push(...(await fetchChunk(ids.slice(i, i + size))));
+    const chunk = ids.slice(i, i + size);
+    out.push(...(await fetchAllPages<T>((from, to) => buildQuery(chunk, from, to), errorPrefix)));
   }
   return out;
 }
@@ -330,39 +379,59 @@ Deno.serve(async (req) => {
   if (!tree.home_person_id) return json(422, { error: 'This tree has no home person yet.' });
 
   // Direct-ancestor set with depths — the skeleton every arc hangs on.
-  const { data: rels } = await ctx.db
-    .from('relationships')
-    .select('individual_id, generation_distance, label')
-    .eq('tree_id', tree.id)
-    .eq('is_direct_ancestor', true);
-  if (!rels?.length) {
+  // Drained by range: a deep tree carries more than one page of direct
+  // ancestors, and a half-read skeleton ends the descent early (which is
+  // then cached as if the line really stopped there).
+  let rels: RelRow[];
+  try {
+    rels = await fetchAllPages<RelRow>(
+      (from, to) =>
+        ctx.db
+          .from('relationships')
+          .select('individual_id, generation_distance, label')
+          .eq('tree_id', tree.id)
+          .eq('is_direct_ancestor', true)
+          .order('individual_id')
+          .range(from, to),
+      'Fetching relationships failed',
+    );
+  } catch (error) {
+    console.error('Arc skeleton fetch failed:', error);
+    return json(500, { error: 'Reading the line failed. Please try again.' });
+  }
+  if (!rels.length) {
     return json(422, { error: 'No computed relationships yet — open the tree first.' });
   }
-  const relByPerson = new Map(rels.map((r) => [r.individual_id as string, r]));
+  const relByPerson = new Map(rels.map((r) => [r.individual_id, r]));
 
   // Founders: direct ancestors with no recorded parents, deep enough to
   // carry a story. Deterministic order → stable daily rotation.
   const directIds = [...relByPerson.keys()];
-  const hasParent = new Set(
-    (
-      await chunkedIn(
-        async (ids) =>
-          (await ctx.db.from('family_children').select('individual_id').in('individual_id', ids))
-            .data ?? [],
-        directIds,
-      )
-    ).map((r: { individual_id: string }) => r.individual_id),
-  );
+  let parentRows: { individual_id: string }[];
+  try {
+    parentRows = await chunkedIn<{ individual_id: string }>(
+      (ids, from, to) =>
+        ctx.db
+          .from('family_children')
+          .select('individual_id')
+          .in('individual_id', ids)
+          .order('individual_id')
+          .order('family_id')
+          .range(from, to),
+      directIds,
+      'Fetching parent links failed',
+    );
+  } catch (error) {
+    console.error('Founder parent check failed:', error);
+    return json(500, { error: 'Reading the line failed. Please try again.' });
+  }
+  const hasParent = new Set(parentRows.map((r) => r.individual_id));
   const founders = directIds
     .filter(
-      (id) =>
-        !hasParent.has(id) &&
-        (relByPerson.get(id)!.generation_distance as number) >= MIN_FOUNDER_DEPTH,
+      (id) => !hasParent.has(id) && relByPerson.get(id)!.generation_distance >= MIN_FOUNDER_DEPTH,
     )
     .sort((a, b) => {
-      const d =
-        (relByPerson.get(b)!.generation_distance as number) -
-        (relByPerson.get(a)!.generation_distance as number);
+      const d = relByPerson.get(b)!.generation_distance - relByPerson.get(a)!.generation_distance;
       return d !== 0 ? d : a.localeCompare(b);
     });
   if (!founders.length) {
@@ -389,75 +458,150 @@ Deno.serve(async (req) => {
   // Walk DOWN from the founder: at each step, the child who is also a
   // direct ancestor one generation nearer (or the home person). Descent
   // paths are unique; ties (pedigree collapse) break deterministically.
+  //
+  // A read that fails here used to be indistinguishable from a line that
+  // genuinely ends — `{ data }` destructured without its error, then
+  // `break`. The short chain was written to a cache with no staleness
+  // signal, so one bad round-trip froze a half-told line forever. Every
+  // read is checked now, and only the record itself may stop the walk.
   const chainIds: string[] = [founderId];
   let cursor = founderId;
+  let brokeOnRecord = false;
   for (let i = 0; i < MAX_CHAIN && cursor !== tree.home_person_id; i++) {
-    const { data: fams } = await ctx.db
+    const { data: fams, error: famsError } = await ctx.db
       .from('families')
       .select('id')
       .or(`husband_id.eq.${cursor},wife_id.eq.${cursor}`)
       .eq('tree_id', tree.id);
-    if (!fams?.length) break;
-    const { data: kids } = await ctx.db
+    if (famsError) {
+      console.error(`Descent read failed at ${cursor}:`, famsError.message);
+      return json(500, { error: 'Reading the line failed. Please try again.' });
+    }
+    if (!fams?.length) {
+      brokeOnRecord = true;
+      break;
+    }
+    const { data: kids, error: kidsError } = await ctx.db
       .from('family_children')
       .select('individual_id')
       .in('family_id', fams.map((f) => f.id));
-    const cursorGen = relByPerson.get(cursor)!.generation_distance as number;
+    if (kidsError) {
+      console.error(`Descent read failed at ${cursor}:`, kidsError.message);
+      return json(500, { error: 'Reading the line failed. Please try again.' });
+    }
+    const cursorGen = relByPerson.get(cursor)!.generation_distance;
     const next = (kids ?? [])
       .map((k) => k.individual_id as string)
       .filter(
         (id) =>
           id === tree.home_person_id ||
-          (relByPerson.has(id) &&
-            (relByPerson.get(id)!.generation_distance as number) === cursorGen - 1),
+          relByPerson.get(id)?.generation_distance === cursorGen - 1,
       )
       .sort()[0];
-    if (!next) break;
+    if (!next) {
+      brokeOnRecord = true;
+      break;
+    }
     chainIds.push(next);
     cursor = next;
+  }
+
+  // The arc's whole contract is founder-to-reader. A chain that stops short
+  // is a broken descent, not a shorter story: telling it anyway would cache
+  // a line that silently claims to reach you and never does.
+  if (cursor !== tree.home_person_id) {
+    console.error(
+      `Arc chain for founder ${founderId} stopped at ${cursor} after ${chainIds.length} ` +
+        `generations (${brokeOnRecord ? 'the record goes no further' : `hit the ${MAX_CHAIN}-generation cap`}).`,
+    );
+    return json(422, { error: 'This line does not run all the way down to you in the record yet.' });
   }
   if (chainIds.length < 4) {
     return json(422, { error: 'This line is too thin in the record to tell yet.' });
   }
 
   // Assemble each chain member's record: person row, events, marriages.
-  const { data: peopleRows } = await ctx.db
-    .from('individuals')
-    .select('id, full_name, birth_year, death_year, living')
-    .in('id', chainIds);
-  const personById = new Map((peopleRows ?? []).map((p) => [p.id as string, p]));
-
-  const { data: eventRows } = await ctx.db
-    .from('individual_events')
-    .select('individual_id, event_type, date_year, label, detail, places(raw)')
-    .in('individual_id', chainIds)
-    .order('date_year', { ascending: true, nullsFirst: false });
-
-  const { data: famRows } = await ctx.db
-    .from('families')
-    .select('husband_id, wife_id, marriage_date_year')
-    .eq('tree_id', tree.id);
-  const spouseIds = new Set<string>();
-  for (const f of famRows ?? []) {
-    if (chainIds.includes(f.husband_id) && f.wife_id) spouseIds.add(f.wife_id);
-    if (chainIds.includes(f.wife_id) && f.husband_id) spouseIds.add(f.husband_id);
+  // The chain is at most MAX_CHAIN + 1 people, but their events and the
+  // tree's families are both tree-scale, so those two are range-drained.
+  let peopleRows: PersonRow[];
+  let eventRows: EventRow[];
+  let famRows: FamilyRow[];
+  try {
+    [peopleRows, eventRows, famRows] = await Promise.all([
+      chunkedIn<PersonRow>(
+        (ids, from, to) =>
+          ctx.db
+            .from('individuals')
+            .select('id, full_name, birth_year, death_year, living')
+            .in('id', ids)
+            .order('id')
+            .range(from, to),
+        chainIds,
+        'Fetching chain people failed',
+      ),
+      chunkedIn<EventRow>(
+        (ids, from, to) =>
+          ctx.db
+            .from('individual_events')
+            .select('individual_id, event_type, date_year, label, detail, places(raw)')
+            .in('individual_id', ids)
+            .order('date_year', { ascending: true, nullsFirst: false })
+            .order('id')
+            .range(from, to),
+        chainIds,
+        'Fetching chain events failed',
+      ),
+      fetchAllPages<FamilyRow>(
+        (from, to) =>
+          ctx.db
+            .from('families')
+            .select('husband_id, wife_id, marriage_date_year')
+            .eq('tree_id', tree.id)
+            .order('id')
+            .range(from, to),
+        'Fetching families failed',
+      ),
+    ]);
+  } catch (error) {
+    console.error('Arc record assembly failed:', error);
+    return json(500, { error: 'Reading the line failed. Please try again.' });
   }
-  const spouseRows = await chunkedIn(
-    async (ids) =>
-      (await ctx.db.from('individuals').select('id, full_name, living').in('id', ids)).data ?? [],
-    [...spouseIds],
-  );
-  const spouseById = new Map(spouseRows.map((s: { id: string }) => [s.id, s]));
+  const personById = new Map(peopleRows.map((p) => [p.id, p]));
+
+  const chainSet = new Set(chainIds);
+  const spouseIds = new Set<string>();
+  for (const f of famRows) {
+    if (f.husband_id && chainSet.has(f.husband_id) && f.wife_id) spouseIds.add(f.wife_id);
+    if (f.wife_id && chainSet.has(f.wife_id) && f.husband_id) spouseIds.add(f.husband_id);
+  }
+  let spouseRows: SpouseRow[];
+  try {
+    spouseRows = await chunkedIn<SpouseRow>(
+      (ids, from, to) =>
+        ctx.db
+          .from('individuals')
+          .select('id, full_name, living')
+          .in('id', ids)
+          .order('id')
+          .range(from, to),
+      [...spouseIds],
+      'Fetching spouses failed',
+    );
+  } catch (error) {
+    console.error('Arc spouse fetch failed:', error);
+    return json(500, { error: 'Reading the line failed. Please try again.' });
+  }
+  const spouseById = new Map(spouseRows.map((sp) => [sp.id, sp]));
 
   const chain: ChainPerson[] = chainIds.map((id) => {
     const p = personById.get(id);
     const living = Boolean(p?.living);
     const facts: string[] = [];
     if (!living) {
-      for (const e of eventRows ?? []) {
+      for (const e of eventRows) {
         if (e.individual_id !== id) continue;
         if (!['birth', 'death', 'burial', 'residence', 'military', 'occupation', 'immigration', 'emigration', 'naturalization', 'census'].includes(e.event_type)) continue;
-        const place = (e as { places: { raw: string } | null }).places?.raw
+        const place = e.places?.raw
           ?.split(',')
           .slice(0, 2)
           .join(',')
@@ -468,10 +612,11 @@ Deno.serve(async (req) => {
         const name = e.label ?? e.event_type;
         facts.push(`${name}${e.date_year ? ` ${e.date_year}` : ''}${place ? ` — ${place}` : ''}${e.detail ? ` (${e.detail})` : ''}`);
       }
-      for (const f of famRows ?? []) {
+      for (const f of famRows) {
         const isMember = f.husband_id === id || f.wife_id === id;
         if (!isMember) continue;
-        const spouse = spouseById.get(f.husband_id === id ? f.wife_id : f.husband_id);
+        const spouseId = f.husband_id === id ? f.wife_id : f.husband_id;
+        const spouse = spouseId ? spouseById.get(spouseId) : undefined;
         if (spouse && !spouse.living) {
           facts.push(`married${f.marriage_date_year ? ` ${f.marriage_date_year}` : ''} — ${spouse.full_name}`);
         }
@@ -483,7 +628,7 @@ Deno.serve(async (req) => {
       birth: p?.birth_year ?? null,
       death: p?.death_year ?? null,
       living,
-      relationLabel: (relByPerson.get(id)?.label as string) ?? null,
+      relationLabel: relByPerson.get(id)?.label ?? null,
       facts: facts.slice(0, 14),
     };
   });
@@ -646,6 +791,13 @@ Deno.serve(async (req) => {
   if (response.stop_reason === 'refusal' || !textBlock) {
     return json(502, { error: 'Story generation was declined. Please try again.' });
   }
+  // A run that ends on the token ceiling has stopped mid-line. Its JSON
+  // usually fails to parse, but not always — a generation short of the
+  // reader still parses cleanly, and would cache as a finished arc.
+  if (response.stop_reason === 'max_tokens') {
+    console.error(`Arc for founder ${founderId} hit max_tokens at ${chain.length} generations.`);
+    return json(502, { error: 'Story generation ran long. Please try again.' });
+  }
 
   let wire: {
     title: string;
@@ -666,6 +818,19 @@ Deno.serve(async (req) => {
   }
   const storyById = new Map(wire.generations.map((g) => [g.personId, g]));
   const extras = await extrasPromise;
+
+  // Every generation the record put in the chain must come back written.
+  // Nothing downstream notices a gap: a missing id renders as a bare name
+  // card, so a line that trails off partway still looks like an arc — and
+  // the cache has no staleness signal to ever correct it.
+  const unwritten = chain.filter((c) => !storyById.get(c.id)?.story?.trim());
+  if (unwritten.length) {
+    console.error(
+      `Arc for founder ${founderId} came back missing ${unwritten.length} of ` +
+        `${chain.length} generations (first: generation ${chain.indexOf(unwritten[0]!) + 1}).`,
+    );
+    return json(502, { error: 'Story generation came back incomplete. Please try again.' });
+  }
 
   // Content = record data (server-assembled) + model prose + outside
   // sources, zipped by id. v2 content: worldFacts/paper/audio per gen.

@@ -16,6 +16,7 @@ import {
   corsHeaders,
   json,
 } from '../_shared/enrich.ts';
+import { fetchAllPages } from '../_shared/family/paginate.ts';
 
 const MODEL = 'claude-opus-5';
 const PROMPT_VERSION = 1;
@@ -42,16 +43,52 @@ const ESSAY_SCHEMA = {
   },
 } as const;
 
+/**
+ * An `.in(...)` fetch that is safe at tree scale in both directions: the id
+ * list is chunked so the URL stays short, and every chunk is range-drained
+ * so a chunk whose answer runs past one page is not silently truncated.
+ * Events are the reason — a hundred well-sourced ancestors carry far more
+ * than one page of them, and a short read quietly undercounts the essay.
+ */
 async function chunkedIn<T>(
-  fetchChunk: (ids: string[]) => Promise<T[]>,
+  buildQuery: (
+    ids: string[],
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
   ids: string[],
+  errorPrefix: string,
   size = 150,
 ): Promise<T[]> {
   const out: T[] = [];
   for (let i = 0; i < ids.length; i += size) {
-    out.push(...(await fetchChunk(ids.slice(i, i + size))));
+    const chunk = ids.slice(i, i + size);
+    out.push(...(await fetchAllPages<T>((from, to) => buildQuery(chunk, from, to), errorPrefix)));
   }
   return out;
+}
+
+/** The record rows the essay is aggregated from, named so the drains stay typed. */
+interface SynthRelRow {
+  individual_id: string;
+  generation_distance: number;
+  label: string | null;
+}
+
+interface SynthPersonRow {
+  id: string;
+  full_name: string;
+  surname: string | null;
+  birth_year: number | null;
+  death_year: number | null;
+  living: boolean | null;
+}
+
+interface SynthEventRow {
+  individual_id: string;
+  event_type: string;
+  date_year: number | null;
+  places: { raw: string } | null;
 }
 
 const US_HINTS = /usa|united states|america/i;
@@ -92,51 +129,80 @@ Deno.serve(async (req) => {
   if (gate) return gate;
 
   // ---- Deterministic aggregation over every direct ancestor ----
-  const { data: rels } = await ctx.db
-    .from('relationships')
-    .select('individual_id, generation_distance, label')
-    .eq('tree_id', tree.id)
-    .eq('is_direct_ancestor', true);
-  if (!rels?.length) {
+  // Every read here is range-drained. The essay's numbers are the reader's
+  // record of their own ancestry, so a short read is not a smaller essay —
+  // it is a wrong one, stated with the same confidence as a right one.
+  let rels: SynthRelRow[];
+  let people: SynthPersonRow[];
+  let events: SynthEventRow[];
+  let parentRows: { individual_id: string }[];
+  try {
+    rels = await fetchAllPages<SynthRelRow>(
+      (from, to) =>
+        ctx.db
+          .from('relationships')
+          .select('individual_id, generation_distance, label')
+          .eq('tree_id', tree.id)
+          .eq('is_direct_ancestor', true)
+          .order('individual_id')
+          .range(from, to),
+      'Fetching relationships failed',
+    );
+  } catch (error) {
+    console.error('Synthesis ancestor fetch failed:', error);
+    return json(500, { error: 'Reading your ancestry failed. Please try again.' });
+  }
+  if (!rels.length) {
     return json(422, { error: 'No computed relationships yet — open the tree first.' });
   }
-  const relByPerson = new Map(rels.map((r) => [r.individual_id as string, r]));
+  const relByPerson = new Map(rels.map((r) => [r.individual_id, r]));
   const ids = [...relByPerson.keys()];
 
-  const people = await chunkedIn(
-    async (chunk) =>
-      (
-        await ctx.db
-          .from('individuals')
-          .select('id, full_name, surname, birth_year, death_year, living')
-          .in('id', chunk)
-      ).data ?? [],
-    ids,
-  );
-  const personById = new Map(people.map((p: { id: string }) => [p.id, p]));
-
-  const events = await chunkedIn(
-    async (chunk) =>
-      (
-        await ctx.db
-          .from('individual_events')
-          .select('individual_id, event_type, date_year, places(raw)')
-          .in('individual_id', chunk)
-      ).data ?? [],
-    ids,
-    100,
-  );
-
-  const hasParent = new Set(
-    (
-      await chunkedIn(
-        async (chunk) =>
-          (await ctx.db.from('family_children').select('individual_id').in('individual_id', chunk))
-            .data ?? [],
+  try {
+    [people, events, parentRows] = await Promise.all([
+      chunkedIn<SynthPersonRow>(
+        (chunk, from, to) =>
+          ctx.db
+            .from('individuals')
+            .select('id, full_name, surname, birth_year, death_year, living')
+            .in('id', chunk)
+            .order('id')
+            .range(from, to),
         ids,
-      )
-    ).map((r: { individual_id: string }) => r.individual_id),
-  );
+        'Fetching ancestors failed',
+      ),
+      chunkedIn<SynthEventRow>(
+        (chunk, from, to) =>
+          ctx.db
+            .from('individual_events')
+            .select('individual_id, event_type, date_year, places(raw)')
+            .in('individual_id', chunk)
+            .order('individual_id')
+            .order('id')
+            .range(from, to),
+        ids,
+        'Fetching ancestor events failed',
+        100,
+      ),
+      chunkedIn<{ individual_id: string }>(
+        (chunk, from, to) =>
+          ctx.db
+            .from('family_children')
+            .select('individual_id')
+            .in('individual_id', chunk)
+            .order('individual_id')
+            .order('family_id')
+            .range(from, to),
+        ids,
+        'Fetching parent links failed',
+      ),
+    ]);
+  } catch (error) {
+    console.error('Synthesis aggregation failed:', error);
+    return json(500, { error: 'Reading your ancestry failed. Please try again.' });
+  }
+  const personById = new Map(people.map((p) => [p.id, p]));
+  const hasParent = new Set(parentRows.map((r) => r.individual_id));
   const founders = ids.filter((id) => !hasParent.has(id));
 
   // Birthplace origins (country, or US state).
