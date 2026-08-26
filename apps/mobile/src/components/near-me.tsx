@@ -336,6 +336,13 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
                 activeColor={theme.accent}
                 onPress={() => setView(view === 'list' ? 'map' : 'list')}
               />
+              {/* Standing at a stone that isn't in the list: capture it. */}
+              <Chip
+                label="At the stone"
+                active={false}
+                activeColor={theme.accent}
+                onPress={() => router.push('/at-the-stone')}
+              />
             </View>
             {/* The slider owns a full row — sharing one with the chips left
                 a stub of a track on small phones. */}

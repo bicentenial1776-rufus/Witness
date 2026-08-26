@@ -97,7 +97,13 @@
       "expo-sharing",
       "expo-apple-authentication",
       "./plugins/with-gedcom-guard.js",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Witness uses the camera to photograph headstones, so it can read the inscription and check the person against your tree."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

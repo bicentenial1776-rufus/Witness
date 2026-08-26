@@ -272,6 +272,78 @@ export type Database = {
           },
         ]
       }
+      grave_captures: {
+        Row: {
+          accuracy_m: number | null
+          candidates: Json | null
+          captured_at: string
+          cemetery: string | null
+          created_at: string
+          divined: Json | null
+          heading: number | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          matched_individual_id: string | null
+          photo_paths: string[]
+          status: string
+          transcription: string | null
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          accuracy_m?: number | null
+          candidates?: Json | null
+          captured_at?: string
+          cemetery?: string | null
+          created_at?: string
+          divined?: Json | null
+          heading?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          matched_individual_id?: string | null
+          photo_paths?: string[]
+          status?: string
+          transcription?: string | null
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          accuracy_m?: number | null
+          candidates?: Json | null
+          captured_at?: string
+          cemetery?: string | null
+          created_at?: string
+          divined?: Json | null
+          heading?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          matched_individual_id?: string | null
+          photo_paths?: string[]
+          status?: string
+          transcription?: string | null
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grave_captures_matched_individual_id_fkey"
+            columns: ["matched_individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grave_captures_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grave_confirmations: {
         Row: {
           confirmed_at: string
