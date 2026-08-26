@@ -14,6 +14,7 @@ import {
 import { Card } from '@/components/card';
 import { KinReveal } from '@/components/kin-reveal';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
+import { SanbornBlock } from '@/components/sanborn-block';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
@@ -52,6 +53,14 @@ export default function PlaceScreen() {
 
   const place = index && placeId ? index.places.get(placeId) : undefined;
   const residents: RegionResident[] = index && placeId ? ancestorsAtPlace(index, placeId) : [];
+
+  // The family's median year here anchors "the town in their day" —
+  // the Sanborn edition nearest the middle of their time in this place.
+  const eventYears = residents
+    .flatMap((r) => r.events.map((e) => e.year))
+    .filter((y): y is number => y != null)
+    .sort((a, b) => a - b);
+  const aroundYear = eventYears.length ? eventYears[Math.floor(eventYears.length / 2)] : null;
 
   return (
     <ThemedView style={{ flex: 1, padding: 24, gap: 8 }}>
@@ -96,6 +105,9 @@ export default function PlaceScreen() {
                   </ThemedText>
                 </>
               ) : null
+            }
+            ListFooterComponent={
+              place ? <SanbornBlock parts={place.parts} aroundYear={aroundYear} /> : null
             }
             renderItem={({ item }) => (
               <Card
