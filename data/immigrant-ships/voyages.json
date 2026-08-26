@@ -1,0 +1,64 @@
+[
+  {
+    "id": "jamestown-1607",
+    "ship": "Susan Constant, Godspeed and Discovery",
+    "arrivalYear": 1607,
+    "departurePort": "London, England",
+    "arrivalPlace": "Jamestown, Virginia",
+    "notes": "Three ships sailing together; the Virginia Company's first settlers.",
+    "source": "Wikipedia: Susan Constant — https://en.wikipedia.org/wiki/Susan_Constant"
+  },
+  {
+    "id": "mayflower-1620",
+    "ship": "Mayflower",
+    "arrivalYear": 1620,
+    "departurePort": "Plymouth, England",
+    "arrivalPlace": "Cape Cod, then Plymouth Colony",
+    "notes": "About 102 passengers; roughly half died in the first winter.",
+    "source": "Wikipedia: List of Mayflower passengers — https://en.wikipedia.org/wiki/List_of_Mayflower_passengers"
+  },
+  {
+    "id": "fortune-1621",
+    "ship": "Fortune",
+    "arrivalYear": 1621,
+    "departurePort": "London, England",
+    "arrivalPlace": "Plymouth Colony",
+    "notes": "The colony's first resupply; about 35 passengers.",
+    "source": "Wikipedia: Fortune (1621 ship) — https://en.wikipedia.org/wiki/Fortune_(1621_ship)"
+  },
+  {
+    "id": "anne-1623",
+    "ship": "Anne",
+    "arrivalYear": 1623,
+    "departurePort": "London, England",
+    "arrivalPlace": "Plymouth Colony",
+    "source": "Wikipedia: Anne (1623 ship) — https://en.wikipedia.org/wiki/Anne_(1623_ship)"
+  },
+  {
+    "id": "little-james-1623",
+    "ship": "Little James",
+    "arrivalYear": 1623,
+    "departurePort": "London, England",
+    "arrivalPlace": "Plymouth Colony",
+    "notes": "Sailed in company with the Anne.",
+    "source": "Wikipedia: Anne (1623 ship) — https://en.wikipedia.org/wiki/Anne_(1623_ship)"
+  },
+  {
+    "id": "winthrop-fleet-1630",
+    "ship": "Winthrop Fleet",
+    "arrivalYear": 1630,
+    "departurePort": "Yarmouth, Isle of Wight, England",
+    "arrivalPlace": "Salem and Massachusetts Bay",
+    "notes": "Eleven ships led by the Arbella — Talbot, Ambrose, Jewel, Mayflower, Whale, Success, Charles, William and Francis, Hopewell, Trial — carrying 700 to 1,000 Puritans. Import per ship where a transcription distinguishes them.",
+    "source": "Charles Edward Banks, The Winthrop Fleet of 1630 (1930); Robert Charles Anderson, The Winthrop Fleet (2012); Wikipedia: Winthrop Fleet — https://en.wikipedia.org/wiki/Winthrop_Fleet"
+  },
+  {
+    "id": "ark-and-dove-1634",
+    "ship": "Ark and Dove",
+    "arrivalYear": 1634,
+    "departurePort": "Cowes, Isle of Wight, England",
+    "arrivalPlace": "St. Clement's Island, Maryland",
+    "notes": "The founding voyage of the Maryland colony.",
+    "source": "Wikipedia: Ark (ship) — https://en.wikipedia.org/wiki/Ark_(ship)"
+  }
+]
