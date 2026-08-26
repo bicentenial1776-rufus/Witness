@@ -1,7 +1,7 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { Stack, router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 
 import { Button } from '@/components/button';
@@ -11,7 +11,7 @@ import { mono } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { showAlert } from '@/lib/alert';
-import { captureStone } from '@/lib/grave-captures';
+import { captureStone, flushQueue, pendingCount } from '@/lib/grave-captures';
 
 /**
  * At the Stone — the capture step (design artifact 2026-08-25). One
@@ -30,6 +30,17 @@ export default function AtTheStoneScreen() {
   const [stonesDone, setStonesDone] = useState(0);
   const [queuedCount, setQueuedCount] = useState(0);
   const [busy, setBusy] = useState(false);
+
+  const syncBehind = () => {
+    pendingCount().then(setQueuedCount).catch(() => {});
+    flushQueue()
+      .then(() => pendingCount().then(setQueuedCount))
+      .catch(() => {});
+  };
+
+  // The queue may hold stones from a past visit; show them, and give the
+  // sync a chance the moment the screen opens with signal.
+  useEffect(syncBehind, []);
 
   if (Platform.OS === 'web') {
     return (
@@ -105,7 +116,8 @@ export default function AtTheStoneScreen() {
     setAngles([]);
     try {
       // Location at the moment of sealing — GPS and compass name the
-      // cemetery and place the stone within it.
+      // cemetery and place the stone within it. A slow fix falls back to
+      // the last known position rather than holding the next stone up.
       let coords: { latitude: number | null; longitude: number | null; accuracy: number | null } = {
         latitude: null,
         longitude: null,
@@ -116,16 +128,19 @@ export default function AtTheStoneScreen() {
         const perm = await Location.getForegroundPermissionsAsync();
         const granted = perm.granted || (await Location.requestForegroundPermissionsAsync()).granted;
         if (granted) {
-          const pos = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Highest,
-          });
-          coords = pos.coords;
+          const pos =
+            (await Promise.race([
+              Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest }),
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000)),
+            ])) ?? (await Location.getLastKnownPositionAsync());
+          if (pos) coords = pos.coords;
           heading = (await Location.getHeadingAsync()).trueHeading ?? null;
         }
       } catch {
         // A stone with no coordinates still reads; it just goes unplaced.
       }
-      const result = await captureStone({
+      // Local only — the seal succeeds with five bars or none.
+      await captureStone({
         treeId: activeTree.id,
         photoUris,
         latitude: coords.latitude,
@@ -135,16 +150,18 @@ export default function AtTheStoneScreen() {
         capturedAt: new Date().toISOString(),
       });
       setStonesDone((n) => n + 1);
-      if (result === 'queued') setQueuedCount((n) => n + 1);
     } catch (e) {
-      // captureStone queues on network failure; reaching here means the
-      // photos couldn't even be persisted. Give the angles back rather
-      // than dropping the stone on the ground.
+      // The photos couldn't even be persisted to disk. Give the angles
+      // back rather than dropping the stone on the ground.
       setAngles(photoUris);
       showAlert('The stone could not be saved', e instanceof Error ? e.message : undefined);
+      return;
     } finally {
       setBusy(false);
     }
+    // The upload rides behind and never blocks the visit; the caption
+    // tells the truth about what's still waiting.
+    syncBehind();
   };
 
   return (
@@ -162,8 +179,15 @@ export default function AtTheStoneScreen() {
             ? 'THE CAMERA IS WAKING…'
             : angles.length
               ? `${angles.length} ANGLE${angles.length === 1 ? '' : 'S'} OF THIS STONE — RAKING LIGHT READS BEST`
-              : stonesDone
-                ? `${stonesDone} STONE${stonesDone === 1 ? '' : 'S'} THIS VISIT${queuedCount ? ` · ${queuedCount} QUEUED FOR SIGNAL` : ' · READING…'}`
+              : stonesDone || queuedCount
+                ? [
+                    stonesDone ? `${stonesDone} STONE${stonesDone === 1 ? '' : 'S'} THIS VISIT` : null,
+                    queuedCount
+                      ? `${queuedCount} SAFE ON THE PHONE — SENDS ITSELF WITH SIGNAL`
+                      : 'READING…',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
                 : 'SHOOT THE STONE — ANGLES WELCOME'}
         </Text>
         <View style={{ flexDirection: 'row', gap: 10 }}>

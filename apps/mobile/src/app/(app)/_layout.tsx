@@ -1,9 +1,10 @@
 import { Stack, router, useGlobalSearchParams, usePathname } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { Platform, View } from 'react-native';
+import { AppState, Platform, View } from 'react-native';
 
 import { GuideHelpButton } from '@/components/field-guide';
 import { WitnessTabBar } from '@/components/witness-tab-bar';
+import { flushQueue } from '@/lib/grave-captures';
 import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { trackResumePoint } from '@/lib/resume';
@@ -90,6 +91,17 @@ export const unstable_settings = {
 export default function AppLayout() {
   const theme = useTheme();
   useResume();
+
+  // Stones queued in a dead-zone cemetery send themselves the next time
+  // the app comes to the foreground — wherever the user lands in it.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    flushQueue().catch(() => {});
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') flushQueue().catch(() => {});
+    });
+    return () => sub.remove();
+  }, []);
 
   // The tab bar lives OUTSIDE the Stack so the four doors persist on
   // every detail screen — changing section never requires unwinding a

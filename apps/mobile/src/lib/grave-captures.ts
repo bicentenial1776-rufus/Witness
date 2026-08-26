@@ -76,6 +76,15 @@ export interface PendingStone {
 
 const QUEUE_DIR = 'grave-captures';
 
+/** One network step raced against a clock — a flaky bar must fail like
+    no bar at all, so the stone stays queued instead of hanging. */
+function withTimeout<T>(p: PromiseLike<T>, ms: number, what: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${what} timed out`)), ms)),
+  ]);
+}
+
 function queueFile(): File {
   return new File(Paths.document, QUEUE_DIR, 'queue.json');
 }
@@ -122,32 +131,57 @@ async function submitStone(stone: PendingStone): Promise<string> {
   const userId = userData.user?.id;
   if (!userId) throw new Error('Not signed in');
 
+  // A retry after a timed-out attempt must not mint a second stone: the
+  // capture moment is the stone's identity.
+  const { data: existing } = await withTimeout(
+    supabase
+      .from('grave_captures')
+      .select('id')
+      .eq('tree_id', stone.treeId)
+      .eq('captured_at', stone.capturedAt)
+      .maybeSingle(),
+    10_000,
+    'The duplicate check',
+  );
+  if (existing) {
+    supabase.functions.invoke('read-headstone', { body: { captureId: existing.id } }).catch(() => {});
+    return existing.id as string;
+  }
+
   const paths: string[] = [];
   for (const uri of stone.photoUris) {
     const res = await fetch(uri);
     const bytes = await res.arrayBuffer();
     const path = `${userId}/${stone.capturedAt.replace(/[:.]/g, '-')}/${paths.length}.jpg`;
-    const { error } = await supabase.storage
-      .from('grave-photos')
-      .upload(path, bytes, { contentType: 'image/jpeg', upsert: true });
+    const { error } = await withTimeout(
+      supabase.storage
+        .from('grave-photos')
+        .upload(path, bytes, { contentType: 'image/jpeg', upsert: true }),
+      25_000,
+      'The photo upload',
+    );
     if (error) throw new Error(error.message);
     paths.push(path);
   }
 
-  const { data: row, error: insertError } = await supabase
-    .from('grave_captures')
-    .insert({
-      tree_id: stone.treeId,
-      user_id: userId,
-      photo_paths: paths,
-      latitude: stone.latitude,
-      longitude: stone.longitude,
-      heading: stone.heading,
-      accuracy_m: stone.accuracyM,
-      captured_at: stone.capturedAt,
-    })
-    .select('id')
-    .single();
+  const { data: row, error: insertError } = await withTimeout(
+    supabase
+      .from('grave_captures')
+      .insert({
+        tree_id: stone.treeId,
+        user_id: userId,
+        photo_paths: paths,
+        latitude: stone.latitude,
+        longitude: stone.longitude,
+        heading: stone.heading,
+        accuracy_m: stone.accuracyM,
+        captured_at: stone.capturedAt,
+      })
+      .select('id')
+      .single(),
+    10_000,
+    'Saving the stone',
+  );
   if (insertError) throw new Error(insertError.message);
 
   // The reading runs server-side; nothing waits on it here.
@@ -156,46 +190,52 @@ async function submitStone(stone: PendingStone): Promise<string> {
 }
 
 /**
- * The capture screen's one call: try to submit now; failing that (one
- * bar and none), persist the photos and queue for later.
+ * The capture screen's one call, and it never touches the network:
+ * persist the photos and queue the stone — instant with five bars or
+ * none. flushQueue() carries the queue up whenever it gets a chance.
  */
-export async function captureStone(stone: PendingStone): Promise<'submitted' | 'queued'> {
-  try {
-    await submitStone(stone);
-    return 'submitted';
-  } catch {
-    const persisted = persistPhotos(stone.photoUris);
-    const queue = await readQueue();
-    queue.push({ ...stone, photoUris: persisted });
-    writeQueue(queue);
-    return 'queued';
-  }
+export async function captureStone(stone: PendingStone): Promise<void> {
+  const persisted = persistPhotos(stone.photoUris);
+  const queue = await readQueue();
+  queue.push({ ...stone, photoUris: persisted });
+  writeQueue(queue);
 }
 
-/** Flushes the offline queue; called when the ledger gains focus. */
+let flushing = false;
+
+/**
+ * Flushes the queue; safe to fire from anywhere, any time — sealing a
+ * stone, the ledger gaining focus. Overlapping calls collapse into one.
+ */
 export async function flushQueue(): Promise<number> {
-  const queue = await readQueue();
-  if (!queue.length) return 0;
-  const remaining: PendingStone[] = [];
-  let sent = 0;
-  for (const stone of queue) {
-    try {
-      await submitStone(stone);
-      sent += 1;
-      for (const uri of stone.photoUris) {
-        try {
-          const f = new File(uri);
-          if (f.exists) f.delete();
-        } catch {
-          // best-effort cleanup
+  if (flushing) return 0;
+  flushing = true;
+  try {
+    const queue = await readQueue();
+    if (!queue.length) return 0;
+    const remaining: PendingStone[] = [];
+    let sent = 0;
+    for (const stone of queue) {
+      try {
+        await submitStone(stone);
+        sent += 1;
+        for (const uri of stone.photoUris) {
+          try {
+            const f = new File(uri);
+            if (f.exists) f.delete();
+          } catch {
+            // best-effort cleanup
+          }
         }
+      } catch {
+        remaining.push(stone);
       }
-    } catch {
-      remaining.push(stone);
     }
+    writeQueue(remaining);
+    return sent;
+  } finally {
+    flushing = false;
   }
-  writeQueue(remaining);
-  return sent;
 }
 
 export async function listCaptures(treeId: string): Promise<GraveCapture[]> {
