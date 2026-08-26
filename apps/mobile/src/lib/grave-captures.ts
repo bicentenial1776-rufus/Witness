@@ -1,5 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
+import { invalidateRelationshipCache } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -10,6 +11,14 @@ import { supabase } from '@/lib/supabase';
  * can't upload are queued on disk and flushed when the app next finds
  * the network.
  */
+
+/** A tree person one of the stone's kinship phrases points at. */
+export interface KinAnchor {
+  hint: string;
+  role: 'spouse' | 'parent';
+  individual_id: string;
+  full_name: string;
+}
 
 export interface DivinedFacts {
   name: string | null;
@@ -24,6 +33,9 @@ export interface DivinedFacts {
   military: string | null;
   epitaph: string | null;
   legibility: 'clear' | 'partial' | 'poor';
+  /** From the phrase itself: "wife of" → F, "son of" → M. */
+  sex_hint?: 'F' | 'M' | null;
+  anchors?: KinAnchor[];
 }
 
 export interface MatchCandidate {
@@ -342,4 +354,162 @@ export async function setCaptureStatus(
 ): Promise<void> {
   const { error } = await supabase.from('grave_captures').update({ status }).eq('id', id);
   if (error) throw new Error(error.message);
+}
+
+// ——— phase 3: the stone changes the tree, one person at a time ———
+
+/** "MELVINA" as carved → "Melvina" as recorded. */
+function titleCase(name: string): string {
+  return name.toLowerCase().replace(/(^|[\s'-])\w/g, (ch) => ch.toUpperCase());
+}
+
+/**
+ * Records a marriage between an anchor and a person: fills the empty
+ * slot of an existing single-parent family, or creates one. The slots
+ * follow the anchor's recorded sex, falling back to the stone's hint.
+ */
+async function linkAsSpouse(
+  treeId: string,
+  userId: string,
+  anchorId: string,
+  personId: string,
+  personSex: 'F' | 'M' | null,
+): Promise<void> {
+  const { data: anchor } = await supabase
+    .from('individuals')
+    .select('sex')
+    .eq('id', anchorId)
+    .single();
+  const anchorIsHusband = anchor?.sex === 'M' || (anchor?.sex == null && personSex === 'F');
+  const slotAnchor = anchorIsHusband ? 'husband_id' : 'wife_id';
+  const slotPerson = anchorIsHusband ? 'wife_id' : 'husband_id';
+
+  const { data: fam } = await supabase
+    .from('families')
+    .select('id')
+    .eq('tree_id', treeId)
+    .eq(slotAnchor, anchorId)
+    .is(slotPerson, null)
+    .limit(1)
+    .maybeSingle();
+  if (fam) {
+    const patch = anchorIsHusband ? { wife_id: personId } : { husband_id: personId };
+    const { error } = await supabase.from('families').update(patch).eq('id', fam.id);
+    if (error) throw new Error(`Recording the marriage failed: ${error.message}`);
+  } else {
+    const { error } = await supabase.from('families').insert({
+      tree_id: treeId,
+      user_id: userId,
+      gedcom_xref: `STONE-F-${personId.slice(0, 8)}`,
+      husband_id: anchorIsHusband ? anchorId : personId,
+      wife_id: anchorIsHusband ? personId : anchorId,
+    });
+    if (error) throw new Error(`Recording the marriage failed: ${error.message}`);
+  }
+}
+
+/**
+ * Adds the person the stone names to the tree, linked the way the stone
+ * says — a new individual as the anchor's spouse or child, then the
+ * usual attach (photo as source, burial event). The relationship cache
+ * recomputes server-side so the newcomer gets their label and tier.
+ */
+export async function addPersonFromStone(
+  capture: GraveCapture,
+  anchor: KinAnchor,
+): Promise<string> {
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id;
+  if (!userId) throw new Error('Not signed in');
+  const d = capture.divined;
+  if (!d?.name) throw new Error('The stone gave no name to add.');
+
+  const { data: person, error } = await supabase
+    .from('individuals')
+    .insert({
+      tree_id: capture.tree_id,
+      user_id: userId,
+      full_name: titleCase(d.name),
+      gedcom_xref: `STONE-${capture.id.slice(0, 8)}`,
+      sex: d.sex_hint ?? undefined,
+      birth_year: d.birth_year_carved ?? d.birth_year_computed ?? null,
+      death_year: d.death_year ?? null,
+      living: false,
+    })
+    .select('id')
+    .single();
+  if (error) throw new Error(`Adding them failed: ${error.message}`);
+  const personId = person.id as string;
+
+  if (anchor.role === 'spouse') {
+    await linkAsSpouse(capture.tree_id, userId, anchor.individual_id, personId, d.sex_hint ?? null);
+  } else {
+    // Child of the anchor: join the anchor's first family, or start one.
+    const [asHusband, asWife] = await Promise.all([
+      supabase.from('families').select('id').eq('husband_id', anchor.individual_id).limit(1).maybeSingle(),
+      supabase.from('families').select('id').eq('wife_id', anchor.individual_id).limit(1).maybeSingle(),
+    ]);
+    let familyId = (asHusband.data?.id ?? asWife.data?.id) as string | undefined;
+    if (!familyId) {
+      const { data: anchorRow } = await supabase
+        .from('individuals')
+        .select('sex')
+        .eq('id', anchor.individual_id)
+        .single();
+      const { data: fam, error: famErr } = await supabase
+        .from('families')
+        .insert({
+          tree_id: capture.tree_id,
+          user_id: userId,
+          gedcom_xref: `STONE-F-${personId.slice(0, 8)}`,
+          husband_id: anchorRow?.sex === 'F' ? null : anchor.individual_id,
+          wife_id: anchorRow?.sex === 'F' ? anchor.individual_id : null,
+        })
+        .select('id')
+        .single();
+      if (famErr) throw new Error(`Starting the family failed: ${famErr.message}`);
+      familyId = fam.id as string;
+    }
+    const { error: childErr } = await supabase.from('family_children').insert({
+      family_id: familyId,
+      individual_id: personId,
+      user_id: userId,
+    });
+    if (childErr) throw new Error(`Linking the child failed: ${childErr.message}`);
+  }
+
+  await attachCapture(capture, personId);
+  invalidateRelationshipCache();
+  supabase.functions.invoke('compute-relationships', { body: { treeId: capture.tree_id } }).catch(() => {});
+  return personId;
+}
+
+/**
+ * Case B — the person exists but the marriage was never recorded: attach
+ * the stone AND record the link the stone asserts.
+ */
+export async function attachAndRecordMarriage(
+  capture: GraveCapture,
+  individualId: string,
+  anchor: KinAnchor,
+): Promise<void> {
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id;
+  if (!userId) throw new Error('Not signed in');
+  await attachCapture(capture, individualId);
+  await linkAsSpouse(
+    capture.tree_id,
+    userId,
+    anchor.individual_id,
+    individualId,
+    capture.divined?.sex_hint ?? null,
+  );
+  invalidateRelationshipCache();
+  supabase.functions.invoke('compute-relationships', { body: { treeId: capture.tree_id } }).catch(() => {});
+}
+
+/** Walking directions back to a stone, in the Maps app. */
+export function walkBackUrl(capture: GraveCapture): string | null {
+  if (capture.latitude == null || capture.longitude == null) return null;
+  return `https://maps.apple.com/?daddr=${capture.latitude},${capture.longitude}&dirflg=w`;
 }

@@ -114,18 +114,27 @@ function cleanName(raw: string): string {
 /** "wife of Mr. Asa Haskell" / "dau. of Israel & Polly Bray" → who the
     stone says this person belongs to. Names missing a surname inherit
     the last one in the phrase ("Israel & Polly Bray" → Israel Bray). */
-function parseKinHints(phrases: string[]): { spouses: string[]; parents: string[] } {
+function parseKinHints(phrases: string[]): {
+  spouses: string[];
+  parents: string[];
+  sexHint: 'F' | 'M' | null;
+} {
   const spouses: string[] = [];
   const parents: string[] = [];
+  let sexHint: 'F' | 'M' | null = null;
   for (const phrase of phrases) {
-    const spouse = /(?:wife|husband)\s+of\s+(.+)/i.exec(phrase);
+    const spouse = /(wife|husband)\s+of\s+(.+)/i.exec(phrase);
     if (spouse) {
-      spouses.push(cleanName(spouse[1]));
+      sexHint = spouse[1].toLowerCase() === 'wife' ? 'F' : 'M';
+      spouses.push(cleanName(spouse[2]));
       continue;
     }
-    const child = /(?:dau(?:ghter)?|son|child)\.?\s+of\s+(.+)/i.exec(phrase);
+    const child = /(dau(?:ghter)?|son|child)\.?\s+of\s+(.+)/i.exec(phrase);
     if (child) {
-      const names = cleanName(child[1]).split(/\s*(?:&|and)\s*/i).filter(Boolean);
+      const kind = child[1].toLowerCase();
+      if (kind.startsWith('dau')) sexHint = sexHint ?? 'F';
+      if (kind === 'son') sexHint = sexHint ?? 'M';
+      const names = cleanName(child[2]).split(/\s*(?:&|and)\s*/i).filter(Boolean);
       const lastTokens = names[names.length - 1]?.split(' ') ?? [];
       const surname = lastTokens.length > 1 ? lastTokens[lastTokens.length - 1] : '';
       for (const n of names) {
@@ -133,16 +142,18 @@ function parseKinHints(phrases: string[]): { spouses: string[]; parents: string[
       }
     }
   }
-  return { spouses, parents };
+  return { spouses, parents, sexHint };
 }
 
-/** Loose person-name match: every token of the hint appears in the
-    candidate name (or vice versa for single-token hints). */
+/** Token-boundary person-name match: every hint token must match a
+    whole token of the tree name (equal, or a truncation like "Will" for
+    "William"). Substrings across boundaries don't count — "Alvin" must
+    never match "Calvin". */
 function namesAgree(hint: string, treeName: string): boolean {
-  const h = hint.toLowerCase().split(' ').filter((t) => t.length > 1);
-  const t = treeName.toLowerCase();
+  const h = hint.toLowerCase().replace(/\./g, '').split(/\s+/).filter((t) => t.length > 1);
+  const t = treeName.toLowerCase().replace(/[^a-z' ]/g, ' ').split(/\s+/).filter(Boolean);
   if (!h.length) return false;
-  return h.every((token) => t.includes(token));
+  return h.every((token) => t.some((tt) => tt === token || tt.startsWith(token)));
 }
 
 Deno.serve(async (req) => {
@@ -275,6 +286,7 @@ Deno.serve(async (req) => {
   // "wife of Mr. Asa Haskell" even when the tree spells her Jemenice
   // and the stone says Jemima).
   const candidates: Candidate[] = [];
+  let stoneAnchors: { hint: string; role: 'spouse' | 'parent'; individual_id: string; full_name: string }[] = [];
   const hints = parseKinHints(reading.relationship_phrases ?? []);
   if (reading.name) {
     const tokens = reading.name.replace(/[^A-Za-z .']/g, ' ').trim().split(/\s+/);
@@ -308,11 +320,14 @@ Deno.serve(async (req) => {
     const hintPeople = async (hint: string) => {
       const last = hint.split(' ').pop() ?? '';
       if (last.length < 3) return [];
+      // Thread every hint token into the pattern so a common surname
+      // can't crowd the right person out of the page.
+      const pattern = `%${hint.replace(/\./g, '').trim().replace(/\s+/g, '%')}%`;
       const { data } = await ctx.db
         .from('individuals')
         .select('id, full_name')
         .eq('tree_id', capture.tree_id)
-        .ilike('full_name', `%${last}%`)
+        .ilike('full_name', pattern)
         .limit(50);
       return (data ?? []).filter((p) => namesAgree(hint, p.full_name as string)).slice(0, 3);
     };
@@ -327,8 +342,10 @@ Deno.serve(async (req) => {
         pool.set(p.id as string, { ...(p as Omit<PoolPerson, 'viaKin'>), viaKin: via });
       }
     };
+    const anchors: { hint: string; role: 'spouse' | 'parent'; individual_id: string; full_name: string }[] = [];
     for (const hint of hints.spouses) {
       for (const person of await hintPeople(hint)) {
+        anchors.push({ hint, role: 'spouse', individual_id: person.id as string, full_name: person.full_name as string });
         const [h, w] = await Promise.all([
           ctx.db.from('families').select('wife_id').eq('husband_id', person.id),
           ctx.db.from('families').select('husband_id').eq('wife_id', person.id),
@@ -342,6 +359,7 @@ Deno.serve(async (req) => {
     }
     for (const hint of hints.parents) {
       for (const person of await hintPeople(hint)) {
+        anchors.push({ hint, role: 'parent', individual_id: person.id as string, full_name: person.full_name as string });
         const [h, w] = await Promise.all([
           ctx.db.from('families').select('id').eq('husband_id', person.id),
           ctx.db.from('families').select('id').eq('wife_id', person.id),
@@ -501,6 +519,7 @@ Deno.serve(async (req) => {
       if (candidates[i].score < 30) candidates.splice(i, 1);
     }
     candidates.splice(5);
+    stoneAnchors = anchors.slice(0, 6);
   }
 
   const divined = {
@@ -516,6 +535,10 @@ Deno.serve(async (req) => {
     military: reading.military,
     epitaph: reading.epitaph,
     legibility: reading.legibility,
+    sex_hint: hints.sexHint,
+    // Tree people the stone's phrases point at — the handles for adding
+    // or linking the person the stone names (phase 3).
+    anchors: stoneAnchors,
   };
 
   const { data: updated, error: upErr } = await ctx.db

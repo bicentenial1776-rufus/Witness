@@ -1,9 +1,9 @@
 import { Stack, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, SectionList, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, SectionList, Text, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
-import { showAlert } from '@/lib/alert';
+import { showAlert, showDestructiveConfirm } from '@/lib/alert';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { mono } from '@/constants/theme';
@@ -11,6 +11,8 @@ import { useLetterpress } from '@/hooks/use-theme';
 import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { addCorrection } from '@/lib/corrections';
 import {
+  addPersonFromStone,
+  attachAndRecordMarriage,
   attachCapture,
   findAGraveUrl,
   flushQueue,
@@ -21,7 +23,9 @@ import {
   rereadCapture,
   rescoreCapture,
   setCaptureStatus,
+  walkBackUrl,
   type GraveCapture,
+  type KinAnchor,
   type MatchCandidate,
 } from '@/lib/grave-captures';
 
@@ -56,16 +60,26 @@ function CandidateCard({
   cand,
   busy,
   onAttach,
+  onRecordMarriage,
 }: {
   capture: GraveCapture;
   cand: MatchCandidate;
   busy: boolean;
   onAttach: (individualId: string, correction: boolean) => void;
+  onRecordMarriage: (individualId: string, anchor: KinAnchor) => void;
 }) {
   const L = useLetterpress();
   const stoneYear = capture.divined?.death_year ?? null;
   const conflict =
     stoneYear !== null && cand.death_year !== null && stoneYear !== cand.death_year;
+  // The stone asserts a marriage the tree hasn't recorded: offer to
+  // record it as part of the attach (the Melvina case — "wife of Alvin
+  // Howe" beside an Alvin with no wife linked).
+  const spouseAnchor = (capture.divined?.anchors ?? []).find(
+    (a) =>
+      a.role === 'spouse' &&
+      !cand.reasons.some((r) => r.includes('is their spouse in your tree')),
+  );
   return (
     <View style={{ borderWidth: 1, borderColor: L.rule, backgroundColor: L.well, padding: 10, gap: 6 }}>
       <Pressable
@@ -101,6 +115,18 @@ function CandidateCard({
           style={{ borderWidth: 1, borderColor: L.amber, paddingVertical: 10, alignItems: 'center' }}
         >
           <Text style={mono(11.5, L.amber)}>ATTACH + NOTE THE DATE IN THE MARGIN</Text>
+        </Pressable>
+      )}
+      {spouseAnchor && (
+        <Pressable
+          disabled={busy}
+          onPress={() => onRecordMarriage(cand.individual_id, spouseAnchor)}
+          accessibilityRole="button"
+          style={{ borderWidth: 1, borderColor: L.amber, paddingVertical: 10, alignItems: 'center' }}
+        >
+          <Text style={mono(11.5, L.amber)}>
+            ATTACH + RECORD THE MARRIAGE TO {spouseAnchor.full_name.toUpperCase()}
+          </Text>
         </Pressable>
       )}
     </View>
@@ -148,6 +174,46 @@ function CaptureCard({ capture, onChanged }: { capture: GraveCapture; onChanged:
     } finally {
       setBusy(false);
     }
+  };
+
+  const recordMarriage = (individualId: string, anchor: KinAnchor) => {
+    showDestructiveConfirm(
+      'Record the marriage?',
+      `Attach the stone and record this person as ${anchor.full_name}'s spouse — the link the stone asserts. It can be undone from their page.`,
+      'Record it',
+      async () => {
+        setBusy(true);
+        try {
+          await attachAndRecordMarriage(capture, individualId, anchor);
+          onChanged();
+        } catch (e: unknown) {
+          showAlert('Could not record it', e instanceof Error ? e.message : '');
+        } finally {
+          setBusy(false);
+        }
+      },
+    );
+  };
+
+  const addFromStone = (anchor: KinAnchor) => {
+    const name = capture.divined?.name ?? 'this person';
+    showDestructiveConfirm(
+      'Add them to your tree?',
+      `Add ${name} as ${anchor.full_name}'s ${anchor.role === 'spouse' ? 'spouse' : 'child'}, the way the stone says — one person, linked, with the stone attached.`,
+      'Add them',
+      async () => {
+        setBusy(true);
+        try {
+          const id = await addPersonFromStone(capture, anchor);
+          onChanged();
+          router.push({ pathname: '/ancestor/[id]', params: { id } });
+        } catch (e: unknown) {
+          showAlert('Could not add them', e instanceof Error ? e.message : '');
+        } finally {
+          setBusy(false);
+        }
+      },
+    );
   };
 
   const file = async (status: 'lead' | 'dismissed') => {
@@ -243,6 +309,7 @@ function CaptureCard({ capture, onChanged }: { capture: GraveCapture; onChanged:
                   cand={cand}
                   busy={busy}
                   onAttach={attach}
+                  onRecordMarriage={recordMarriage}
                 />
               ))
             ) : (
@@ -250,9 +317,39 @@ function CaptureCard({ capture, onChanged }: { capture: GraveCapture; onChanged:
                 No one in your tree answers to this stone yet.
               </Text>
             ))}
+          {capture.status === 'read' && (capture.divined?.anchors?.length ?? 0) > 0 && (
+            <View style={{ gap: 8 }}>
+              <Text style={{ ...mono(10.5, L.muted), letterSpacing: 1.5 }}>
+                THE STONE POINTS INTO YOUR TREE
+              </Text>
+              {(capture.divined?.anchors ?? []).map((anchor) => (
+                <Pressable
+                  key={`${anchor.role}-${anchor.individual_id}`}
+                  disabled={busy}
+                  onPress={() => addFromStone(anchor)}
+                  accessibilityRole="button"
+                  style={{ borderWidth: 1, borderColor: L.rule, backgroundColor: L.well, paddingVertical: 10, alignItems: 'center' }}
+                >
+                  <Text style={mono(11.5, L.ink)}>
+                    ADD AS {anchor.role === 'spouse' ? 'SPOUSE' : 'CHILD'} OF{' '}
+                    {anchor.full_name.toUpperCase()} — NEW PERSON
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
           {capture.status === 'read' && (
             <Pressable onPress={recheck} disabled={busy} hitSlop={6} accessibilityRole="button">
               <Text style={mono(11, L.muted)}>RE-CHECK THE TREE (AFTER EDITS) ›</Text>
+            </Pressable>
+          )}
+          {walkBackUrl(capture) && (
+            <Pressable
+              onPress={() => Linking.openURL(walkBackUrl(capture)!)}
+              hitSlop={6}
+              accessibilityRole="button"
+            >
+              <Text style={mono(11, L.amber)}>WALK ME BACK TO THIS STONE ›</Text>
             </Pressable>
           )}
           {(capture.status === 'read' || capture.status === 'lead') && (
