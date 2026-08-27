@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { ActivityIndicator, Image, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { getRelationship } from '@witness/core/family';
@@ -12,7 +12,10 @@ import {
   eventTypeLabel,
   fetchNaraCandidatesForIndividual,
   isFindAGraveUrl,
+  livedNear,
+  personShoreCrossings,
   stageKeyForPerson,
+  type LivedNearNeighbor,
   type NaraCandidate,
 } from '@witness/core/query';
 
@@ -25,6 +28,8 @@ import { TextField } from '@/components/text-field';
 import { KinReveal } from '@/components/kin-reveal';
 import { capturesForPerson, photoUrl, type GraveCapture } from '@/lib/grave-captures';
 import { LineageMark } from '@/components/lineage-mark';
+import { LineagePanel } from '@/components/lineage-panel';
+import { PlaceMap } from '@/components/place-map';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -48,10 +53,14 @@ import { advanceTrail, dismissTrail, nextTrailPiece } from '@/lib/issue-trail';
 import { VISITED_MARK, fetchVisitedSet, recordVisit } from '@/lib/visits';
 import { createAncestorShareLink } from '@/lib/share-links';
 import {
+  getKinMap,
   getLineageTierMap,
   getRelationshipDetailMap,
+  type Kin,
   type LineageTier,
 } from '@/lib/relationship-cache';
+import { getGeographyIndex } from '@/lib/geography-cache';
+import { getPerspective, setPerspective, subscribePerspective } from '@/lib/perspective';
 import {
   buildFindAGraveSearchUrl,
   extractFindAGraveUrl,
@@ -79,8 +88,23 @@ interface EventRow {
   event_type: string;
   date_year: number | null;
   date_raw: string | null;
-  places: { id: string; raw: string; parts: string[] } | null;
+  places: {
+    id: string;
+    raw: string;
+    parts: string[];
+    latitude?: number | null;
+    longitude?: number | null;
+  } | null;
 }
+
+/** The four tabs of the 2B Portrait, plus the Dig-deeper accordion keys. */
+type TabKey = 'overview' | 'life' | 'family' | 'sources';
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'life', label: 'Life & Times' },
+  { key: 'family', label: 'Family' },
+  { key: 'sources', label: 'Sources' },
+];
 
 /** A person on the family register — parent, sibling, spouse, or child. */
 interface RegisterPerson {
@@ -592,12 +616,33 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // Attached headstone captures — the stone block under the identity.
   const [stones, setStones] = useState<{ capture: GraveCapture; thumb: string | null }[]>([]);
   const [providerLink, setProviderLink] = useState<ProviderLink | null>(null);
-  // Story / Their World open in place — one panel at a time, the family
-  // register below simply shifts down. Research left this card in the
-  // 2026-07-29 redesign meaning to re-land in Tree Health; it never did,
-  // and no screen could start a brief until Katie Grafer's review found
-  // the hole (2026-08-15). It's back among the person's doors below.
-  const [openPanel, setOpenPanel] = useState<'story' | 'world' | null>(null);
+  // The 2B layout (2026-08-27): four tabs under the identity header. All
+  // four stay mounted (display-toggled) so a half-typed note, a generated
+  // story, or the corrections fetch survives a tab switch — and the ✎
+  // pencils in the header work before Sources is ever visited.
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  // The Dig-deeper accordion inside Life & Times: one of the two open at a
+  // time, defaulting to the world (the story waits for its button anyway).
+  const [digDeeper, setDigDeeper] = useState<'story' | 'world'>('world');
+  // Which "Alive during…" rows are expanded to their blurbs.
+  const [openEventIds, setOpenEventIds] = useState<Set<string>>(new Set());
+  // The inline direct-line panel (caret beside the relationship lede).
+  const [lineageOpen, setLineageOpen] = useState(false);
+  // The birthplace map panel (caret beside the place in the vitals span).
+  const [mapOpen, setMapOpen] = useState(false);
+  // "Lived near": contemporaries within 25 miles, computed lazily from the
+  // cached geography index the first time the world panel shows. null =
+  // not asked yet; 'loading' while the (possibly slow, once-per-session)
+  // index fetch runs.
+  const [neighbors, setNeighbors] = useState<LivedNearNeighbor[] | 'loading' | null>(null);
+  const [neighborKin, setNeighborKin] = useState<Map<string, Kin>>(new Map());
+  // The perspective lens: session-only re-anchoring of relationship
+  // framing on another ancestor (src/lib/perspective.ts). The lensed
+  // label is a live walk — the cache only knows the home person.
+  const perspective = useSyncExternalStore(subscribePerspective, getPerspective, getPerspective);
+  const [lensRelationship, setLensRelationship] = useState<
+    { label: string; tier: LineageTier } | 'none' | null
+  >(null);
   // Family context (witness-family-context-spec.md): one RelativeFact[] per
   // story view, feeding both the pedigree chart and the AI brief. Loaded
   // lazily the first time the story panel opens; null = not yet fetched.
@@ -618,12 +663,14 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   const biography = useEnrichment(id, 'biography', 'generate-biography', 'biography');
   const worldContext = useEnrichment(id, 'historical_context', 'generate-historical-context', 'context');
 
-  // Family context loads the first time the story panel opens — computed
-  // once per story view, shared by the chart and the narrative brief. A
-  // parent with a story navigates straight to it on tap, so parents'
-  // story flags ride along.
+  // Family context loads the first time the story or the Family tab opens —
+  // computed once per view, shared by the chart (Family tab) and the
+  // narrative brief (story). A parent with a story navigates straight to
+  // it on tap, so parents' story flags ride along.
+  const wantsRelatives =
+    activeTab === 'family' || (activeTab === 'life' && digDeeper === 'story');
   useEffect(() => {
-    if (openPanel !== 'story' || relatives !== null || !id) return;
+    if (!wantsRelatives || relatives !== null || !id) return;
     let cancelled = false;
     (async () => {
       try {
@@ -649,8 +696,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openPanel, relatives, id, parents]);
+  }, [wantsRelatives, relatives, id, parents]);
 
   // Resolve this person's household against the stage index (cached per
   // tree, shared with the Family Stage screen). Best-effort: on failure the
@@ -718,7 +764,14 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     setTier(undefined);
     setStones([]);
     setProviderLink(null);
-    setOpenPanel(null);
+    setActiveTab('overview');
+    setDigDeeper('world');
+    setOpenEventIds(new Set());
+    setLineageOpen(false);
+    setMapOpen(false);
+    setNeighbors(null);
+    neighborsRequestedFor.current = null;
+    setLensRelationship(null);
     setRelatives(null);
     setParentStories(new Set());
     setOpenCorrections([]);
@@ -731,7 +784,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           .maybeSingle(),
         supabase
           .from('individual_events')
-          .select('event_type, date_year, date_raw, places(id, raw, parts)')
+          .select('event_type, date_year, date_raw, places(id, raw, parts, latitude, longitude)')
           .eq('individual_id', id)
           .order('date_year', { ascending: true })
           .returns<EventRow[]>(),
@@ -1028,11 +1081,68 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     };
   }, [id, activeTree?.id]);
 
-  // One panel open at a time; opening Their World kicks off its lookup.
-  function togglePanel(next: 'story' | 'world') {
-    setOpenPanel((current) => (current === next ? null : next));
-    if (next === 'world' && worldContext.state.name === 'none') worldContext.generate();
-  }
+  // Their World generates itself the first time the world panel is
+  // actually on screen (Life & Times, world side) — cache-first, so a
+  // person with a stored context never re-invokes the writer.
+  useEffect(() => {
+    if (activeTab !== 'life' || digDeeper !== 'world') return;
+    if (!person || person.living || fromFieldCopy) return;
+    if (worldContext.state.name === 'none') void worldContext.generate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, digDeeper, person?.id, person?.living, fromFieldCopy, worldContext.state.name]);
+
+  // The lensed relationship: a live walk from the perspective person.
+  // Only runs while a lens is set and we're not standing on the lens
+  // person themselves.
+  useEffect(() => {
+    setLensRelationship(null);
+    if (!person || !perspective || perspective.id === person.id) return;
+    let cancelled = false;
+    getRelationship(supabase, person.tree_id, perspective.id, person.id)
+      .then((live) => {
+        if (cancelled) return;
+        if (live.confidence !== 'none' && live.tier !== 'none') {
+          setLensRelationship({ label: live.label, tier: live.tier });
+        } else {
+          setLensRelationship('none');
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perspective?.id, person?.id, person?.tree_id]);
+
+  // "Lived near" computes the first time the world panel shows: the
+  // cached geography index (slow once per session on a big tree, instant
+  // after) plus the kin map for relation labels. Ref-guarded to run once
+  // per person — a dependency-triggered re-run would cancel the fetch it
+  // started and strand the spinner (caught by the 2026-08-27 Playwright
+  // walk). Immediate-family exclusion happens at RENDER time, where the
+  // register state is always current, so the two fetches never race.
+  const neighborsRequestedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeTab !== 'life' || digDeeper !== 'world' || !person) return;
+    const pid = person.id;
+    if (neighborsRequestedFor.current === pid) return;
+    neighborsRequestedFor.current = pid;
+    setNeighbors('loading');
+    (async () => {
+      try {
+        const [index, kin] = await Promise.all([
+          getGeographyIndex(person.tree_id),
+          getKinMap(person.tree_id).catch(() => new Map<string, Kin>()),
+        ]);
+        if (neighborsRequestedFor.current !== pid) return;
+        setNeighborKin(kin);
+        // A generous cap; the render filters out the household and trims to 8.
+        setNeighbors(livedNear(index, pid, { radiusMiles: 25, cap: 24 }));
+      } catch {
+        if (neighborsRequestedFor.current === pid) setNeighbors([]);
+      }
+    })();
+  }, [activeTab, digDeeper, person]);
 
   // Share a snapshot card of this ancestor: 90-day tokenized link on the
   // clipboard. Never offered for the living (the control renders inside the
@@ -1100,6 +1210,49 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     events.find((e) => e.places?.raw);
   const birthPlace = birthEvent?.places?.raw ?? null;
   const birthPlaceId = birthEvent?.places?.id ?? null;
+  const birthCoords =
+    birthEvent?.places?.latitude != null && birthEvent?.places?.longitude != null
+      ? { latitude: birthEvent.places.latitude, longitude: birthEvent.places.longitude }
+      : null;
+
+  // The perspective lens, resolved for display: while active (and not
+  // standing on the lens person), the label and tier come from the live
+  // walk; the home-person cache stays untouched underneath.
+  const lensActive = perspective !== null && perspective.id !== person.id;
+  const shownRelationship = lensActive
+    ? lensRelationship && lensRelationship !== 'none'
+      ? lensRelationship.label
+      : null
+    : relationship;
+  const shownTier = lensActive
+    ? lensRelationship && lensRelationship !== 'none'
+      ? lensRelationship.tier
+      : undefined
+    : tier;
+  const shownUnrelated = lensActive ? lensRelationship === 'none' : unrelated;
+
+  // The crossing flag: derived from this person's own dated events — the
+  // first badge Witness wears, earned by a documented change of shore.
+  const crossingFlag =
+    personShoreCrossings(
+      events.map((e) => ({ year: e.date_year, parts: e.places?.parts ?? null })),
+    )[0] ?? null;
+
+  // "Lived near" minus the household: the register already names immediate
+  // family, so the neighbor list is for everyone BEYOND it. Filtered here
+  // at render time — the register may land after the neighbor fetch.
+  const householdIds = new Set<string>([
+    person.id,
+    ...parents.map((p) => p.id),
+    ...siblings.map((s) => s.id),
+    ...marriages.flatMap((m) => [
+      ...(m.spouse ? [m.spouse.id] : []),
+      ...m.children.map((c) => c.id),
+    ]),
+  ]);
+  const shownNeighbors = Array.isArray(neighbors)
+    ? neighbors.filter((n) => !householdIds.has(n.individual.id)).slice(0, 8)
+    : null;
 
   // One register row: sex-inked serif name (tappable onward) + mono years.
   // Self is highlighted and inert (you are already here); a life lost young
@@ -1235,6 +1388,60 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     }
   }
 
+  // The Overview teaser: a deterministic sentence or two from facts the
+  // screen already holds — instant, and no writer involved, so it needs no
+  // AI disclosure. The full story stays behind its button on Life & Times.
+  const pronoun = person.sex === 'F' ? 'She' : person.sex === 'M' ? 'He' : 'They';
+  const possessive = person.sex === 'F' ? 'her' : person.sex === 'M' ? 'his' : 'their';
+  const siblingCount = siblings.filter((s) => s.id !== person.id).length;
+  const childCount = marriages.reduce((n, m) => n + m.children.length, 0);
+  const teaserPosition = siblings.findIndex((s) => s.id === person.id);
+  const orderPhrase =
+    teaserPosition >= 0 && siblings.length > 1
+      ? `the ${ORDINAL_WORDS[teaserPosition + 1] ?? `${teaserPosition + 1}th`} of ${
+          COUNT_WORDS[siblings.length] ?? String(siblings.length)
+        } children`
+      : null;
+  const bornLead = birthPlace
+    ? `Born in ${birthPlace}`
+    : person.birth_year
+      ? `Born in ${person.birth_year}`
+      : null;
+  const childWord = person.sex === 'F' ? 'daughter' : person.sex === 'M' ? 'son' : 'child';
+  const birthSentence = bornLead
+    ? parents.length
+      ? `${bornLead}, ${orderPhrase ?? childWord} of ${parents.map((p) => p.full_name).join(' and ')}.`
+      : `${bornLead}.`
+    : null;
+  const firstSpouseMarriage = marriages.find((m) => m.spouse) ?? null;
+  const marriageSentence = firstSpouseMarriage?.spouse
+    ? `${pronoun} married ${firstSpouseMarriage.spouse.full_name}${
+        firstSpouseMarriage.year ? ` in ${firstSpouseMarriage.year}` : ''
+      }.`
+    : null;
+  const teaser = [birthSentence, marriageSentence].filter(Boolean).join(' ') || null;
+
+  // The blurb under an expanded "Alive during…" row: the ancestor's own
+  // age anchors the event, then the library's one-sentence summary. An
+  // assumed lifespan says so — "curiosities not verdicts".
+  const first = firstName(person.full_name);
+  const eventBlurb = (tag: LivedThroughTag): string => {
+    const lead = tag.bornDuring
+      ? `${first} was born during this.`
+      : tag.ageAtStart === 0
+        ? `${first} was born the year it began.`
+        : tag.ageAtStart !== null
+          ? `${first} was about ${tag.ageAtStart} when it began.`
+          : null;
+    // 'probable' = the overlap leans on an assumed lifespan for a missing
+    // year (aliveDuring.ts) — say so rather than let it read as documented.
+    const caveat =
+      tag.confidence === 'probable'
+        ? ' (Assuming a typical lifespan — one end of this life is undocumented.)'
+        : '';
+    return `${[lead, tag.event.summary].filter(Boolean).join(' ')}${caveat}`;
+  };
+
   // The road back to the issue (audit G1): while the reader is inside this
   // week's edition, the next piece is one tap — not five backs. Read per
   // render so following the band to another Portrait advances it.
@@ -1291,11 +1498,58 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
         {/* Identity: name headline (with the lineage mark) → mono span
             (sex · years · place) → parentage → the relationship as a
             serif-italic lede when we can place them. */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <ThemedText type="title" style={{ flexShrink: 1 }}>
             {person.full_name}
           </ThemedText>
           <LineageMark tier={tier} size={16} color={theme.accent} />
+          {/* The perspective lens: re-anchor every relationship label on
+              this ancestor for the session. A second tap (or the band's
+              reset) puts the tree back in the reader's own hands. */}
+          <Pressable
+            onPress={() =>
+              perspective?.id === person.id
+                ? setPerspective(null)
+                : setPerspective({ id: person.id, name: person.full_name })
+            }
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={
+              perspective?.id === person.id
+                ? 'Stop seeing the tree from their perspective'
+                : 'See the tree from their perspective'
+            }
+          >
+            <Text
+              style={{
+                fontFamily: Fonts.mono,
+                fontSize: 15,
+                color: perspective?.id === person.id ? theme.accent : theme.textSecondary,
+              }}
+            >
+              ⇅
+            </Text>
+          </Pressable>
+          {crossingFlag && (
+            <Pressable
+              onPress={() =>
+                router.push({ pathname: '/crossings', params: { treeId: person.tree_id } })
+              }
+              accessibilityRole="button"
+              accessibilityLabel="A documented ocean crossing — see every crossing in the tree"
+              style={{
+                borderWidth: 1,
+                borderColor: theme.accent,
+                borderRadius: 12,
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+              }}
+            >
+              <Text style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}>
+                {crossingFlag.ocean === 'atlantic' ? 'Atlantic' : 'Pacific'} crossing
+              </Text>
+            </Pressable>
+          )}
         </View>
         <Text
           style={{
@@ -1332,13 +1586,34 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           ) : (
             ''
           )}
+          {/* The map caret: a glance at where that is, in place. Only
+              offered once the geocoder has actually placed the town. */}
+          {birthCoords && (
+            <Text
+              style={{ color: theme.accent }}
+              onPress={() => setMapOpen((open) => !open)}
+              accessibilityRole="button"
+              accessibilityLabel={mapOpen ? 'Hide the map' : 'Show on a map'}
+            >
+              {mapOpen ? '  ▴' : '  ▾'}
+            </Text>
+          )}
           {person.living ? '  ·  living' : ''}
-          {compass ? `  ·  ${compass}` : ''}
+          {/* The compass reads against the home person — under a lens it
+              would lie, so it steps aside until the lens comes off. */}
+          {!lensActive && compass ? `  ·  ${compass}` : ''}
           {/* The pencil: an open margin correction names a vital fact. */}
           {openCorrections.some((c) => c.subject === 'name' || c.subject === 'birth' || c.subject === 'death') && (
             <Text style={{ color: theme.accent }}>{'  ·  ✎'}</Text>
           )}
         </Text>
+        {mapOpen && birthCoords && birthPlace && (
+          <PlaceMap
+            latitude={birthCoords.latitude}
+            longitude={birthCoords.longitude}
+            label={birthPlace}
+          />
+        )}
         {parents.length > 0 && (
           <Text
             style={{
@@ -1353,10 +1628,50 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               parents.map((p) => p.full_name).join(' and ')}
           </Text>
         )}
-        {relationship ? (
+        {perspective && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 10,
+              marginTop: 12,
+              borderWidth: 1,
+              borderColor: theme.accent,
+              borderRadius: 2,
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              backgroundColor: theme.backgroundElement,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: Fonts.mono,
+                fontSize: 12,
+                letterSpacing: 1,
+                color: theme.accent,
+                flex: 1,
+              }}
+            >
+              {perspective.id === person.id
+                ? 'THE TREE IS SEEN FROM HERE'
+                : `SEEN FROM ${perspective.name.toUpperCase()}`}
+            </Text>
+            <Pressable
+              onPress={() => setPerspective(null)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Reset the perspective to you"
+            >
+              <Text style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.textSecondary }}>
+                RESET ✕
+              </Text>
+            </Pressable>
+          </View>
+        )}
+        {shownRelationship ? (
           <KinReveal
-            tier={tier ?? 'blood'}
-            label={relationship}
+            tier={shownTier ?? 'blood'}
+            label={shownRelationship}
             type="default"
             style={{
               fontFamily: BrandFonts.serif.italic,
@@ -1367,17 +1682,12 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               marginTop: 12,
             }}
             trailing={
-              <Text
-                style={{ color: theme.accent }}
-                onPress={() =>
-                  router.push({ pathname: '/relationship/[individualId]', params: { individualId: person.id } })
-                }
-              >
-                {'  See the path ›'}
+              <Text style={{ color: theme.accent }} onPress={() => setLineageOpen((open) => !open)}>
+                {lineageOpen ? '  Hide the line ▴' : '  See the line ▾'}
               </Text>
             }
           />
-        ) : unrelated ? (
+        ) : shownUnrelated ? (
           <Text
             style={{
               fontFamily: BrandFonts.serif.italic,
@@ -1388,9 +1698,19 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               marginTop: 12,
             }}
           >
-            No relation — in your tree, not in your family
+            {lensActive && perspective
+              ? `No relation to ${firstName(perspective.name)} in your tree`
+              : 'No relation — in your tree, not in your family'}
           </Text>
         ) : null}
+        {lineageOpen && shownRelationship && (
+          <LineagePanel
+            individualId={person.id}
+            treeId={person.tree_id}
+            fromPersonId={lensActive && perspective ? perspective.id : undefined}
+            fromName={lensActive && perspective ? perspective.name : undefined}
+          />
+        )}
         {stones.length > 0 && (
           <Pressable
             onPress={() => router.push('/stones')}
@@ -1426,86 +1746,514 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           </ThemedText>
         )}
 
-        {/* Controls: Story / Their World open in place; Ancestry and Share
-            are the per-person ways off this page, pushed to the right. */}
-        {!fromFieldCopy && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 18 }}>
-          {!person.living &&
-            (['story', 'world'] as const).map((panel) => {
-              const open = openPanel === panel;
-              return (
-                <Pressable
-                  key={panel}
-                  onPress={() => togglePanel(panel)}
+        {person.living && (
+          <ThemedText style={{ marginTop: 16 }}>
+            {firstName(person.full_name)} appears to be living, so Witness keeps their story private.
+          </ThemedText>
+        )}
+
+        {/* The four doors of the 2B Portrait. All four views stay mounted
+            (display-toggled), so a half-typed note, a generated story, and
+            the corrections fetch survive tab switches — and the ✎ pencils
+            in the header work before Sources is ever visited. */}
+        <View
+          accessibilityRole="tablist"
+          style={{
+            flexDirection: 'row',
+            gap: 18,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border,
+            marginTop: 20,
+          }}
+        >
+          {TABS.map((tab) => {
+            const active = activeTab === tab.key;
+            return (
+              <Pressable
+                key={tab.key}
+                onPress={() => setActiveTab(tab.key)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+                style={{
+                  paddingBottom: 8,
+                  marginBottom: -1,
+                  borderBottomWidth: 2,
+                  borderBottomColor: active ? theme.accent : 'transparent',
+                }}
+              >
+                <Text
                   style={{
-                    paddingBottom: 4,
-                    borderBottomWidth: 2,
-                    borderBottomColor: open ? theme.accent : 'transparent',
+                    fontFamily: Fonts.mono,
+                    fontSize: 12,
+                    letterSpacing: 0.8,
+                    textTransform: 'uppercase',
+                    fontWeight: active ? '600' : '400',
+                    color: active ? theme.text : theme.textSecondary,
                   }}
                 >
-                  <Text
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* ————— Overview: the rich teaser (2B) ————— */}
+        <View style={{ display: activeTab === 'overview' ? 'flex' : 'none' }}>
+          {teaser && <ThemedText style={{ marginTop: 16 }}>{teaser}</ThemedText>}
+          {(parents.length > 0 || marriages.some((m) => m.spouse)) && (
+            <View style={{ marginTop: 14 }}>
+              {parents.length > 0 && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    gap: 12,
+                    paddingVertical: 7,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.border,
+                  }}
+                >
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Parents
+                  </ThemedText>
+                  <ThemedText type="small" style={{ flexShrink: 1, textAlign: 'right' }}>
+                    {parents.map((p) => p.full_name).join(', ')}
+                  </ThemedText>
+                </View>
+              )}
+              {marriages
+                .filter((m) => m.spouse)
+                .map((m, index) => (
+                  <View
+                    key={m.spouse?.id ?? index}
                     style={{
-                      fontFamily: Fonts.mono,
-                      fontSize: 12,
-                      letterSpacing: 0.8,
-                      textTransform: 'uppercase',
-                      color: open ? theme.text : theme.textSecondary,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'baseline',
+                      gap: 12,
+                      paddingVertical: 7,
+                      borderBottomWidth: 1,
+                      borderBottomColor: theme.border,
                     }}
                   >
-                    {panel === 'story' ? 'Story' : 'Their World'}{' '}
-                    <Text style={{ fontSize: 12, color: open ? theme.accent : theme.textSecondary }}>▾</Text>
-                  </Text>
-                </Pressable>
-              );
-            })}
-          <View style={{ flexDirection: 'row', gap: 16, marginLeft: 'auto' }}>
-            {!person.living && (
-              <Text
-                style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}
-                onPress={
-                  briefState === 'busy'
-                    ? undefined
-                    : async () => {
-                        setBriefState('busy');
-                        const message = await openResearchBrief(person.id);
-                        setBriefState('idle');
-                        if (message) showAlert('Research brief', message);
-                      }
-                }
+                    <ThemedText type="small" themeColor="textSecondary">
+                      Spouse
+                    </ThemedText>
+                    <ThemedText type="small" style={{ flexShrink: 1, textAlign: 'right' }}>
+                      {m.spouse!.full_name}
+                      {m.year ? ` · m. ${m.year}` : ''}
+                    </ThemedText>
+                  </View>
+                ))}
+            </View>
+          )}
+          {tags.length > 0 && (
+            <View style={{ marginTop: 18 }}>
+              <Text style={groupLabelStyle}>Alive during…</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {tags.map((tag) => (
+                  <Pressable
+                    key={tag.event.id}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/query/[eventId]',
+                        params: { eventId: tag.event.id, treeId: person.tree_id, pin: person.id },
+                      })
+                    }
+                    style={{
+                      backgroundColor: theme.backgroundElement,
+                      borderWidth: 1,
+                      borderColor: theme.accent,
+                      borderRadius: 14,
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                    }}
+                  >
+                    <ThemedText type="small" themeColor="accent" style={{ fontWeight: 600 }}>
+                      {tag.event.name}
+                    </ThemedText>
+                  </Pressable>
+                ))}
+              </View>
+              {!person.living && !fromFieldCopy && (
+                <ThemedText
+                  type="link"
+                  style={{ marginTop: 10 }}
+                  onPress={() => {
+                    setActiveTab('life');
+                    setDigDeeper('world');
+                  }}
+                >
+                  See what {possessive} life overlapped with ›
+                </ThemedText>
+              )}
+            </View>
+          )}
+          {hasRegister && (
+            <View style={{ marginTop: 18 }}>
+              <Text style={groupLabelStyle}>Family at a glance</Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  paddingVertical: 7,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.border,
+                }}
               >
-                {briefState === 'busy' ? 'Research…' : 'Research ›'}
-              </Text>
-            )}
-            {providerLink && (
-              <Text
-                style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}
-                onPress={() => openExternal(providerLink.url)}
+                <ThemedText type="small">Siblings</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {siblingCount}
+                </ThemedText>
+              </View>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  paddingVertical: 7,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.border,
+                }}
               >
-                {providerLink.label} ›
-              </Text>
-            )}
-            {!person.living && (
-              <Text
-                style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}
-                onPress={shareState === 'busy' ? undefined : shareAncestor}
-              >
-                {shareState === 'copied' ? 'Copied ✓' : shareState === 'busy' ? 'Sharing…' : 'Share ›'}
-              </Text>
+                <ThemedText type="small">Children</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {childCount}
+                </ThemedText>
+              </View>
+              <ThemedText type="link" style={{ marginTop: 10 }} onPress={() => setActiveTab('family')}>
+                View family ›
+              </ThemedText>
+            </View>
+          )}
+        </View>
+
+        {/* ————— Life & Times: the Dig-deeper accordion ————— */}
+        <View style={{ display: activeTab === 'life' ? 'flex' : 'none' }}>
+          {fromFieldCopy ? (
+            <ThemedText type="small" style={{ marginTop: 16 }}>
+              From your saved copy — the story and their world need a connection.
+            </ThemedText>
+          ) : !person.living ? (
+            <>
+              <ThemedText type="subtitle" style={{ marginTop: 16 }}>
+                Dig deeper
+              </ThemedText>
+              {(['story', 'world'] as const).map((key) => {
+                const selected = digDeeper === key;
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => setDigDeeper(key)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: 10,
+                      paddingVertical: 12,
+                      borderBottomWidth: 1,
+                      borderBottomColor: theme.border,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: Fonts.serif,
+                        fontSize: 16,
+                        fontWeight: selected ? '700' : '400',
+                        color: selected ? theme.text : theme.textSecondary,
+                      }}
+                    >
+                      {key === 'story' ? 'Read the story' : 'Learn about their world'}
+                    </Text>
+                    <Text style={{ color: theme.accent, fontSize: 16 }}>›</Text>
+                  </Pressable>
+                );
+              })}
+
+              {/* Read the story — the writer's voice, the disclosure, the
+                  export, and Betsey's box, exactly as before. */}
+              <View style={{ display: digDeeper === 'story' ? 'flex' : 'none' }}>
+                <Panel
+                  theme={theme}
+                  label={`Story${
+                    sources.length
+                      ? ` · drawn from ${sources.length} source${sources.length > 1 ? 's' : ''}`
+                      : ''
+                  }`}
+                >
+                  <EnrichmentBody
+                    buttonTitle="Tell me their story"
+                    generatingLabel="Writing their story from the record…"
+                    state={biography.state}
+                    onGenerate={() =>
+                      void biography.generate(
+                        relatives?.length ? { relatives: relativesBrief(relatives) } : undefined,
+                      )
+                    }
+                  />
+                  {/* Said on the page, not left to be guessed (Betsey,
+                      2026-08-19): the story is AI-written, and the record
+                      outranks it. */}
+                  {biography.state.name === 'ready' && (
+                    <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: 8 }}>
+                      Written by AI from the documented facts of this record. The record, not the
+                      story, is the authority.
+                    </ThemedText>
+                  )}
+                  {/* The story leaves the app on the reader's terms: iOS
+                      share sheet (a text file, so Save to Files is a real
+                      download); web downloads the .txt outright. */}
+                  {biography.state.name === 'ready' && (
+                    <ThemedText
+                      type="small"
+                      style={{ fontFamily: Fonts.mono, color: theme.accent, marginTop: 8 }}
+                      onPress={() => {
+                        const text = biography.state.name === 'ready' ? biography.state.text : '';
+                        void shareStory(person.full_name, spanYears, text, ancestorNote).catch(
+                          (error) => console.warn('Story share failed', error),
+                        );
+                      }}
+                    >
+                      {STORY_SHARE_LABEL}
+                    </ThemedText>
+                  )}
+                  {/* Betsey's box, below the story — also present before one
+                      exists, since lore doesn't wait for the writer. */}
+                  <AncestorNote
+                    individualId={person.id}
+                    treeId={person.tree_id}
+                    onText={setAncestorNote}
+                  />
+                </Panel>
+              </View>
+
+              {/* Learn about their world — the sourced context, then the
+                  full Alive-during rows, the neighbors, and the record. */}
+              <View style={{ display: digDeeper === 'world' ? 'flex' : 'none' }}>
+                <Panel
+                  theme={theme}
+                  label={`Their World${person.birth_year ? ` · ${person.birth_year}` : ''}`}
+                >
+                  {worldContext.state.name === 'ready' ? (
+                    <View style={{ gap: 10 }}>
+                      <ThemedText>{worldContext.state.text}</ThemedText>
+                      {(worldContext.state.sources?.length ?? 0) > 0 && (
+                        <ThemedText type="small">
+                          From {worldContext.state.sources!.join(' and ')}
+                        </ThemedText>
+                      )}
+                      {/* The general-knowledge tier (spec §7.5): generically
+                          labeled so it never reads as archive-sourced. */}
+                      {worldContext.state.general && (
+                        <View
+                          style={{
+                            gap: 4,
+                            borderTopWidth: 1,
+                            borderTopColor: theme.border,
+                            paddingTop: 10,
+                          }}
+                        >
+                          <ThemedText type="small" style={{ fontFamily: Fonts.mono }}>
+                            HISTORICAL CONTEXT
+                          </ThemedText>
+                          <ThemedText>{worldContext.state.general}</ThemedText>
+                        </View>
+                      )}
+                    </View>
+                  ) : worldContext.state.name === 'error' ? (
+                    <>
+                      <ThemedText>{worldContext.state.message}</ThemedText>
+                      <Button title="Try again" onPress={() => void worldContext.generate()} />
+                    </>
+                  ) : (
+                    <View style={{ gap: 8, marginVertical: 4 }}>
+                      <ActivityIndicator />
+                      <ThemedText type="small">Searching the historical record…</ThemedText>
+                    </View>
+                  )}
+                </Panel>
+
+                {tags.length > 0 && (
+                  <View style={{ marginTop: 18 }}>
+                    <ThemedText type="subtitle">Alive during…</ThemedText>
+                    {tags.map((tag) => {
+                      const open = openEventIds.has(tag.event.id);
+                      return (
+                        <View key={tag.event.id}>
+                          <Pressable
+                            onPress={() =>
+                              setOpenEventIds((current) => {
+                                const next = new Set(current);
+                                if (next.has(tag.event.id)) next.delete(tag.event.id);
+                                else next.add(tag.event.id);
+                                return next;
+                              })
+                            }
+                            accessibilityRole="button"
+                            accessibilityState={{ expanded: open }}
+                            style={{
+                              flexDirection: 'row',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              gap: 10,
+                              paddingVertical: 12,
+                              borderBottomWidth: 1,
+                              borderBottomColor: theme.border,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontFamily: Fonts.serif,
+                                fontSize: 15.5,
+                                color: theme.text,
+                                flexShrink: 1,
+                              }}
+                            >
+                              {tag.event.name}
+                              <Text
+                                style={{
+                                  fontFamily: Fonts.mono,
+                                  fontSize: 13,
+                                  color: theme.textSecondary,
+                                }}
+                              >
+                                {`  ${tag.event.startYear}${
+                                  tag.event.endYear !== tag.event.startYear
+                                    ? `–${tag.event.endYear}`
+                                    : ''
+                                }`}
+                              </Text>
+                            </Text>
+                            <Text style={{ color: theme.accent }}>{open ? '▴' : '▾'}</Text>
+                          </Pressable>
+                          {open && (
+                            <View style={{ paddingVertical: 8, gap: 6 }}>
+                              <ThemedText type="small">{eventBlurb(tag)}</ThemedText>
+                              <ThemedText
+                                type="link"
+                                onPress={() =>
+                                  router.push({
+                                    pathname: '/query/[eventId]',
+                                    params: {
+                                      eventId: tag.event.id,
+                                      treeId: person.tree_id,
+                                      pin: person.id,
+                                    },
+                                  })
+                                }
+                              >
+                                Everyone who lived through this ›
+                              </ThemedText>
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+
+                <View style={{ marginTop: 18 }}>
+                  <ThemedText type="subtitle">Lived near</ThemedText>
+                  {shownNeighbors === null ? (
+                    <ThemedText type="small">Checking who else was within 25 miles…</ThemedText>
+                  ) : shownNeighbors.length === 0 ? (
+                    <ThemedText type="small">
+                      No contemporaries found within 25 miles — geocoding may still be running for
+                      this tree.
+                    </ThemedText>
+                  ) : (
+                    <>
+                      <ThemedText type="small">
+                        Beyond {possessive} own household — contemporaries in your tree with a
+                        documented event within 25 miles, nearest first.
+                      </ThemedText>
+                      {shownNeighbors.map((neighbor) => {
+                        const kinLabel = neighborKin.get(neighbor.individual.id)?.label;
+                        return (
+                          <Pressable
+                            key={neighbor.individual.id}
+                            onPress={() =>
+                              router.push({
+                                pathname: '/ancestor/[id]',
+                                params: { id: neighbor.individual.id },
+                              })
+                            }
+                            style={{
+                              flexDirection: 'row',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              gap: 12,
+                              paddingVertical: 8,
+                              borderBottomWidth: 1,
+                              borderBottomColor: theme.border,
+                            }}
+                          >
+                            <View style={{ flexShrink: 1 }}>
+                              <Text
+                                style={{
+                                  fontFamily: Fonts.serif,
+                                  fontSize: 15.5,
+                                  color: theme.accent,
+                                }}
+                              >
+                                {neighbor.individual.full_name} ›
+                              </Text>
+                              <Text
+                                style={{
+                                  fontFamily: Fonts.mono,
+                                  fontSize: 12,
+                                  color: theme.textSecondary,
+                                  marginTop: 2,
+                                }}
+                              >
+                                {`${neighbor.individual.birth_year ?? '?'}–${
+                                  neighbor.individual.death_year ?? '?'
+                                }`}
+                                {kinLabel ? `  ·  ${kinLabel}` : ''}
+                              </Text>
+                            </View>
+                            <Text
+                              style={{
+                                fontFamily: Fonts.mono,
+                                fontSize: 13,
+                                color: theme.textSecondary,
+                              }}
+                            >
+                              {neighbor.distanceMiles < 1 ? 'same town' : `${neighbor.distanceMiles} mi`}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </>
+                  )}
+                </View>
+              </View>
+            </>
+          ) : null}
+
+          {/* The record reads for everyone — living, offline, all of it. */}
+          <View style={{ marginTop: 18 }}>
+            <ThemedText type="subtitle">The record</ThemedText>
+            {events.length === 0 ? (
+              <ThemedText type="small">No dated events recorded.</ThemedText>
+            ) : (
+              <Card>
+                <Lifeline
+                  events={events}
+                  correctedSubjects={new Set(openCorrections.map((c) => c.subject))}
+                />
+              </Card>
             )}
           </View>
         </View>
-        )}
 
-        {/* Inline expanders: the panel opens between the controls and the
-            register, which just shifts down — nothing navigates away. */}
-        {!person.living && openPanel === 'story' && (
-          <Panel
-            theme={theme}
-            label={`Story${
-              sources.length ? ` · drawn from ${sources.length} source${sources.length > 1 ? 's' : ''}` : ''
-            }`}
-          >
-            {relatives !== null && (parents.length > 0 || relatives.length > 0) && (
+        {/* ————— Family: the register, chart first ————— */}
+        <View style={{ display: activeTab === 'family' ? 'flex' : 'none' }}>
+          {relatives !== null && (parents.length > 0 || relatives.length > 0) && (
+            <View style={{ marginTop: 16 }}>
               <PedigreeChart
                 subject={{ id: person.id, name: person.full_name, birth_year: person.birth_year }}
                 parents={parents.map((p) => ({
@@ -1520,88 +2268,13 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 relatives={relatives}
                 onOpenPortrait={(pid) => router.push(`/ancestor/${pid}` as never)}
               />
-            )}
-            <EnrichmentBody
-              buttonTitle="Tell me their story"
-              generatingLabel="Writing their story from the record…"
-              state={biography.state}
-              onGenerate={() =>
-                void biography.generate(
-                  relatives?.length ? { relatives: relativesBrief(relatives) } : undefined,
-                )
-              }
-            />
-            {/* Said on the page, not left to be guessed (Betsey, 2026-08-19):
-                the story is AI-written, and the record outranks it. */}
-            {biography.state.name === 'ready' && (
-              <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: 8 }}>
-                Written by AI from the documented facts of this record. The record, not the
-                story, is the authority.
-              </ThemedText>
-            )}
-            {/* The story leaves the app on the reader's terms: iOS share
-                sheet (a text file, so Save to Files is a real download);
-                web downloads the .txt outright. Only once a story exists. */}
-            {biography.state.name === 'ready' && (
-              <ThemedText
-                type="small"
-                style={{ fontFamily: Fonts.mono, color: theme.accent, marginTop: 8 }}
-                onPress={() => {
-                  const text = biography.state.name === 'ready' ? biography.state.text : '';
-                  void shareStory(person.full_name, spanYears, text, ancestorNote).catch((error) =>
-                    console.warn('Story share failed', error),
-                  );
-                }}
-              >
-                {STORY_SHARE_LABEL}
-              </ThemedText>
-            )}
-            {/* Betsey's box, below the story — also present before one
-                exists, since lore doesn't wait for the writer. */}
-            <AncestorNote individualId={person.id} treeId={person.tree_id} onText={setAncestorNote} />
-          </Panel>
-        )}
-        {!person.living && openPanel === 'world' && (
-          <Panel theme={theme} label={`Their World${person.birth_year ? ` · ${person.birth_year}` : ''}`}>
-            {worldContext.state.name === 'ready' ? (
-              <View style={{ gap: 10 }}>
-                <ThemedText>{worldContext.state.text}</ThemedText>
-                {(worldContext.state.sources?.length ?? 0) > 0 && (
-                  <ThemedText type="small">
-                    From {worldContext.state.sources!.join(' and ')}
-                  </ThemedText>
-                )}
-                {/* The general-knowledge tier (spec §7.5): generically
-                    labeled so it never reads as archive-sourced. Absent
-                    entirely when the model declined. */}
-                {worldContext.state.general && (
-                  <View style={{ gap: 4, borderTopWidth: 1, borderTopColor: theme.border, paddingTop: 10 }}>
-                    <ThemedText type="small" style={{ fontFamily: Fonts.mono }}>
-                      HISTORICAL CONTEXT
-                    </ThemedText>
-                    <ThemedText>{worldContext.state.general}</ThemedText>
-                  </View>
-                )}
-              </View>
-            ) : worldContext.state.name === 'error' ? (
-              <>
-                <ThemedText>{worldContext.state.message}</ThemedText>
-                <Button title="Try again" onPress={() => void worldContext.generate()} />
-              </>
-            ) : (
-              <View style={{ gap: 8, marginVertical: 4 }}>
-                <ActivityIndicator />
-                <ThemedText type="small">Searching the historical record…</ThemedText>
-              </View>
-            )}
-          </Panel>
-        )}
-
-        {person.living && (
-          <ThemedText style={{ marginTop: 16 }}>
-            {firstName(person.full_name)} appears to be living, so Witness keeps their story private.
-          </ThemedText>
-        )}
+            </View>
+          )}
+          {!hasRegister && (
+            <ThemedText type="small" style={{ marginTop: 16 }}>
+              No family is recorded for {firstName(person.full_name)} in your tree.
+            </ThemedText>
+          )}
 
         {/* The family register: parents, the sibship (self lit), marriages. */}
         {hasRegister && (
@@ -1700,86 +2373,87 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           </View>
         )}
 
-        {tags.length > 0 && (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 18 }}>
-            {tags.map((tag) => (
-              <Pressable
-                key={tag.event.id}
-                onPress={() =>
-                  router.push({
-                    pathname: '/query/[eventId]',
-                    params: { eventId: tag.event.id, treeId: person.tree_id, pin: person.id },
-                  })
-                }
-                style={{
-                  backgroundColor: theme.backgroundElement,
-                  borderWidth: 1,
-                  borderColor: theme.accent,
-                  borderRadius: 14,
-                  paddingHorizontal: 10,
-                  paddingVertical: 5,
-                }}
-              >
-                <ThemedText type="small" themeColor="accent" style={{ fontWeight: 600 }}>
-                  {tag.event.name}
-                </ThemedText>
-              </Pressable>
-            ))}
-          </View>
-        )}
+        </View>
 
-        <ThemedText type="subtitle" style={{ marginTop: 20 }}>
-          The record
-        </ThemedText>
-        {events.length === 0 ? (
-          <ThemedText type="small">No dated events recorded.</ThemedText>
-        ) : (
-          <Card>
-            <Lifeline
-              events={events}
-              correctedSubjects={new Set(openCorrections.map((c) => c.subject))}
-            />
-          </Card>
-        )}
-
-        {/* The margin: the reader's own corrections, pencilled beside the
-            record and carried to the source on the punch list. Renders for
-            living people too — a census error on a living relative is real.
-            Not on the saved copy: a pencil that can't save is a broken one. */}
-        {!fromFieldCopy && (
-          <MarginCorrections person={person} events={events} onChanged={setOpenCorrections} />
-        )}
-
-        {sources.length > 0 && (
-          <>
-            <ThemedText type="subtitle" style={{ marginTop: 16 }}>
-              Sources
+        {/* ————— Sources: the research desk ————— */}
+        <View style={{ display: activeTab === 'sources' ? 'flex' : 'none' }}>
+          {/* The per-person ways off this page — the brief, the provider
+              record, the share card — live with the rest of the research. */}
+          {!fromFieldCopy && (providerLink || !person.living) && (
+            <View style={{ flexDirection: 'row', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
+              {!person.living && (
+                <Text
+                  style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}
+                  onPress={
+                    briefState === 'busy'
+                      ? undefined
+                      : async () => {
+                          setBriefState('busy');
+                          const message = await openResearchBrief(person.id);
+                          setBriefState('idle');
+                          if (message) showAlert('Research brief', message);
+                        }
+                  }
+                >
+                  {briefState === 'busy' ? 'Research…' : 'Research ›'}
+                </Text>
+              )}
+              {providerLink && (
+                <Text
+                  style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}
+                  onPress={() => openExternal(providerLink.url)}
+                >
+                  {providerLink.label} ›
+                </Text>
+              )}
+              {!person.living && (
+                <Text
+                  style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}
+                  onPress={shareState === 'busy' ? undefined : shareAncestor}
+                >
+                  {shareState === 'copied' ? 'Copied ✓' : shareState === 'busy' ? 'Sharing…' : 'Share ›'}
+                </Text>
+              )}
+            </View>
+          )}
+          {fromFieldCopy && (
+            <ThemedText type="small" style={{ marginTop: 16 }}>
+              From your saved copy — sources and corrections need a connection.
             </ThemedText>
-            <ThemedText type="small">
-              How the record knows {firstName(person.full_name)} —{' '}
-              {sources.length === 1 ? 'one source' : `${sources.length} sources`}, as cited in your
-              tree.
+          )}
+
+          {sources.length > 0 ? (
+            <View style={{ gap: 8, marginTop: 16 }}>
+              <ThemedText type="subtitle">Sources</ThemedText>
+              <ThemedText type="small">
+                How the record knows {firstName(person.full_name)} —{' '}
+                {sources.length === 1 ? 'one source' : `${sources.length} sources`}, as cited in
+                your tree.
+              </ThemedText>
+              {sources.map((source) => (
+                <Card key={source.title}>
+                  <ThemedText type="smallBold">{source.title}</ThemedText>
+                  <ThemedText type="small">cites their {source.facts.join(', ')}</ThemedText>
+                  {source.excerpts.slice(0, 3).map((excerpt) => (
+                    <ThemedText key={excerpt} type="small" style={{ fontStyle: 'italic' }}>
+                      “{excerpt}”
+                    </ThemedText>
+                  ))}
+                  {source.url && (
+                    <ThemedText type="link" onPress={() => openExternal(source.url!)}>
+                      {isFindAGraveUrl(source.url)
+                        ? 'View the memorial on Find A Grave ›'
+                        : 'View the record ›'}
+                    </ThemedText>
+                  )}
+                </Card>
+              ))}
+            </View>
+          ) : !fromFieldCopy ? (
+            <ThemedText type="small" style={{ marginTop: 16 }}>
+              No sources are cited for {firstName(person.full_name)} in your tree yet.
             </ThemedText>
-            {sources.map((source) => (
-              <Card key={source.title}>
-                <ThemedText type="smallBold">{source.title}</ThemedText>
-                <ThemedText type="small">cites their {source.facts.join(', ')}</ThemedText>
-                {source.excerpts.slice(0, 3).map((excerpt) => (
-                  <ThemedText key={excerpt} type="small" style={{ fontStyle: 'italic' }}>
-                    “{excerpt}”
-                  </ThemedText>
-                ))}
-                {source.url && (
-                  <ThemedText type="link" onPress={() => openExternal(source.url!)}>
-                    {isFindAGraveUrl(source.url)
-                      ? 'View the memorial on Find A Grave ›'
-                      : 'View the record ›'}
-                  </ThemedText>
-                )}
-              </Card>
-            ))}
-          </>
-        )}
+          ) : null}
 
         {/* The burial record — deep-link & confirm (Rufus's spec,
             2026-08-24). Imported citations CLAIM a memorial; only the reader
@@ -1863,14 +2537,22 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           </View>
         )}
 
+        {/* The margin: the reader's own corrections, pencilled beside the
+            record and carried to the source on the punch list. Renders for
+            living people too — a census error on a living relative is real.
+            Not on the saved copy: a pencil that can't save is a broken one.
+            Kept mounted whatever tab shows, so the ✎ glyphs in the header
+            and on the Lifeline know about open corrections. */}
+        {!fromFieldCopy && (
+          <MarginCorrections person={person} events={events} onChanged={setOpenCorrections} />
+        )}
+
         {/* The third door: what the audit noticed about this person. Same
             session-cached run and marks/rulings filter as the workbench, so
             a decided finding disappears here on the next visit. */}
         {curiosities.length > 0 && (
-          <>
-            <ThemedText type="subtitle" style={{ marginTop: 16 }}>
-              From the Tree Check
-            </ThemedText>
+          <View style={{ gap: 8, marginTop: 16 }}>
+            <ThemedText type="subtitle">From the Tree Check</ThemedText>
             <ThemedText type="small">
               {curiosities.length === 1
                 ? `One curiosity names ${firstName(person.full_name)} — a prompt, not a problem.`
@@ -1884,14 +2566,12 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             <ThemedText type="link" onPress={() => router.push('/tree-health')}>
               Open the Tree Check ›
             </ThemedText>
-          </>
+          </View>
         )}
 
         {naraCandidates.length > 0 && (
-          <>
-            <ThemedText type="subtitle" style={{ marginTop: 16 }}>
-              In the National Archives
-            </ThemedText>
+          <View style={{ gap: 8, marginTop: 16 }}>
+            <ThemedText type="subtitle">In the National Archives</ThemedText>
             <ThemedText type="small">
               Records that might be {firstName(person.full_name)} — you decide.
             </ThemedText>
@@ -1908,8 +2588,9 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 }
               />
             ))}
-          </>
+          </View>
         )}
+        </View>
       </ScrollView>
     </ThemedView>
   );

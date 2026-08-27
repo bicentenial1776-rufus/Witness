@@ -202,15 +202,27 @@ export interface RelationshipPath {
  * Cached direct-ancestor rows carry their path; anyone else (cousins,
  * descendants, in-laws) gets a live graph walk. Null when no home person
  * is set or no relationship exists.
+ *
+ * `fromPersonId` re-anchors the walk on someone other than the home person
+ * (the perspective lens). The precomputed rows all assume the home person,
+ * so a lensed path is always a live walk — never the cache.
  */
 export async function getRelationshipPath(
   client: WitnessSupabaseClient,
   treeId: string,
   individualId: string,
+  fromPersonId?: string,
 ): Promise<RelationshipPath | null> {
   let label: string;
   let tier: RelationshipTier;
   let pathIds: string[];
+
+  if (fromPersonId) {
+    if (fromPersonId === individualId) return null;
+    const live = await getRelationship(client, treeId, fromPersonId, individualId);
+    if (live.confidence === 'none' || live.path.length === 0) return null;
+    return hydratePath(client, live.label, live.tier, live.path);
+  }
 
   const { data: cached } = await client
     .from('relationships')
@@ -237,6 +249,16 @@ export async function getRelationshipPath(
     pathIds = live.path;
   }
 
+  return hydratePath(client, label, tier, pathIds);
+}
+
+/** Resolves a chain of ids into named people, preserving path order. */
+async function hydratePath(
+  client: WitnessSupabaseClient,
+  label: string,
+  tier: RelationshipTier,
+  pathIds: string[],
+): Promise<RelationshipPath | null> {
   const { data: people } = await client
     .from('individuals')
     .select('id, full_name, birth_year, death_year')

@@ -6,6 +6,7 @@ import {
   familyOrigins,
   migrationClusters,
   oceanCrossings,
+  personShoreCrossings,
   placeLabelAt,
   placesAcrossCenturies,
   regionShare,
@@ -152,6 +153,40 @@ describe('oceanCrossings', () => {
     );
     expect(oceanCrossings(index, 'atlantic')).toEqual([]);
     expect(oceanCrossings(index, 'pacific')).toHaveLength(1);
+  });
+});
+
+describe('personShoreCrossings', () => {
+  it('finds the crossings in one person’s own events, return voyage included', () => {
+    const crossings = personShoreCrossings([
+      { year: 1630, parts: LONDON },
+      { year: 1650, parts: SALEM },
+      { year: 1680, parts: LONDON },
+    ]);
+    expect(crossings).toEqual([
+      { ocean: 'atlantic', direction: 'toAmericas', year: 1650 },
+      { ocean: 'atlantic', direction: 'fromAmericas', year: 1680 },
+    ]);
+  });
+
+  it('names the Pacific for a far-side origin', () => {
+    const crossings = personShoreCrossings([
+      { year: 1850, parts: ['Canton', 'China'] },
+      { year: 1900, parts: ['Sacramento', 'California', 'USA'] },
+    ]);
+    expect(crossings).toEqual([{ ocean: 'pacific', direction: 'toAmericas', year: 1900 }]);
+  });
+
+  it('ignores undated events, unclassifiable places, and single-shore lives', () => {
+    expect(
+      personShoreCrossings([
+        { year: null, parts: LONDON },
+        { year: 1650, parts: SALEM },
+        { year: 1660, parts: null },
+        { year: 1670, parts: ['Boise'] },
+        { year: 1680, parts: BOSTON },
+      ]),
+    ).toEqual([]);
   });
 });
 

@@ -3,6 +3,7 @@ import { geocodeQueries } from '../../geocode/nominatim.js';
 import {
   ancestorsInRegion,
   haversineKm,
+  livedNear,
   nearbyAncestors,
   regionRollups,
   type GeographyIndex,
@@ -186,6 +187,63 @@ describe('haversineKm / nearbyAncestors', () => {
   it('ignores ungeocoded places', () => {
     const near = nearbyAncestors(fixtureIndex(), { latitude: 51.9, longitude: 0.55, radiusKm: 100 });
     expect(near).toHaveLength(0);
+  });
+});
+
+describe('livedNear', () => {
+  // Own fixture: the shared one has no overlapping lifespans, and its
+  // rollup counts must not shift under a new resident.
+  function neighborIndex(): GeographyIndex {
+    const mk = (p: Omit<GeoPlace, 'region' | 'country'>): [string, GeoPlace] => [
+      p.id,
+      { ...p, region: regionOf(p.parts), country: classifyPlace(p.parts).country },
+    ];
+    return {
+      places: new Map([
+        mk({ id: 'p1', raw: 'Sudbury, Massachusetts, USA', parts: ['Sudbury', 'Massachusetts', 'USA'], latitude: 42.38, longitude: -71.42 }),
+        mk({ id: 'p2', raw: 'Boston, MA', parts: ['Boston', 'MA'], latitude: 42.36, longitude: -71.06 }),
+        mk({ id: 'p3', raw: 'Bocking, Essex, England', parts: ['Bocking', 'Essex', 'England'], latitude: null, longitude: null }),
+      ]),
+      individuals: new Map<string, GeoIndividual>([
+        ['subject', { id: 'subject', full_name: 'John Howe', surname: 'Howe', birth_year: 1620, death_year: 1700, living: false }],
+        ['near-contemporary', { id: 'near-contemporary', full_name: 'Abigail Rice', surname: 'Rice', birth_year: 1640, death_year: 1710, living: false }],
+        ['near-later', { id: 'near-later', full_name: 'Mary Field', surname: 'Field', birth_year: 1750, death_year: 1820, living: false }],
+        ['near-undated', { id: 'near-undated', full_name: 'Undated Smith', surname: 'Smith', birth_year: null, death_year: null, living: false }],
+        ['near-sibling', { id: 'near-sibling', full_name: 'Zeruiah Howe', surname: 'Howe', birth_year: 1622, death_year: 1690, living: false }],
+      ]),
+      graveLinks: new Map(),
+      events: [
+        // Subject: born England (ungeocoded), resides Sudbury — the anchor.
+        { individualId: 'subject', eventType: 'birth', year: 1620, placeId: 'p3' },
+        { individualId: 'subject', eventType: 'residence', year: 1645, placeId: 'p1' },
+        { individualId: 'near-contemporary', eventType: 'residence', year: 1650, placeId: 'p2' },
+        { individualId: 'near-later', eventType: 'birth', year: 1750, placeId: 'p2' },
+        { individualId: 'near-undated', eventType: 'residence', year: null, placeId: 'p1' },
+        { individualId: 'near-sibling', eventType: 'residence', year: 1648, placeId: 'p1' },
+      ],
+    };
+  }
+
+  it('finds overlapping-lifespan neighbors near the anchor, nearest first', () => {
+    const neighbors = livedNear(neighborIndex(), 'subject');
+    expect(neighbors.map((n) => n.individual.id)).toEqual(['near-sibling', 'near-contemporary']);
+    // Sudbury→Boston is ~18 miles; same place is 0.
+    expect(neighbors[0]!.distanceMiles).toBe(0);
+    expect(neighbors[1]!.distanceMiles).toBeGreaterThan(10);
+    expect(neighbors[1]!.distanceMiles).toBeLessThan(25);
+  });
+
+  it('excludes non-contemporaries, undated lives, and the excludeIds set', () => {
+    const neighbors = livedNear(neighborIndex(), 'subject', {
+      excludeIds: new Set(['near-sibling']),
+    });
+    expect(neighbors.map((n) => n.individual.id)).toEqual(['near-contemporary']);
+  });
+
+  it('returns nothing when the subject has no geocoded anchor', () => {
+    const index = neighborIndex();
+    index.events = index.events.filter((e) => e.individualId !== 'subject' || e.placeId === 'p3');
+    expect(livedNear(index, 'subject')).toEqual([]);
   });
 });
 

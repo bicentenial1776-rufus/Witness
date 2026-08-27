@@ -1,5 +1,5 @@
 import { migrationPaths, type MigrationMover } from './migrations.js';
-import { canonicalState, isStateLevel } from './regions.js';
+import { canonicalState, classifyPlace, isStateLevel } from './regions.js';
 
 /**
  * Section III of the query library — Geographic Place Discovery. Pure
@@ -377,6 +377,59 @@ export function oceanCrossings(index: PlaceDiscoverySource, ocean: 'atlantic' | 
     }
   }
   crossings.sort((a, b) => a.to.year - b.to.year || a.individual.full_name.localeCompare(b.individual.full_name));
+  return crossings;
+}
+
+// Per-person shore changes ---------------------------------------------------------
+
+export interface PersonCrossing {
+  ocean: 'atlantic' | 'pacific';
+  direction: 'toAmericas' | 'fromAmericas';
+  year: number;
+}
+
+/**
+ * The ocean crossings visible in ONE person's own dated events — the same
+ * change-of-shore rule as `oceanCrossings`, but computed from rows a
+ * Portrait has already fetched, so no whole-tree index is needed (the full
+ * index costs seconds on a large tree; a badge must not). Events without a
+ * year or a classifiable country are ignored.
+ */
+export function personShoreCrossings(
+  events: readonly { year: number | null; parts: readonly string[] | null }[],
+): PersonCrossing[] {
+  type Shore = { side: 'americas' } | { side: 'abroad'; ocean: 'atlantic' | 'pacific' };
+  const shoreOf = (parts: readonly string[]): Shore | null => {
+    const { country } = classifyPlace(parts);
+    if (!country) return null;
+    if (AMERICAS.has(country)) return { side: 'americas' };
+    if (ATLANTIC_OLD_WORLD.has(country)) return { side: 'abroad', ocean: 'atlantic' };
+    if (PACIFIC_FAR_SIDE.has(country)) return { side: 'abroad', ocean: 'pacific' };
+    return null;
+  };
+
+  const dated = events
+    .filter(
+      (e): e is { year: number; parts: readonly string[] } => e.year !== null && e.parts !== null,
+    )
+    .slice()
+    .sort((a, b) => a.year - b.year);
+
+  const crossings: PersonCrossing[] = [];
+  let last: Shore | null = null;
+  for (const event of dated) {
+    const shore = shoreOf(event.parts);
+    if (!shore) continue;
+    if (last && shore.side !== last.side) {
+      const abroad = shore.side === 'abroad' ? shore : (last as Extract<Shore, { side: 'abroad' }>);
+      crossings.push({
+        ocean: abroad.ocean,
+        direction: shore.side === 'americas' ? 'toAmericas' : 'fromAmericas',
+        year: event.year,
+      });
+    }
+    last = shore;
+  }
   return crossings;
 }
 

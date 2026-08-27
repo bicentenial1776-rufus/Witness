@@ -351,6 +351,111 @@ export function nearbyAncestors(index: GeographyIndex, options: NearbyOptions): 
   }));
 }
 
+// Lived near ----------------------------------------------------------------
+
+const MILES_PER_KM = 0.621371;
+
+export interface LivedNearNeighbor {
+  individual: GeoIndividual;
+  /** Nearest qualifying place, rounded to whole miles. */
+  distanceMiles: number;
+  /** The place that put them within reach. */
+  placeRaw: string;
+}
+
+/**
+ * Assumed lifespan when one endpoint is undocumented — the same figure the
+ * alive-during engine uses (aliveDuring.ts), so "lived near" and "alive
+ * during" never disagree about who counts as a contemporary.
+ */
+const ASSUMED_LIFESPAN_YEARS = 90;
+
+function lifespanOf(person: GeoIndividual): { start: number; end: number } | null {
+  const start =
+    person.birth_year ??
+    (person.death_year !== null ? person.death_year - ASSUMED_LIFESPAN_YEARS : null);
+  const end =
+    person.death_year ??
+    (person.birth_year !== null ? person.birth_year + ASSUMED_LIFESPAN_YEARS : null);
+  if (start === null || end === null) return null;
+  return { start, end };
+}
+
+/** Birth anchors best; baptism stands in for it; a residence beats
+    an arbitrary event; any geocoded event beats nothing. */
+const ANCHOR_PREFERENCE: readonly GeoEventType[] = ['birth', 'baptism', 'residence'];
+
+function anchorPlaceOf(index: GeographyIndex, individualId: string): GeoPlace | null {
+  let fallback: GeoPlace | null = null;
+  let bestRank = Number.MAX_SAFE_INTEGER;
+  let best: GeoPlace | null = null;
+  for (const event of index.events) {
+    if (event.individualId !== individualId || !event.placeId) continue;
+    const place = index.places.get(event.placeId);
+    if (!place || place.latitude === null || place.longitude === null) continue;
+    const rank = ANCHOR_PREFERENCE.indexOf(event.eventType);
+    if (rank !== -1 && rank < bestRank) {
+      bestRank = rank;
+      best = place;
+    }
+    if (!fallback) fallback = place;
+  }
+  return best ?? fallback;
+}
+
+/**
+ * Contemporaries with a documented event within `radiusMiles` of the
+ * subject's own anchor place. Immediate family arrives via `excludeIds`
+ * (the caller already holds the register), the living are left out, and
+ * lifespans must overlap — an undocumented death gets the assumed
+ * lifespan, so a neighbor two centuries later never reads as a neighbor.
+ * Each person appears once, at their nearest qualifying place.
+ */
+export function livedNear(
+  index: GeographyIndex,
+  subjectId: string,
+  options: { radiusMiles?: number; excludeIds?: ReadonlySet<string>; cap?: number } = {},
+): LivedNearNeighbor[] {
+  const { radiusMiles = 25, excludeIds, cap = 8 } = options;
+  const subject = index.individuals.get(subjectId);
+  if (!subject) return [];
+  const subjectSpan = lifespanOf(subject);
+  if (!subjectSpan) return [];
+  const anchor = anchorPlaceOf(index, subjectId);
+  if (!anchor) return [];
+
+  const near = nearbyAncestors(index, {
+    latitude: anchor.latitude!,
+    longitude: anchor.longitude!,
+    radiusKm: radiusMiles / MILES_PER_KM,
+  });
+
+  // nearbyAncestors returns places nearest-first, so the first sighting of
+  // a person is already their closest qualifying place.
+  const best = new Map<string, LivedNearNeighbor>();
+  for (const hit of near) {
+    for (const resident of hit.residents) {
+      const person = resident.individual;
+      if (person.id === subjectId || excludeIds?.has(person.id) || person.living) continue;
+      if (best.has(person.id)) continue;
+      const span = lifespanOf(person);
+      if (!span || span.start > subjectSpan.end || subjectSpan.start > span.end) continue;
+      best.set(person.id, {
+        individual: person,
+        distanceMiles: Math.round(hit.distanceKm * MILES_PER_KM),
+        placeRaw: hit.place.raw,
+      });
+    }
+  }
+  return [...best.values()]
+    .sort(
+      (a, b) =>
+        a.distanceMiles - b.distanceMiles ||
+        a.individual.full_name.localeCompare(b.individual.full_name),
+    )
+    .slice(0, cap);
+}
+
 // Map support --------------------------------------------------------------
 
 export interface PlaceActivity {
