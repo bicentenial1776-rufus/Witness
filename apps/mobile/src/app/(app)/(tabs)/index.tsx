@@ -4,20 +4,15 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { ShelfEntry } from '@witness/core/history';
+import { dailyIssueOf, pickWeekly } from '@witness/core/findings';
 import {
-  fromMigrationPath,
-  fromOceanCrossing,
-  issueOf,
-  pickWeekly,
-  type Finding,
-} from '@witness/core/findings';
-import {
+  buildFamilyStages,
+  fetchNaraCandidatesForTree,
   fetchNaraCounts,
-  migrationPaths,
-  oceanCrossings,
-  treeGenerationSpan,
   weeklyDigest,
   type DigestEntry,
+  type FamilyStage,
+  type NaraCandidate,
   type NaraCounts,
   type WeeklyDigest,
 } from '@witness/core/query';
@@ -25,24 +20,20 @@ import {
 import { Masthead, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { Card } from '@/components/card';
 import { KinReveal } from '@/components/kin-reveal';
+import { NaraCandidateCard } from '@/components/nara-candidate-card';
 import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
-import { BrandFonts, Letterpress, WideContent, mono } from '@/constants/theme';
+import { BrandFonts, WideContent, mono } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
-import { getCuriosities, type CuriositySummary } from '@/lib/curiosities-cache';
-import { recordEditionPieces } from '@/lib/edition-ledger';
-import { getGeographyIndex } from '@/lib/geography-cache';
 import { layIssueTrail, openTrailPiece, type TrailPiece } from '@/lib/issue-trail';
 import { armDigestNotification } from '@/lib/digest-notifications';
 import { getFeaturedIds, getKinMap, type Kin } from '@/lib/relationship-cache';
 import { usePurchases } from '@/lib/purchases';
-import { describeResumePoint, getResumePoint } from '@/lib/resume';
 import { getShelf } from '@/lib/shelf-cache';
 import { getTodayArc, type StoryArc } from '@/lib/story-arc';
 import { supabase } from '@/lib/supabase';
 import { getTreeIndex } from '@/lib/tree-index-cache';
-
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 const isToday = (d: Date) => startOfDay(d) === startOfDay(new Date());
@@ -56,19 +47,18 @@ function anniversaryLine(entry: DigestEntry): string {
   return `${verb} ${when}`;
 }
 
-function heroRecordLine(entry: DigestEntry): string {
-  const years =
-    entry.birthYear !== null || entry.deathYear !== null
-      ? `${entry.birthYear ?? '?'}–${entry.deathYear ?? '?'}`
-      : null;
-  return [years, entry.placeRaw?.split(',').slice(0, 2).join(',')].filter(Boolean).join(' · ');
+/** The ancestor-of-the-day pick, hydrated. */
+interface DailyAncestor {
+  id: string;
+  full_name: string;
+  birth_year: number | null;
+  death_year: number | null;
 }
 
-function resumeAgeLabel(ts: number): string {
-  const days = Math.round((startOfDay(new Date()) - startOfDay(new Date(ts))) / 86_400_000);
-  if (days <= 0) return 'Earlier today';
-  if (days === 1) return 'Yesterday';
-  return `${days} days ago`;
+function ancestorRecordLine(person: DailyAncestor): string {
+  return person.birth_year !== null || person.death_year !== null
+    ? `${person.birth_year ?? '?'}–${person.death_year ?? '?'}`
+    : '';
 }
 
 function Feed({ eyebrow, children }: { eyebrow: string; children: ReactNode }) {
@@ -84,16 +74,15 @@ function Feed({ eyebrow, children }: { eyebrow: string; children: ReactNode }) {
 }
 
 /**
- * Home — this week's issue (docs/cohesion-design-brief.md, Approach B on
- * A's plumbing; supersedes the plain feed of the phone-IA brief). One
- * edition per ISO week, the same on every device: a lead story from the
- * digest engine's pick with its cached record-grounded note — never a live
- * call — then each desk files ONE piece: the Tree Check a single curiosity,
- * the Archives its waiting count, the pattern engines one crossing or move.
- * Rationing is the point — one is inviting where 443 is oppressive. On This
- * Day, the stat strip, resume, and the Explore shelf carry on below as the
- * standing furniture. Nothing here waits on an external API. The broadsheet
- * carrier (web ≥900px) runs the same issue under a masthead.
+ * Home — the daily reading (2026-08-27 redesign; supersedes the weekly
+ * issue while keeping its spine). One issue per calendar day, numbered by
+ * day of year, the same on every device, and exactly five modules in this
+ * order: On this day · Ancestor of the day · A generational story · The
+ * family graph of the day · The National Archives. Every pick is
+ * date-seeded and deterministic (pickWeekly over the daily key), nothing
+ * gates the first paint, and the issue trail follows the reader into the
+ * Portraits as before — the edition just turns over at midnight instead
+ * of Monday.
  */
 export default function Home() {
   const L = useLetterpress();
@@ -102,25 +91,21 @@ export default function Home() {
   const { subscription } = usePurchases();
   const [digest, setDigest] = useState<WeeklyDigest | null>(null);
   const [relationships, setRelationships] = useState<Map<string, Kin>>(new Map());
-  const [heroNote, setHeroNote] = useState<string | null>(null);
-  const [curiosities, setCuriosities] = useState<CuriositySummary | null>(null);
-  const [naraCounts, setNaraCounts] = useState<NaraCounts | null>(null);
-  // The pattern piece keeps its precise destination alongside the finding:
-  // a crossing lands on the crosser, a migration on its own path screen. A
-  // sentence about Michael Howe must land on Michael Howe, not on a menu.
-  const [pattern, setPattern] = useState<{
-    finding: Finding;
-    destination: { pathname: string; params: Record<string, string> };
-  } | null>(null);
-  const [shelf, setShelf] = useState<ShelfEntry[] | null>(null);
-  // Today's story arc leads the edition; the anniversary hero is the
-  // fallback when the arc can't be told (no entitlement, thin tree, net).
+  const [ancestor, setAncestor] = useState<DailyAncestor | null>(null);
+  const [ancestorNote, setAncestorNote] = useState<string | null>(null);
   const [arc, setArc] = useState<StoryArc | 'loading' | 'failed'>('loading');
-  const [generations, setGenerations] = useState<number | null>(null);
-  const [resume, setResume] = useState<{ path: string; title: string; ts: number } | null>(null);
+  const [stage, setStage] = useState<FamilyStage | null>(null);
+  const [naraCounts, setNaraCounts] = useState<NaraCounts | null>(null);
+  // The Archives focus: collapsed by default; expanding fetches up to 10
+  // pending candidates to judge in place.
+  const [naraOpen, setNaraOpen] = useState(false);
+  const [naraCards, setNaraCards] = useState<NaraCandidate[] | 'loading' | null>(null);
+  // The shelf backs On This Day's fallback only — a historical moment for
+  // days with no dated anniversary in the tree.
+  const [shelf, setShelf] = useState<ShelfEntry[] | null>(null);
 
-  // The edition — same all week, everywhere; the seed for the desks' picks.
-  const issue = issueOf(new Date());
+  // Today's issue — new at midnight, the seed for every module's pick.
+  const issue = dailyIssueOf(new Date());
 
   // Today's line: cached after its first telling, so this is one cheap
   // function round-trip on every Home visit after the first of the day.
@@ -140,57 +125,6 @@ export default function Home() {
     };
   }, [activeTree?.id]);
 
-  // The ledger's write path: record what this edition printed, once the
-  // desks have picked. Fire-and-forget — a failed write costs a back
-  // issue, never the front page. The same pass lays the issue trail, so
-  // the Portrait can offer "next in this issue" (audit G1).
-  useEffect(() => {
-    if (!activeTree) return;
-    const pieces: { finding: Finding; section: string }[] = [];
-    const weekly = curiosities ? pickWeekly(curiosities.top, `${issue.key}:tree-check`) : null;
-    if (weekly) {
-      pieces.push({
-        finding: {
-          id: `tree-health:${weekly.key}`,
-          source: 'tree-health',
-          subjectIds: [weekly.individualId],
-          sentence: weekly.prompt,
-        },
-        section: 'tree-check',
-      });
-    }
-    if (pattern) pieces.push({ finding: pattern.finding, section: 'pattern' });
-    recordEditionPieces(activeTree.id, issue.key, pieces);
-
-    const hero = digest ? (digest.entries[0] ?? digest.days[0] ?? null) : null;
-    const trail: TrailPiece[] = [];
-    if (hero) {
-      trail.push({
-        key: 'lead',
-        label: 'THE LEAD',
-        destination: { pathname: '/ancestor/[id]', params: { id: hero.individualId } },
-      });
-    }
-    if (weekly) {
-      trail.push({
-        key: 'tree-check',
-        label: 'THE TREE CHECK',
-        destination: { pathname: '/ancestor/[id]', params: { id: weekly.individualId } },
-      });
-    }
-    if (naraCounts && naraCounts.pending > 0) {
-      trail.push({
-        key: 'archives',
-        label: 'THE ARCHIVES',
-        destination: { pathname: '/archives', params: { treeId: activeTree.id } },
-      });
-    }
-    if (pattern) {
-      trail.push({ key: 'pattern', label: 'THE PATTERN', destination: pattern.destination });
-    }
-    layIssueTrail(issue.number, trail);
-  }, [activeTree?.id, issue.key, issue.number, curiosities, pattern, digest, naraCounts]);
-
   useFocusEffect(
     useCallback(() => {
       refresh();
@@ -202,33 +136,51 @@ export default function Home() {
     if (activeTree) armDigestNotification(activeTree.id).catch(() => {});
   }, [activeTree?.id]);
 
-  // The rolling week, recomputed on focus so the feed moves on at midnight
-  // without a relaunch. Notes are read from cache, never generated here —
-  // the featured-today job writes them ahead of us.
+  // Anniversaries + the ancestor of the day, recomputed on focus so the
+  // issue turns over at midnight without a relaunch.
   useFocusEffect(
     useCallback(() => {
       if (!activeTree) return;
       let cancelled = false;
+      const treeId = activeTree.id;
+      const issueKey = dailyIssueOf(new Date()).key;
       (async () => {
         try {
-          const relationshipMap = await getKinMap(activeTree.id).catch(
-            () => new Map<string, Kin>(),
-          );
-          const featuredIds = await getFeaturedIds(activeTree.id).catch(() => new Set<string>());
-          const result = await weeklyDigest(supabase, activeTree.id, new Date(), featuredIds);
+          const relationshipMap = await getKinMap(treeId).catch(() => new Map<string, Kin>());
+          const featuredIds = await getFeaturedIds(treeId).catch(() => new Set<string>());
+          const result = await weeklyDigest(supabase, treeId, new Date(), featuredIds);
           if (cancelled) return;
           setRelationships(relationshipMap);
           setDigest(result);
 
-          const hero = result.entries[0] ?? result.days[0];
-          if (hero) {
-            const { data } = await supabase
-              .from('enrichment_cache')
-              .select('content')
-              .eq('individual_id', hero.individualId)
-              .eq('enrichment_type', 'digest_note')
-              .maybeSingle();
-            if (!cancelled) setHeroNote(data?.content ?? null);
+          // The ancestor of the day: a date-seeded walk over the featured
+          // pool (honors the lineage scope), skipping the living. A small
+          // window is fetched so a living pick just slides to the next.
+          const ids = [...featuredIds].sort();
+          if (ids.length > 0) {
+            const seedPick = pickWeekly(ids, `${issueKey}:ancestor`);
+            const start = seedPick ? ids.indexOf(seedPick) : 0;
+            const window = Array.from(
+              { length: Math.min(12, ids.length) },
+              (_, i) => ids[(start + i) % ids.length]!,
+            );
+            const { data: rows } = await supabase
+              .from('individuals')
+              .select('id, full_name, birth_year, death_year, living')
+              .in('id', window);
+            if (cancelled) return;
+            const byId = new Map((rows ?? []).map((r) => [r.id, r]));
+            const pick = window.map((id) => byId.get(id)).find((p) => p && !p.living) ?? null;
+            if (pick) {
+              setAncestor(pick);
+              const { data: note } = await supabase
+                .from('enrichment_cache')
+                .select('content')
+                .eq('individual_id', pick.id)
+                .eq('enrichment_type', 'digest_note')
+                .maybeSingle();
+              if (!cancelled) setAncestorNote(note?.content ?? null);
+            }
           }
         } catch {
           // Home stays quiet on digest errors; the digest screen surfaces them.
@@ -240,17 +192,34 @@ export default function Home() {
     }, [activeTree?.id]),
   );
 
-  // The rest of the feed — each block arrives independently, nothing
+  // The rest of the modules — each block arrives independently, nothing
   // gates the first paint.
   useFocusEffect(
     useCallback(() => {
       if (!activeTree) return;
       let cancelled = false;
       const treeId = activeTree.id;
+      const issueKey = dailyIssueOf(new Date()).key;
 
-      getCuriosities(treeId)
-        .then((summary) => {
-          if (!cancelled) setCuriosities(summary);
+      // The family graph of the day: a date-seeded rotation over the
+      // households the stage index can draw, biased toward the ones with
+      // a dated marriage and a real sibship — those graphs read as a
+      // story, not a stub.
+      getTreeIndex(treeId)
+        .then((index) => {
+          if (cancelled) return;
+          const stages = buildFamilyStages(index, { currentYear: new Date().getFullYear() });
+          const all = [...stages.byKey.values()];
+          const interesting = all.filter(
+            (s) =>
+              s.marriage > 0 &&
+              s.marriages.reduce((n, m) => n + m.children.length, 0) >= 3,
+          );
+          const pool = (interesting.length > 0 ? interesting : all)
+            .map((s) => s.key)
+            .sort();
+          const key = pickWeekly(pool, `${issueKey}:family-graph`);
+          setStage(key ? (stages.byKey.get(key) ?? null) : null);
         })
         .catch(() => {});
 
@@ -260,55 +229,11 @@ export default function Home() {
         })
         .catch(() => {});
 
-      // The pattern desk: one crossing or one migration, picked for the
-      // week from the cached geography index — cheap, deterministic, and
-      // the same story until Monday.
-      getGeographyIndex(treeId)
-        .then((index) => {
-          if (cancelled) return;
-          const crossingStory = (crossing: (typeof crossings)[number]) => ({
-            finding: fromOceanCrossing(crossing),
-            destination: {
-              pathname: '/ancestor/[id]',
-              params: { id: crossing.individual.id },
-            },
-          });
-          const crossings = [
-            ...oceanCrossings(index, 'atlantic'),
-            ...oceanCrossings(index, 'pacific'),
-          ];
-          const stories = [
-            ...crossings.map(crossingStory),
-            ...migrationPaths(index).map((path) => ({
-              finding: fromMigrationPath(path),
-              destination: {
-                pathname: '/migration',
-                params: { treeId, from: path.from, to: path.to },
-              },
-            })),
-          ];
-          setPattern(pickWeekly(stories, `${issue.key}:pattern`));
-        })
-        .catch(() => {});
-
       getShelf(treeId)
         .then((entries) => {
           if (!cancelled) setShelf(entries);
         })
         .catch(() => {});
-
-      getTreeIndex(treeId)
-        .then((index) => {
-          if (!cancelled) setGenerations(treeGenerationSpan(index));
-        })
-        .catch(() => {});
-
-      (async () => {
-        const point = await getResumePoint();
-        if (!point || cancelled) return;
-        const title = await describeResumePoint(point, treeId);
-        if (title && !cancelled) setResume({ path: point.path, title, ts: point.ts });
-      })().catch(() => {});
 
       return () => {
         cancelled = true;
@@ -316,15 +241,65 @@ export default function Home() {
     }, [activeTree?.id]),
   );
 
-  const hero = digest ? (digest.entries[0] ?? digest.days[0] ?? null) : null;
-  const heroRelationship = hero ? relationships.get(hero.individualId) : undefined;
-  const onThisDay =
-    digest?.days.find((d) => isToday(d.occursOn) && d.individualId !== hero?.individualId) ?? null;
-  const dayOfYear = Math.floor(
-    (startOfDay(new Date()) - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86_400_000,
-  );
+  // Lay the issue trail once the modules have their picks, so the
+  // Portrait can offer "next in this issue" (audit G1) — now daily.
+  const onThisDay = digest?.days.find((d) => isToday(d.occursOn)) ?? null;
+  useEffect(() => {
+    if (!activeTree) return;
+    const trail: TrailPiece[] = [];
+    if (onThisDay) {
+      trail.push({
+        key: 'on-this-day',
+        label: 'ON THIS DAY',
+        destination: { pathname: '/ancestor/[id]', params: { id: onThisDay.individualId } },
+      });
+    }
+    if (ancestor) {
+      trail.push({
+        key: 'ancestor',
+        label: 'THE ANCESTOR OF THE DAY',
+        destination: { pathname: '/ancestor/[id]', params: { id: ancestor.id } },
+      });
+    }
+    if (typeof arc === 'object') {
+      trail.push({ key: 'story', label: 'THE GENERATIONAL STORY', destination: { pathname: '/story-arc' } });
+    }
+    if (stage) {
+      trail.push({
+        key: 'family-graph',
+        label: 'THE FAMILY GRAPH',
+        destination: { pathname: '/family-stage/[key]', params: { key: stage.key } },
+      });
+    }
+    if (naraCounts && naraCounts.pending > 0) {
+      trail.push({
+        key: 'archives',
+        label: 'THE ARCHIVES',
+        destination: { pathname: '/archives', params: { treeId: activeTree.id } },
+      });
+    }
+    layIssueTrail(issue.number, trail);
+  }, [activeTree?.id, issue.number, onThisDay, ancestor, arc, stage, naraCounts]);
+
+  function openArchivesFocus() {
+    if (!activeTree) return;
+    setNaraOpen(true);
+    if (naraCards !== null) return;
+    setNaraCards('loading');
+    fetchNaraCandidatesForTree(supabase, activeTree.id)
+      .then((rows) => {
+        setNaraCards(rows.filter((c) => c.status === 'pending').slice(0, 10));
+      })
+      .catch(() => setNaraCards([]));
+  }
+
+  const dayOfYear = issue.number;
   const historicalToday =
     !onThisDay && shelf && shelf.length > 0 ? shelf[dayOfYear % shelf.length] : null;
+  const ancestorRelationship = ancestor ? relationships.get(ancestor.id) : undefined;
+  const stageChildren = stage
+    ? stage.marriages.reduce((n, m) => n + m.children.length, 0)
+    : 0;
 
   // The paywall's Day-5 promise ("we'll remind you before your trial ends")
   // rode entirely on a notification permission the reader may have declined.
@@ -362,11 +337,10 @@ export default function Home() {
                 </Text>
               )}
 
-              {/* First-week candor (audit gap G5): the hero's note is written
-                  by a daily job, archive matches by a scheduled worker, map
-                  pins by the geocoder — a brand-new tree's issue runs thin
-                  for reasons the reader can't see. Say so. A refreshed tree
-                  inherits its history and skips the apology. */}
+              {/* First-week candor (audit gap G5): the notes are written by
+                  a daily job, archive matches by a scheduled worker — a
+                  brand-new tree's issue runs thin for reasons the reader
+                  can't see. Say so. */}
               {!activeTree.refreshed_from &&
                 Date.now() - new Date(activeTree.imported_at).getTime() < 7 * 86_400_000 && (
                   <Text
@@ -402,237 +376,19 @@ export default function Home() {
                 </Pressable>
               )}
 
-              {/* 1 · The lead — today's story arc: one recorded line,
-                  founder to reader, a new one each day. The anniversary
-                  hero remains the fallback when the arc can't be told. */}
-              <Feed eyebrow="The lead">
-                {typeof arc === 'object' ? (
-                  <Pressable
-                    onPress={() => {
-                      openTrailPiece('lead');
-                      router.push('/story-arc' as never);
-                    }}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: L.rule,
-                      backgroundColor: L.raised,
-                      padding: 18,
-                      gap: 7,
-                      shadowColor: L.ink,
-                      shadowOpacity: 0.05,
-                      shadowRadius: 4,
-                      shadowOffset: { width: 0, height: 2 },
-                    }}
-                  >
-                    <Text style={mono(13, L.deepAmber)}>A GENERATIONAL STORY · TODAY'S LINE</Text>
-                    <Text
-                      style={{
-                        fontFamily: BrandFonts.serif.semiBold,
-                        fontSize: 26,
-                        lineHeight: 32,
-                        color: L.ink,
-                      }}
-                    >
-                      {arc.title}
-                    </Text>
-                    <Text style={mono(13, L.muted)}>
-                      {`${arc.generations.length} GENERATIONS · ${arc.generations[0]?.birth ?? '?'}–TODAY`}
-                    </Text>
-                    {arc.generations[0]?.relationLabel && (
-                      <KinReveal
-                        tier={
-                          relationships.get(arc.generations[0].personId)?.tier ?? 'direct'
-                        }
-                        label={arc.generations[0].relationLabel}
-                        uppercase
-                        style={mono(13, L.muted)}
-                      />
-                    )}
-                    <Text
-                      style={{
-                        fontFamily: BrandFonts.serif.regular,
-                        fontSize: 15.5,
-                        lineHeight: 23,
-                        color: L.ink,
-                        marginTop: 4,
-                      }}
-                    >
-                      {arc.dek}
-                    </Text>
-                    <Text style={{ ...mono(13, L.amber), marginTop: 4 }}>READ THE LINE ›</Text>
-                  </Pressable>
-                ) : arc === 'loading' ? (
-                  <Text style={mono(13.5, L.muted)}>SETTING TODAY'S STORY…</Text>
-                ) : !digest ? (
-                  <Text style={mono(13.5, L.muted)}>SETTING THE WEEK…</Text>
-                ) : !hero ? (
-                  <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 17, color: L.ink }}>
-                    A quiet week — no dated anniversaries fall in the next seven days.
-                  </Text>
-                ) : (
-                  <Pressable
-                    onPress={() => {
-                      openTrailPiece('lead');
-                      router.push({ pathname: '/ancestor/[id]', params: { id: hero.individualId } });
-                    }}
-                    style={{
-                      borderWidth: 1,
-                      borderColor: L.rule,
-                      backgroundColor: L.raised,
-                      padding: 18,
-                      gap: 7,
-                      shadowColor: L.ink,
-                      shadowOpacity: 0.05,
-                      shadowRadius: 4,
-                      shadowOffset: { width: 0, height: 2 },
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontFamily: BrandFonts.serif.semiBold,
-                        fontSize: 26,
-                        lineHeight: 32,
-                        color: L.ink,
-                      }}
-                    >
-                      {hero.fullName}
-                    </Text>
-                    <Text style={mono(13, L.muted)}>{heroRecordLine(hero).toUpperCase()}</Text>
-                    {heroRelationship && (
-                      <KinReveal
-                        tier={heroRelationship.tier}
-                        label={heroRelationship.label}
-                        uppercase
-                        style={mono(13, L.deepAmber)}
-                      />
-                    )}
-                    <Text
-                      style={{
-                        fontFamily: BrandFonts.serif.regular,
-                        fontSize: 15.5,
-                        lineHeight: 23,
-                        color: L.ink,
-                        marginTop: 4,
-                      }}
-                    >
-                      {heroNote ??
-                        `${anniversaryLine(hero)}${hero.placeRaw ? ` · ${hero.placeRaw.split(',')[0]}` : ''}.`}
-                    </Text>
-                    <Text style={{ ...mono(13, L.amber), marginTop: 4 }}>THEIR FULL STORY ›</Text>
-                  </Pressable>
-                )}
-              </Feed>
-
-              {/* 2 · From the Tree Check — the desk files ONE curiosity a
-                  week, the count is a footnote. One is inviting; 443 is a
-                  chore list (cohesion brief, Approach B). The prompt lands
-                  on the person it names — their Portrait carries the same
-                  finding — and only the footnote opens the full workbench. */}
-              {curiosities && curiosities.total > 0 && (() => {
-                const weekly = pickWeekly(curiosities.top, `${issue.key}:tree-check`);
-                return (
-                  <Feed eyebrow="From the Tree Check">
-                    <View
-                      style={{
-                        borderLeftWidth: 2,
-                        borderLeftColor: L.amber,
-                        paddingLeft: 12,
-                        paddingVertical: 2,
-                        gap: 5,
-                      }}
-                    >
-                      <Pressable
-                        onPress={() => {
-                          if (weekly) {
-                            openTrailPiece('tree-check');
-                            router.push({
-                              pathname: '/ancestor/[id]',
-                              params: { id: weekly.individualId },
-                            });
-                          } else {
-                            router.push('/tree-health' as never);
-                          }
-                        }}
-                      >
-                        <Text
-                          style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15.5, lineHeight: 22, color: L.ink }}
-                        >
-                          {weekly
-                            ? weekly.prompt
-                            : `${curiosities.total.toLocaleString()} curiosities in the record — worth a look, nothing urgent.`}
-                        </Text>
-                      </Pressable>
-                      <Pressable onPress={() => router.push('/tree-health' as never)} hitSlop={6}>
-                        <Text style={mono(13, L.muted)}>
-                          {`THIS WEEK'S CURIOSITY · ${curiosities.total.toLocaleString()} OPEN${
-                            curiosities.lineName ? ` · MOST IN THE ${curiosities.lineName.toUpperCase()} LINE` : ''
-                          } ›`}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  </Feed>
-                );
-              })()}
-
-              {/* 3 · From the Archives — the waiting count, one line. */}
-              {naraCounts && naraCounts.pending > 0 && (
-                <Feed eyebrow="From the Archives">
-                  <Pressable
-                    onPress={() => {
-                      openTrailPiece('archives');
-                      router.push({ pathname: '/archives', params: { treeId: activeTree.id } });
-                    }}
-                  >
-                    <Text
-                      style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15.5, lineHeight: 22, color: L.ink }}
-                    >
-                      {naraCounts.pending === 1
-                        ? 'One federal record awaits your judgment — a match the Archives cannot decide without you.'
-                        : `${naraCounts.pending} federal records await your judgment — matches the Archives cannot decide without you.`}
-                    </Text>
-                    <Text style={{ ...mono(13, L.amber), marginTop: 4 }}>TO THE ARCHIVES ›</Text>
-                  </Pressable>
-                </Feed>
-              )}
-
-              {/* 4 · The pattern — one crossing or move, this week's pick.
-                  The sentence lands where it points; the footnote is the menu. */}
-              {pattern && (
-                <Feed eyebrow="The pattern">
-                  <Pressable
-                    onPress={() => {
-                      openTrailPiece('pattern');
-                      router.push(pattern.destination as never);
-                    }}
-                  >
-                    <Text
-                      style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15.5, lineHeight: 22, color: L.ink }}
-                    >
-                      {pattern.finding.sentence}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() =>
-                      router.push({ pathname: '/patterns', params: { treeId: activeTree.id } })
-                    }
-                    hitSlop={6}
-                  >
-                    <Text style={mono(13, L.amber)}>MORE PATTERNS ›</Text>
-                  </Pressable>
-                </Feed>
-              )}
-
-              {/* 5 · On This Day */}
+              {/* 1 · On this day — a dated anniversary from the tree, or a
+                  historical moment the tree lived through as the fallback. */}
               {(onThisDay || historicalToday) && (
                 <Feed eyebrow="On this day">
                   {onThisDay ? (
                     <Pressable
-                      onPress={() =>
+                      onPress={() => {
+                        openTrailPiece('on-this-day');
                         router.push({
                           pathname: '/ancestor/[id]',
                           params: { id: onThisDay.individualId },
-                        })
-                      }
+                        });
+                      }}
                     >
                       <Text
                         style={{ fontFamily: BrandFonts.serif.regular, fontSize: 17, lineHeight: 25, color: L.ink }}
@@ -658,118 +414,269 @@ export default function Home() {
                       </Text>
                     </Pressable>
                   ) : null}
-                  <Pressable onPress={() => activeTree && router.push({ pathname: '/digest', params: { treeId: activeTree.id } })}>
+                  <Pressable onPress={() => router.push({ pathname: '/digest', params: { treeId: activeTree.id } })}>
                     <Text style={mono(13, L.amber)}>THIS WEEK IN YOUR FAMILY ›</Text>
                   </Pressable>
                 </Feed>
               )}
 
-              {/* 6 · Your Tree stat strip */}
-              <Feed eyebrow="Your tree">
-                <Pressable onPress={() => router.push('/tree' as never)}>
-                  <Text style={mono(13.5, L.ink)}>
-                    {[
-                      `${Number(activeTree.individual_count).toLocaleString()} PEOPLE`,
-                      `${Number(activeTree.family_count).toLocaleString()} FAMILIES`,
-                      generations !== null ? `${generations} GENERATIONS` : null,
-                    ]
-                      .filter(Boolean)
-                      .join('  ·  ')}
-                  </Text>
-                </Pressable>
-              </Feed>
-
-              {/* 7 · Pick up where you left off */}
-              {resume && (
-                <Feed eyebrow="Pick up where you left off">
+              {/* 2 · The ancestor of the day — one person, date-seeded from
+                  the featured pool, their cached note when the daily job
+                  has written one. */}
+              {ancestor && (
+                <Feed eyebrow="Ancestor of the day">
                   <Pressable
-                    onPress={() => router.push(resume.path as never)}
-                    style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}
+                    onPress={() => {
+                      openTrailPiece('ancestor');
+                      router.push({ pathname: '/ancestor/[id]', params: { id: ancestor.id } });
+                    }}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: L.rule,
+                      backgroundColor: L.raised,
+                      padding: 18,
+                      gap: 7,
+                      shadowColor: L.ink,
+                      shadowOpacity: 0.05,
+                      shadowRadius: 4,
+                      shadowOffset: { width: 0, height: 2 },
+                    }}
                   >
-                    <View style={{ flexShrink: 1, gap: 3 }}>
-                      <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 19, color: L.ink }}>
-                        {resume.title}
+                    <Text
+                      style={{
+                        fontFamily: BrandFonts.serif.semiBold,
+                        fontSize: 26,
+                        lineHeight: 32,
+                        color: L.ink,
+                      }}
+                    >
+                      {ancestor.full_name}
+                    </Text>
+                    {ancestorRecordLine(ancestor) !== '' && (
+                      <Text style={mono(13, L.muted)}>{ancestorRecordLine(ancestor)}</Text>
+                    )}
+                    {ancestorRelationship && (
+                      <KinReveal
+                        tier={ancestorRelationship.tier}
+                        label={ancestorRelationship.label}
+                        uppercase
+                        style={mono(13, L.deepAmber)}
+                      />
+                    )}
+                    {ancestorNote && (
+                      <Text
+                        style={{
+                          fontFamily: BrandFonts.serif.regular,
+                          fontSize: 15.5,
+                          lineHeight: 23,
+                          color: L.ink,
+                          marginTop: 4,
+                        }}
+                      >
+                        {ancestorNote}
                       </Text>
-                      <Text style={mono(13, L.muted)}>{resumeAgeLabel(resume.ts).toUpperCase()}</Text>
-                    </View>
-                    <Text style={mono(13, L.amber)}>›</Text>
+                    )}
+                    <Text style={{ ...mono(13, L.amber), marginTop: 4 }}>THEIR FULL STORY ›</Text>
                   </Pressable>
                 </Feed>
               )}
 
-              {/* 8 · Explore shelf */}
-              {shelf && shelf.length > 0 && (
-                <Feed eyebrow="Explore">
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 10, paddingRight: 12 }}
-                    style={{ marginHorizontal: -2 }}
-                  >
-                    {shelf.slice(0, 8).map((entry) => (
-                      <Pressable
-                        key={entry.event.id}
-                        onPress={() =>
-                          router.push({
-                            pathname: '/query/[eventId]',
-                            params: { eventId: entry.event.id, treeId: activeTree.id },
-                          })
-                        }
-                        style={{
-                          width: 150,
-                          borderWidth: 1,
-                          borderColor: L.rule,
-                          backgroundColor: L.raised,
-                          padding: 12,
-                          gap: 6,
-                          justifyContent: 'space-between',
-                        }}
-                      >
-                        <View style={{ gap: 6 }}>
-                          <Text style={mono(12.5, L.deepAmber)}>{String(entry.event.startYear)}</Text>
-                          <Text
-                            numberOfLines={3}
-                            style={{ fontFamily: BrandFonts.serif.regular, fontSize: 16, lineHeight: 21, color: L.ink }}
-                          >
-                            {entry.event.name}
-                          </Text>
-                        </View>
-                        <Text style={mono(12.5, L.muted)}>
-                          {entry.aliveCount.toLocaleString()} ALIVE
-                        </Text>
-                      </Pressable>
-                    ))}
+              {/* 3 · A generational story — today's line, founder to reader. */}
+              {(typeof arc === 'object' || arc === 'loading') && (
+                <Feed eyebrow="A generational story">
+                  {arc === 'loading' ? (
+                    <Text style={mono(13.5, L.muted)}>SETTING TODAY'S STORY…</Text>
+                  ) : (
                     <Pressable
-                      onPress={() => router.push('/library' as never)}
+                      onPress={() => {
+                        openTrailPiece('story');
+                        router.push('/story-arc' as never);
+                      }}
                       style={{
-                        width: 110,
                         borderWidth: 1,
-                        borderColor: L.deepAmber,
-                        borderStyle: 'dashed' as never,
-                        padding: 12,
-                        justifyContent: 'center',
+                        borderColor: L.rule,
+                        backgroundColor: L.raised,
+                        padding: 18,
+                        gap: 7,
+                        shadowColor: L.ink,
+                        shadowOpacity: 0.05,
+                        shadowRadius: 4,
+                        shadowOffset: { width: 0, height: 2 },
                       }}
                     >
-                      <Text style={mono(13, L.deepAmber)}>THE LIBRARY ›</Text>
+                      <Text style={mono(13, L.deepAmber)}>TODAY'S LINE</Text>
+                      <Text
+                        style={{
+                          fontFamily: BrandFonts.serif.semiBold,
+                          fontSize: 26,
+                          lineHeight: 32,
+                          color: L.ink,
+                        }}
+                      >
+                        {arc.title}
+                      </Text>
+                      <Text style={mono(13, L.muted)}>
+                        {`${arc.generations.length} GENERATIONS · ${arc.generations[0]?.birth ?? '?'}–TODAY`}
+                      </Text>
+                      {arc.generations[0]?.relationLabel && (
+                        <KinReveal
+                          tier={relationships.get(arc.generations[0].personId)?.tier ?? 'direct'}
+                          label={arc.generations[0].relationLabel}
+                          uppercase
+                          style={mono(13, L.muted)}
+                        />
+                      )}
+                      <Text
+                        style={{
+                          fontFamily: BrandFonts.serif.regular,
+                          fontSize: 15.5,
+                          lineHeight: 23,
+                          color: L.ink,
+                          marginTop: 4,
+                        }}
+                      >
+                        {arc.dek}
+                      </Text>
+                      <Text style={{ ...mono(13, L.amber), marginTop: 4 }}>READ THE LINE ›</Text>
                     </Pressable>
-                  </ScrollView>
+                  )}
+                </Feed>
+              )}
+
+              {/* 4 · The family graph of the day — one household, date-
+                  seeded, biased toward the graphs with a story to draw. */}
+              {stage && (
+                <Feed eyebrow="Family graph of the day">
+                  <Pressable
+                    onPress={() => {
+                      openTrailPiece('family-graph');
+                      router.push({ pathname: '/family-stage/[key]', params: { key: stage.key } });
+                    }}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: L.rule,
+                      backgroundColor: L.raised,
+                      padding: 18,
+                      gap: 7,
+                      shadowColor: L.ink,
+                      shadowOpacity: 0.05,
+                      shadowRadius: 4,
+                      shadowOffset: { width: 0, height: 2 },
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: BrandFonts.serif.semiBold,
+                        fontSize: 22,
+                        lineHeight: 28,
+                        color: L.ink,
+                      }}
+                    >
+                      {stage.title}
+                    </Text>
+                    <Text style={mono(13, L.muted)}>
+                      {[
+                        stage.marriage > 0 ? `MARRIED ${stage.marriage}` : null,
+                        stageChildren > 0
+                          ? `${stageChildren} ${stageChildren === 1 ? 'CHILD' : 'CHILDREN'}`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </Text>
+                    <Text style={{ ...mono(13, L.amber), marginTop: 4 }}>OPEN THE GRAPH ›</Text>
+                  </Pressable>
+                </Feed>
+              )}
+
+              {/* 5 · The National Archives — the waiting count; expanding
+                  brings ten pending records to judge without leaving Home. */}
+              {naraCounts && naraCounts.pending > 0 && (
+                <Feed eyebrow="The National Archives">
+                  <Pressable
+                    onPress={() => {
+                      openTrailPiece('archives');
+                      if (naraOpen) {
+                        router.push({ pathname: '/archives', params: { treeId: activeTree.id } });
+                      } else {
+                        openArchivesFocus();
+                      }
+                    }}
+                  >
+                    <Text
+                      style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15.5, lineHeight: 22, color: L.ink }}
+                    >
+                      {naraCounts.pending === 1
+                        ? 'One federal record awaits your judgment — a match the Archives cannot decide without you.'
+                        : `${naraCounts.pending} federal records await your judgment — matches the Archives cannot decide without you.`}
+                    </Text>
+                  </Pressable>
+                  {!naraOpen ? (
+                    <Pressable onPress={openArchivesFocus} hitSlop={6}>
+                      <Text style={mono(13, L.amber)}>
+                        {`LOOK THROUGH ${Math.min(10, naraCounts.pending)} ›`}
+                      </Text>
+                    </Pressable>
+                  ) : naraCards === 'loading' || naraCards === null ? (
+                    <ActivityIndicator style={{ marginVertical: 8 }} />
+                  ) : (
+                    <>
+                      {naraCards.map((candidate) => (
+                        <NaraCandidateCard
+                          key={candidate.id}
+                          candidate={candidate}
+                          onResolved={(candidateId, status) => {
+                            setNaraCards((current) =>
+                              Array.isArray(current)
+                                ? current.filter((c) => c.id !== candidateId)
+                                : current,
+                            );
+                            setNaraCounts((current) =>
+                              current
+                                ? {
+                                    pending: Math.max(0, current.pending - 1),
+                                    confirmed:
+                                      current.confirmed + (status === 'confirmed' ? 1 : 0),
+                                  }
+                                : current,
+                            );
+                          }}
+                        />
+                      ))}
+                      {naraCards.length === 0 && (
+                        <Text
+                          style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15.5, color: L.ink }}
+                        >
+                          These ten are judged — the Archives has the rest.
+                        </Text>
+                      )}
+                      <Pressable
+                        onPress={() =>
+                          router.push({ pathname: '/archives', params: { treeId: activeTree.id } })
+                        }
+                        hitSlop={6}
+                      >
+                        <Text style={mono(13, L.amber)}>
+                          {`ALL ${naraCounts.pending} IN THE ARCHIVES ›`}
+                        </Text>
+                      </Pressable>
+                    </>
+                  )}
                 </Feed>
               )}
             </>
           )
         );
 
-  // Broadsheet carrier (web ≥900px): the same feed at a readable measure
-  // under a masthead — the rail carries the wordmark and Account.
+  // Broadsheet carrier (web ≥900px): the same daily issue at a readable
+  // measure under a masthead — the rail carries the wordmark and Account.
   if (broadsheet) {
     return (
       <PageShell
         masthead={
           <Masthead
             title="Home"
-            metaMono={`NO. ${issue.number} · ${new Date()
-              .toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-              .toUpperCase()}`}
+            metaMono={`NO. ${issue.number} · ${issue.weekOfLabel.toUpperCase()}`}
             metaCaption={activeTree?.name}
           />
         }

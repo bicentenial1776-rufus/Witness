@@ -108,6 +108,26 @@ export function issueOf(date: Date): IssueEdition {
 }
 
 /**
+ * The daily edition (Home's 2026-08-27 redesign): one issue per calendar
+ * day, numbered by day of year — the same convention the weekly issue
+ * used (number within the volume year), so numbering simply continues at
+ * the daily cadence. Deterministic from the date alone: every device
+ * prints the same issue with no storage and no network.
+ */
+export function dailyIssueOf(date: Date): IssueEdition {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const volume = d.getFullYear();
+  const jan1 = new Date(volume, 0, 1);
+  const number = Math.round((d.getTime() - jan1.getTime()) / 86_400_000) + 1;
+  const weekOfLabel = d.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+  return { number, volume, weekOfLabel, key: `${volume}-D${number}` };
+}
+
+/**
  * The ration: one item per desk per edition, the same one all week on
  * every device — a periodical, not a slot machine. FNV-1a over the seed
  * so the pick is stable without Math.random.

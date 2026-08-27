@@ -10,7 +10,6 @@ import { RecordText } from '@/components/record-text';
 import { BrandFonts, Letterpress, WideContent, mono } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
-import { getCuriosities, type CuriositySummary } from '@/lib/curiosities-cache';
 import { supabase } from '@/lib/supabase';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
@@ -44,11 +43,12 @@ function Row({ title, detail, onPress }: { title: string; detail?: string; onPre
 }
 
 /**
- * The Tree tab — the "about your tree" home (docs/phone-ia-design-brief.md).
- * Never a tree drawing: header stats, curiosities in the gentle voice —
- * a curiosity is a prompt, not a problem — the Family Stage's door, the
- * research desk, and a look at what's coming. Research folded here from
- * its old tab in the 2026-07-26 restructure.
+ * The Tree tab — the "about your tree" home (docs/phone-ia-design-brief.md;
+ * tightened 2026-08-27). Never a tree drawing. Four sections in order:
+ * Family register (the graph's door), Your tree health, The National
+ * Archives, Research briefs. Curiosities left the tab — they are the Tree
+ * Check's findings re-voiced, and two surfaces for one audit read as
+ * clutter; the stats line and the coming-soon teaser left with them.
  */
 export default function TreeTab() {
   const L = useLetterpress();
@@ -56,7 +56,6 @@ export default function TreeTab() {
   const broadsheet = useBroadsheet();
   const [generations, setGenerations] = useState<number | null>(null);
   const [households, setHouseholds] = useState<number | null>(null);
-  const [curiosities, setCuriosities] = useState<CuriositySummary | null>(null);
   const [briefCounts, setBriefCounts] = useState<{ total: number; open: number } | null>(null);
   const [naraCounts, setNaraCounts] = useState<NaraCounts | null>(null);
 
@@ -72,14 +71,6 @@ export default function TreeTab() {
           if (cancelled) return;
           setGenerations(treeGenerationSpan(index));
           setHouseholds(buildFamilyStages(index, { currentYear: new Date().getFullYear() }).byKey.size);
-        })
-        .catch(() => {});
-
-      // Re-read on every focus: a "Mark fixed" on the workbench should
-      // reflect here on the way back (the heavy audit itself is cached).
-      getCuriosities(treeId)
-        .then((summary) => {
-          if (!cancelled) setCuriosities(summary);
         })
         .catch(() => {});
 
@@ -131,41 +122,12 @@ export default function TreeTab() {
     .filter(Boolean)
     .join(' · ');
 
-  const curiositiesSection = (
-    <Section eyebrow="Curiosities">
-          {curiosities === null ? (
-            <Text style={mono(13.5, L.muted)}>READING THE RECORD…</Text>
-          ) : curiosities.total === 0 ? (
-            <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 17, color: L.ink }}>
-              The record reads clean — nothing curious to show.
-            </Text>
-          ) : (
-            <>
-              <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 17, lineHeight: 24, color: L.ink }}>
-                {curiosities.total.toLocaleString()} curiosities in the record
-                {curiosities.lineName ? `, most in the ${curiosities.lineName} line` : ''} — worth a
-                look, nothing urgent.
-              </Text>
-              {curiosities.top.map((curiosity) => (
-                <Pressable
-                  key={curiosity.key}
-                  onPress={() =>
-                    router.push({ pathname: '/ancestor/[id]', params: { id: curiosity.individualId } })
-                  }
-                  style={{ borderLeftWidth: 2, borderLeftColor: L.rule, paddingLeft: 10, paddingVertical: 2 }}
-                >
-                  <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15, lineHeight: 21, color: L.ink }}>
-                    {curiosity.prompt}
-                  </Text>
-                </Pressable>
-              ))}
-            </>
-          )}
-    </Section>
-  );
-
+  // Curiosities left this tab 2026-08-27: they are the Tree Check's own
+  // findings re-voiced (curiosities-cache.ts says so outright), and two
+  // surfaces for one audit read as clutter. The workbench under Tree
+  // health is the audit's home; the Portrait keeps its per-person prompts.
   const familyStageDoor = (
-    <Section eyebrow="The family graph">
+    <Section eyebrow="Family register">
           <Pressable
             onPress={() => router.push('/family-stage/root' as never)}
             style={{
@@ -193,17 +155,8 @@ export default function TreeTab() {
     </Section>
   );
 
-  const researchSection = (
-    <Section eyebrow="Research">
-          <Row
-            title="Research briefs"
-            detail={
-              briefCounts
-                ? `${briefCounts.total} briefs · ${briefCounts.open} open`
-                : 'Your brick walls, and the briefs to break them'
-            }
-            onPress={() => router.push('/research' as never)}
-          />
+  const archivesSection = (
+    <Section eyebrow="The National Archives">
           <Row
             title="In the National Archives"
             detail={
@@ -212,6 +165,20 @@ export default function TreeTab() {
                 : 'Candidate records matched to your people'
             }
             onPress={() => router.push('/archives' as never)}
+          />
+    </Section>
+  );
+
+  const briefsSection = (
+    <Section eyebrow="Research briefs">
+          <Row
+            title="Research briefs"
+            detail={
+              briefCounts
+                ? `${briefCounts.total} briefs · ${briefCounts.open} open`
+                : 'Your brick walls, and the briefs to break them'
+            }
+            onPress={() => router.push('/research' as never)}
           />
     </Section>
   );
@@ -241,15 +208,6 @@ export default function TreeTab() {
     </Section>
   );
 
-  const streetViewTeaser = (
-    <View style={{ borderWidth: 1, borderColor: L.rule, borderStyle: 'dashed' as never, padding: 16, gap: 5 }}>
-      <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 19, color: L.inkUnrecorded }}>
-        Family Street View
-      </Text>
-      <Text style={mono(13, L.muted)}>COMING SOON — A WALK THROUGH THE PLACES THEY LIVED</Text>
-    </View>
-  );
-
   // Broadsheet carrier (web ≥900px): masthead from the tree itself, the
   // stage drawn live in the main column where the phone shows its door,
   // the coming-soon teaser in the margin.
@@ -259,21 +217,13 @@ export default function TreeTab() {
         masthead={
           <Masthead title={activeTree.name} metaMono={stats.toUpperCase()} metaCaption="The tree" />
         }
-        margin={
-          <View style={{ gap: 10 }}>
-            <RecordText eyebrow muted>
-              Visual views
-            </RecordText>
-            {streetViewTeaser}
-          </View>
-        }
       >
-        <View style={{ maxWidth: 680 }}>{curiositiesSection}</View>
         <View style={{ marginTop: 36 }}>
           <FamilyStage treeId={activeTree.id} />
         </View>
-        <View style={{ maxWidth: 680 }}>{researchSection}</View>
         <View style={{ maxWidth: 680 }}>{treeHealthSection}</View>
+        <View style={{ maxWidth: 680 }}>{archivesSection}</View>
+        <View style={{ maxWidth: 680 }}>{briefsSection}</View>
       </PageShell>
     );
   }
@@ -289,14 +239,10 @@ export default function TreeTab() {
         >
           {activeTree.name}
         </Text>
-        <Text style={{ ...mono(13.5, L.muted), marginTop: 8 }}>{stats.toUpperCase()}</Text>
-
-        {curiositiesSection}
         {familyStageDoor}
-        {researchSection}
         {treeHealthSection}
-
-        <Section eyebrow="Visual views">{streetViewTeaser}</Section>
+        {archivesSection}
+        {briefsSection}
       </ScrollView>
     </View>
   );

@@ -14,6 +14,12 @@ import { searchIndex, type GeographyIndex } from '@witness/core/query';
 import { useBroadsheet } from '@/components/broadsheet';
 import { ExploreBroadsheet, PEOPLE_PAGE, type EraCount } from '@/components/broadsheet/explore-broadsheet';
 import { getGeographyIndex } from '@/lib/geography-cache';
+import {
+  deleteQuestion,
+  getSavedQuestions,
+  saveQuestion,
+  type SavedQuestion,
+} from '@/lib/saved-questions';
 import { VISITED_MARK, fetchVisitedSet } from '@/lib/visits';
 
 import { Card } from '@/components/card';
@@ -94,6 +100,29 @@ export default function ExploreTab() {
   const broadsheet = useBroadsheet();
   const [geoIndex, setGeoIndex] = useState<GeographyIndex | null>(null);
   const [eras, setEras] = useState<EraCount[]>([]);
+  // The reader's own questions — on-device only (saved-questions.ts).
+  // Asking = save + run through the ordinary search; the list keeps the
+  // question for the next visit.
+  const [questions, setQuestions] = useState<SavedQuestion[]>([]);
+  const [questionDraft, setQuestionDraft] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    getSavedQuestions().then((list) => {
+      if (!cancelled) setQuestions(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function askQuestion(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setQuestionDraft('');
+    setSearch(trimmed);
+    setQuestions(await saveQuestion(trimmed));
+  }
 
   // Broadsheet data: the geography index powers the self-previewing
   // sections; kindred and era counts fill the rest.
@@ -274,7 +303,55 @@ export default function ExploreTab() {
 
           {!searching && (
             <>
-              <ThemedText type="subtitle">From your family’s history</ThemedText>
+              {/* 1 · The Library — the catalog leads (Explore redesign,
+                  2026-08-27: Library, then Ways in, then the shelf). */}
+              <ThemedText type="subtitle">The Library</ThemedText>
+              <Card onPress={() => router.push('/library')}>
+                <ThemedText type="subtitle">Every question, with your answers</ThemedText>
+                <ThemedText type="small">
+                  Lives in wartime, the world&rsquo;s great events, long lives &amp; short, where
+                  they lived — each question counted against your own tree.
+                </ThemedText>
+                <ThemedText type="smallBold" themeColor="accent">
+                  Browse the Library ›
+                </ThemedText>
+              </Card>
+
+              {/* 2 · Ways in. Archives left this shelf for the Tree tab:
+                  Explore wanders, Tree works. Origins, migrations,
+                  crossings, and kindred stay collapsed into Patterns
+                  (docs/cohesion-design-brief.md). */}
+              <ThemedText type="subtitle" style={{ marginTop: 12 }}>
+                Ways in
+              </ThemedText>
+              <Card
+                onPress={() => router.push({ pathname: '/places', params: { treeId: activeTree.id } })}
+              >
+                <ThemedText type="subtitle">Where your family lived</ThemedText>
+                <ThemedText type="small">Every state, province, and country in your tree</ThemedText>
+              </Card>
+              <Card
+                onPress={() => router.push({ pathname: '/patterns', params: { treeId: activeTree.id } })}
+              >
+                <ThemedText type="subtitle">Patterns in your family</ThemedText>
+                <ThemedText type="small">
+                  Where it began, the moves it made, the oceans it crossed, and the couples who
+                  turned out to be kin
+                </ThemedText>
+              </Card>
+              <Card onPress={() => router.push('/synthesis' as never)}>
+                <ThemedText type="subtitle">Your whole ancestry, read at once</ThemedText>
+                <ThemedText type="small">
+                  Every recorded ancestor woven into one essay — it grows as your tree does
+                </ThemedText>
+              </Card>
+
+              {/* 3 · From your family's history — the shelf (counts already
+                  read the fuller picture: documented and probable lives
+                  both), plus the reader's own kept questions. */}
+              <ThemedText type="subtitle" style={{ marginTop: 12 }}>
+                From your family’s history
+              </ThemedText>
               {shelf === null && <ActivityIndicator style={{ marginVertical: 12 }} />}
               {shelf?.length === 0 &&
                 (shelfFailed ? (
@@ -304,49 +381,54 @@ export default function ExploreTab() {
                 </Card>
               ))}
 
-              <ThemedText type="subtitle" style={{ marginTop: 12 }}>
-                The Library
-              </ThemedText>
-              <Card onPress={() => router.push('/library')}>
-                <ThemedText type="subtitle">Every question, with your answers</ThemedText>
-                <ThemedText type="small">
-                  Lives in wartime, the world&rsquo;s great events, long lives &amp; short, where
-                  they lived — each question counted against your own tree.
-                </ThemedText>
-                <ThemedText type="smallBold" themeColor="accent">
-                  Browse the Library ›
-                </ThemedText>
-              </Card>
-
-              {/* Archives left this shelf for the Tree tab: Explore wanders, Tree works,
-                  and a card on both shelves meant neither shelf had a job. Origins,
-                  migrations, crossings, and kindred collapsed into Patterns — four equal
-                  cards read as clutter (docs/cohesion-design-brief.md). */}
-              <ThemedText type="subtitle" style={{ marginTop: 12 }}>
-                Ways in
-              </ThemedText>
-              <Card
-                onPress={() => router.push({ pathname: '/places', params: { treeId: activeTree.id } })}
-              >
-                <ThemedText type="subtitle">Where your family lived</ThemedText>
-                <ThemedText type="small">Every state, province, and country in your tree</ThemedText>
-              </Card>
-              <Card
-                onPress={() => router.push({ pathname: '/patterns', params: { treeId: activeTree.id } })}
-              >
-                <ThemedText type="subtitle">Patterns in your family</ThemedText>
-                <ThemedText type="small">
-                  Where it began, the moves it made, the oceans it crossed, and the couples who
-                  turned out to be kin
-                </ThemedText>
-              </Card>
-              <Card onPress={() => router.push('/synthesis' as never)}>
-                <ThemedText type="subtitle">Your whole ancestry, read at once</ThemedText>
-                <ThemedText type="small">
-                  Every recorded ancestor woven into one essay — it grows as your tree does
-                </ThemedText>
-              </Card>
-
+              {/* Your own questions: asked through the ordinary search,
+                  kept on this device for the next visit. */}
+              <TextField
+                placeholder="Ask your own question — kept on this device"
+                value={questionDraft}
+                onChangeText={setQuestionDraft}
+                returnKeyType="search"
+                autoCapitalize="none"
+                autoCorrect={false}
+                onSubmitEditing={() => void askQuestion(questionDraft)}
+              />
+              {questions.length > 0 && (
+                <View>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Your questions — tap one to ask it again.
+                  </ThemedText>
+                  {questions.slice(0, 6).map((question) => (
+                    <View
+                      key={question.id}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'baseline',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <Pressable
+                        style={{ flexShrink: 1 }}
+                        onPress={() => setSearch(question.text)}
+                      >
+                        <ThemedText type="link">{question.text} ›</ThemedText>
+                      </Pressable>
+                      <Pressable
+                        hitSlop={10}
+                        accessibilityLabel={`Forget the question: ${question.text}`}
+                        onPress={() => {
+                          void deleteQuestion(question.id).then(setQuestions);
+                        }}
+                      >
+                        <ThemedText type="small" themeColor="textSecondary">
+                          ×
+                        </ThemedText>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              )}
             </>
           )}
 

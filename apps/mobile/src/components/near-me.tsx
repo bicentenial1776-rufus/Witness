@@ -84,15 +84,23 @@ function Chip({
       accessibilityState={{ selected: active }}
       hitSlop={6}
       style={{
+        // Slimmed 2026-08-27 (Rufus: the filter stack ate the screen) —
+        // the text keeps its Large Print size; only the padding thinned.
         backgroundColor: active ? activeColor : theme.text,
         borderRadius: 14,
-        paddingHorizontal: 11,
-        paddingVertical: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
       }}
     >
       <ThemedText type="small" style={{ color: theme.background }}>{label}</ThemedText>
     </Pressable>
   );
+}
+
+/** Hairline between chip groups in the single filter row. */
+function ChipDivider() {
+  const theme = useTheme();
+  return <View style={{ width: 1, height: 18, backgroundColor: theme.border, alignSelf: 'center' }} />;
 }
 
 export function NearMe({ onExit }: { onExit?: () => void }) {
@@ -372,7 +380,7 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
                   backgroundColor: view === 'map' ? theme.text : theme.backgroundElement,
                   borderRadius: 12,
                   paddingHorizontal: 10,
-                  paddingVertical: 8,
+                  paddingVertical: 5,
                   minWidth: 62,
                   alignItems: 'center',
                 }}
@@ -385,68 +393,76 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
                 </ThemedText>
               </View>
             </View>
-            {/* Who counts: your own people (per the featuring scope) by
-                default — Ruth's question made plain the old list read as
-                "my relatives" while showing the whole tree. The chip pair
-                only appears when the relationship rows loaded. */}
-            {view === 'list' && familyIds !== null && familyIds.size > 0 && (
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                <Chip
-                  label="Your family"
-                  active={kinship === 'family'}
-                  activeColor={theme.accent}
-                  onPress={() => setKinship('family')}
-                />
-                <Chip
-                  label="Everyone"
-                  active={kinship === 'everyone'}
-                  activeColor={theme.accent}
-                  onPress={() => setKinship('everyone')}
-                />
-              </View>
-            )}
-            {view === 'list' && centuries.length > 1 && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 8 }}
-                style={{ flexGrow: 0, marginTop: 8 }}
-              >
-                {[null, ...centuries].map((c) => (
-                  <Chip
-                    key={c ?? 'all'}
-                    label={c === null ? 'All eras' : `${c}s`}
-                    active={c === century}
-                    activeColor={theme.accent}
-                    onPress={() => setCentury(c)}
-                  />
-                ))}
-              </ScrollView>
-            )}
-            {view === 'list' && typesPresent.length > 1 && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 8 }}
-                style={{ flexGrow: 0, marginTop: 8 }}
-              >
-                <Chip
-                  label="All events"
-                  active={eventTypes.size === 0}
-                  activeColor={theme.accent}
-                  onPress={() => setEventTypes(new Set())}
-                />
-                {typesPresent.map((type) => (
-                  <Chip
-                    key={type}
-                    label={eventTypeLabel(type)}
-                    active={eventTypes.has(type)}
-                    activeColor={theme.accent}
-                    onPress={() => toggleEventType(type)}
-                  />
-                ))}
-              </ScrollView>
-            )}
+            {/* One filter row (2026-08-27: three stacked rows ate the
+                screen). Kinship, era, and event chips share a single
+                horizontal scroll, hairlines between the groups. Who
+                counts stays your own people by default (Ruth's question,
+                2026-08-24); the pair only appears when the relationship
+                rows loaded. */}
+            {view === 'list' &&
+              ((familyIds !== null && familyIds.size > 0) ||
+                centuries.length > 1 ||
+                typesPresent.length > 1) && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8, alignItems: 'center' }}
+                  style={{ flexGrow: 0, marginTop: 8 }}
+                >
+                  {familyIds !== null && familyIds.size > 0 && (
+                    <>
+                      <Chip
+                        label="Your family"
+                        active={kinship === 'family'}
+                        activeColor={theme.accent}
+                        onPress={() => setKinship('family')}
+                      />
+                      <Chip
+                        label="Everyone"
+                        active={kinship === 'everyone'}
+                        activeColor={theme.accent}
+                        onPress={() => setKinship('everyone')}
+                      />
+                    </>
+                  )}
+                  {familyIds !== null && familyIds.size > 0 && centuries.length > 1 && (
+                    <ChipDivider />
+                  )}
+                  {centuries.length > 1 &&
+                    [null, ...centuries].map((c) => (
+                      <Chip
+                        key={c ?? 'all-eras'}
+                        label={c === null ? 'All eras' : `${c}s`}
+                        active={c === century}
+                        activeColor={theme.accent}
+                        onPress={() => setCentury(c)}
+                      />
+                    ))}
+                  {typesPresent.length > 1 &&
+                    ((familyIds !== null && familyIds.size > 0) || centuries.length > 1) && (
+                      <ChipDivider />
+                    )}
+                  {typesPresent.length > 1 && (
+                    <>
+                      <Chip
+                        label="All events"
+                        active={eventTypes.size === 0}
+                        activeColor={theme.accent}
+                        onPress={() => setEventTypes(new Set())}
+                      />
+                      {typesPresent.map((type) => (
+                        <Chip
+                          key={type}
+                          label={eventTypeLabel(type)}
+                          active={eventTypes.has(type)}
+                          activeColor={theme.accent}
+                          onPress={() => toggleEventType(type)}
+                        />
+                      ))}
+                    </>
+                  )}
+                </ScrollView>
+              )}
           </View>
 
           {view === 'list' ? (

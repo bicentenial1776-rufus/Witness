@@ -185,9 +185,13 @@ export default function AliveDuringScreen() {
             {shown.length.toLocaleString()}{' '}
             {effectiveScope === 'line' ? 'of your relatives were alive' : 'people in your tree were alive'}
           </ThemedText>
+          {/* The fuller picture leads (2026-08-27): the headline counts
+              documented and probable lives together, and this line says
+              how the number is built instead of ranking the halves. */}
           <ThemedText type="small">
-            {shownDocumented.toLocaleString()} documented ·{' '}
-            {(shown.length - shownDocumented).toLocaleString()} probable
+            Documented and probable together — {shownDocumented.toLocaleString()} with recorded
+            years, {(shown.length - shownDocumented).toLocaleString()} assumed from a typical
+            lifespan (dashed cards).
           </ThemedText>
           {effectiveScope === 'line' && shown.length === 0 && (
             <ThemedText>

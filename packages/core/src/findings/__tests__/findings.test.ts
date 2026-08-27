@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  dailyIssueOf,
   fromHealthFinding,
   fromMigrationPath,
   fromOceanCrossing,
@@ -35,6 +36,29 @@ describe('issueOf', () => {
 
   it('starts the week on Monday even from a Sunday', () => {
     expect(isoWeekStart(new Date(2026, 7, 9)).getDate()).toBe(3);
+  });
+});
+
+describe('dailyIssueOf', () => {
+  it('numbers a day by its day of year', () => {
+    const issue = dailyIssueOf(new Date(2026, 7, 27));
+    expect(issue.number).toBe(239);
+    expect(issue.volume).toBe(2026);
+    expect(issue.weekOfLabel).toBe('Thursday, August 27');
+    expect(issue.key).toBe('2026-D239');
+  });
+
+  it('is the same issue all day and a new one at midnight', () => {
+    const morning = dailyIssueOf(new Date(2026, 7, 27, 6, 30));
+    const night = dailyIssueOf(new Date(2026, 7, 27, 23, 59));
+    expect(morning.key).toBe(night.key);
+    expect(dailyIssueOf(new Date(2026, 7, 28)).key).not.toBe(morning.key);
+  });
+
+  it('starts each volume at No. 1 on January 1', () => {
+    const issue = dailyIssueOf(new Date(2027, 0, 1));
+    expect(issue.number).toBe(1);
+    expect(issue.volume).toBe(2027);
   });
 });
 

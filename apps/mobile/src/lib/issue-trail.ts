@@ -10,7 +10,7 @@
  */
 
 export interface TrailPiece {
-  key: 'lead' | 'tree-check' | 'archives' | 'pattern';
+  key: 'on-this-day' | 'ancestor' | 'story' | 'family-graph' | 'archives';
   /** As the band prints it: "NEXT: THE PATTERN". */
   label: string;
   destination: { pathname: string; params?: Record<string, string> };
