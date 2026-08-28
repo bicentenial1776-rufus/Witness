@@ -277,34 +277,6 @@ function useEnrichment(
   return { state, generate };
 }
 
-function EnrichmentBody({
-  buttonTitle,
-  generatingLabel,
-  state,
-  onGenerate,
-}: {
-  buttonTitle: string;
-  generatingLabel: string;
-  state: SectionState;
-  onGenerate: () => void;
-}) {
-  if (state.name === 'ready') return <ThemedText>{state.text}</ThemedText>;
-  if (state.name === 'generating') {
-    return (
-      <View style={{ gap: 8, marginVertical: 8 }}>
-        <ActivityIndicator />
-        <ThemedText type="small">{generatingLabel}</ThemedText>
-      </View>
-    );
-  }
-  return (
-    <>
-      {state.name === 'error' && <ThemedText>{state.message}</ThemedText>}
-      <Button title={buttonTitle} onPress={onGenerate} />
-    </>
-  );
-}
-
 /**
  * Betsey's box (her email, 2026-08-19): "just a box below to add what I
  * have documented or just heard from family lore." One editable note per
@@ -622,7 +594,8 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // pencils in the header work before Sources is ever visited.
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   // The Dig-deeper accordion inside Life & Times: one of the two open at a
-  // time, defaulting to the world (the story waits for its button anyway).
+  // time, defaulting to the world (the story writes itself in the
+  // background either way).
   const [digDeeper, setDigDeeper] = useState<'story' | 'world'>('world');
   // Which "Alive during…" rows are expanded to their blurbs.
   const [openEventIds, setOpenEventIds] = useState<Set<string>>(new Set());
@@ -663,12 +636,12 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   const biography = useEnrichment(id, 'biography', 'generate-biography', 'biography');
   const worldContext = useEnrichment(id, 'historical_context', 'generate-historical-context', 'context');
 
-  // Family context loads the first time the story or the Family tab opens —
-  // computed once per view, shared by the chart (Family tab) and the
-  // narrative brief (story). A parent with a story navigates straight to
-  // it on tap, so parents' story flags ride along.
-  const wantsRelatives =
-    activeTab === 'family' || (activeTab === 'life' && digDeeper === 'story');
+  // Family context loads the first time Life & Times or the Family tab
+  // opens — computed once per view, shared by the chart (Family tab) and
+  // the narrative brief (story, which now writes itself on tab entry). A
+  // parent with a story navigates straight to it on tap, so parents'
+  // story flags ride along.
+  const wantsRelatives = activeTab === 'family' || activeTab === 'life';
   useEffect(() => {
     if (!wantsRelatives || relatives !== null || !id) return;
     let cancelled = false;
@@ -1090,6 +1063,21 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     if (worldContext.state.name === 'none') void worldContext.generate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, digDeeper, person?.id, person?.living, fromFieldCopy, worldContext.state.name]);
+
+  // Their Story writes itself the moment Life & Times opens (2026-08-28,
+  // Rufus: no button) — but only after the relatives fetch settles, so
+  // the RELATIVES brief still rides along like it did on the button path.
+  useEffect(() => {
+    if (activeTab !== 'life') return;
+    if (!person || person.living || fromFieldCopy) return;
+    if (relatives === null) return;
+    if (biography.state.name === 'none') {
+      void biography.generate(
+        relatives.length ? { relatives: relativesBrief(relatives) } : undefined,
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, person?.id, person?.living, fromFieldCopy, relatives, biography.state.name]);
 
   // The lensed relationship: a live walk from the perspective person.
   // Only runs while a lens is set and we're not standing on the lens
@@ -1966,34 +1954,48 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                         color: selected ? theme.text : theme.textSecondary,
                       }}
                     >
-                      {key === 'story' ? 'Read the story' : 'Learn about their world'}
+                      {key === 'story' ? 'Read their story' : 'Learn about their world'}
                     </Text>
                     <Text style={{ color: theme.accent, fontSize: 16 }}>›</Text>
                   </Pressable>
                 );
               })}
 
-              {/* Read the story — the writer's voice, the disclosure, the
-                  export, and Betsey's box, exactly as before. */}
+              {/* Read their story — the writer's voice, the disclosure, the
+                  export, and Betsey's box. Renders in the world panel's
+                  format: the story is already writing by the time this
+                  side opens. */}
               <View style={{ display: digDeeper === 'story' ? 'flex' : 'none' }}>
                 <Panel
                   theme={theme}
-                  label={`Story${
+                  label={`Their Story${
                     sources.length
                       ? ` · drawn from ${sources.length} source${sources.length > 1 ? 's' : ''}`
                       : ''
                   }`}
                 >
-                  <EnrichmentBody
-                    buttonTitle="Tell me their story"
-                    generatingLabel="Writing their story from the record…"
-                    state={biography.state}
-                    onGenerate={() =>
-                      void biography.generate(
-                        relatives?.length ? { relatives: relativesBrief(relatives) } : undefined,
-                      )
-                    }
-                  />
+                  {biography.state.name === 'ready' ? (
+                    <ThemedText>{biography.state.text}</ThemedText>
+                  ) : biography.state.name === 'error' ? (
+                    <>
+                      <ThemedText>{biography.state.message}</ThemedText>
+                      <Button
+                        title="Try again"
+                        onPress={() =>
+                          void biography.generate(
+                            relatives?.length
+                              ? { relatives: relativesBrief(relatives) }
+                              : undefined,
+                          )
+                        }
+                      />
+                    </>
+                  ) : (
+                    <View style={{ gap: 8, marginVertical: 4 }}>
+                      <ActivityIndicator />
+                      <ThemedText type="small">Writing their story from the record…</ThemedText>
+                    </View>
+                  )}
                   {/* Said on the page, not left to be guessed (Betsey,
                       2026-08-19): the story is AI-written, and the record
                       outranks it. */}

@@ -281,10 +281,6 @@ export function FamilyStage({ treeId }: { treeId: string }) {
           >
             {row.n}
           </Text>
-          <Text style={mono(12.5, INK_UNRECORDED)}>
-            {row.b}–{row.d ?? (row.living ? '' : '?')}
-            {diedYoung ? ` · ${ageWord(row.d! - row.b)}` : ''}
-          </Text>
         </View>
         <View style={{ flex: 1, height: ribbonH }}>
           {/* whole life, faint */}

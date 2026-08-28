@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
+import { Animated, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { ancestorsAtPlace, type GeographyIndex } from '@witness/core/query';
 
@@ -46,7 +46,18 @@ export function PlaceDrawer({
   const { place, residents, years, eventCount } = detail;
 
   return (
-    <View style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 50 } as never}>
+    <View
+      style={
+        {
+          position: Platform.OS === 'web' ? 'fixed' : 'absolute',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          zIndex: 50,
+        } as never
+      }
+    >
       <Pressable
         onPress={onClose}
         style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(23,20,15,0.28)' }}

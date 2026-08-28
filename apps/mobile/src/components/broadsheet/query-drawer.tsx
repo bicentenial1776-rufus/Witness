@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
+import { Animated, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { aliveDuring, type AliveDuringResult, type AliveMatch } from '@witness/core/query';
 import type { HistoricalEvent } from '@witness/core/history';
@@ -90,8 +90,21 @@ export function QueryDrawer({
   const documented = result?.matches.filter((m) => m.confidence === 'documented') ?? [];
   const probable = result?.matches.filter((m) => m.confidence === 'probable') ?? [];
 
+  // 'fixed' is web-only; native ignores it and the drawer rendered
+  // in-flow and invisible on iPad (caught 2026-08-28).
   return (
-    <View style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 50 } as never}>
+    <View
+      style={
+        {
+          position: Platform.OS === 'web' ? 'fixed' : 'absolute',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          zIndex: 50,
+        } as never
+      }
+    >
       <Pressable
         onPress={onClose}
         style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(23,20,15,0.28)' }}
