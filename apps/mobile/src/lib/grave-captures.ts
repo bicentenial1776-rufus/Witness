@@ -136,13 +136,47 @@ function persistPhotos(uris: string[]): string[] {
 }
 
 /**
+ * A queued stone's tree can die between capture and flush: in the field
+ * the trees fetch fails and the capture is stamped from the saved
+ * (yesterday's) list, and a delete + re-import or GEDCOM Refresh retires
+ * the old id — the insert then fails its foreign key forever, however
+ * good the signal (the 2026-08-29 cemetery haul). Resolve the queued id
+ * to a tree that exists today: itself, its refresh successor, or — when
+ * the account has exactly one tree — that tree.
+ */
+async function resolveTreeId(queuedId: string): Promise<string | null> {
+  const { data } = await withTimeout(
+    supabase.from('trees').select('id, refreshed_from'),
+    10_000,
+    'The tree check',
+  );
+  const trees = data ?? [];
+  if (trees.some((t) => t.id === queuedId)) return queuedId;
+  let current = queuedId;
+  for (let hop = 0; hop < 10; hop += 1) {
+    const next = trees.find((t) => t.refreshed_from === current);
+    if (!next) break;
+    current = next.id;
+  }
+  if (current !== queuedId) return current;
+  return trees.length === 1 ? trees[0].id : null;
+}
+
+/**
  * Uploads one stone's photos, creates the capture row, and starts the
  * reading. Throws when offline — callers queue instead.
  */
 async function submitStone(stone: PendingStone): Promise<string> {
-  const { data: userData } = await supabase.auth.getUser();
-  const userId = userData.user?.id;
+  // getSession, not getUser: it awaits the client's session restore and
+  // reads locally — getUser needs the network AND loses the cold-launch
+  // race against AsyncStorage restore, failing every stone "Not signed
+  // in" the moment the app opens.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userId = sessionData.session?.user.id;
   if (!userId) throw new Error('Not signed in');
+
+  const treeId = await resolveTreeId(stone.treeId);
+  if (!treeId) throw new Error('The tree this stone was captured for is gone');
 
   // A retry after a timed-out attempt must not mint a second stone: the
   // capture moment is the stone's identity.
@@ -150,7 +184,7 @@ async function submitStone(stone: PendingStone): Promise<string> {
     supabase
       .from('grave_captures')
       .select('id')
-      .eq('tree_id', stone.treeId)
+      .eq('tree_id', treeId)
       .eq('captured_at', stone.capturedAt)
       .maybeSingle(),
     10_000,
@@ -182,7 +216,7 @@ async function submitStone(stone: PendingStone): Promise<string> {
     supabase
       .from('grave_captures')
       .insert({
-        tree_id: stone.treeId,
+        tree_id: treeId,
         user_id: userId,
         photo_paths: paths,
         latitude: stone.latitude,
