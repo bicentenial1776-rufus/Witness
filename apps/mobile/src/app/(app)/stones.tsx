@@ -1,5 +1,5 @@
 import { Stack, router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, SectionList, Text, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -139,9 +139,11 @@ function CaptureCard({ capture, onChanged }: { capture: GraveCapture; onChanged:
   const [open, setOpen] = useState(false);
   const [thumb, setThumb] = useState<{ uri: string; ratio: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  const rereading = useRef(false);
   const d = capture.divined;
 
   const toggle = () => {
+    const opening = !open;
     setOpen((o) => !o);
     if (!thumb && capture.photo_paths[0]) {
       // The whole photo, at its own shape — a cover-crop here reads as
@@ -157,10 +159,16 @@ function CaptureCard({ capture, onChanged }: { capture: GraveCapture; onChanged:
         })
         .catch(() => {});
     }
-    if (capture.status === 'failed') {
+    // Retry a failed reading when the card OPENS — never on collapse,
+    // and never twice at once: each invoke is a metered vision read.
+    if (opening && capture.status === 'failed' && !rereading.current) {
+      rereading.current = true;
       rereadCapture(capture.id)
         .then(onChanged)
-        .catch((e: unknown) => showAlert('Could not retry', e instanceof Error ? e.message : ''));
+        .catch((e: unknown) => showAlert('Could not retry', e instanceof Error ? e.message : ''))
+        .finally(() => {
+          rereading.current = false;
+        });
     }
   };
 

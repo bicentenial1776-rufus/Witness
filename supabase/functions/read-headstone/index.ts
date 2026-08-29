@@ -101,7 +101,10 @@ interface Candidate {
 
 // ——— the plot graph's scoring leg: the stone's own kinship phrases ———
 
-const HONORIFICS = /\b(mr|mrs|miss|dr|rev|capt|col|gen|hon|dea|esq)\.?\s*/gi;
+// The lookahead makes the honorific a whole word: without it, the
+// optional dot and whitespace let "Dea" eat the front of "Dean" and
+// "Gen" the front of "Genevieve".
+const HONORIFICS = /\b(mr|mrs|miss|dr|rev|capt|col|gen|hon|dea|esq)\.?(?=\s|$)\s*/gi;
 
 function cleanName(raw: string): string {
   return raw
@@ -123,13 +126,17 @@ function parseKinHints(phrases: string[]): {
   const parents: string[] = [];
   let sexHint: 'F' | 'M' | null = null;
   for (const phrase of phrases) {
-    const spouse = /(wife|husband)\s+of\s+(.+)/i.exec(phrase);
+    const spouse = /\b(wife|husband)\s+of\s+(.+)/i.exec(phrase);
     if (spouse) {
       sexHint = spouse[1].toLowerCase() === 'wife' ? 'F' : 'M';
       spouses.push(cleanName(spouse[2]));
       continue;
     }
-    const child = /(dau(?:ghter)?|son|child)\.?\s+of\s+(.+)/i.exec(phrase);
+    // Leading \b so "Grandson of…"/"Granddaughter of…" never parse as a
+    // parent claim — inside "grandson" there is no boundary before
+    // "son", so grand-kin phrases fall through as plain record facts
+    // instead of writing the wrong generation.
+    const child = /\b(dau(?:ghter)?|son|child)\.?\s+of\s+(.+)/i.exec(phrase);
     if (child) {
       const kind = child[1].toLowerCase();
       if (kind.startsWith('dau')) sexHint = sexHint ?? 'F';
@@ -200,6 +207,10 @@ Deno.serve(async (req) => {
   // into a single vision request — the model reads across them.
   const images: { type: 'image'; source: { type: 'base64'; media_type: 'image/jpeg'; data: string } }[] = [];
   for (const path of rescore ? [] : capture.photo_paths.slice(0, MAX_PHOTOS)) {
+    // photo_paths is client-writable; the service role would read ANY
+    // folder in the bucket, so only paths under the caller's own folder
+    // are honored — the per-folder storage RLS, re-stated here.
+    if (!path.startsWith(`${ctx.userId}/`)) continue;
     const { data: blob, error } = await ctx.admin.storage.from('grave-photos').download(path);
     if (error || !blob) continue;
     const bytes = new Uint8Array(await blob.arrayBuffer());

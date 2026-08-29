@@ -11,7 +11,7 @@ import { mono } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { showAlert } from '@/lib/alert';
-import { captureStone, flushQueue, pendingCount } from '@/lib/grave-captures';
+import { captureStone, flushError, flushQueue, pendingCount } from '@/lib/grave-captures';
 
 /**
  * At the Stone — the capture step (design artifact 2026-08-25). One
@@ -29,12 +29,16 @@ export default function AtTheStoneScreen() {
   const [angles, setAngles] = useState<string[]>([]);
   const [stonesDone, setStonesDone] = useState(0);
   const [queuedCount, setQueuedCount] = useState(0);
+  const [sendTrouble, setSendTrouble] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const syncBehind = () => {
     pendingCount().then(setQueuedCount).catch(() => {});
     flushQueue()
-      .then(() => pendingCount().then(setQueuedCount))
+      .then(() => {
+        setSendTrouble(flushError() !== null);
+        return pendingCount().then(setQueuedCount);
+      })
       .catch(() => {});
   };
 
@@ -134,7 +138,17 @@ export default function AtTheStoneScreen() {
               new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000)),
             ])) ?? (await Location.getLastKnownPositionAsync());
           if (pos) coords = pos.coords;
-          heading = (await Location.getHeadingAsync()).trueHeading ?? null;
+          // The compass gets its own short leash — an unsettled
+          // magnetometer must not wedge the seal — and its -1
+          // "couldn't determine" sentinel is not a bearing.
+          const compass = await Promise.race([
+            Location.getHeadingAsync(),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+          ]).catch(() => null);
+          heading =
+            compass && compass.trueHeading != null && compass.trueHeading >= 0
+              ? compass.trueHeading
+              : null;
         }
       } catch {
         // A stone with no coordinates still reads; it just goes unplaced.
@@ -183,8 +197,10 @@ export default function AtTheStoneScreen() {
                 ? [
                     stonesDone ? `${stonesDone} STONE${stonesDone === 1 ? '' : 'S'} THIS VISIT` : null,
                     queuedCount
-                      ? `${queuedCount} SAFE ON THE PHONE — SENDS ITSELF WITH SIGNAL`
-                      : 'READING…',
+                      ? sendTrouble
+                        ? `${queuedCount} SAFE ON THE PHONE — TROUBLE SENDING, SEE STONE READINGS`
+                        : `${queuedCount} SAFE ON THE PHONE — SENDS ITSELF WITH SIGNAL`
+                      : 'SENT FOR READING',
                   ]
                     .filter(Boolean)
                     .join(' · ')

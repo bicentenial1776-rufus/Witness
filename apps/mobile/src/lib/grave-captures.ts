@@ -76,6 +76,17 @@ export interface PendingStone {
 
 const QUEUE_DIR = 'grave-captures';
 
+/** queue.json is read-modify-written from two places (sealing a stone,
+    the flush's final write) — unserialized, a flush finishing on a stale
+    snapshot erased any stone sealed while it ran. Every touch of the
+    file goes through this lock. */
+let queueLock: Promise<unknown> = Promise.resolve();
+function withQueueLock<T>(fn: () => Promise<T> | T): Promise<T> {
+  const run = queueLock.then(fn, fn);
+  queueLock = run.catch(() => {});
+  return run;
+}
+
 /** One network step raced against a clock — a flaky bar must fail like
     no bar at all, so the stone stays queued instead of hanging. */
 function withTimeout<T>(p: PromiseLike<T>, ms: number, what: string): Promise<T> {
@@ -144,13 +155,21 @@ function persistPhotos(uris: string[]): string[] {
  * to a tree that exists today: itself, its refresh successor, or — when
  * the account has exactly one tree — that tree.
  */
-async function resolveTreeId(queuedId: string): Promise<string | null> {
-  const { data } = await withTimeout(
+type TreeRef = { id: string; refreshed_from: string | null };
+
+/** One fetch per flush pass, not per stone. A query that errors must
+    read as transient (retry next flush), never as "your tree is gone". */
+async function fetchTrees(): Promise<TreeRef[]> {
+  const { data, error } = await withTimeout(
     supabase.from('trees').select('id, refreshed_from'),
     10_000,
     'The tree check',
   );
-  const trees = data ?? [];
+  if (error) throw new Error(`The tree check failed: ${error.message}`);
+  return data ?? [];
+}
+
+function resolveTreeId(queuedId: string, trees: TreeRef[]): string | null {
   if (trees.some((t) => t.id === queuedId)) return queuedId;
   let current = queuedId;
   for (let hop = 0; hop < 10; hop += 1) {
@@ -166,7 +185,7 @@ async function resolveTreeId(queuedId: string): Promise<string | null> {
  * Uploads one stone's photos, creates the capture row, and starts the
  * reading. Throws when offline — callers queue instead.
  */
-async function submitStone(stone: PendingStone): Promise<string> {
+async function submitStone(stone: PendingStone, trees: TreeRef[]): Promise<string> {
   // getSession, not getUser: it awaits the client's session restore and
   // reads locally — getUser needs the network AND loses the cold-launch
   // race against AsyncStorage restore, failing every stone "Not signed
@@ -175,15 +194,17 @@ async function submitStone(stone: PendingStone): Promise<string> {
   const userId = sessionData.session?.user.id;
   if (!userId) throw new Error('Not signed in');
 
-  const treeId = await resolveTreeId(stone.treeId);
+  const treeId = resolveTreeId(stone.treeId, trees);
   if (!treeId) throw new Error('The tree this stone was captured for is gone');
 
   // A retry after a timed-out attempt must not mint a second stone: the
-  // capture moment is the stone's identity.
+  // capture moment is the stone's identity. A finished reading is left
+  // alone — re-invoking the reader on a 'read' stone burns a fresh
+  // (unmetered) vision pass and overwrites the reading.
   const { data: existing } = await withTimeout(
     supabase
       .from('grave_captures')
-      .select('id')
+      .select('id, status')
       .eq('tree_id', treeId)
       .eq('captured_at', stone.capturedAt)
       .maybeSingle(),
@@ -191,7 +212,9 @@ async function submitStone(stone: PendingStone): Promise<string> {
     'The duplicate check',
   );
   if (existing) {
-    supabase.functions.invoke('read-headstone', { body: { captureId: existing.id } }).catch(() => {});
+    if (existing.status === 'queued' || existing.status === 'failed') {
+      supabase.functions.invoke('read-headstone', { body: { captureId: existing.id } }).catch(() => {});
+    }
     return existing.id as string;
   }
 
@@ -244,18 +267,31 @@ async function submitStone(stone: PendingStone): Promise<string> {
  */
 export async function captureStone(stone: PendingStone): Promise<void> {
   const persisted = persistPhotos(stone.photoUris);
-  const queue = await readQueue();
-  queue.push({ ...stone, photoUris: persisted });
-  writeQueue(queue);
+  await withQueueLock(async () => {
+    const queue = await readQueue();
+    queue.push({ ...stone, photoUris: persisted });
+    writeQueue(queue);
+  });
 }
 
 let flushing = false;
 let lastFlushError: string | null = null;
 
-/** Why the last flush left stones behind — null after a clean flush.
-    The ledger shows this instead of guessing "no signal". */
+/** Why the last flush left stones behind — null after a clean flush OR
+    when the failure just means "no usable network right now" (the calm
+    waiting message is the truth there). The ledger shows this instead
+    of guessing. */
 export function flushError(): string | null {
   return lastFlushError;
+}
+
+/** Timeouts, unreachable hosts, and a session that couldn't refresh are
+    all just "no usable network right now" — the stone waits, and the
+    calm banner stays. Anything else is real trouble worth naming. */
+function isJustNoSignal(message: string): boolean {
+  return /timed out|network|failed to fetch|fetch failed|not signed in|tree check failed/i.test(
+    message,
+  );
 }
 
 /**
@@ -267,14 +303,19 @@ export async function flushQueue(): Promise<number> {
   flushing = true;
   try {
     const queue = await readQueue();
-    if (!queue.length) return 0;
-    const remaining: PendingStone[] = [];
+    if (!queue.length) {
+      lastFlushError = null;
+      return 0;
+    }
+    const trees = await fetchTrees();
+    const sentAt = new Set<string>();
     let sent = 0;
     let firstError: string | null = null;
     for (const stone of queue) {
       try {
-        await submitStone(stone);
+        await submitStone(stone, trees);
         sent += 1;
+        sentAt.add(stone.capturedAt);
         for (const uri of stone.photoUris) {
           try {
             const f = new File(uri);
@@ -285,12 +326,22 @@ export async function flushQueue(): Promise<number> {
         }
       } catch (error) {
         if (!firstError) firstError = error instanceof Error ? error.message : String(error);
-        remaining.push(stone);
       }
     }
-    writeQueue(remaining);
-    lastFlushError = remaining.length ? firstError : null;
+    // Remove ONLY the sent stones from the file as it is NOW — a stone
+    // sealed while this flush ran must survive the write.
+    await withQueueLock(async () => {
+      const current = await readQueue();
+      writeQueue(current.filter((s) => !sentAt.has(s.capturedAt)));
+    });
+    lastFlushError =
+      sentAt.size < queue.length && firstError && !isJustNoSignal(firstError) ? firstError : null;
     return sent;
+  } catch (error) {
+    // fetchTrees (or the queue read) failed outright — every stone waits.
+    const message = error instanceof Error ? error.message : String(error);
+    lastFlushError = isJustNoSignal(message) ? null : message;
+    return 0;
   } finally {
     flushing = false;
   }
@@ -521,6 +572,27 @@ export async function addPersonFromStone(
   if (!userId) throw new Error('Not signed in');
   const d = capture.divined;
   if (!d?.name) throw new Error('The stone gave no name to add.');
+
+  // A retry after a half-finished add must resume, not collide: the
+  // person's xref is minted from the capture id, so if they already
+  // exist the earlier attempt got that far — reuse them and go on to
+  // the linking.
+  const { data: already } = await supabase
+    .from('individuals')
+    .select('id')
+    .eq('tree_id', capture.tree_id)
+    .eq('gedcom_xref', `STONE-${capture.id.slice(0, 8)}`)
+    .maybeSingle();
+  if (already) {
+    const personId = already.id as string;
+    if (anchor.role === 'spouse') {
+      await linkAsSpouse(capture.tree_id, userId, anchor.individual_id, personId, d.sex_hint ?? null);
+    }
+    await attachCapture(capture, personId);
+    invalidateRelationshipCache();
+    supabase.functions.invoke('compute-relationships', { body: { treeId: capture.tree_id } }).catch(() => {});
+    return personId;
+  }
 
   const { data: person, error } = await supabase
     .from('individuals')
