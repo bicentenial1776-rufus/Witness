@@ -205,24 +205,31 @@ Deno.serve(async (req) => {
 
   // The photos, from the private bucket. Several angles of one stone go
   // into a single vision request — the model reads across them.
+  const downloads = await Promise.all(
+    (rescore ? [] : capture.photo_paths.slice(0, MAX_PHOTOS)).map(async (path: string) => {
+      // photo_paths is client-writable; the service role would read ANY
+      // folder in the bucket, so only paths under the caller's own folder
+      // are honored — the per-folder storage RLS, re-stated here.
+      if (!path.startsWith(`${ctx.userId}/`)) return null;
+      const { data: blob, error } = await ctx.admin.storage.from('grave-photos').download(path);
+      if (error || !blob) return null;
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      return bytes.byteLength > MAX_IMAGE_BYTES ? null : bytes;
+    }),
+  );
   const images: { type: 'image'; source: { type: 'base64'; media_type: 'image/jpeg'; data: string } }[] = [];
-  for (const path of rescore ? [] : capture.photo_paths.slice(0, MAX_PHOTOS)) {
-    // photo_paths is client-writable; the service role would read ANY
-    // folder in the bucket, so only paths under the caller's own folder
-    // are honored — the per-folder storage RLS, re-stated here.
-    if (!path.startsWith(`${ctx.userId}/`)) continue;
-    const { data: blob, error } = await ctx.admin.storage.from('grave-photos').download(path);
-    if (error || !blob) continue;
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    if (bytes.byteLength > MAX_IMAGE_BYTES) continue;
-    let binary = '';
+  for (const bytes of downloads) {
+    if (!bytes) continue;
+    // Chunks collected and joined once — the += loop copied the whole
+    // growing string per chunk (quadratic on multi-MB photos).
+    const chunks: string[] = [];
     const CHUNK = 32768;
     for (let i = 0; i < bytes.length; i += CHUNK) {
-      binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+      chunks.push(String.fromCharCode(...bytes.subarray(i, i + CHUNK)));
     }
     images.push({
       type: 'image',
-      source: { type: 'base64', media_type: 'image/jpeg', data: btoa(binary) },
+      source: { type: 'base64', media_type: 'image/jpeg', data: btoa(chunks.join('')) },
     });
   }
   if (!rescore && !images.length) return fail('No readable photos for this capture', 422);

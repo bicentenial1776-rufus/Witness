@@ -96,34 +96,38 @@ function withTimeout<T>(p: PromiseLike<T>, ms: number, what: string): Promise<T>
   ]);
 }
 
+/** What actually sits in queue.json: filenames, never absolute URIs —
+    iOS re-homes the app's data container on every reinstall, so a
+    stored URI points at a container that no longer exists after an
+    update (this stranded the 2026-08-29 cemetery haul on five bars).
+    The URI is derived at use, in whatever container is current. */
+type QueuedStone = Omit<PendingStone, 'photoUris'> & { photoNames: string[] };
+
+function photoFile(name: string): File {
+  return new File(Paths.document, QUEUE_DIR, name);
+}
+
 function queueFile(): File {
   return new File(Paths.document, QUEUE_DIR, 'queue.json');
 }
 
-async function readQueue(): Promise<PendingStone[]> {
+async function readQueue(): Promise<QueuedStone[]> {
   try {
     const file = queueFile();
     if (!file.exists) return [];
-    const queue: PendingStone[] = JSON.parse(await file.text());
-    // iOS re-homes the app's data container on every reinstall, so an
-    // absolute file:// URI queued before an update points at a container
-    // that no longer exists (this stranded the 2026-08-29 cemetery haul —
-    // 19 stones "waiting for signal" on five bars). The photos themselves
-    // survive under Documents; only the path prefix dies. Re-anchor every
-    // photo to the current container by its filename.
-    return queue.map((stone) => ({
+    const raw: (QueuedStone & { photoUris?: string[] })[] = JSON.parse(await file.text());
+    // Legacy entries carried absolute photoUris; migrate them to bare
+    // filenames on read (Rufus, 2026-08-29).
+    return raw.map(({ photoUris, ...stone }) => ({
       ...stone,
-      photoUris: stone.photoUris.map((uri) => {
-        const name = uri.split('/').pop()!;
-        return new File(Paths.document, QUEUE_DIR, name).uri;
-      }),
+      photoNames: stone.photoNames ?? (photoUris ?? []).map((uri) => uri.split('/').pop()!),
     }));
   } catch {
     return [];
   }
 }
 
-function writeQueue(queue: PendingStone[]): void {
+function writeQueue(queue: QueuedStone[]): void {
   const dir = new Directory(Paths.document, QUEUE_DIR);
   if (!dir.exists) dir.create({ intermediates: true });
   queueFile().write(JSON.stringify(queue));
@@ -133,15 +137,16 @@ export async function pendingCount(): Promise<number> {
   return (await readQueue()).length;
 }
 
-/** Copies the camera's temp photos somewhere that survives a relaunch. */
+/** Copies the camera's temp photos somewhere that survives a relaunch;
+    returns their bare filenames. */
 function persistPhotos(uris: string[]): string[] {
   const dir = new Directory(Paths.document, QUEUE_DIR);
   if (!dir.exists) dir.create({ intermediates: true });
   const out: string[] = [];
   for (const uri of uris) {
-    const dest = new File(Paths.document, QUEUE_DIR, `${Date.now()}-${Math.floor(Math.random() * 1e6)}.jpg`);
-    new File(uri).copy(dest);
-    out.push(dest.uri);
+    const name = `${Date.now()}-${Math.floor(Math.random() * 1e6)}.jpg`;
+    new File(uri).copy(photoFile(name));
+    out.push(name);
   }
   return out;
 }
@@ -185,7 +190,7 @@ function resolveTreeId(queuedId: string, trees: TreeRef[]): string | null {
  * Uploads one stone's photos, creates the capture row, and starts the
  * reading. Throws when offline — callers queue instead.
  */
-async function submitStone(stone: PendingStone, trees: TreeRef[]): Promise<string> {
+async function submitStone(stone: QueuedStone, trees: TreeRef[]): Promise<string> {
   // getSession, not getUser: it awaits the client's session restore and
   // reads locally — getUser needs the network AND loses the cold-launch
   // race against AsyncStorage restore, failing every stone "Not signed
@@ -218,22 +223,25 @@ async function submitStone(stone: PendingStone, trees: TreeRef[]): Promise<strin
     return existing.id as string;
   }
 
-  const paths: string[] = [];
-  for (const uri of stone.photoUris) {
-    // File.bytes(), not fetch(file://) — the same native read the GEDCOM
-    // import uses; fetch on a file URI is not a dependable path on device.
-    const bytes = await new File(uri).bytes();
-    const path = `${userId}/${stone.capturedAt.replace(/[:.]/g, '-')}/${paths.length}.jpg`;
-    const { error } = await withTimeout(
-      supabase.storage
-        .from('grave-photos')
-        .upload(path, bytes, { contentType: 'image/jpeg', upsert: true }),
-      25_000,
-      'The photo upload',
-    );
-    if (error) throw new Error(error.message);
-    paths.push(path);
-  }
+  // The angles of one stone upload together — they're independent, and
+  // a multi-angle stone shouldn't pay serial 25s budgets where signal
+  // is scarce. File.bytes(), not fetch(file://): the same native read
+  // the GEDCOM import uses.
+  const paths = await Promise.all(
+    stone.photoNames.map(async (name, i) => {
+      const bytes = await photoFile(name).bytes();
+      const path = `${userId}/${stone.capturedAt.replace(/[:.]/g, '-')}/${i}.jpg`;
+      const { error } = await withTimeout(
+        supabase.storage
+          .from('grave-photos')
+          .upload(path, bytes, { contentType: 'image/jpeg', upsert: true }),
+        25_000,
+        'The photo upload',
+      );
+      if (error) throw new Error(error.message);
+      return path;
+    }),
+  );
 
   const { data: row, error: insertError } = await withTimeout(
     supabase
@@ -266,10 +274,11 @@ async function submitStone(stone: PendingStone, trees: TreeRef[]): Promise<strin
  * none. flushQueue() carries the queue up whenever it gets a chance.
  */
 export async function captureStone(stone: PendingStone): Promise<void> {
-  const persisted = persistPhotos(stone.photoUris);
+  const { photoUris, ...rest } = stone;
+  const photoNames = persistPhotos(photoUris);
   await withQueueLock(async () => {
     const queue = await readQueue();
-    queue.push({ ...stone, photoUris: persisted });
+    queue.push({ ...rest, photoNames });
     writeQueue(queue);
   });
 }
@@ -308,34 +317,45 @@ export async function flushQueue(): Promise<number> {
       return 0;
     }
     const trees = await fetchTrees();
-    const sentAt = new Set<string>();
+    const doneAt = new Set<string>();
     let sent = 0;
     let firstError: string | null = null;
+    const deletePhotos = (stone: QueuedStone) => {
+      for (const name of stone.photoNames) {
+        try {
+          const f = photoFile(name);
+          if (f.exists) f.delete();
+        } catch {
+          // best-effort cleanup
+        }
+      }
+    };
     for (const stone of queue) {
+      // A stone whose tree truly no longer exists (the trees fetch
+      // SUCCEEDED, so this is not a blip) is unconfirmable — delete it,
+      // photos and all, rather than strand it forever (Rufus, 2026-08-29).
+      if (resolveTreeId(stone.treeId, trees) === null) {
+        deletePhotos(stone);
+        doneAt.add(stone.capturedAt);
+        continue;
+      }
       try {
         await submitStone(stone, trees);
         sent += 1;
-        sentAt.add(stone.capturedAt);
-        for (const uri of stone.photoUris) {
-          try {
-            const f = new File(uri);
-            if (f.exists) f.delete();
-          } catch {
-            // best-effort cleanup
-          }
-        }
+        doneAt.add(stone.capturedAt);
+        deletePhotos(stone);
       } catch (error) {
         if (!firstError) firstError = error instanceof Error ? error.message : String(error);
       }
     }
-    // Remove ONLY the sent stones from the file as it is NOW — a stone
-    // sealed while this flush ran must survive the write.
+    // Remove ONLY the settled stones from the file as it is NOW — a
+    // stone sealed while this flush ran must survive the write.
     await withQueueLock(async () => {
       const current = await readQueue();
-      writeQueue(current.filter((s) => !sentAt.has(s.capturedAt)));
+      writeQueue(current.filter((s) => !doneAt.has(s.capturedAt)));
     });
     lastFlushError =
-      sentAt.size < queue.length && firstError && !isJustNoSignal(firstError) ? firstError : null;
+      doneAt.size < queue.length && firstError && !isJustNoSignal(firstError) ? firstError : null;
     return sent;
   } catch (error) {
     // fetchTrees (or the queue read) failed outright — every stone waits.
@@ -516,6 +536,10 @@ function titleCase(name: string): string {
  * Records a marriage between an anchor and a person: fills the empty
  * slot of an existing single-parent family, or creates one. The slots
  * follow the anchor's recorded sex, falling back to the stone's hint.
+ * When the anchor has more than one candidate family, filling the first
+ * empty slot is accepted imprecision (Rufus, 2026-08-29): the link gets
+ * recorded here, and which family it truly belongs to is resolved in
+ * the provider software the tree came from.
  */
 async function linkAsSpouse(
   treeId: string,
