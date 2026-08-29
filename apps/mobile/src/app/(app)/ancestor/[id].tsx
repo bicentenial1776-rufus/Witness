@@ -593,10 +593,9 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // story, or the corrections fetch survives a tab switch — and the ✎
   // pencils in the header work before Sources is ever visited.
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
-  // The Dig-deeper accordion inside Life & Times: one of the two open at a
-  // time, defaulting to the world (the story writes itself in the
-  // background either way).
-  const [digDeeper, setDigDeeper] = useState<'story' | 'world'>('world');
+  // (The story/world accordion is gone — 2026-08-29, Rufus: the two AI
+  // pieces read as one output, so they render stacked under one "Their
+  // story" header and both write themselves on tab entry.)
   // Which "Alive during…" rows are expanded to their blurbs.
   const [openEventIds, setOpenEventIds] = useState<Set<string>>(new Set());
   // The inline direct-line panel (caret beside the relationship lede).
@@ -738,7 +737,6 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     setStones([]);
     setProviderLink(null);
     setActiveTab('overview');
-    setDigDeeper('world');
     setOpenEventIds(new Set());
     setLineageOpen(false);
     setMapOpen(false);
@@ -1054,15 +1052,15 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     };
   }, [id, activeTree?.id]);
 
-  // Their World generates itself the first time the world panel is
-  // actually on screen (Life & Times, world side) — cache-first, so a
-  // person with a stored context never re-invokes the writer.
+  // Their World generates itself the moment Life & Times opens —
+  // cache-first, so a person with a stored context never re-invokes the
+  // writer.
   useEffect(() => {
-    if (activeTab !== 'life' || digDeeper !== 'world') return;
+    if (activeTab !== 'life') return;
     if (!person || person.living || fromFieldCopy) return;
     if (worldContext.state.name === 'none') void worldContext.generate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, digDeeper, person?.id, person?.living, fromFieldCopy, worldContext.state.name]);
+  }, [activeTab, person?.id, person?.living, fromFieldCopy, worldContext.state.name]);
 
   // Their Story writes itself the moment Life & Times opens (2026-08-28,
   // Rufus: no button) — but only after the relatives fetch settles, so
@@ -1111,7 +1109,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // register state is always current, so the two fetches never race.
   const neighborsRequestedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (activeTab !== 'life' || digDeeper !== 'world' || !person) return;
+    if (activeTab !== 'life' || !person) return;
     const pid = person.id;
     if (neighborsRequestedFor.current === pid) return;
     neighborsRequestedFor.current = pid;
@@ -1130,7 +1128,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
         if (neighborsRequestedFor.current === pid) setNeighbors([]);
       }
     })();
-  }, [activeTab, digDeeper, person]);
+  }, [activeTab, person]);
 
   // Share a snapshot card of this ancestor: 90-day tokenized link on the
   // clipboard. Never offered for the living (the control renders inside the
@@ -1869,10 +1867,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 <ThemedText
                   type="link"
                   style={{ marginTop: 10 }}
-                  onPress={() => {
-                    setActiveTab('life');
-                    setDigDeeper('world');
-                  }}
+                  onPress={() => setActiveTab('life')}
                 >
                   See what {possessive} life overlapped with ›
                 </ThemedText>
@@ -1925,50 +1920,15 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             </ThemedText>
           ) : !person.living ? (
             <>
-              <ThemedText type="subtitle" style={{ marginTop: 16 }}>
-                Dig deeper
-              </ThemedText>
-              {(['story', 'world'] as const).map((key) => {
-                const selected = digDeeper === key;
-                return (
-                  <Pressable
-                    key={key}
-                    onPress={() => setDigDeeper(key)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: 10,
-                      paddingVertical: 12,
-                      borderBottomWidth: 1,
-                      borderBottomColor: theme.border,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontFamily: Fonts.serif,
-                        fontSize: 16,
-                        fontWeight: selected ? '700' : '400',
-                        color: selected ? theme.text : theme.textSecondary,
-                      }}
-                    >
-                      {key === 'story' ? 'Read their story' : 'Learn about their world'}
-                    </Text>
-                    <Text style={{ color: theme.accent, fontSize: 16 }}>›</Text>
-                  </Pressable>
-                );
-              })}
-
-              {/* Read their story — the writer's voice, the disclosure, the
-                  export, and Betsey's box. Renders in the world panel's
-                  format: the story is already writing by the time this
-                  side opens. */}
-              <View style={{ display: digDeeper === 'story' ? 'flex' : 'none' }}>
+              {/* Their story — one continuous read (2026-08-29, Rufus):
+                  the writer's voice, then the world context beneath it,
+                  the disclosure, the export, and Betsey's box. Both
+                  pieces write themselves on tab entry; the old
+                  story/world accordion is gone. */}
+              <View style={{ marginTop: 2 }}>
                 <Panel
                   theme={theme}
-                  label={`Their Story${
+                  label={`Their story${
                     sources.length
                       ? ` · drawn from ${sources.length} source${sources.length > 1 ? 's' : ''}`
                       : ''
@@ -1996,6 +1956,47 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                       <ThemedText type="small">Writing their story from the record…</ThemedText>
                     </View>
                   )}
+                  {/* The world context follows the story as one read —
+                      its own fetch, so it keeps its own states. While the
+                      story is still writing, its spinner speaks for the
+                      whole piece. */}
+                  {worldContext.state.name === 'ready' ? (
+                    <View style={{ gap: 10 }}>
+                      <ThemedText>{worldContext.state.text}</ThemedText>
+                      {(worldContext.state.sources?.length ?? 0) > 0 && (
+                        <ThemedText type="small">
+                          From {worldContext.state.sources!.join(' and ')}
+                        </ThemedText>
+                      )}
+                      {/* The general-knowledge tier (spec §7.5): generically
+                          labeled so it never reads as archive-sourced. */}
+                      {worldContext.state.general && (
+                        <View
+                          style={{
+                            gap: 4,
+                            borderTopWidth: 1,
+                            borderTopColor: theme.border,
+                            paddingTop: 10,
+                          }}
+                        >
+                          <ThemedText type="small" style={{ fontFamily: Fonts.mono }}>
+                            HISTORICAL CONTEXT
+                          </ThemedText>
+                          <ThemedText>{worldContext.state.general}</ThemedText>
+                        </View>
+                      )}
+                    </View>
+                  ) : worldContext.state.name === 'error' ? (
+                    <>
+                      <ThemedText>{worldContext.state.message}</ThemedText>
+                      <Button title="Try again" onPress={() => void worldContext.generate()} />
+                    </>
+                  ) : biography.state.name === 'ready' ? (
+                    <View style={{ gap: 8, marginVertical: 4 }}>
+                      <ActivityIndicator />
+                      <ThemedText type="small">Searching the historical record…</ThemedText>
+                    </View>
+                  ) : null}
                   {/* Said on the page, not left to be guessed (Betsey,
                       2026-08-19): the story is AI-written, and the record
                       outranks it. */}
@@ -2032,52 +2033,9 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 </Panel>
               </View>
 
-              {/* Learn about their world — the sourced context, then the
-                  full Alive-during rows, the neighbors, and the record. */}
-              <View style={{ display: digDeeper === 'world' ? 'flex' : 'none' }}>
-                <Panel
-                  theme={theme}
-                  label={`Their World${person.birth_year ? ` · ${person.birth_year}` : ''}`}
-                >
-                  {worldContext.state.name === 'ready' ? (
-                    <View style={{ gap: 10 }}>
-                      <ThemedText>{worldContext.state.text}</ThemedText>
-                      {(worldContext.state.sources?.length ?? 0) > 0 && (
-                        <ThemedText type="small">
-                          From {worldContext.state.sources!.join(' and ')}
-                        </ThemedText>
-                      )}
-                      {/* The general-knowledge tier (spec §7.5): generically
-                          labeled so it never reads as archive-sourced. */}
-                      {worldContext.state.general && (
-                        <View
-                          style={{
-                            gap: 4,
-                            borderTopWidth: 1,
-                            borderTopColor: theme.border,
-                            paddingTop: 10,
-                          }}
-                        >
-                          <ThemedText type="small" style={{ fontFamily: Fonts.mono }}>
-                            HISTORICAL CONTEXT
-                          </ThemedText>
-                          <ThemedText>{worldContext.state.general}</ThemedText>
-                        </View>
-                      )}
-                    </View>
-                  ) : worldContext.state.name === 'error' ? (
-                    <>
-                      <ThemedText>{worldContext.state.message}</ThemedText>
-                      <Button title="Try again" onPress={() => void worldContext.generate()} />
-                    </>
-                  ) : (
-                    <View style={{ gap: 8, marginVertical: 4 }}>
-                      <ActivityIndicator />
-                      <ThemedText type="small">Searching the historical record…</ThemedText>
-                    </View>
-                  )}
-                </Panel>
-
+              {/* Below the story: the full Alive-during rows and the
+                  neighbors. */}
+              <View>
                 {tags.length > 0 && (
                   <View style={{ marginTop: 18 }}>
                     <ThemedText type="subtitle">Alive during…</ThemedText>
