@@ -15,6 +15,7 @@ import {
   attachAndRecordMarriage,
   attachCapture,
   findAGraveUrl,
+  flushError,
   flushQueue,
   leadBrief,
   listCaptures,
@@ -406,6 +407,7 @@ export default function StonesScreen() {
   const { activeTree, loadFailed } = useActiveTree();
   const [captures, setCaptures] = useState<GraveCapture[] | null>(null);
   const [pending, setPending] = useState(0);
+  const [sendTrouble, setSendTrouble] = useState<string | null>(null);
 
   const reload = useCallback(() => {
     if (!activeTree) return;
@@ -419,8 +421,11 @@ export default function StonesScreen() {
     useCallback(() => {
       reload();
       // The queue drains whenever the ledger comes into view with signal.
+      // A flush that leaves stones behind says why — "waiting for signal"
+      // was a guess that hid a real bug once (2026-08-29).
       flushQueue()
         .then((sent) => {
+          setSendTrouble(flushError());
           if (sent) reload();
         })
         .catch(() => {});
@@ -462,7 +467,10 @@ export default function StonesScreen() {
             </ThemedText>
             {pending > 0 && (
               <Text style={mono(11.5, L.amber)}>
-                {pending} STONE{pending === 1 ? '' : 'S'} QUEUED — WILL READ WHEN SIGNAL RETURNS
+                {pending} STONE{pending === 1 ? '' : 'S'} QUEUED —{' '}
+                {sendTrouble
+                  ? `SENDING HIT TROUBLE: ${sendTrouble.toUpperCase()}`
+                  : 'WILL READ WHEN SIGNAL RETURNS'}
               </Text>
             )}
             {captures === null && <ActivityIndicator style={{ marginVertical: 16 }} />}

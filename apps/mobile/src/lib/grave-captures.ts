@@ -93,7 +93,20 @@ async function readQueue(): Promise<PendingStone[]> {
   try {
     const file = queueFile();
     if (!file.exists) return [];
-    return JSON.parse(await file.text());
+    const queue: PendingStone[] = JSON.parse(await file.text());
+    // iOS re-homes the app's data container on every reinstall, so an
+    // absolute file:// URI queued before an update points at a container
+    // that no longer exists (this stranded the 2026-08-29 cemetery haul —
+    // 19 stones "waiting for signal" on five bars). The photos themselves
+    // survive under Documents; only the path prefix dies. Re-anchor every
+    // photo to the current container by its filename.
+    return queue.map((stone) => ({
+      ...stone,
+      photoUris: stone.photoUris.map((uri) => {
+        const name = uri.split('/').pop()!;
+        return new File(Paths.document, QUEUE_DIR, name).uri;
+      }),
+    }));
   } catch {
     return [];
   }
@@ -150,8 +163,9 @@ async function submitStone(stone: PendingStone): Promise<string> {
 
   const paths: string[] = [];
   for (const uri of stone.photoUris) {
-    const res = await fetch(uri);
-    const bytes = await res.arrayBuffer();
+    // File.bytes(), not fetch(file://) — the same native read the GEDCOM
+    // import uses; fetch on a file URI is not a dependable path on device.
+    const bytes = await new File(uri).bytes();
     const path = `${userId}/${stone.capturedAt.replace(/[:.]/g, '-')}/${paths.length}.jpg`;
     const { error } = await withTimeout(
       supabase.storage
@@ -202,6 +216,13 @@ export async function captureStone(stone: PendingStone): Promise<void> {
 }
 
 let flushing = false;
+let lastFlushError: string | null = null;
+
+/** Why the last flush left stones behind — null after a clean flush.
+    The ledger shows this instead of guessing "no signal". */
+export function flushError(): string | null {
+  return lastFlushError;
+}
 
 /**
  * Flushes the queue; safe to fire from anywhere, any time — sealing a
@@ -215,6 +236,7 @@ export async function flushQueue(): Promise<number> {
     if (!queue.length) return 0;
     const remaining: PendingStone[] = [];
     let sent = 0;
+    let firstError: string | null = null;
     for (const stone of queue) {
       try {
         await submitStone(stone);
@@ -227,11 +249,13 @@ export async function flushQueue(): Promise<number> {
             // best-effort cleanup
           }
         }
-      } catch {
+      } catch (error) {
+        if (!firstError) firstError = error instanceof Error ? error.message : String(error);
         remaining.push(stone);
       }
     }
     writeQueue(remaining);
+    lastFlushError = remaining.length ? firstError : null;
     return sent;
   } finally {
     flushing = false;
