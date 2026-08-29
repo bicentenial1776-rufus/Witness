@@ -17,6 +17,16 @@ import { fetchChroniclingAmerica, fetchWikidataEvents } from '../_shared/history
 
 const MODEL = 'claude-sonnet-4-6';
 
+// Bumped whenever the writer's inputs or instructions materially improve;
+// read and written at this version, so stale contexts quietly expire and
+// regenerate on the next view (the biography's pattern). v2 (2026-08-29):
+// the world text renders directly beneath the story in one panel, so the
+// writer is told the life is already told — but it still opened with the
+// birth. v3 (same day): the opening is constrained structurally — first
+// sentence may not carry the name or the birth; open with the place or
+// the era. v1 texts opened as a second biography.
+const PROMPT_VERSION = 3;
+
 /**
  * Cache rows carry either legacy plain prose (pre-2026-08-18) or a v2 JSON
  * envelope: { v: 2, sourced, sources, general }. `sourced` is the narrative
@@ -99,6 +109,7 @@ Deno.serve(async (req) => {
     .select('content')
     .eq('individual_id', individualId)
     .eq('enrichment_type', 'historical_context')
+    .eq('prompt_version', PROMPT_VERSION)
     .maybeSingle();
   if (cached) return json(200, { ...parseWorldContent(cached.content), cached: true });
 
@@ -142,10 +153,13 @@ Deno.serve(async (req) => {
       output_config: { effort: 'low', format: { type: 'json_schema', schema: WORLD_SCHEMA } },
       system: [
         'You write "the world they lived in" — historical context for one ancestor in Witness, a family history app.',
+        'Your text renders directly beneath an AI-written biography of the same person, in the same panel, as the second half of one continuous read. That biography has already told the life itself — birth, marriage, children, death, moves.',
+        'So: never retell the life. Do not restate their milestones or dates, do not narrate their family. Write what surrounded the life — the town, the region, the era and its upheavals — so the piece reads as a natural continuation of the story above it.',
+        'HARD RULE for the opening: the first sentence must not contain the person\'s name and must not mention their birth. Open with the place or the era, the way a second paragraph would — "The Gloucester she grew up in was…", "Essex County in those years…", "The harbor that governed the town\'s fortunes…".',
         'You produce TWO tiers, returned as JSON.',
-        'Tier 1, "sourced": roughly 250 words of warm, readable prose connecting this specific life to the history unfolding around it.',
+        'Tier 1, "sourced": roughly 250 words of warm, readable prose on the history unfolding around this life.',
         'Anchor everything to the documented facts and supplied sources. Never invent specifics about the person.',
-        'Make the arithmetic of history felt: how old they were when events happened near them.',
+        'Make the arithmetic of history felt: how old they were when events happened near them — the age as an anchor is welcome; the milestone itself is already told.',
         'Tier 2, "general": 60–150 words on significant, well-documented history of their specific place and period that the supplied sources do not cover — drawn from your own knowledge. Any event you are genuinely confident of qualifies, from national upheavals to well-recorded regional ones (deportations, famines, migrations, epidemics, wars).',
         'The general tier has one hard rule: if you are not certain enough that a careful historian would state it flatly, return null for the tier. Decline entirely rather than hedge or guess — silence is the correct failure mode, never a confidently-stated wrong claim. Do not pad it with vague generalities to avoid returning null.',
         'Do not repeat the sourced tier\'s material in the general tier.',
@@ -156,7 +170,8 @@ Deno.serve(async (req) => {
           role: 'user',
           content:
             `The ancestor:\n${factLines.join('\n')}\n\n` +
-            (sources.length ? sources.join('\n\n') : 'No external sources were found; the sourced tier should rely on the documented facts of the life alone.'),
+            (sources.length ? sources.join('\n\n') : 'No external sources were found; the sourced tier should rely on the documented facts of the life alone.') +
+            '\n\nRemember: the life above is already told. Open with the world — the place or the era — never with the person\'s name or birth.',
         },
       ],
     });
@@ -186,18 +201,22 @@ Deno.serve(async (req) => {
     ...(newspapers.length ? ['Chronicling America'] : []),
   ];
 
-  const { error: insertError } = await ctx.admin.from('enrichment_cache').insert({
-    individual_id: individualId,
-    tree_id: person.tree_id,
-    user_id: ctx.userId,
-    enrichment_type: 'historical_context',
-    content: JSON.stringify({ v: 2, sourced, sources: sourceNames, general }),
-    model: response.model,
-    input_tokens: response.usage.input_tokens,
-    output_tokens: response.usage.output_tokens,
-  });
-  if (insertError && !insertError.message.includes('duplicate')) {
-    console.error('Cache insert failed:', insertError.message);
+  const { error: insertError } = await ctx.admin.from('enrichment_cache').upsert(
+    {
+      individual_id: individualId,
+      tree_id: person.tree_id,
+      user_id: ctx.userId,
+      enrichment_type: 'historical_context',
+      content: JSON.stringify({ v: 2, sourced, sources: sourceNames, general }),
+      model: response.model,
+      input_tokens: response.usage.input_tokens,
+      output_tokens: response.usage.output_tokens,
+      prompt_version: PROMPT_VERSION,
+    },
+    { onConflict: 'individual_id,enrichment_type' },
+  );
+  if (insertError) {
+    console.error('Cache upsert failed:', insertError.message);
   }
 
   // QA log (spec §7.7): a declined general tier is recorded — person, place,

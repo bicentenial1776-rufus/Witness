@@ -216,7 +216,7 @@ function parseWorldContent(content: string): { text: string; general: string | n
 // edge function — e.g. v2's twin awareness, Betsey's report 2026-08-19)
 // retires stale stories here too: the tell button returns and the next
 // tap writes the corrected story over the old row.
-const ENRICHMENT_PROMPT_VERSION = { biography: 2, historical_context: 1 } as const;
+const ENRICHMENT_PROMPT_VERSION = { biography: 2, historical_context: 3 } as const;
 
 /** One AI-enriched text section backed by a cache row + Edge Function. */
 function useEnrichment(
