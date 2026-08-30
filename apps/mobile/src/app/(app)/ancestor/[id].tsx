@@ -11,12 +11,14 @@ import {
 import {
   eventTypeLabel,
   fetchNaraCandidatesForIndividual,
+  fetchPassengerCandidatesForIndividual,
   isFindAGraveUrl,
   livedNear,
   personShoreCrossings,
   stageKeyForPerson,
   type LivedNearNeighbor,
   type NaraCandidate,
+  type PassengerCandidate,
 } from '@witness/core/query';
 
 import { subjectKey } from '@witness/core/corrections';
@@ -31,6 +33,7 @@ import { LineageMark } from '@/components/lineage-mark';
 import { LineagePanel } from '@/components/lineage-panel';
 import { PlaceMap } from '@/components/place-map';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
+import { PassengerCandidateCard } from '@/components/passenger-candidate-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
@@ -567,6 +570,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     }
   }
   const [naraCandidates, setNaraCandidates] = useState<NaraCandidate[]>([]);
+  const [passengerCandidates, setPassengerCandidates] = useState<PassengerCandidate[]>([]);
   const [relationship, setRelationship] = useState<string | null>(null);
   // A live walk that found no path: the Portrait states "No relation"
   // outright, where a list row would just stay blank.
@@ -859,6 +863,13 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
       fetchNaraCandidatesForIndividual(supabase, id)
         .then((rows) => {
           if (!cancelled) setNaraCandidates(rows.filter((c) => c.status !== 'dismissed'));
+        })
+        .catch(() => {});
+
+      // Ship-passenger candidates for this person — the Crossing card.
+      fetchPassengerCandidatesForIndividual(supabase, id)
+        .then((rows) => {
+          if (!cancelled) setPassengerCandidates(rows.filter((c) => c.status !== 'dismissed'));
         })
         .catch(() => {});
 
@@ -2541,6 +2552,33 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 candidate={candidate}
                 onResolved={(candidateId, status) =>
                   setNaraCandidates((current) =>
+                    status === 'dismissed'
+                      ? current.filter((c) => c.id !== candidateId)
+                      : current.map((c) => (c.id === candidateId ? { ...c, status } : c)),
+                  )
+                }
+              />
+            ))}
+          </View>
+        )}
+
+        {/* The Crossing: shipping-list passengers who might be this
+            ancestor, from the immigrant-ships dataset (PROJECT_BRIEF.md
+            "Immigrant Ships"). A Mayflower name is the beginning of a
+            question, not a descent — so this stays confirm/dismiss, same
+            as the archives card above it. */}
+        {passengerCandidates.length > 0 && (
+          <View style={{ gap: 8, marginTop: 16 }}>
+            <ThemedText type="subtitle">The Crossing</ThemedText>
+            <ThemedText type="small">
+              A shipping list that might name {firstName(person.full_name)} — you decide.
+            </ThemedText>
+            {passengerCandidates.map((candidate) => (
+              <PassengerCandidateCard
+                key={candidate.id}
+                candidate={candidate}
+                onResolved={(candidateId, status) =>
+                  setPassengerCandidates((current) =>
                     status === 'dismissed'
                       ? current.filter((c) => c.id !== candidateId)
                       : current.map((c) => (c.id === candidateId ? { ...c, status } : c)),
