@@ -84,11 +84,17 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
   const homePersons = useRef(new Map<string, string | null>());
 
   const refresh = useCallback(async () => {
+    // Owned trees only, by explicit filter: family-sharing membership
+    // policies make an unfiltered select also return trees SHARED with
+    // this account, and the recount/delete loops downstream of this list
+    // must never see a tree the user doesn't own. The switcher learns
+    // about shared trees deliberately in sharing phase 2.
     const { data, error } = await supabase
       .from('trees')
       .select(
         'id, name, individual_count, family_count, place_count, imported_at, gedcom_path, gedcom_bytes, home_person_id, refreshed_from, home_person:individuals!trees_home_person_id_fkey(full_name)',
       )
+      .eq('user_id', userId ?? '')
       .order('imported_at', { ascending: false });
     if (error) {
       // Leave `trees` exactly as it was. Blanking it on a failed fetch made a

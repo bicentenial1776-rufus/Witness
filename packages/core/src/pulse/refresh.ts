@@ -181,10 +181,18 @@ export async function findRefreshTarget(
   supabase: WitnessSupabaseClient,
   metadata: { ancestryTreeId?: string; treeName?: string },
 ): Promise<RefreshTarget | null> {
+  // Owned trees only: family members sharing one Ancestry tree carry the
+  // SAME vendor tree id (and often the same tree name), and under
+  // sharing membership policies both matches below would otherwise offer
+  // "update THEIR tree" as the primary path.
+  const { data: auth } = await supabase.auth.getSession();
+  const ownerId = auth.session?.user.id;
+  if (!ownerId) return null;
   if (metadata.ancestryTreeId) {
     const { data } = await supabase
       .from('trees')
       .select('id, name, individual_count')
+      .eq('user_id', ownerId)
       .eq('ancestry_tree_id', metadata.ancestryTreeId)
       .order('individual_count', { ascending: false })
       .limit(1)
@@ -197,6 +205,7 @@ export async function findRefreshTarget(
     const { data } = await supabase
       .from('trees')
       .select('id, name, individual_count')
+      .eq('user_id', ownerId)
       .eq('name', metadata.treeName)
       .order('individual_count', { ascending: false })
       .limit(1)

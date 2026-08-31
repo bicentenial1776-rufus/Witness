@@ -165,8 +165,16 @@ type TreeRef = { id: string; refreshed_from: string | null };
 /** One fetch per flush pass, not per stone. A query that errors must
     read as transient (retry next flush), never as "your tree is gone". */
 async function fetchTrees(): Promise<TreeRef[]> {
+  // Owned trees only: under family-sharing membership policies an
+  // unfiltered select includes trees shared with this account, which
+  // would break the single-tree fallback below and could walk the
+  // refresh-successor hop onto someone else's tree.
+  const { data: auth } = await supabase.auth.getSession();
   const { data, error } = await withTimeout(
-    supabase.from('trees').select('id, refreshed_from'),
+    supabase
+      .from('trees')
+      .select('id, refreshed_from')
+      .eq('user_id', auth.session?.user.id ?? ''),
     10_000,
     'The tree check',
   );
