@@ -16,7 +16,8 @@
     "./findings": "./dist/findings/index.js",
     "./export": "./dist/export/index.js",
     "./pulse": "./dist/pulse/index.js",
-    "./corrections": "./dist/corrections/index.js"
+    "./corrections": "./dist/corrections/index.js",
+    "./fsv": "./dist/fsv/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

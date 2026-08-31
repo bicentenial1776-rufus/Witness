@@ -41,7 +41,7 @@ the app's typecheck fails on missing exports).
 | **Vignette text** | AI enrichment via Supabase edge functions with a cache-first pattern (`enrichment_cache`, keyed `(individual_id, enrichment_type, prompt_version)`); disclosure lines are house style. **Rooms must NOT use this key** — per your rebuild spec, room-scene descriptions cache by CELL `(region, period, class, trade, household composition)`. That's a new table + edge fn following the existing pattern in `supabase/functions/generate-biography/`. | `supabase/functions/`, `apps/mobile/src/app/(app)/ancestor/[id].tsx` (`useEnrichment`) |
 | **Real town maps** | `sanborn-lookup` edge fn: `{city, state, year}` → LOC Sanborn fire-insurance map editions, cached 180 days. Ground truth for street layout in the geographic mode. | `supabase/functions/sanborn-lookup/` |
 | **The entry point** | The Family Stage screen (`/family-stage/[key]`) is the ratified door into FSV per your roadmap W6: "Family Stage → field entry." The Portrait, Home's "Family graph of the day," and the register all route to it already. | `apps/mobile/src/app/(app)/family-stage/[key].tsx` |
-| **The fixture** | The real Howe/Field export (5,495 people / 1,829 placeable households — the corpus your specs cite) is checked in. Also `sample.ged`, `sample7.ged`. | `packages/core/fixtures/Howe_Field Family Tree.ged` |
+| **The fixture** | `sample.ged` and `sample7.ged` ship. The real Howe/Field export (5,495 people / 1,829 placeable households — the corpus your specs cite) does **not**: `.gitignore` excludes `**/fixtures/*.ged` except `*sample*`, because that file is a living family. Keep your copy locally at the path opposite and four core suites (`homePerson`, `precompute`, `treeHealth`, `gedcom7`) will run; without it they fail to collect on a clean checkout, which is expected. Anything that must pass in CI has to run on `sample.ged` or on a synthetic index. | `packages/core/fixtures/Howe_Field Family Tree.ged` *(local only)* |
 | **Determinism** | Date-seeded deterministic picks (`pickWeekly` — FNV-1a over a seed string) are the house pattern; same seed → same result on every device, matching your same-file-same-seed law. | `packages/core/src/findings/index.ts` |
 
 ## 3. The seam (works under either answer to "inside vs separate")
@@ -98,8 +98,11 @@ convention):**
 2. Keep each PR one topic. The first three, suggested:
    **(a)** scaffold `apps/fsv/` (package.json, Vite build, README) —
    deterministic build, no `Date.now()`/`Math.random()` in generation paths;
-   **(b)** the bridge: `resolveFsvProgram` over the Howe/Field fixture with
-   asserted counts (1,829 households, 0 cycles — your regression numbers);
+   **(b)** the bridge: `resolveFsvProgram` with asserted counts. Note the
+   regression numbers you know (1,829 households, 0 cycles) come from the
+   Howe/Field file, which is git-ignored — so assert them in a local-only
+   test and make the committed test run on `sample.ged` plus a synthetic
+   index, or CI will fail for everyone who does not have the family;
    **(c)** the W6 integration spike behind a flag (a hidden route, not a tab).
 3. Before opening the PR: `npx tsc --noEmit` in `apps/mobile` (the whole
    monorepo typechecks through it), `npx vitest run` in `packages/core`, and

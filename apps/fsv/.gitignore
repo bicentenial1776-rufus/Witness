@@ -1,0 +1,5 @@
+# The world is a build artifact, not source. It is ~3 MB and it changes on
+# every rebuild, so committing it would add 3 MB to this repo's history each
+# time the design repo ships a world — in a repo that is not FSV's. Fetch it
+# instead: npm run world:sync -w @witness/fsv
+public/world/*.html

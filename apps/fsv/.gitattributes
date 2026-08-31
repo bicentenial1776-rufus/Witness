@@ -1,0 +1,6 @@
+# The world artifact is not committed (see .gitignore) — it is fetched with
+# `npm run world:sync`. If one is ever committed deliberately, it must
+# survive the round trip byte for byte: the design repo asserts that
+# build.ps1 reproduces it exactly, and a line-ending rewrite on checkout
+# quietly breaks that claim. So: never text.
+public/world/*.html -text -diff

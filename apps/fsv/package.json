@@ -1,0 +1,19 @@
+{
+  "name": "@witness/fsv",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Family Street View \u2014 the walkable world. Vite + three.js live here and only here.",
+  "scripts": {
+    "dev": "node scripts/sync-world.mjs && vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "world:sync": "node scripts/sync-world.mjs"
+  },
+  "dependencies": {
+    "@witness/core": "*"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}
