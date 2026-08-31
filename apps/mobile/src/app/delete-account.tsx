@@ -39,8 +39,12 @@ export default function DeleteAccount() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const treeCount = trees?.length ?? 0;
-  const peopleCount = (trees ?? []).reduce((sum, tree) => sum + tree.individual_count, 0);
+  // Owned trees only: a tree shared with this account (family sharing) is
+  // not this account's data — the drain must never touch it, and the
+  // membership row itself cascades away with the auth user.
+  const ownedTrees = (trees ?? []).filter((tree) => tree.owned);
+  const treeCount = ownedTrees.length;
+  const peopleCount = ownedTrees.reduce((sum, tree) => sum + tree.individual_count, 0);
 
   // A subscription outlives the account it was bought for — the store bills
   // the Apple ID or card, not our user row. Warn before, not after.
@@ -51,7 +55,7 @@ export default function DeleteAccount() {
   async function runDelete() {
     let removed = 0;
     setWorking({ stage: 'starting', removed });
-    for (const tree of trees ?? []) {
+    for (const tree of ownedTrees) {
       let drained = false;
       for (let i = 0; i < 400; i++) {
         const { data, error } = await supabase.rpc('delete_tree_batch', { p_tree_id: tree.id });

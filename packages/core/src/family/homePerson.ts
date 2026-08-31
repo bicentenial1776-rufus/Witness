@@ -119,7 +119,7 @@ export async function setHomePerson(
     const { error } = await client
       .from('relationships')
       .upsert(rows.slice(i, i + INSERT_BATCH), {
-        onConflict: 'tree_id,home_person_id,individual_id',
+        onConflict: 'tree_id,user_id,home_person_id,individual_id',
       });
     if (error) throw new Error(`Caching relationships failed: ${error.message}`);
   }

@@ -33,23 +33,50 @@ Deno.serve(async (req) => {
   const ctx = await authenticate(req);
   if (ctx instanceof Response) return ctx;
 
-  // RLS proves ownership: someone else's tree simply isn't found.
+  // RLS proves access: a tree that is neither owned nor shared with the
+  // caller simply isn't found. Which of the two it is decides where the
+  // home-person pointer lives — the tree row for the owner, the caller's
+  // own tree_members row for a family companion (each member computes
+  // their own point of view; design brief §3).
   const { data: tree, error: treeError } = await ctx.db
     .from('trees')
-    .select('id, home_person_id')
+    .select('id, user_id, home_person_id')
     .eq('id', treeId)
     .maybeSingle();
   if (treeError) return json(500, { error: `Reading tree failed: ${treeError.message}` });
   if (!tree) return json(404, { error: 'Tree not found' });
+  const isOwner = tree.user_id === ctx.userId;
 
-  if (homePersonId) {
-    const { error } = await ctx.db
-      .from('trees')
-      .update({ home_person_id: homePersonId })
-      .eq('id', treeId);
-    if (error) return json(500, { error: `Setting home person failed: ${error.message}` });
+  let homeId: string | null;
+  if (isOwner) {
+    if (homePersonId) {
+      const { error } = await ctx.db
+        .from('trees')
+        .update({ home_person_id: homePersonId })
+        .eq('id', treeId);
+      if (error) return json(500, { error: `Setting home person failed: ${error.message}` });
+    }
+    homeId = homePersonId ?? tree.home_person_id;
+  } else {
+    const { data: membership } = await ctx.db
+      .from('tree_members')
+      .select('home_person_id')
+      .eq('tree_id', treeId)
+      .eq('user_id', ctx.userId)
+      .maybeSingle();
+    if (!membership) return json(404, { error: 'Tree not found' });
+    if (homePersonId) {
+      // The member's own row, through the RLS-scoped client — the column
+      // grant on (home_person_id, display_name) is exactly this write.
+      const { error } = await ctx.db
+        .from('tree_members')
+        .update({ home_person_id: homePersonId })
+        .eq('tree_id', treeId)
+        .eq('user_id', ctx.userId);
+      if (error) return json(500, { error: `Setting home person failed: ${error.message}` });
+    }
+    homeId = homePersonId ?? membership.home_person_id;
   }
-  const homeId = homePersonId ?? tree.home_person_id;
   if (!homeId) return json(400, { error: 'Tree has no home person' });
 
   const started = Date.now();
@@ -65,19 +92,31 @@ Deno.serve(async (req) => {
     const { error } = await ctx.db
       .from('relationships')
       .upsert(rows.slice(i, i + INSERT_BATCH), {
-        onConflict: 'tree_id,home_person_id,individual_id',
+        onConflict: 'tree_id,user_id,home_person_id,individual_id',
       });
     if (error) return json(500, { error: `Caching relationships failed: ${error.message}` });
   }
 
   // Prune rows keyed to any other home person — re-read the pointer so a
-  // racing run that changed the home person after us wins.
-  const { data: treeNow } = await ctx.db
-    .from('trees')
-    .select('home_person_id')
-    .eq('id', treeId)
-    .maybeSingle();
-  const currentHome = treeNow?.home_person_id ?? homeId;
+  // racing run that changed the home person after us wins. The delete is
+  // RLS-scoped, so it only ever touches the caller's own rows.
+  let currentHome = homeId;
+  if (isOwner) {
+    const { data: treeNow } = await ctx.db
+      .from('trees')
+      .select('home_person_id')
+      .eq('id', treeId)
+      .maybeSingle();
+    currentHome = treeNow?.home_person_id ?? homeId;
+  } else {
+    const { data: memberNow } = await ctx.db
+      .from('tree_members')
+      .select('home_person_id')
+      .eq('tree_id', treeId)
+      .eq('user_id', ctx.userId)
+      .maybeSingle();
+    currentHome = memberNow?.home_person_id ?? homeId;
+  }
   const { error: pruneError } = await ctx.db
     .from('relationships')
     .delete()

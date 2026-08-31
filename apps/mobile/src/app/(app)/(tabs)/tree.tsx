@@ -211,6 +211,11 @@ export default function TreeTab() {
   // Broadsheet carrier (web ≥900px): masthead from the tree itself, the
   // stage drawn live in the main column where the phone shows its door,
   // the coming-soon teaser in the margin.
+  // A companion on a shared tree reads; the work surfaces — the audit,
+  // the archives review, the research desk — are the owner's and stay off
+  // the page entirely (never disabled-looking; design brief §6).
+  const owned = activeTree.owned;
+
   if (broadsheet) {
     return (
       <PageShell
@@ -221,9 +226,9 @@ export default function TreeTab() {
         <View style={{ marginTop: 36 }}>
           <FamilyStage treeId={activeTree.id} />
         </View>
-        <View style={{ maxWidth: 680 }}>{treeHealthSection}</View>
-        <View style={{ maxWidth: 680 }}>{archivesSection}</View>
-        <View style={{ maxWidth: 680 }}>{briefsSection}</View>
+        {owned && <View style={{ maxWidth: 680 }}>{treeHealthSection}</View>}
+        {owned && <View style={{ maxWidth: 680 }}>{archivesSection}</View>}
+        {owned && <View style={{ maxWidth: 680 }}>{briefsSection}</View>}
       </PageShell>
     );
   }
@@ -240,9 +245,9 @@ export default function TreeTab() {
           {activeTree.name}
         </Text>
         {familyStageDoor}
-        {treeHealthSection}
-        {archivesSection}
-        {briefsSection}
+        {owned && treeHealthSection}
+        {owned && archivesSection}
+        {owned && briefsSection}
       </ScrollView>
     </View>
   );

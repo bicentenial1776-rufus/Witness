@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, Switch, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Share, Switch, View } from 'react-native';
 
 import type { LineageScope } from '@witness/core/family';
 
@@ -20,6 +20,16 @@ import {
   isDigestNotificationEnabled,
   setDigestNotificationEnabled,
 } from '@/lib/digest-notifications';
+import {
+  SEAT_LIMIT,
+  createInvite,
+  fetchMembers,
+  fetchPendingInvites,
+  removeMember,
+  revokeInvite,
+  type InviteRow,
+  type TreeMemberRow,
+} from '@/lib/family-sharing';
 import { getLineageScope, setLineageScope } from '@/lib/lineage-scope';
 import { manageSubscriptionUrl, openManageSubscription } from '@/lib/manage-subscription';
 import { usePurchases } from '@/lib/purchases';
@@ -61,6 +71,9 @@ export default function YouTab() {
   } | null>(null);
   const [restoring, setRestoring] = useState<string | null>(null);
   const [vaultReady, setVaultReady] = useState(false);
+  const [members, setMembers] = useState<TreeMemberRow[] | null>(null);
+  const [invites, setInvites] = useState<InviteRow[] | null>(null);
+  const [inviting, setInviting] = useState(false);
   const { subscription, restore: restorePurchase } = usePurchases();
   const [restoringPurchase, setRestoringPurchase] = useState(false);
 
@@ -90,7 +103,10 @@ export default function YouTab() {
   // screen has a tree list, and refresh only if something had drifted.
   const recountedFor = useRef('');
   useEffect(() => {
-    const ids = (trees ?? [])
+    // Owned trees only: recount_tree raises on a tree the caller doesn't
+    // own, and a shared tree's counts are the owner's to maintain.
+    const ownedTrees = (trees ?? []).filter((tree) => tree.owned);
+    const ids = ownedTrees
       .map((tree) => tree.id)
       .sort()
       .join(',');
@@ -99,7 +115,7 @@ export default function YouTab() {
     let cancelled = false;
     (async () => {
       let drifted = false;
-      for (const tree of trees ?? []) {
+      for (const tree of ownedTrees) {
         const { data } = await supabase.rpc('recount_tree', { p_tree_id: tree.id });
         const counted = data as { individuals?: number } | null;
         if (counted?.individuals !== undefined && counted.individuals !== tree.individual_count) {
@@ -140,11 +156,88 @@ export default function YouTab() {
             );
           }
         });
+      if (activeTree?.owned) {
+        fetchMembers(activeTree.id)
+          .then((rows) => {
+            if (!cancelled) setMembers(rows);
+          })
+          .catch(() => {});
+        fetchPendingInvites()
+          .then((rows) => {
+            if (!cancelled) setInvites(rows.filter((invite) => invite.tree_id === activeTree.id));
+          })
+          .catch(() => {});
+      } else {
+        setMembers(null);
+        setInvites(null);
+      }
       return () => {
         cancelled = true;
       };
-    }, [refresh, activeTree?.id]),
+    }, [refresh, activeTree?.id, activeTree?.owned]),
   );
+
+  // A seat is access, not data: leaving ends the read and nothing else.
+  function confirmLeave(tree: TreeRow) {
+    showDestructiveConfirm(
+      `Leave "${tree.name}"?`,
+      'This tree will disappear from your list and your access ends now. Nothing you imported yourself is touched. You can rejoin with a fresh invitation.',
+      'Leave',
+      async () => {
+        try {
+          await removeMember(tree.id);
+        } catch (error) {
+          showAlert('Could not leave', error instanceof Error ? error.message : String(error));
+          return;
+        }
+        invalidateRelationshipCache();
+        refresh();
+      },
+    );
+  }
+
+  async function inviteFamily() {
+    if (!activeTree) return;
+    setInviting(true);
+    try {
+      const { url } = await createInvite(activeTree.id);
+      const message = `You're invited into the ${activeTree.name} on Witness. Open this link to take your seat: ${url}`;
+      if (Platform.OS === 'web') {
+        const nav = navigator as Navigator & { share?: (data: { text: string }) => Promise<void> };
+        if (nav.share) await nav.share({ text: message });
+        else {
+          await navigator.clipboard?.writeText(url);
+          showAlert('Invitation ready', `The link is on your clipboard:\n\n${url}\n\nIt works once and expires in 7 days.`);
+        }
+      } else {
+        await Share.share({ message });
+      }
+      fetchPendingInvites()
+        .then((rows) => setInvites(rows.filter((invite) => invite.tree_id === activeTree.id)))
+        .catch(() => {});
+    } catch (error) {
+      showAlert('Could not create the invitation', error instanceof Error ? error.message : String(error));
+    } finally {
+      setInviting(false);
+    }
+  }
+
+  function confirmRemoveMember(member: TreeMemberRow) {
+    if (!activeTree) return;
+    showDestructiveConfirm(
+      `Remove ${member.display_name ?? 'this family member'}?`,
+      'Their seat ends now — the tree disappears from their account. Anything they imported themselves is untouched.',
+      'Remove',
+      async () => {
+        try {
+          await removeMember(activeTree.id, member.user_id);
+          setMembers((current) => current?.filter((m) => m.user_id !== member.user_id) ?? null);
+        } catch (error) {
+          showAlert('Could not remove', error instanceof Error ? error.message : String(error));
+        }
+      },
+    );
+  }
 
   // Decrypt the stored original back onto the device and hand it to the import
   // screen, which already knows how to parse, report and re-store it. The
@@ -329,8 +422,10 @@ export default function YouTab() {
             <ThemedText type="small">
               {tree.individual_count.toLocaleString()} people ·{' '}
               {tree.family_count.toLocaleString()} families ·{' '}
-              {tree.place_count.toLocaleString()} places · imported{' '}
-              {new Date(tree.imported_at).toLocaleDateString()}
+              {tree.place_count.toLocaleString()} places ·{' '}
+              {tree.owned
+                ? `imported ${new Date(tree.imported_at).toLocaleDateString()}`
+                : 'shared with you'}
             </ThemedText>
             {(trees?.length ?? 0) > 1 &&
               (tree.id === activeTree?.id ? (
@@ -349,17 +444,23 @@ export default function YouTab() {
                   router.push({ pathname: '/home-person', params: { treeId: tree.id } })
                 }
               >
-                {tree.home_person ? `You are ${tree.home_person.full_name}` : 'Tell us who you are'}
+                {tree.owned
+                  ? tree.home_person
+                    ? `You are ${tree.home_person.full_name}`
+                    : 'Tell us who you are'
+                  : 'Who you are in this tree'}
               </ThemedText>
-              <ThemedText
-                type="link"
-                onPress={() =>
-                  router.push({ pathname: '/import', params: { refreshTreeId: tree.id } })
-                }
-              >
-                Update from a newer file
-              </ThemedText>
-              {vaultReady && tree.gedcom_path && (
+              {tree.owned && (
+                <ThemedText
+                  type="link"
+                  onPress={() =>
+                    router.push({ pathname: '/import', params: { refreshTreeId: tree.id } })
+                  }
+                >
+                  Update from a newer file
+                </ThemedText>
+              )}
+              {tree.owned && vaultReady && tree.gedcom_path && (
                 <ThemedText
                   type="link"
                   onPress={() => {
@@ -375,19 +476,29 @@ export default function YouTab() {
                 Delete used to sit among the safe actions looking exactly like
                 them; adding "Update from a newer file" beside it made a
                 mis-tap both likelier and more expensive. */}
-            <ThemedText
-              type="link"
-              onPress={() => {
-                if (!deleting) confirmDelete(tree);
-              }}
-              style={[
-                { marginTop: 10, opacity: 0.55, alignSelf: 'flex-start' },
-                deleting ? { opacity: 0.3 } : null,
-              ]}
-            >
-              Delete this tree
-            </ThemedText>
-            {vaultReady && (
+            {tree.owned ? (
+              <ThemedText
+                type="link"
+                onPress={() => {
+                  if (!deleting) confirmDelete(tree);
+                }}
+                style={[
+                  { marginTop: 10, opacity: 0.55, alignSelf: 'flex-start' },
+                  deleting ? { opacity: 0.3 } : null,
+                ]}
+              >
+                Delete this tree
+              </ThemedText>
+            ) : (
+              <ThemedText
+                type="link"
+                onPress={() => confirmLeave(tree)}
+                style={{ marginTop: 10, opacity: 0.55, alignSelf: 'flex-start' }}
+              >
+                Leave this tree
+              </ThemedText>
+            )}
+            {tree.owned && vaultReady && (
               <ThemedText type="small">
                 {tree.gedcom_path
                   ? `Your original file is kept encrypted${
@@ -411,6 +522,89 @@ export default function YouTab() {
         <ThemedText type="link" onPress={() => router.push('/import-guide')}>
           How to export a tree from Ancestry, FamilySearch & more ›
         </ThemedText>
+
+        {activeTree?.owned && (
+          <>
+            <SectionHeader>Family</SectionHeader>
+            <Card>
+              <ThemedText type="small">
+                Up to {SEAT_LIMIT} family members can read “{activeTree.name}” with you — every
+                relationship told from their own seat. They can look; only you can change.
+              </ThemedText>
+              {(members ?? []).map((member) => (
+                <View
+                  key={member.user_id}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    marginTop: 8,
+                  }}
+                >
+                  <View style={{ flexShrink: 1 }}>
+                    <ThemedText>{member.display_name ?? 'A family member'}</ThemedText>
+                    <ThemedText type="small">
+                      reading since {new Date(member.joined_at).toLocaleDateString()}
+                    </ThemedText>
+                  </View>
+                  <ThemedText
+                    type="smallBold"
+                    themeColor="accent"
+                    onPress={() => confirmRemoveMember(member)}
+                  >
+                    Remove
+                  </ThemedText>
+                </View>
+              ))}
+              {(invites ?? []).map((invite) => (
+                <View
+                  key={invite.token}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    marginTop: 8,
+                  }}
+                >
+                  <View style={{ flexShrink: 1 }}>
+                    <ThemedText>Invitation waiting</ThemedText>
+                    <ThemedText type="small">
+                      works once · expires {new Date(invite.expires_at).toLocaleDateString()}
+                    </ThemedText>
+                  </View>
+                  <ThemedText
+                    type="smallBold"
+                    themeColor="accent"
+                    onPress={() =>
+                      revokeInvite(invite.token)
+                        .then(() =>
+                          setInvites((current) => current?.filter((i) => i.token !== invite.token) ?? null),
+                        )
+                        .catch((error) =>
+                          showAlert('Could not take the invitation back', String(error?.message ?? error)),
+                        )
+                    }
+                  >
+                    Take back
+                  </ThemedText>
+                </View>
+              ))}
+              {(members?.length ?? 0) < SEAT_LIMIT ? (
+                <ThemedText
+                  type="link"
+                  onPress={inviting ? undefined : inviteFamily}
+                  style={[{ marginTop: 12 }, inviting ? { opacity: 0.4 } : null]}
+                >
+                  {inviting ? 'Preparing the invitation…' : 'Invite family ›'}
+                </ThemedText>
+              ) : (
+                <ThemedText type="small" style={{ marginTop: 12 }}>
+                  All {SEAT_LIMIT} seats are taken. Remove someone to invite another.
+                </ThemedText>
+              )}
+            </Card>
+          </>
+        )}
 
         <SectionHeader>Preferences</SectionHeader>
         <Card>

@@ -488,13 +488,19 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   const params = useLocalSearchParams<{ id: string }>();
   const id = personId ?? params.id;
   const theme = useTheme();
-  const { activeTree } = useActiveTree();
+  const { activeTree, trees } = useActiveTree();
   const [person, setPerson] = useState<Person | null>(null);
   const [missing, setMissing] = useState(false);
   // The page is standing on the saved field copy: identity, vitals, and the
   // register are real; everything that needs the server stays quiet
   // (SPEC_offline-field-mode.md).
   const [fromFieldCopy, setFromFieldCopy] = useState(false);
+  // A companion on a family-shared tree reads the record and the stories;
+  // the research desk — brief, share card, burial confirm, corrections,
+  // notes, Tree Check prompts — is the owner's work surface and stays off
+  // the page (design brief §6). Unknown trees default to owned: the
+  // server's policies are the real guard.
+  const treeOwned = person ? (trees?.find((t) => t.id === person.tree_id)?.owned ?? true) : true;
   // Network down AND no saved copy covers this person — say that, not
   // "this record isn't here anymore".
   const [unreachable, setUnreachable] = useState(false);
@@ -2024,12 +2030,15 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                     </ThemedText>
                   )}
                   {/* Betsey's box, below the story — also present before one
-                      exists, since lore doesn't wait for the writer. */}
-                  <AncestorNote
-                    individualId={person.id}
-                    treeId={person.tree_id}
-                    onText={setAncestorNote}
-                  />
+                      exists, since lore doesn't wait for the writer. The
+                      owner's margin, not a companion's. */}
+                  {treeOwned && (
+                    <AncestorNote
+                      individualId={person.id}
+                      treeId={person.tree_id}
+                      onText={setAncestorNote}
+                    />
+                  )}
                 </Panel>
               </View>
 
@@ -2341,7 +2350,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               record, the share card — live with the rest of the research. */}
           {!fromFieldCopy && (providerLink || !person.living) && (
             <View style={{ flexDirection: 'row', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
-              {!person.living && (
+              {!person.living && treeOwned && (
                 <Text
                   style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}
                   onPress={
@@ -2366,7 +2375,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                   {providerLink.label} ›
                 </Text>
               )}
-              {!person.living && (
+              {!person.living && treeOwned && (
                 <Text
                   style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}
                   onPress={shareState === 'busy' ? undefined : shareAncestor}
@@ -2419,7 +2428,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             2026-08-24). Imported citations CLAIM a memorial; only the reader
             can verify it. The search opens in their own browser; Witness
             stores nothing but the URL they confirm. */}
-        {person && !person.living && !fromFieldCopy && (
+        {person && !person.living && !fromFieldCopy && treeOwned && (
           <View style={{ marginTop: 16, gap: 6 }}>
             <ThemedText type="subtitle">Burial record</ThemedText>
             {graveConf && graveFlow === 'idle' && (
@@ -2503,14 +2512,14 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             Not on the saved copy: a pencil that can't save is a broken one.
             Kept mounted whatever tab shows, so the ✎ glyphs in the header
             and on the Lifeline know about open corrections. */}
-        {!fromFieldCopy && (
+        {!fromFieldCopy && treeOwned && (
           <MarginCorrections person={person} events={events} onChanged={setOpenCorrections} />
         )}
 
         {/* The third door: what the audit noticed about this person. Same
             session-cached run and marks/rulings filter as the workbench, so
             a decided finding disappears here on the next visit. */}
-        {curiosities.length > 0 && (
+        {curiosities.length > 0 && treeOwned && (
           <View style={{ gap: 8, marginTop: 16 }}>
             <ThemedText type="subtitle">From the Tree Check</ThemedText>
             <ThemedText type="small">
