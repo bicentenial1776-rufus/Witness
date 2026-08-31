@@ -50,18 +50,35 @@ export async function createAncestorShareLink(
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error('Sign in to share');
 
-  // Attribution: the sharer's first name, from the tree's home person.
+  // Attribution: the sharer's first name — the tree's home person for the
+  // owner; for a family companion sharing from a shared tree, THEIR seat
+  // (their own home person, else the name they joined under), never the
+  // owner's name on a card the owner didn't send.
   let sharerName: string | null = null;
   const { data: tree } = await supabase
     .from('trees')
-    .select('home_person_id')
+    .select('user_id, home_person_id')
     .eq('id', subject.tree_id)
     .maybeSingle();
-  if (tree?.home_person_id) {
+  let namePersonId = tree?.home_person_id ?? null;
+  if (tree && tree.user_id !== auth.user.id) {
+    const { data: membership } = await supabase
+      .from('tree_members')
+      .select('home_person_id, display_name')
+      .eq('tree_id', subject.tree_id)
+      .eq('user_id', auth.user.id)
+      .maybeSingle();
+    if (membership?.home_person_id) namePersonId = membership.home_person_id;
+    else if (membership?.display_name) {
+      namePersonId = null;
+      sharerName = membership.display_name.split(' ')[0] ?? null;
+    }
+  }
+  if (namePersonId && !sharerName) {
     const { data: home } = await supabase
       .from('individuals')
       .select('full_name')
-      .eq('id', tree.home_person_id)
+      .eq('id', namePersonId)
       .maybeSingle();
     sharerName = home?.full_name?.split(' ')[0] ?? null;
   }

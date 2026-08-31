@@ -2375,7 +2375,11 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                   {providerLink.label} ›
                 </Text>
               )}
-              {!person.living && treeOwned && (
+              {/* Companions share too (phase 3, Rufus 2026-08-30): the card
+                  is a snapshot attributed to whoever sends it, and cousins
+                  showing cousins is the growth loop. Living-person and
+                  snapshot rules apply identically. */}
+              {!person.living && (
                 <Text
                   style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}
                   onPress={shareState === 'busy' ? undefined : shareAncestor}
