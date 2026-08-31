@@ -4,8 +4,9 @@
 Four decisions are Rufus's, made today: (1) v1 members are **read-only
 companions**, (2) a **family plan at $29.99/year unlocks the seats**, (3) every
 member gets **their own home person** — their own point of view on the shared
-tree, (4) this session produces the brief, not the build. Everything else
-below is recommendation with reasoning shown.*
+tree, (4) this session produces the brief, not the build. The five open
+questions at the end were answered the same day — nothing here is
+undecided.*
 
 ## What this is
 
@@ -213,23 +214,25 @@ not a locked workbench.
   the claims audit — nothing aspirational ships as present tense); companion
   share links if the fast-follow is taken.
 
-## Open questions (Rufus's calls, none blocking Phase 1)
+## The five open questions, answered (Rufus, 2026-08-30)
 
-1. **Do companions see the owner's margins?** Notes, confirmed verdicts, the
-   Tree Health count. Recommendation: v1 hides the work surfaces entirely
-   (the table above), but *confirmed* facts (a confirmed crossing, a
-   confirmed grave) are already woven into stories and Portraits and should
-   flow through — they're the curated product, not the workbench.
-2. **Seat count semantics**: "5 accounts total" (owner + 4) is what's
-   written here; say the word if you meant owner + 5.
-3. **Removal semantics**: a removed member loses the seat entitlement and
-   the tree vanishes from their switcher. If they imported their own tree
-   during their seat, it survives but sits behind the paywall. Confirm
-   that's the intended shape.
-4. **Trial on the family plan**: the pricing standard says 1-month trial on
-   everything — presumably the family plan too, seats grantable during
-   trial. Confirm.
-5. **Ruth and the comp roster**: existing comped accounts (June, Betsey…)
-   could be converted to seats on your family plan when it exists — tidier
-   than promotional comps long-term. Worth deciding before the ASC
-   submission that carries the family SKU.
+All five were put to Rufus the same day the brief was written; nothing
+remains open before Phase 1.
+
+1. **Margins: confirmed facts only.** Confirmed crossings, graves, and
+   archive matches flow through to companions — they're already woven into
+   stories and Portraits and are the curated product. Notes, open verdicts,
+   and the Tree Health workbench stay hidden (the table above stands).
+2. **Seats: 5 accounts total** — owner + 4 companions, as written.
+3. **Removal: seat + access revoked, own data kept.** The shared tree
+   vanishes from the removed member's switcher and their entitlement ends;
+   a tree they imported themselves survives but sits behind the paywall
+   until they subscribe. No grace period, no data deletion.
+4. **Trial: yes, the standard 1-month trial, seats grantable during it.**
+   The trial shows the actual product — family can be invited day one.
+   Seats revoke with the entitlement if the trial lapses unconverted (the
+   reconciliation worker's normal path, no special case).
+5. **Comp roster: family becomes seats, the rest stay comps.** Ruth and
+   June convert to real seats on the family plan once it exists; Katie,
+   Kharisma, Greg, and Betsey remain promotional comps — those are
+   influencer/tester relationships, not family members on the tree.
