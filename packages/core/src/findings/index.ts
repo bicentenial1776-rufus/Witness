@@ -3,6 +3,7 @@ import { findingKey } from '../query/treeHealth.js';
 import type { NaraCandidate } from '../query/naraRecords.js';
 import type { OceanCrossing } from '../query/placeDiscovery.js';
 import type { MigrationPath } from '../query/migrations.js';
+import type { PassengerCandidate } from '../query/passengerCandidates.js';
 
 /**
  * The unified finding — Approach A's plumbing (docs/cohesion-design-brief.md).
@@ -43,6 +44,19 @@ export function fromNaraCandidate(candidate: NaraCandidate): Finding {
     source: 'archives',
     subjectIds: [candidate.individualId],
     sentence: `A federal record — ${candidate.title} — might be ${candidate.individualName}.`,
+  };
+}
+
+// PassengerCandidate carries no individual name (unlike NaraCandidate,
+// whose row joins to individuals) — the one caller today already has the
+// name in hand (Home's ancestor-of-the-day pick), so it travels as a
+// parameter rather than growing the query with a join nothing else needs.
+export function fromPassengerCandidate(candidate: PassengerCandidate, individualName: string): Finding {
+  return {
+    id: `crossing:passenger:${candidate.individualId}:${candidate.voyageId}`,
+    source: 'crossing',
+    subjectIds: [candidate.individualId],
+    sentence: `${individualName} may have sailed on the ${candidate.ship}, ${candidate.arrivalYear} — a shipping list worth checking.`,
   };
 }
 
