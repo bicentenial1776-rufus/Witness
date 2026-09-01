@@ -1241,6 +1241,11 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
       events.map((e) => ({ year: e.date_year, parts: e.places?.parts ?? null })),
     )[0] ?? null;
 
+  // The ship badge: PROJECT_BRIEF.md calls this out as the first emoji in
+  // Witness — earned only once a Crossing card candidate is confirmed, not
+  // decorative. Derived from state already on hand, no extra query.
+  const shipBadge = passengerCandidates.find((c) => c.status === 'confirmed') ?? null;
+
   // "Lived near" minus the household: the register already names immediate
   // family, so the neighbor list is for everyone BEYOND it. Filtered here
   // at render time — the register may land after the neighbor fetch.
@@ -1552,6 +1557,22 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 {crossingFlag.ocean === 'atlantic' ? 'Atlantic' : 'Pacific'} crossing
               </Text>
             </Pressable>
+          )}
+          {shipBadge && (
+            <View
+              accessibilityLabel={`Sailed on the ${shipBadge.ship}, ${shipBadge.arrivalYear}`}
+              style={{
+                borderWidth: 1,
+                borderColor: theme.accent,
+                borderRadius: 12,
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+              }}
+            >
+              <Text style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}>
+                ⛵ {shipBadge.ship}, {shipBadge.arrivalYear}
+              </Text>
+            </View>
           )}
         </View>
         <Text
