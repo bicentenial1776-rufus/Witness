@@ -9,6 +9,8 @@ import { Card } from '@/components/card';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useActiveTree } from '@/lib/active-tree';
+import { fetchMyMembership } from '@/lib/family-sharing';
 import { invalidateRelationshipCache } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 
@@ -29,9 +31,16 @@ type Step =
 
 export default function HomePersonScreen() {
   const { treeId } = useLocalSearchParams<{ treeId: string }>();
+  const { trees } = useActiveTree();
   const [step, setStep] = useState<Step>({ name: 'loading' });
   const [search, setSearch] = useState('');
   const [candidates, setCandidates] = useState<PersonRow[]>([]);
+
+  // A shared tree keeps its pointer on the caller's OWN membership row,
+  // never on the tree — each family member is somebody different in the
+  // same tree (design brief §3). The compute function routes the write
+  // the same way, so choose() below is identical for both.
+  const owned = trees?.find((tree) => tree.id === treeId)?.owned ?? true;
 
   // A home person may already be set — show them, don't re-suggest.
   // Re-running the suggestion here made a saved change look like it
@@ -40,15 +49,28 @@ export default function HomePersonScreen() {
     if (!treeId) return;
     let cancelled = false;
     (async () => {
-      const { data: tree } = await supabase
-        .from('trees')
-        .select('home_person:individuals!trees_home_person_id_fkey(full_name)')
-        .eq('id', treeId)
-        .maybeSingle();
+      let currentName: string | null = null;
+      if (owned) {
+        const { data: tree } = await supabase
+          .from('trees')
+          .select('home_person:individuals!trees_home_person_id_fkey(full_name)')
+          .eq('id', treeId)
+          .maybeSingle();
+        currentName = (tree?.home_person as { full_name: string } | null)?.full_name ?? null;
+      } else {
+        const membership = await fetchMyMembership(treeId);
+        if (membership?.home_person_id) {
+          const { data: person } = await supabase
+            .from('individuals')
+            .select('full_name')
+            .eq('id', membership.home_person_id)
+            .maybeSingle();
+          currentName = person?.full_name ?? null;
+        }
+      }
       if (cancelled) return;
-      const current = tree?.home_person as { full_name: string } | null;
-      if (current) {
-        setStep({ name: 'current', personName: current.full_name });
+      if (currentName) {
+        setStep({ name: 'current', personName: currentName });
         return;
       }
       const candidate = await suggestHomePerson(supabase, treeId);
@@ -58,7 +80,7 @@ export default function HomePersonScreen() {
     return () => {
       cancelled = true;
     };
-  }, [treeId]);
+  }, [treeId, owned]);
 
   useEffect(() => {
     if (step.name !== 'choosing' || !treeId) return;
@@ -102,7 +124,10 @@ export default function HomePersonScreen() {
       let cachedAncestors: number = data?.cachedAncestors ?? 0;
       if (error) {
         // Offline or function failure: the on-device walk still works — it
-        // is just killable, and the self-heal covers an interruption.
+        // is just killable, and the self-heal covers an interruption. Owned
+        // trees only: the fallback writes the tree's own pointer, which a
+        // shared tree refuses (the member's pointer lives on their seat).
+        if (!owned) throw new Error(error.message);
         ({ cachedAncestors } = await setHomePerson(supabase, treeId, person.id));
       }
       invalidateRelationshipCache();

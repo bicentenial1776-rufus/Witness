@@ -71,6 +71,22 @@ export default function AtTheStoneScreen() {
     );
   }
 
+  // A capture writes verdicts and events into the tree — the owner's work,
+  // not a companion's (family sharing, design brief §6). The Near-me chip
+  // is already hidden; this covers the direct route.
+  if (!activeTree.owned) {
+    return (
+      <ThemedView style={{ flex: 1, padding: 24, gap: 8, justifyContent: 'center' }}>
+        <Stack.Screen options={{ title: 'At the Stone' }} />
+        <ThemedText type="subtitle">This tree is shared with you.</ThemedText>
+        <ThemedText>
+          Reading a headstone writes new records into the tree, and that is the tree owner&rsquo;s
+          work. Switch to a tree of your own to capture stones.
+        </ThemedText>
+      </ThemedView>
+    );
+  }
+
   if (!permission?.granted) {
     return (
       <ThemedView style={{ flex: 1, padding: 24, gap: 10, justifyContent: 'center' }}>

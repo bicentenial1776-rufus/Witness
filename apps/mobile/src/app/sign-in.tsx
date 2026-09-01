@@ -44,12 +44,13 @@ export default function SignIn() {
   const [email, setEmail] = useState(typeof handedEmail === 'string' ? handedEmail : '');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Where to land after sign-in. Allowlisted to shared stories — the one
-  // flow that arrives here carrying a destination (audit G6: a cousin moved
-  // to join by a particular ancestor should land back on that ancestor).
-  // /shared is public and outside the auth guards, so the replace can't
-  // race the guard flip.
-  const safeNext = next && /^\/shared\/[A-Za-z0-9_-]+$/.test(next) ? next : null;
+  // Where to land after sign-in. Allowlisted to the two flows that arrive
+  // here carrying a destination: shared stories (audit G6: a cousin moved
+  // to join by a particular ancestor should land back on that ancestor)
+  // and family invites (the seat is accepted on /join, which needs the
+  // session first). Both are public and outside the auth guards, so the
+  // replace can't race the guard flip.
+  const safeNext = next && /^\/(shared|join)\/[A-Za-z0-9_-]+$/.test(next) ? next : null;
 
   // Simulator-driven verification can't type; a gitignored .env opts into
   // signing in as the dev account automatically. Dev builds only.

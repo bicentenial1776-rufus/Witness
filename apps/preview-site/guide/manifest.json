@@ -1,7 +1,7 @@
 {
-  "comment": "Witness Field Guide manifest — read by the /field-guide skill. lastSyncedCommit is the apps/mobile commit whose UI this guide's copy describes; the skill diffs it against HEAD to find screens that changed.",
+  "comment": "Witness Field Guide manifest \u2014 read by the /field-guide skill. lastSyncedCommit is the apps/mobile commit whose UI this guide's copy describes; the skill diffs it against HEAD to find screens that changed.",
   "baseUrl": "https://witnesslives.com/guide/",
-  "lastSyncedCommit": "23b0fd9",
+  "lastSyncedCommit": "c1202e7",
   "pages": [
     {
       "file": "concepts.html",
@@ -26,7 +26,7 @@
         {
           "file": "shots/you-featured.png",
           "status": "pending",
-          "shows": "You tab Preferences card 'Who gets featured' with all THREE chips (Direct line · Blood relatives · Blood and married-in), their counts, and the explanation line"
+          "shows": "You tab Preferences card 'Who gets featured' with all THREE chips (Direct line \u00b7 Blood relatives \u00b7 Blood and married-in), their counts, and the explanation line"
         }
       ]
     },
@@ -126,7 +126,7 @@
         {
           "file": "shots/explore-search.png",
           "status": "pending",
-          "stage": "People search on a common name ('Henry'): count line (47 people — newest first, showing 26–50) + ‹ Newer / Older › pager under the list"
+          "stage": "People search on a common name ('Henry'): count line (47 people \u2014 newest first, showing 26\u201350) + \u2039 Newer / Older \u203a pager under the list"
         },
         {
           "file": "shots/query-results.png",
@@ -198,7 +198,7 @@
         {
           "file": "shots/person-chart.png",
           "status": "pending",
-          "stage": "FAMILY tab on a well-documented ancestor: FAMILY CHART header with HIDE ›, both generation bands, amber marriage tie, subject lit in the sibship"
+          "stage": "FAMILY tab on a well-documented ancestor: FAMILY CHART header with HIDE \u203a, both generation bands, amber marriage tie, subject lit in the sibship"
         }
       ]
     },
@@ -237,7 +237,7 @@
       "file": "punch-list.html",
       "title": "The Margin & the Punch List",
       "covers": [
-        "in-the-margin corrections (add flow, ✎ glyphs, covenant)",
+        "in-the-margin corrections (add flow, \u270e glyphs, covenant)",
         "correction vs note distinction",
         "punch list three folds",
         "unified CSV export",
@@ -261,7 +261,38 @@
         {
           "file": "shots/punch-list.png",
           "status": "placed",
-          "shows": "The punch list: export link, corrections fold open on three cards (Entered at the source ✓ + Ancestry link), Tree Check findings · 449 and Orphan records · 94 folded"
+          "shows": "The punch list: export link, corrections fold open on three cards (Entered at the source \u2713 + Ancestry link), Tree Check findings \u00b7 449 and Orphan records \u00b7 94 folded"
+        }
+      ]
+    },
+    {
+      "file": "family-sharing.html",
+      "title": "Family Seats",
+      "covers": [
+        "You tab Family card (roster, invite, remove, seats-full)",
+        "the /join invitation landing + take your seat",
+        "companion who-are-you home-person pick",
+        "the companion reading edition (what's absent and why)",
+        "shared trees in the list, Leave this tree"
+      ],
+      "appSources": [
+        "apps/mobile/src/app/(app)/you.tsx",
+        "apps/mobile/src/app/join/[token].tsx",
+        "apps/mobile/src/lib/family-sharing.ts",
+        "apps/mobile/src/lib/active-tree.tsx",
+        "apps/mobile/src/app/(app)/home-person.tsx",
+        "supabase/functions/accept-invite/index.ts"
+      ],
+      "shots": [
+        {
+          "file": "shots/you-family.png",
+          "status": "pending",
+          "shows": "You tab Family card with one seated member row AND one invitation-waiting row (stage with the seat-test account), plus the Invite family link"
+        },
+        {
+          "file": "shots/join-landing.png",
+          "status": "pending",
+          "shows": "the /join/{token} landing signed-out: 'Rufus has kept a seat for you', tree name + count, Create your account + sign-in links"
         }
       ]
     }

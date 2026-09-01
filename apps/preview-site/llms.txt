@@ -57,7 +57,14 @@ Witness. Both names refer to the same app.
   error, archive verdicts) gathers on one Research screen.
 - **Getting To Work** — the tree in figures: lifespans by century, deaths by
   decade, marriage ages, commonest surnames.
-- **In development** — Family Street View and Family Wrapped. These are not
+- **Family Seats** — invite family members into your tree with a one-use
+  link; they read everything (stories, map, confirmed records) from their own
+  place in the family, with every relationship computed from their own seat.
+  Read-only: only the tree's owner can change anything. **Live in the browser
+  version at app.witnesslives.com since 2026-08-30; reaches iPhone and iPad
+  in the next App Store release.**
+- **In development** — Family Street View, Family Wrapped, and the Family
+  Plan (one subscription covering up to five family accounts). These are not
   available yet.
 
 ## Getting a tree in

@@ -12,33 +12,95 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
+      ancestor_notes: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          individual_id: string
+          tree_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          individual_id: string
+          tree_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          individual_id?: string
+          tree_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ancestor_notes_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ancestor_notes_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ancestor_visits: {
+        Row: {
+          first_visited_at: string
+          id: string
+          individual_id: string
+          last_visited_at: string
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          first_visited_at?: string
+          id?: string
+          individual_id: string
+          last_visited_at?: string
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          first_visited_at?: string
+          id?: string
+          individual_id?: string
+          last_visited_at?: string
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ancestor_visits_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ancestor_visits_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       citations: {
         Row: {
           ancestry_apid: string | null
@@ -103,6 +165,69 @@ export type Database = {
           },
           {
             foreignKeyName: "citations_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      corrections: {
+        Row: {
+          corrected_value: string
+          created_at: string
+          current_value: string | null
+          id: string
+          individual_id: string
+          note: string | null
+          resolved_at: string | null
+          snapshot_key: string | null
+          status: string
+          subject: string
+          tree_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          corrected_value: string
+          created_at?: string
+          current_value?: string | null
+          id?: string
+          individual_id: string
+          note?: string | null
+          resolved_at?: string | null
+          snapshot_key?: string | null
+          status?: string
+          subject: string
+          tree_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          corrected_value?: string
+          created_at?: string
+          current_value?: string | null
+          id?: string
+          individual_id?: string
+          note?: string | null
+          resolved_at?: string | null
+          snapshot_key?: string | null
+          status?: string
+          subject?: string
+          tree_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corrections_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corrections_tree_id_fkey"
             columns: ["tree_id"]
             isOneToOne: false
             referencedRelation: "trees"
@@ -181,270 +306,6 @@ export type Database = {
             columns: ["individual_id"]
             isOneToOne: false
             referencedRelation: "individuals"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ancestor_visits: {
-        Row: {
-          first_visited_at: string
-          id: string
-          individual_id: string
-          last_visited_at: string
-          tree_id: string
-          user_id: string
-        }
-        Insert: {
-          first_visited_at?: string
-          id?: string
-          individual_id: string
-          last_visited_at?: string
-          tree_id: string
-          user_id: string
-        }
-        Update: {
-          first_visited_at?: string
-          id?: string
-          individual_id?: string
-          last_visited_at?: string
-          tree_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ancestor_visits_individual_id_fkey"
-            columns: ["individual_id"]
-            isOneToOne: false
-            referencedRelation: "individuals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ancestor_visits_tree_id_fkey"
-            columns: ["tree_id"]
-            isOneToOne: false
-            referencedRelation: "trees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ancestor_notes: {
-        Row: {
-          content: string
-          created_at: string
-          id: string
-          individual_id: string
-          tree_id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          content: string
-          created_at?: string
-          id?: string
-          individual_id: string
-          tree_id: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          content?: string
-          created_at?: string
-          id?: string
-          individual_id?: string
-          tree_id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ancestor_notes_individual_id_fkey"
-            columns: ["individual_id"]
-            isOneToOne: false
-            referencedRelation: "individuals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ancestor_notes_tree_id_fkey"
-            columns: ["tree_id"]
-            isOneToOne: false
-            referencedRelation: "trees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      grave_captures: {
-        Row: {
-          accuracy_m: number | null
-          candidates: Json | null
-          captured_at: string
-          cemetery: string | null
-          created_at: string
-          divined: Json | null
-          heading: number | null
-          id: string
-          latitude: number | null
-          longitude: number | null
-          matched_individual_id: string | null
-          photo_paths: string[]
-          status: string
-          transcription: string | null
-          tree_id: string
-          user_id: string
-        }
-        Insert: {
-          accuracy_m?: number | null
-          candidates?: Json | null
-          captured_at?: string
-          cemetery?: string | null
-          created_at?: string
-          divined?: Json | null
-          heading?: number | null
-          id?: string
-          latitude?: number | null
-          longitude?: number | null
-          matched_individual_id?: string | null
-          photo_paths?: string[]
-          status?: string
-          transcription?: string | null
-          tree_id: string
-          user_id: string
-        }
-        Update: {
-          accuracy_m?: number | null
-          candidates?: Json | null
-          captured_at?: string
-          cemetery?: string | null
-          created_at?: string
-          divined?: Json | null
-          heading?: number | null
-          id?: string
-          latitude?: number | null
-          longitude?: number | null
-          matched_individual_id?: string | null
-          photo_paths?: string[]
-          status?: string
-          transcription?: string | null
-          tree_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "grave_captures_matched_individual_id_fkey"
-            columns: ["matched_individual_id"]
-            isOneToOne: false
-            referencedRelation: "individuals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "grave_captures_tree_id_fkey"
-            columns: ["tree_id"]
-            isOneToOne: false
-            referencedRelation: "trees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      grave_confirmations: {
-        Row: {
-          confirmed_at: string
-          id: string
-          individual_id: string
-          tree_id: string
-          url: string
-          user_id: string
-        }
-        Insert: {
-          confirmed_at?: string
-          id?: string
-          individual_id: string
-          tree_id: string
-          url: string
-          user_id: string
-        }
-        Update: {
-          confirmed_at?: string
-          id?: string
-          individual_id?: string
-          tree_id?: string
-          url?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "grave_confirmations_individual_id_fkey"
-            columns: ["individual_id"]
-            isOneToOne: false
-            referencedRelation: "individuals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "grave_confirmations_tree_id_fkey"
-            columns: ["tree_id"]
-            isOneToOne: false
-            referencedRelation: "trees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      corrections: {
-        Row: {
-          corrected_value: string
-          created_at: string
-          current_value: string | null
-          id: string
-          individual_id: string
-          note: string | null
-          resolved_at: string | null
-          snapshot_key: string | null
-          status: string
-          subject: string
-          tree_id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          corrected_value: string
-          created_at?: string
-          current_value?: string | null
-          id?: string
-          individual_id: string
-          note?: string | null
-          resolved_at?: string | null
-          snapshot_key?: string | null
-          status?: string
-          subject: string
-          tree_id: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          corrected_value?: string
-          created_at?: string
-          current_value?: string | null
-          id?: string
-          individual_id?: string
-          note?: string | null
-          resolved_at?: string | null
-          snapshot_key?: string | null
-          status?: string
-          subject?: string
-          tree_id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "corrections_individual_id_fkey"
-            columns: ["individual_id"]
-            isOneToOne: false
-            referencedRelation: "individuals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "corrections_tree_id_fkey"
-            columns: ["tree_id"]
-            isOneToOne: false
-            referencedRelation: "trees"
             referencedColumns: ["id"]
           },
         ]
@@ -702,6 +563,120 @@ export type Database = {
         }
         Relationships: []
       }
+      grave_captures: {
+        Row: {
+          accuracy_m: number | null
+          candidates: Json | null
+          captured_at: string
+          cemetery: string | null
+          created_at: string
+          divined: Json | null
+          heading: number | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          matched_individual_id: string | null
+          photo_paths: string[]
+          status: string
+          transcription: string | null
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          accuracy_m?: number | null
+          candidates?: Json | null
+          captured_at?: string
+          cemetery?: string | null
+          created_at?: string
+          divined?: Json | null
+          heading?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          matched_individual_id?: string | null
+          photo_paths?: string[]
+          status?: string
+          transcription?: string | null
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          accuracy_m?: number | null
+          candidates?: Json | null
+          captured_at?: string
+          cemetery?: string | null
+          created_at?: string
+          divined?: Json | null
+          heading?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          matched_individual_id?: string | null
+          photo_paths?: string[]
+          status?: string
+          transcription?: string | null
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grave_captures_matched_individual_id_fkey"
+            columns: ["matched_individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grave_captures_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grave_confirmations: {
+        Row: {
+          confirmed_at: string
+          id: string
+          individual_id: string
+          tree_id: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          confirmed_at?: string
+          id?: string
+          individual_id: string
+          tree_id: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          confirmed_at?: string
+          id?: string
+          individual_id?: string
+          tree_id?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grave_confirmations_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grave_confirmations_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       historical_events: {
         Row: {
           created_at: string
@@ -894,6 +869,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "individuals_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          expires_at: string
+          revoked_at: string | null
+          token: string
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          expires_at?: string
+          revoked_at?: string | null
+          token: string
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          expires_at?: string
+          revoked_at?: string | null
+          token?: string
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invites_tree_id_fkey"
             columns: ["tree_id"]
             isOneToOne: false
             referencedRelation: "trees"
@@ -1424,6 +1440,33 @@ export type Database = {
           },
         ]
       }
+      sanborn_place_cache: {
+        Row: {
+          city: string
+          edition_count: number
+          editions: Json
+          fetched_at: string
+          place_key: string
+          state: string
+        }
+        Insert: {
+          city: string
+          edition_count?: number
+          editions?: Json
+          fetched_at?: string
+          place_key: string
+          state: string
+        }
+        Update: {
+          city?: string
+          edition_count?: number
+          editions?: Json
+          fetched_at?: string
+          place_key?: string
+          state?: string
+        }
+        Relationships: []
+      }
       share_links: {
         Row: {
           created_at: string
@@ -1519,6 +1562,76 @@ export type Database = {
           },
         ]
       }
+      story_arcs: {
+        Row: {
+          ancestor_count: number | null
+          content: Json
+          created_at: string
+          founder_id: string
+          home_person_id: string | null
+          id: string
+          individual_count: number | null
+          input_tokens: number | null
+          model: string
+          output_tokens: number | null
+          prompt_version: number
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          ancestor_count?: number | null
+          content: Json
+          created_at?: string
+          founder_id: string
+          home_person_id?: string | null
+          id?: string
+          individual_count?: number | null
+          input_tokens?: number | null
+          model: string
+          output_tokens?: number | null
+          prompt_version?: number
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          ancestor_count?: number | null
+          content?: Json
+          created_at?: string
+          founder_id?: string
+          home_person_id?: string | null
+          id?: string
+          individual_count?: number | null
+          input_tokens?: number | null
+          model?: string
+          output_tokens?: number | null
+          prompt_version?: number
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_arcs_founder_id_fkey"
+            columns: ["founder_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_arcs_home_person_id_fkey"
+            columns: ["home_person_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_arcs_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tree_health_marks: {
         Row: {
           created_at: string
@@ -1571,6 +1684,107 @@ export type Database = {
           xref_key?: string
         }
         Relationships: []
+      }
+      tree_members: {
+        Row: {
+          display_name: string | null
+          home_person_id: string | null
+          invited_by: string
+          joined_at: string
+          rc_granted: boolean
+          role: string
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          display_name?: string | null
+          home_person_id?: string | null
+          invited_by: string
+          joined_at?: string
+          rc_granted?: boolean
+          role?: string
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          display_name?: string | null
+          home_person_id?: string | null
+          invited_by?: string
+          joined_at?: string
+          rc_granted?: boolean
+          role?: string
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_members_home_person_id_fkey"
+            columns: ["home_person_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_members_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tree_syntheses: {
+        Row: {
+          ancestor_count: number
+          content: Json
+          created_at: string
+          fact_count: number
+          id: string
+          individual_count: number
+          input_tokens: number | null
+          model: string
+          output_tokens: number | null
+          prompt_version: number
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          ancestor_count: number
+          content: Json
+          created_at?: string
+          fact_count: number
+          id?: string
+          individual_count: number
+          input_tokens?: number | null
+          model: string
+          output_tokens?: number | null
+          prompt_version?: number
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          ancestor_count?: number
+          content?: Json
+          created_at?: string
+          fact_count?: number
+          id?: string
+          individual_count?: number
+          input_tokens?: number | null
+          model?: string
+          output_tokens?: number | null
+          prompt_version?: number
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_syntheses_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trees: {
         Row: {
@@ -1662,23 +1876,26 @@ export type Database = {
         Returns: number
       }
       delete_tree_batch: { Args: { p_tree_id: string }; Returns: Json }
+      get_invite: { Args: { p_token: string }; Returns: Json }
       get_share: { Args: { p_token: string }; Returns: Json }
+      is_tree_owner: { Args: { p_tree_id: string }; Returns: boolean }
+      member_tree_ids: { Args: never; Returns: string[] }
       recount_tree: { Args: { p_tree_id: string }; Returns: Json }
       reuse_geocodes: { Args: { p_tree_id: string }; Returns: number }
       search_people: {
         Args: {
-          p_tree_id: string
-          p_query: string
           p_limit?: number
           p_offset?: number
+          p_query: string
+          p_tree_id: string
         }
         Returns: {
-          id: string
+          birth_year: number
+          death_year: number
           full_name: string
-          birth_year: number | null
-          death_year: number | null
+          id: string
           living: boolean
-          place: string | null
+          place: string
           total: number
         }[]
       }
@@ -1702,7 +1919,11 @@ export type Database = {
         | "after"
         | "between"
         | "unknown"
-      enrichment_type: "biography" | "historical_context" | "digest_note"
+      enrichment_type:
+        | "biography"
+        | "historical_context"
+        | "digest_note"
+        | "historical_context_decline"
       individual_event_type:
         | "birth"
         | "death"
@@ -1846,9 +2067,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       curiosity_type: [
@@ -1871,7 +2089,12 @@ export const Constants = {
         "between",
         "unknown",
       ],
-      enrichment_type: ["biography", "historical_context", "digest_note"],
+      enrichment_type: [
+        "biography",
+        "historical_context",
+        "digest_note",
+        "historical_context_decline",
+      ],
       individual_event_type: [
         "birth",
         "death",
@@ -1881,6 +2104,11 @@ export const Constants = {
         "occupation",
         "custom",
         "probate",
+        "census",
+        "baptism",
+        "immigration",
+        "emigration",
+        "naturalization",
       ],
       nara_candidate_status: ["pending", "confirmed", "dismissed"],
       passenger_candidate_status: ["pending", "confirmed", "dismissed"],

@@ -43,7 +43,11 @@ async function fetchRowsHealingInterruptedPrecompute(
   const { error } = await supabase.functions.invoke('compute-relationships', {
     body: { treeId },
   });
-  if (error) await setHomePerson(supabase, treeId, tree.home_person_id);
+  // The on-device fallback writes the tree's own pointer, which a member
+  // of a shared tree cannot (and should not) do — their pointer lives on
+  // their tree_members row and the function is the only writer. Swallow:
+  // labelless is the honest state until they pick who they are.
+  if (error) await setHomePerson(supabase, treeId, tree.home_person_id).catch(() => {});
   return fetchRelationshipRows(supabase, treeId);
 }
 

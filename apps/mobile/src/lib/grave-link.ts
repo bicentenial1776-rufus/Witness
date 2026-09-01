@@ -56,10 +56,16 @@ export function buildFindAGraveSearchUrl(input: {
 export async function fetchGraveConfirmation(
   individualId: string,
 ): Promise<GraveConfirmation | null> {
+  // The unique key is (user_id, individual_id) — per user, not per
+  // person. On a family-shared tree the owner's and a member's rows can
+  // coexist for one individual, and an unscoped maybeSingle() would
+  // error on the pair. This reads "MY confirmation", as it always has.
+  const { data: auth } = await supabase.auth.getSession();
   const { data } = await supabase
     .from('grave_confirmations')
     .select('url, confirmed_at')
     .eq('individual_id', individualId)
+    .eq('user_id', auth.session?.user.id ?? '')
     .maybeSingle();
   return data ?? null;
 }

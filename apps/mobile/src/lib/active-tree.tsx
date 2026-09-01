@@ -33,6 +33,7 @@ function treeListKey(userId: string): string {
 export interface TreeRow {
   id: string;
   name: string;
+  user_id: string;
   individual_count: number;
   family_count: number;
   place_count: number;
@@ -43,6 +44,10 @@ export interface TreeRow {
   home_person: { full_name: string } | null;
   /** Set when this tree arrived via GEDCOM Refresh — it inherits its history. */
   refreshed_from: string | null;
+  /** False for a tree shared with this account (family sharing): readable,
+      never writable — every destructive loop must check this. Derived at
+      fetch time; a pre-sharing saved list defaults to owned. */
+  owned: boolean;
 }
 
 interface ActiveTreeContextValue {
@@ -84,12 +89,21 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
   const homePersons = useRef(new Map<string, string | null>());
 
   const refresh = useCallback(async () => {
-    const { data, error } = await supabase
+    // Deliberately unfiltered (sharing phase 2): membership policies make
+    // this return trees SHARED with the account alongside its own, and
+    // the switcher is where a companion finds the family tree. Every row
+    // carries `owned` — the recount loop here and the delete loops in
+    // you.tsx / delete-account.tsx must only ever act on owned trees.
+    const { data: rawData, error } = await supabase
       .from('trees')
       .select(
-        'id, name, individual_count, family_count, place_count, imported_at, gedcom_path, gedcom_bytes, home_person_id, refreshed_from, home_person:individuals!trees_home_person_id_fkey(full_name)',
+        'id, name, user_id, individual_count, family_count, place_count, imported_at, gedcom_path, gedcom_bytes, home_person_id, refreshed_from, home_person:individuals!trees_home_person_id_fkey(full_name)',
       )
       .order('imported_at', { ascending: false });
+    const data: TreeRow[] = ((rawData ?? []) as unknown as Omit<TreeRow, 'owned'>[]).map((row) => ({
+      ...row,
+      owned: !row.user_id || row.user_id === userId,
+    }));
     if (error) {
       // Leave `trees` exactly as it was. Blanking it on a failed fetch made a
       // network blip indistinguishable from a deleted account: every screen
@@ -105,7 +119,13 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
         try {
           const stored = await AsyncStorage.getItem(treeListKey(userId));
           if (stored) {
-            setTrees((current) => current ?? (JSON.parse(stored) as TreeRow[]));
+            // A list saved before sharing existed has no `owned` — those
+            // trees are all the account's own.
+            const parsed = (JSON.parse(stored) as TreeRow[]).map((tree) => ({
+              ...tree,
+              owned: tree.owned ?? true,
+            }));
+            setTrees((current) => current ?? parsed);
           }
         } catch {
           // An unreadable saved list is just the pre-offline behavior.
@@ -164,10 +184,17 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
 
   // A remembered id can name a tree that has since been deleted — on this
   // device or another — so it only counts if it is still in the list.
+  // Absent a choice, the richest OWNED tree wins over any shared one (a
+  // subscriber's own import stays their default); a companion with no
+  // trees of their own falls through to the family tree naturally.
   const chosen = selectedId ? trees?.find((tree) => tree.id === selectedId) : undefined;
   const activeTree =
     chosen ??
-    (trees?.length ? [...trees].sort((a, b) => b.individual_count - a.individual_count)[0] : undefined);
+    (trees?.length
+      ? [...trees].sort(
+          (a, b) => Number(b.owned) - Number(a.owned) || b.individual_count - a.individual_count,
+        )[0]
+      : undefined);
 
   // Warm the active tree's index once per session (it's session-cached), so
   // the field copy on disk is as fresh as the last online launch — a

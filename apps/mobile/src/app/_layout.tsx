@@ -28,6 +28,7 @@ import {
   installNotificationHandler,
   useNotificationDeepLinks,
 } from '@/lib/notification-routing';
+import { consumePendingInvite } from '@/lib/family-sharing';
 import { NarrativeProvider, useNarrative } from '@/lib/narrative';
 import { consumePendingImportUri } from '@/lib/pending-import';
 import { PurchasesProvider, usePurchases } from '@/lib/purchases';
@@ -92,6 +93,18 @@ function RootNavigator() {
     return () => subscription.remove();
   }, [isLoading, isReady]);
 
+  // A family invite stashed before sign-up (join/[token] stashes it; the
+  // email-confirm detour would otherwise lose the destination): as soon as
+  // there's a session — entitled or not, /join is public — land back on
+  // the invitation. One-shot: consuming clears the stash.
+  const hasSession = Boolean(session);
+  useEffect(() => {
+    if (isLoading || !hasSession) return;
+    consumePendingInvite().then((token) => {
+      if (token) router.replace(`/join/${token}` as never);
+    });
+  }, [isLoading, hasSession]);
+
   if (isLoading) return null;
 
   // The gauntlet, reordered by the ux audit (batch 4): the transformation
@@ -134,6 +147,7 @@ function RootNavigator() {
           first declared screen becomes the router's initial route, and
           neither of these must ever be it. */}
       <Stack.Screen name="shared/[token]" />
+      <Stack.Screen name="join/[token]" />
       <Stack.Screen name="reset-password" />
     </Stack>
   );
