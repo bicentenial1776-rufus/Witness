@@ -222,6 +222,12 @@ export default function ImportGedcom() {
       });
       invalidateGeographyCache();
 
+      // Record matching (crossings + registers) starts immediately and
+      // fire-and-forget — the compute-relationships pattern. Candidates
+      // appear on Portraits as the worker lands them; the six-hourly
+      // sweep is the backstop if this call is lost.
+      supabase.functions.invoke('match-records', { body: { treeId } }).catch(() => {});
+
       // Keep the encrypted original. Deliberately after the import and
       // deliberately non-fatal: the tree is already in Witness and usable, and
       // failing the whole import over a backup copy would trade the thing the

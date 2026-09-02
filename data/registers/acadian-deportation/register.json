@@ -1,52 +1,174 @@
 {
   "register_key": "acadian-deportation",
-  "display_name": "Acadian Deportation (Grand-Pré, 1755)",
+  "display_name": "Acadian Deportation (1755–1758)",
   "variant": "A",
   "provenance_label": "From Deportation records (Grand-Pré, 1755)",
-  "coverage_caveat": "The Grand-Pré roll names the men and boys held before embarkation — wives, daughters, and the other districts are not in it yet. Pisiquid has no reliable list.",
+  "coverage_caveat": "Two records so far: Winslow’s Grand-Pré roll (the men held in 1755) and the 1752 La Roque census of Île Royale and Île Saint-Jean — the families the 1758 ships took. Other districts wait on further public-domain records; Pisiquid has no reliable list.",
   "status": "active",
   "config": {
     "exposure": {
       "dateWindows": [
-        { "from": 1600, "to": 1755, "weight": 1, "reason": "recorded before the Deportation" }
+        {
+          "from": 1600,
+          "to": 1755,
+          "weight": 1,
+          "reason": "recorded before the Deportation"
+        }
       ],
       "placeSignals": [
-        { "pattern": "acadi", "weight": 3, "reason": "a recorded Acadian place" },
-        { "pattern": "grand pré", "weight": 3, "reason": "recorded at Grand-Pré itself" },
-        { "pattern": "grand pre", "weight": 3, "reason": "recorded at Grand-Pré itself" },
-        { "pattern": "minas", "weight": 3, "reason": "recorded in the Minas country" },
-        { "pattern": "beaubassin", "weight": 3, "reason": "recorded at Beaubassin" },
-        { "pattern": "pisiquid", "weight": 3, "reason": "recorded at Pisiquid" },
-        { "pattern": "cobequid", "weight": 3, "reason": "recorded at Cobequid" },
-        { "pattern": "port royal", "weight": 3, "reason": "recorded at Port Royal" },
-        { "pattern": "nova scotia", "weight": 2, "reason": "a recorded Nova Scotia place" },
-        { "pattern": "louisiana", "weight": 2, "reason": "later recorded in Louisiana, where many exiles settled" },
-        { "pattern": "attakapas", "weight": 3, "reason": "later recorded in the Attakapas, an exile settlement" },
-        { "pattern": "opelousas", "weight": 3, "reason": "later recorded at Opelousas, an exile settlement" },
-        { "pattern": "saint-malo", "weight": 3, "reason": "later recorded at Saint-Malo, an exile port" },
-        { "pattern": "belle-ile", "weight": 3, "reason": "later recorded on Belle-Île, an exile settlement" },
-        { "pattern": "belle-île", "weight": 3, "reason": "later recorded on Belle-Île, an exile settlement" },
-        { "pattern": "miquelon", "weight": 3, "reason": "later recorded on Miquelon, an exile refuge" },
-        { "pattern": "cherbourg", "weight": 3, "reason": "later recorded at Cherbourg, an exile port" }
+        {
+          "pattern": "acadi",
+          "weight": 3,
+          "reason": "a recorded Acadian place"
+        },
+        {
+          "pattern": "grand pré",
+          "weight": 3,
+          "reason": "recorded at Grand-Pré itself"
+        },
+        {
+          "pattern": "grand pre",
+          "weight": 3,
+          "reason": "recorded at Grand-Pré itself"
+        },
+        {
+          "pattern": "minas",
+          "weight": 3,
+          "reason": "recorded in the Minas country"
+        },
+        {
+          "pattern": "beaubassin",
+          "weight": 3,
+          "reason": "recorded at Beaubassin"
+        },
+        {
+          "pattern": "pisiquid",
+          "weight": 3,
+          "reason": "recorded at Pisiquid"
+        },
+        {
+          "pattern": "cobequid",
+          "weight": 3,
+          "reason": "recorded at Cobequid"
+        },
+        {
+          "pattern": "port royal",
+          "weight": 3,
+          "reason": "recorded at Port Royal"
+        },
+        {
+          "pattern": "nova scotia",
+          "weight": 2,
+          "reason": "a recorded Nova Scotia place"
+        },
+        {
+          "pattern": "louisiana",
+          "weight": 2,
+          "reason": "later recorded in Louisiana, where many exiles settled"
+        },
+        {
+          "pattern": "attakapas",
+          "weight": 3,
+          "reason": "later recorded in the Attakapas, an exile settlement"
+        },
+        {
+          "pattern": "opelousas",
+          "weight": 3,
+          "reason": "later recorded at Opelousas, an exile settlement"
+        },
+        {
+          "pattern": "saint-malo",
+          "weight": 3,
+          "reason": "later recorded at Saint-Malo, an exile port"
+        },
+        {
+          "pattern": "belle-ile",
+          "weight": 3,
+          "reason": "later recorded on Belle-Île, an exile settlement"
+        },
+        {
+          "pattern": "belle-île",
+          "weight": 3,
+          "reason": "later recorded on Belle-Île, an exile settlement"
+        },
+        {
+          "pattern": "miquelon",
+          "weight": 3,
+          "reason": "later recorded on Miquelon, an exile refuge"
+        },
+        {
+          "pattern": "cherbourg",
+          "weight": 3,
+          "reason": "later recorded at Cherbourg, an exile port"
+        }
       ],
       "coincidenceBonus": 1,
       "surnames": {
         "list": [
-          "aucoin", "babin", "belliveau", "blanchard", "boudrot", "boudreau", "boudreaux",
-          "bourg", "bourque", "bourgeois", "breau", "breaux", "brun", "comeau", "comeaux",
-          "cormier", "daigre", "daigle", "doucet", "dugas", "dupuis", "gaudet", "gautrot",
-          "gautreaux", "girouard", "granger", "guilbeau", "hebert", "hébert", "landry",
-          "lanoue", "leblanc", "lejeune", "melanson", "melancon", "pellerin", "petitpas",
-          "poirier", "robichaud", "robichaux", "saulnier", "savoie", "terriot", "theriot",
-          "theriault", "thibodeau", "thibodeaux", "trahan"
+          "aucoin",
+          "babin",
+          "belliveau",
+          "blanchard",
+          "boudreau",
+          "boudreaux",
+          "boudrot",
+          "bourg",
+          "bourgeois",
+          "bourque",
+          "breau",
+          "breaux",
+          "brun",
+          "chiasson",
+          "comeau",
+          "comeaux",
+          "cormier",
+          "daigle",
+          "daigre",
+          "doiron",
+          "douaron",
+          "doucet",
+          "dugas",
+          "dupuis",
+          "forest",
+          "gaudet",
+          "gautreaux",
+          "gautrot",
+          "girouard",
+          "granger",
+          "guilbeau",
+          "hebert",
+          "hébert",
+          "landry",
+          "lanoue",
+          "leblanc",
+          "lejeune",
+          "melancon",
+          "melanson",
+          "pellerin",
+          "petitpas",
+          "poirier",
+          "robichaud",
+          "robichaux",
+          "saulnier",
+          "savoie",
+          "terriot",
+          "theriault",
+          "theriot",
+          "thibodeau",
+          "thibodeaux",
+          "trahan"
         ],
         "weight": 2,
         "reason": "a surname from the Acadian censuses (1671–1752)"
       },
       "threshold": 4
     },
-    "match": { "yearTolerance": 5, "yearConflict": 15, "maxCandidatesPerPerson": 5 },
+    "match": {
+      "yearTolerance": 5,
+      "yearConflict": 15,
+      "maxCandidatesPerPerson": 5
+    },
     "markerStyle": "deportation",
-    "explainer": "In the autumn of 1755, British and New England forces seized the Acadian settlements of Nova Scotia and deported their people — the Grand Dérangement. At Grand-Pré, Lieutenant-Colonel John Winslow summoned the men and boys into the parish church on 5 September, held them prisoner, and embarked them with their families through October; his journal preserves the roll of the men held. Families were scattered from Massachusetts to Georgia, and later to Louisiana and France. A name matching this roll is the beginning of a question, not proof of descent — the same names ran through every Acadian village."
+    "explainer": "Between 1755 and 1758 British forces deported the Acadian people from their settlements — the Grand Dérangement. At Grand-Pré, Colonel Winslow’s journal preserves the roll of men and boys held in the church before the October 1755 embarkations. On Île Royale and Île Saint-Jean, the Sieur de la Roque’s 1752 census recorded every family by name and age — the same families the 1758 ships carried away, among them the Duke William, lost with over 360 aboard. A name matching these records is the beginning of a question, not proof of descent."
   }
 }

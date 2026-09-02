@@ -28,7 +28,7 @@ import { ThemedText } from '@/components/themed-text';
 import { BrandFonts, WideContent, mono } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
-import { recordEditionPieces } from '@/lib/edition-ledger';
+import { pullRecordPiece, recordEditionPieces, type RecordPiece } from '@/lib/edition-ledger';
 import { layIssueTrail, openTrailPiece, type TrailPiece } from '@/lib/issue-trail';
 import { armDigestNotification } from '@/lib/digest-notifications';
 import { getFeaturedIds, getKinMap, type Kin } from '@/lib/relationship-cache';
@@ -100,6 +100,10 @@ export default function Home() {
   // "Findings first" doctrine (PROJECT_BRIEF.md): riding the pick that's
   // already made, rather than a new module of its own ("no new shelf").
   const [crossingFinding, setCrossingFinding] = useState<PassengerCandidate | null>(null);
+  // "From the records": one noticed crossing/register finding prints per
+  // edition — the ledger's notice→print loop, closed (the registers
+  // package's "findings that actually arrive").
+  const [recordPiece, setRecordPiece] = useState<RecordPiece | null>(null);
   const [arc, setArc] = useState<StoryArc | 'loading' | 'failed'>('loading');
   const [stage, setStage] = useState<FamilyStage | null>(null);
   const [naraCounts, setNaraCounts] = useState<NaraCounts | null>(null);
@@ -113,6 +117,23 @@ export default function Home() {
 
   // Today's issue — new at midnight, the seed for every module's pick.
   const issue = dailyIssueOf(new Date());
+
+  // The records slot: today's piece if one printed, else the oldest
+  // noticed finding takes it. Null days print nothing.
+  useEffect(() => {
+    if (!activeTree) return;
+    let cancelled = false;
+    setRecordPiece(null);
+    pullRecordPiece(activeTree.id, issue.key)
+      .then((piece) => {
+        if (!cancelled) setRecordPiece(piece);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTree?.id, issue.key]);
 
   // Today's line: cached after its first telling, so this is one cheap
   // function round-trip on every Home visit after the first of the day.
@@ -508,6 +529,51 @@ export default function Home() {
                       </Text>
                     )}
                     <Text style={{ ...mono(13, L.amber), marginTop: 4 }}>THEIR FULL STORY ›</Text>
+                  </Pressable>
+                </Feed>
+              )}
+
+              {/* From the records: the day's noticed crossing/register
+                  finding, printed once and stable all day. A question,
+                  never a claim — the verdict waits on the Portrait. */}
+              {recordPiece && (
+                <Feed eyebrow="From the records">
+                  <Pressable
+                    disabled={!recordPiece.subjectId}
+                    onPress={() =>
+                      recordPiece.subjectId &&
+                      router.push({
+                        pathname: '/ancestor/[id]',
+                        params: { id: recordPiece.subjectId },
+                      })
+                    }
+                    style={{
+                      borderWidth: 1,
+                      borderColor: L.rule,
+                      backgroundColor: L.raised,
+                      padding: 18,
+                      gap: 7,
+                      shadowColor: L.ink,
+                      shadowOpacity: 0.05,
+                      shadowRadius: 4,
+                      shadowOffset: { width: 0, height: 2 },
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: BrandFonts.serif.regular,
+                        fontSize: 17,
+                        lineHeight: 25,
+                        color: L.ink,
+                      }}
+                    >
+                      {recordPiece.sentence}
+                    </Text>
+                    {recordPiece.subjectId && (
+                      <Text style={{ ...mono(13, L.amber), marginTop: 2 }}>
+                        JUDGE IT ON THEIR PORTRAIT ›
+                      </Text>
+                    )}
                   </Pressable>
                 </Feed>
               )}
