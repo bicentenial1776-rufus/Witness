@@ -134,7 +134,9 @@ describe('seed data validation', () => {
     for (const row of rows) {
       expect(row[col('given')]!.trim()).not.toBe('');
       expect(row[col('surname')]!.trim()).not.toBe('');
-      expect(row[col('source')]).toContain('Winslow');
+      // Two record sets share the register: Winslow's roll and the 1752
+      // La Roque census — every row must cite one of them.
+      expect(row[col('source')]).toMatch(/Winslow|la Roque/);
       expect(row[col('finding_aid_url')]).toMatch(/^https:\/\//);
     }
   });
