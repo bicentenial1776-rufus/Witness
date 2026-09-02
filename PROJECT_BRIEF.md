@@ -464,6 +464,23 @@ The first real register (Variant A), per
    birthplace, destination-colony consistency against later events, and
    household-role age plausibility — each an explicit, plain-words reason.
 
+### Civil War Enrichment (register `cw-regiments` — Phase 0 locked; foundation built)
+
+Variant B, per `docs/witness-civil-war-prompt.md` on the framework:
+**regiment-first** — 1,593 Union units from Dyer's *Compendium* (1908, PD)
+seeded as entity records with verbatim service narratives; the 6.3M-name
+CWSS index, state rosters, and commercial sets are never ingested.
+Person-level links are **user-confirmed only** (exposure → prefilled
+FamilySearch Soldiers Index search, since CWSS verified to have no
+parameterized search → confirm), except a GEDCOM military event with a
+parseable unit string attaches its UNIT as `parsed_from_gedcom` — this
+tree has none (its military events are 1917 draft cards), so that path
+awaits trees that do. `parseUnitDesignation` (versioned unit-terms file)
+passes a 52-string gauntlet at 100%. Confederate coverage: NPS histories
+later, silence where thin, caveat on every card. Known-thin and tracked:
+engagement-event extraction (17 events on a 20-unit sample — needs its own
+pass before the map integration), the Add-unit picker, NPS battles.
+
 ---
 
 ## Features Explicitly Deferred
