@@ -420,6 +420,43 @@ Civil War → GLO patents → Loyalists → config-only additions (CEF WWI, Home
 Children, Grosse-Île, Filles du Roi). Every register's deep link is verified
 against the live target before it ships.
 
+### Acadian Deportation Records (register `acadian-deportation` — Phase 0, decisions locked)
+
+The first real register (Variant A), per
+`docs/witness-acadian-deportation-prompt.md` re-expressed on the framework:
+
+1. **Provenance.** The curated rows hold only facts attributable to
+   public-domain primary records of 1755–1764: Lt.-Col. Winslow's Grand-Pré
+   rolls (published in Nova Scotia Historical Society *Collections* III,
+   1883, PD) and colonial-government returns. acadian-home.org, acadian.org,
+   WikiTree's Acadians Project, and every modern compilation (Acadians in
+   Gray included) are finding aids and deep-link targets only. Stephen
+   White's *Dictionnaire* is never ingested.
+2. **Scope for v1, amended by the source survey.** Grand-Pré (Winslow's
+   lists, Sept–Oct 1755) seeds fully — the list survives with heads of
+   family, family sizes, and home villages. For the seven Chignectou ships
+   to South Carolina/Georgia, named EMBARKATION returns largely do not
+   survive; person rows are seeded only where a PD primary record (South
+   Carolina council/assembly returns) actually names someone, and otherwise
+   the ships enter as voyage-context only. Pisiquid stays out — no reliable
+   list exists. Widening is a data change, per the framework.
+3. **Match semantics.** Candidates only; the user confirms on the Portrait
+   card ("curiosities, not verdicts"). No auto-linking.
+4. **Narrative.** Confirmed links feed the sourced tier as "From Deportation
+   records (Grand-Pré, 1755)" / "(Chignectou–Carolinas, 1755)". Candidates
+   never appear in prose. Aggregate counts may join Tree Health as a
+   research-queue check; per-candidate verdicts stay on the Portrait, per
+   the framework's correction of the original prompt.
+5. **Names.** A deterministic `acadianNames` normalizer (dit-names, spelling
+   variants, French/English given-name equivalents) backed by a versioned
+   variant data file in `data/registers/acadian-deportation/` — a first
+   pass, expected to be tuned. The Acadian surname roster derives from the
+   PD censuses (1671–1752), not from any secondary site.
+6. **Match signals beyond the framework's core** (the register's plugin, the
+   framework's first): origin-settlement consistency against GEDCOM
+   birthplace, destination-colony consistency against later events, and
+   household-role age plausibility — each an explicit, plain-words reason.
+
 ---
 
 ## Features Explicitly Deferred
