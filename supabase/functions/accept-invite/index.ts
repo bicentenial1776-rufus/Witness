@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
 
   const { data: invite, error: inviteError } = await ctx.admin
     .from('invites')
-    .select('token, tree_id, user_id, expires_at, accepted_at, revoked_at')
+    .select('token, tree_id, user_id, expires_at, accepted_at, revoked_at, invited_name')
     .eq('token', token)
     .maybeSingle();
   if (inviteError) return json(500, { error: inviteError.message });
@@ -109,7 +109,11 @@ Deno.serve(async (req) => {
   const { error: insertError } = await ctx.admin.from('tree_members').insert({
     tree_id: invite.tree_id,
     user_id: ctx.userId,
-    display_name: name,
+    // The join flow sends no name — the invitation already knows who it
+    // was for, so the seat inherits it (Rufus, 2026-09-02: an accepted
+    // member showed as "A family member" while her email sat on the
+    // spent invite).
+    display_name: name ?? invite.invited_name ?? null,
     rc_granted: needsGrant,
     invited_by: ownerId,
   });
