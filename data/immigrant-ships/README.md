@@ -76,7 +76,18 @@ npx tsx scripts/match-passengers.ts --gedcom "fixtures/Howe_Field Family Tree.ge
 
 # From the live tree — needs .env, like the other live scripts
 npx tsx scripts/match-passengers.ts --tree <treeId> --min probable --csv candidates.csv
+
+# Same, but also persist candidates for the Portrait's Crossing card
+npx tsx scripts/match-passengers.ts --tree <treeId> --min probable --write
 ```
+
+`--write` upserts into `passenger_candidates` (see
+`supabase/migrations/20260830090000_passenger_candidates.sql`) as the
+signed-in tree owner. Re-running is safe: a candidate someone has already
+confirmed or dismissed on the Portrait is left alone; only pending rows
+get refreshed. There is no worker running this on a schedule yet (unlike
+`nara-enrich`) — matching is fast and deterministic, so a manual re-run
+after every import is enough for now.
 
 ### How a match is decided
 

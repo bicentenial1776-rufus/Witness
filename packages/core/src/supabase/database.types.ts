@@ -1128,6 +1128,87 @@ export type Database = {
         }
         Relationships: []
       }
+      passenger_candidates: {
+        Row: {
+          arrival_place: string | null
+          arrival_year: number
+          confidence: string
+          created_at: string
+          departure_port: string | null
+          id: string
+          individual_id: string
+          passenger_birth_year: number | null
+          passenger_death_year: number | null
+          passenger_id: string
+          passenger_name: string
+          reasons: string[]
+          resolved_at: string | null
+          ship: string
+          source: string
+          status: Database["public"]["Enums"]["passenger_candidate_status"]
+          tree_id: string
+          user_id: string
+          voyage_id: string
+        }
+        Insert: {
+          arrival_place?: string | null
+          arrival_year: number
+          confidence: string
+          created_at?: string
+          departure_port?: string | null
+          id?: string
+          individual_id: string
+          passenger_birth_year?: number | null
+          passenger_death_year?: number | null
+          passenger_id: string
+          passenger_name: string
+          reasons?: string[]
+          resolved_at?: string | null
+          ship: string
+          source: string
+          status?: Database["public"]["Enums"]["passenger_candidate_status"]
+          tree_id: string
+          user_id: string
+          voyage_id: string
+        }
+        Update: {
+          arrival_place?: string | null
+          arrival_year?: number
+          confidence?: string
+          created_at?: string
+          departure_port?: string | null
+          id?: string
+          individual_id?: string
+          passenger_birth_year?: number | null
+          passenger_death_year?: number | null
+          passenger_id?: string
+          passenger_name?: string
+          reasons?: string[]
+          resolved_at?: string | null
+          ship?: string
+          source?: string
+          status?: Database["public"]["Enums"]["passenger_candidate_status"]
+          tree_id?: string
+          user_id?: string
+          voyage_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passenger_candidates_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passenger_candidates_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       places: {
         Row: {
           geocoded_at: string | null
@@ -1858,6 +1939,7 @@ export type Database = {
         | "emigration"
         | "naturalization"
       nara_candidate_status: "pending" | "confirmed" | "dismissed"
+      passenger_candidate_status: "pending" | "confirmed" | "dismissed"
       research_brief_status: "open" | "in_progress" | "resolved" | "archived"
       sex_type: "M" | "F" | "U"
     }
@@ -2029,6 +2111,7 @@ export const Constants = {
         "naturalization",
       ],
       nara_candidate_status: ["pending", "confirmed", "dismissed"],
+      passenger_candidate_status: ["pending", "confirmed", "dismissed"],
       research_brief_status: ["open", "in_progress", "resolved", "archived"],
       sex_type: ["M", "F", "U"],
     },

@@ -5,7 +5,12 @@
 // Usage:
 //   npx tsx scripts/match-passengers.ts --gedcom "fixtures/Howe_Field Family Tree.ged"
 //   npx tsx scripts/match-passengers.ts --tree <treeId>
-//   ... [--min weak|probable|strong] [--csv out.csv] [--dataset <file>]
+//   ... [--min weak|probable|strong] [--csv out.csv] [--dataset <file>] [--write]
+//
+// --write requires --tree (candidates are anchored to real individual ids)
+// and upserts into passenger_candidates as the signed-in tree owner, so the
+// Portrait's Crossing card has something to show. Existing rows keep their
+// status (confirmed/dismissed survive a re-run); only pending rows change.
 //
 // Nothing here decides that an ancestor sailed. It reports which people
 // in the tree are worth checking against a passenger list, and why.
@@ -36,9 +41,14 @@ const treeId = flag('--tree');
 const minimumConfidence = (flag('--min') ?? 'probable') as MatchConfidence;
 const csvOut = flag('--csv');
 const datasetPath = flag('--dataset') ?? DATASET;
+const writeFlag = argv.includes('--write');
 
 if (!gedcomPath && !treeId) {
   console.error('Give either --gedcom <file> or --tree <treeId>.');
+  process.exit(1);
+}
+if (writeFlag && !treeId) {
+  console.error('--write needs --tree — candidates are anchored to real individual ids.');
   process.exit(1);
 }
 
@@ -54,6 +64,12 @@ if (!dataset.passengers.length) {
   console.error('The dataset holds no passengers yet — see data/immigrant-ships/README.md.');
   process.exit(1);
 }
+
+// When reading from Supabase (not a GEDCOM file), the signed-in client and
+// user id are kept around for --write — the same authenticated session,
+// no separate service-role path.
+let liveClient: Awaited<ReturnType<typeof import('../src/supabase/client.js').createWitnessClient>> | null = null;
+let liveUserId: string | null = null;
 
 async function loadIndividuals(): Promise<MatchableIndividual[]> {
   if (gedcomPath) {
@@ -71,7 +87,7 @@ async function loadIndividuals(): Promise<MatchableIndividual[]> {
     requireEnv('EXPO_PUBLIC_SUPABASE_URL'),
     requireEnv('EXPO_PUBLIC_SUPABASE_ANON_KEY'),
   );
-  const { error: signInError } = await client.auth.signInWithPassword({
+  const { data: signInData, error: signInError } = await client.auth.signInWithPassword({
     email: requireEnv('WITNESS_TEST_USER_EMAIL'),
     password: requireEnv('WITNESS_TEST_USER_PASSWORD'),
   });
@@ -79,6 +95,8 @@ async function loadIndividuals(): Promise<MatchableIndividual[]> {
     console.error('Sign in failed:', signInError.message);
     process.exit(1);
   }
+  liveClient = client;
+  liveUserId = signInData.user?.id ?? null;
   const people: MatchableIndividual[] = [];
   const PAGE = 1000;
   for (let from = 0; ; from += PAGE) {
@@ -128,6 +146,61 @@ for (const [voyageId, list] of byVoyage) {
     for (const reason of c.reasons) console.log(`              · ${reason}`);
   }
   console.log('');
+}
+
+if (writeFlag) {
+  const client = liveClient!;
+  const userId = liveUserId!;
+  if (!userId) {
+    console.error('Could not resolve the signed-in user id — nothing written.');
+    process.exit(1);
+  }
+
+  // Confirmed/dismissed rows are a human verdict; a re-run must never
+  // clobber one, so they are excluded from the upsert payload entirely.
+  const { data: resolved, error: resolvedError } = await client
+    .from('passenger_candidates')
+    .select('individual_id, passenger_id')
+    .eq('tree_id', treeId!)
+    .neq('status', 'pending');
+  if (resolvedError) {
+    console.error('Checking existing candidates failed:', resolvedError.message);
+    process.exit(1);
+  }
+  const resolvedKeys = new Set((resolved ?? []).map((r) => `${r.individual_id}:${r.passenger_id}`));
+
+  const rows = candidates
+    .filter((c) => !resolvedKeys.has(`${c.individual.id}:${c.passenger.id}`))
+    .map((c) => ({
+      tree_id: treeId!,
+      user_id: userId,
+      individual_id: c.individual.id,
+      voyage_id: c.voyage.id,
+      passenger_id: c.passenger.id,
+      ship: c.voyage.ship,
+      arrival_year: c.voyage.arrivalYear,
+      departure_port: c.voyage.departurePort ?? null,
+      arrival_place: c.voyage.arrivalPlace ?? null,
+      passenger_name: c.passenger.fullName,
+      passenger_birth_year: c.passenger.birthYear,
+      passenger_death_year: c.passenger.deathYear,
+      source: c.passenger.source,
+      confidence: c.confidence,
+      reasons: c.reasons,
+    }));
+
+  if (rows.length === 0) {
+    console.log('Nothing new to write — every candidate is already confirmed or dismissed.');
+  } else {
+    const { error: writeError } = await client
+      .from('passenger_candidates')
+      .upsert(rows, { onConflict: 'individual_id,passenger_id' });
+    if (writeError) {
+      console.error('Writing candidates failed:', writeError.message);
+      process.exit(1);
+    }
+    console.log(`Wrote ${rows.length} candidate${rows.length === 1 ? '' : 's'} to passenger_candidates.`);
+  }
 }
 
 if (csvOut) {
