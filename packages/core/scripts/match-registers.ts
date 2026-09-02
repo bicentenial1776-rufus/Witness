@@ -17,13 +17,20 @@ import { createClient } from '@supabase/supabase-js';
 import { WebSocket as NodeWebSocket } from 'ws';
 
 import { fromRegisterCandidate } from '../src/findings/index.js';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import {
   fetchActiveRegisters,
   fetchRegisterRecords,
+  makeAcadianPlugin,
   matchRegisterRecords,
   scoreExposure,
+  type AcadianNameVariants,
   type RegisterMatchCandidate,
   type RegisterMatchConfidence,
+  type RegisterMatchPlugin,
   type RegisterPersonFacts,
 } from '../src/registers/index.js';
 import { loadEnv, requireEnv } from './env.js';
@@ -45,6 +52,20 @@ if (!treeId) {
 }
 
 const RANK: Record<RegisterMatchConfidence, number> = { strong: 0, probable: 1, weak: 2 };
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../../..');
+
+/** Per-register code plugins — the framework's escape hatch. Variant
+    tables are versioned data files under data/registers/<key>/. */
+function pluginFor(registerKey: string): RegisterMatchPlugin {
+  if (registerKey === 'acadian-deportation') {
+    const variants = JSON.parse(
+      readFileSync(join(repoRoot, 'data/registers/acadian-deportation/name-variants.json'), 'utf8'),
+    ) as AcadianNameVariants;
+    return makeAcadianPlugin(variants);
+  }
+  return {};
+}
 
 async function loadPeople(
   client: ReturnType<typeof createClient>,
@@ -131,7 +152,12 @@ async function main() {
     let candidates: RegisterMatchCandidate[] = [];
     if (register.variant === 'A') {
       const records = await fetchRegisterRecords(client as never, register.registerKey);
-      candidates = matchRegisterRecords(records, exposed, register.config.match).filter(
+      candidates = matchRegisterRecords(
+        records,
+        exposed,
+        register.config.match,
+        pluginFor(register.registerKey),
+      ).filter(
         (c) => RANK[c.confidence] <= RANK[minimum],
       );
     }

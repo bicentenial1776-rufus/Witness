@@ -29,22 +29,50 @@ function numeric(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+/**
+ * A register's code plugin — the escape hatch for signals config cannot
+ * express. Normalizers fold period spelling and cross-language variants
+ * into canonical forms before any comparison (both sides pass through);
+ * extraSignals judges a pairing on register-specific facts — an origin
+ * settlement against a birthplace, a destination colony against later
+ * events — and may promote its confidence one step, or veto it, always
+ * with plain-words reasons.
+ */
+export interface RegisterMatchPlugin {
+  normalizeGiven?: (name: string) => string;
+  normalizeSurname?: (name: string) => string;
+  extraSignals?: (
+    person: RegisterPersonFacts,
+    record: RegisterRecord,
+  ) => { reasons: string[]; promote?: boolean; veto?: boolean };
+}
+
+const PROMOTE: Record<RegisterMatchConfidence, RegisterMatchConfidence> = {
+  weak: 'probable',
+  probable: 'strong',
+  strong: 'strong',
+};
+
 export function matchRegisterRecords(
   records: readonly RegisterRecord[],
   people: readonly RegisterPersonFacts[],
   config: MatchConfig = {},
+  plugin: RegisterMatchPlugin = {},
 ): RegisterMatchCandidate[] {
   const tolerance = config.yearTolerance ?? DEFAULT_TOLERANCE;
   const conflict = config.yearConflict ?? DEFAULT_CONFLICT;
   const cap = config.maxCandidatesPerPerson ?? DEFAULT_CAP;
+  const canonGiven = plugin.normalizeGiven ?? ((n: string) => n);
+  const canonSurname = plugin.normalizeSurname ?? ((n: string) => n);
 
   // Surname soundex buckets, the passengers strategy: cost is bucket
-  // size, not records × people.
+  // size, not records × people. Bucketing runs on the CANONICAL surname
+  // so a plugin's variants land together.
   const buckets = new Map<string, RegisterRecord[]>();
   for (const record of records) {
     if (record.recordKind !== 'person') continue;
     const surname = record.surnameNormalized ?? splitName(record.nameAsRecorded).surname;
-    const key = soundex(normalizeNamePart(surname));
+    const key = soundex(normalizeNamePart(canonSurname(surname)));
     if (!key) continue;
     const bucket = buckets.get(key);
     if (bucket) bucket.push(record);
@@ -54,7 +82,7 @@ export function matchRegisterRecords(
   const candidates: RegisterMatchCandidate[] = [];
   for (const person of people) {
     const { givenNames: given, surname } = splitName(person.fullName);
-    const key = soundex(normalizeNamePart(surname));
+    const key = soundex(normalizeNamePart(canonSurname(surname)));
     const bucket = key ? buckets.get(key) : undefined;
     if (!bucket) continue;
 
@@ -62,13 +90,14 @@ export function matchRegisterRecords(
     for (const record of bucket) {
       const recordGiven = record.givenNormalized ?? splitName(record.nameAsRecorded).givenNames;
       const recordSurname = record.surnameNormalized ?? splitName(record.nameAsRecorded).surname;
-      const givenNorm = normalizeNamePart(given);
-      const recordGivenNorm = normalizeNamePart(recordGiven);
+      const givenNorm = normalizeNamePart(canonGiven(given));
+      const recordGivenNorm = normalizeNamePart(canonGiven(recordGiven));
       if (!givenNorm || !recordGivenNorm) continue;
       const givenExact = givenNorm === recordGivenNorm;
       const givenSound = soundex(givenNorm) === soundex(recordGivenNorm);
       if (!givenExact && !givenSound) continue;
-      const surnameExact = normalizeNamePart(surname) === normalizeNamePart(recordSurname);
+      const surnameExact =
+        normalizeNamePart(canonSurname(surname)) === normalizeNamePart(canonSurname(recordSurname));
 
       const reasons: string[] = [];
       const nameExact = givenExact && surnameExact;
@@ -114,6 +143,13 @@ export function matchRegisterRecords(
       if (nameExact && yearAgrees) confidence = 'strong';
       else if (yearAgrees || (nameExact && aliveWindow)) confidence = 'probable';
       else confidence = 'weak';
+
+      if (plugin.extraSignals) {
+        const extra = plugin.extraSignals(person, record);
+        if (extra.veto) continue;
+        reasons.push(...extra.reasons);
+        if (extra.promote && extra.reasons.length > 0) confidence = PROMOTE[confidence];
+      }
 
       personCandidates.push({ person, record, confidence, reasons });
     }

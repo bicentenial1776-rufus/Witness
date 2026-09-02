@@ -49,6 +49,14 @@ export async function confirmRegisterLink(
   }
 
   await setRegisterLinkStatus(supabase, link.id, 'confirmed');
+
+  // The person's cached "world" narrative predates this confirmation —
+  // clear it so the next open regenerates with the record woven in.
+  await supabase
+    .from('enrichment_cache')
+    .delete()
+    .eq('individual_id', link.individualId)
+    .eq('enrichment_type', 'historical_context');
 }
 
 export async function dismissRegisterLink(linkId: string): Promise<void> {

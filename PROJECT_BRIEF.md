@@ -425,13 +425,20 @@ against the live target before it ships.
 The first real register (Variant A), per
 `docs/witness-acadian-deportation-prompt.md` re-expressed on the framework:
 
-1. **Provenance.** The curated rows hold only facts attributable to
-   public-domain primary records of 1755–1764: Lt.-Col. Winslow's Grand-Pré
-   rolls (published in Nova Scotia Historical Society *Collections* III,
-   1883, PD) and colonial-government returns. acadian-home.org, acadian.org,
-   WikiTree's Acadians Project, and every modern compilation (Acadians in
-   Gray included) are finding aids and deep-link targets only. Stephen
-   White's *Dictionnaire* is never ingested.
+1. **Provenance (amended 2026-09-02, Rufus's call after the source
+   survey).** The curated rows hold only facts attributable to public-domain
+   primary records of 1755–1764. The Grand-Pré roll was never printed in a
+   pre-copyright edition (the NSHS *Collections* print of Winslow's journal
+   carries the narrative and letters, not the name roll), so the register
+   takes the **facts-not-expression** posture already shipped for the Ark &
+   Dove: bare facts of the PD 1755 record (name, village, household counts)
+   are taken from accessible reproductions, never their annotations or
+   identifications, and every row cites BOTH the original record (Winslow's
+   returns, Oct 1755, Massachusetts Historical Society manuscript) and the
+   finding aid used to reach it. acadian-home.org, acadian.org, WikiTree's
+   Acadians Project, and every modern compilation (Acadians in Gray
+   included) remain finding aids and deep-link targets; Stephen White's
+   *Dictionnaire* is never ingested.
 2. **Scope for v1, amended by the source survey.** Grand-Pré (Winslow's
    lists, Sept–Oct 1755) seeds fully — the list survives with heads of
    family, family sizes, and home villages. For the seven Chignectou ships
