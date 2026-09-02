@@ -95,11 +95,16 @@ Deno.serve(async (req) => {
   }
   if (ownerPlan.unknown) console.error('accept-invite: owner entitlement unknown — proceeding');
 
-  // Someone already entitled on their own — a comp, or their own
+  // Someone already entitled on their own — a comp, or their own paid
   // subscription — takes the seat without a grant, and removal will
-  // never touch what the seat didn't create.
+  // never touch what the seat didn't create. A store TRIAL is the
+  // exception: they only started it because the paywall gave no other
+  // way in, so the seat's grant stacks on top — cancel the trial and
+  // the seat still carries them, instead of the trial converting into
+  // a bill for what should be a free seat.
   const memberState = await getEntitlement(ctx.userId);
-  const needsGrant = !memberState.active;
+  const trialCovered = memberState.active && memberState.periodType === 'trial';
+  const needsGrant = !memberState.active || trialCovered;
 
   const { error: insertError } = await ctx.admin.from('tree_members').insert({
     tree_id: invite.tree_id,
@@ -130,5 +135,5 @@ Deno.serve(async (req) => {
     .update({ accepted_by: ctx.userId, accepted_at: new Date().toISOString() })
     .eq('token', token);
 
-  return json(200, { ok: true, treeId: tree.id, treeName: tree.name, granted: needsGrant });
+  return json(200, { ok: true, treeId: tree.id, treeName: tree.name, granted: needsGrant, trialCovered });
 });

@@ -104,6 +104,9 @@ export interface AcceptResult {
   treeId: string;
   treeName: string;
   alreadyMember?: boolean;
+  /** The seat was granted over a running store trial — the member can
+      cancel that trial without losing access. */
+  trialCovered?: boolean;
 }
 
 export async function acceptInvite(t: string, displayName?: string): Promise<AcceptResult> {
@@ -156,6 +159,17 @@ export async function stashPendingInvite(t: string): Promise<void> {
   try {
     await AsyncStorage.setItem(PENDING_INVITE_KEY, t);
   } catch {}
+}
+
+/** Read the stash without spending it — sign-up needs to know whether an
+    invite is waiting so the email-confirmation page can carry it. */
+export async function peekPendingInvite(): Promise<string | null> {
+  try {
+    const t = await AsyncStorage.getItem(PENDING_INVITE_KEY);
+    return t && /^[0-9a-f]{32}$/.test(t) ? t : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function consumePendingInvite(): Promise<string | null> {

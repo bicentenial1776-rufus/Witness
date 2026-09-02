@@ -166,6 +166,13 @@ export default function Paywall() {
           >
             {isRestoring ? 'Restoring…' : 'Restore Purchase'}
           </ThemedText>
+          {/* The one non-purchase way in that isn't an account problem: a
+              family seat. Without this line a binary-first invitee has no
+              hint their invitation IS the way past this screen — some have
+              started trials for seats that were already free. */}
+          <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
+            Holding a family invitation? Open the invite link on this device — your seat is free.
+          </ThemedText>
           {/* Two ways out that aren't a purchase: an account mismatch (wrong
               email, shared computer, a test account) needs a way back to
               sign-in, and someone done with Witness entirely must be able to
