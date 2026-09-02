@@ -212,3 +212,53 @@ are parked here until their capability exists:
 
 (Considered and rejected outright, not parked: a "% traced" completeness metric — dropped
 by Rufus 2026-07-25.)
+
+---
+
+## Generational Line History (re-read and share past lines)
+
+**Added:** September 2026, from Rufus fleshing out the daily-line story
+(deliberately unbuilt — no user has asked yet; expected to surface within a
+month of family-sharing seats being taken, as "what was that line from
+Tuesday?").
+
+Home shows one founder-to-reader line per UTC day, picked by
+`founders[dayNumber % pool]` (~1,003 founders on the Howe/Field tree ≈ 2¾
+years per cycle, reshuffling whenever the tree changes). A 3×-a-week reader
+never sees ~57% of lines. The idea: let the reader reach back to a past
+line, re-read it, and share it.
+
+**What already exists (more than expected):**
+- Arcs are cached server-side per founder forever — the nightly warmer
+  means the "archive" accretes today as a side effect.
+- Rebuild-on-refreshed-GEDCOM is already the caching contract (staleness
+  signals: home person, individual count, ancestor count → retold on first
+  sight). A history view needs no new rebuild machinery.
+
+**The sticky parts (found in advance):**
+1. **Identity across re-imports.** Arc rows key on founder row ids, which
+   are reassigned every refresh — the history's unit must be
+   *(day, founder gedcom_xref)*, prose retold on demand (the corrections
+   lesson: stable fact keys, never row ids). Never store old prose as the
+   record.
+2. **Disqualified lines.** A correction can remove a founder from the pool
+   (gains parents, drops below depth 6). Latent bug: generate-story-arc
+   silently falls back to today's pick when given an unknown founderId — a
+   history needs an honest "this line no longer runs — a correction changed
+   it," which is the *good* outcome (the history records the tree getting
+   truer).
+3. **Sharing truncation.** Lines run founder-to-reader; nothing shareable
+   may include a living person, so a shared line truncates at the last
+   deceased generation. share_links handles mechanics; truncation is the
+   design call.
+
+**The cheap ladder (build only as demand appears):**
+1. Share button on *today's* line (likely the actual first ask) with
+   living-generation truncation.
+2. "Yesterday's line ›" — nearly free; any past day's pick is computable
+   from the modulo while the pool is unchanged.
+3. Only if readers reach past yesterday: a read-marks table
+   (day + founder xref, the ancestor_visits pattern) as the durable
+   personal history that survives pool reshuffles. This is also the
+   substrate for a drained per-reader rotation ("next unread line ›") if
+   cadence-independence is ever wanted.
