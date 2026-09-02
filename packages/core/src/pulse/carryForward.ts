@@ -314,6 +314,7 @@ export function planMarksCarry(
 export function carryCostWarning(counts: {
   strandedBriefs: number;
   strandedArchiveVerdicts: number;
+  strandedCrossingVerdicts?: number;
   strandedBackIssues?: number;
   strandedMarks?: number;
   strandedShareLinks?: number;
@@ -331,6 +332,13 @@ export function carryCostWarning(counts: {
     parts.push(
       `${counts.strandedArchiveVerdicts} archive ${
         counts.strandedArchiveVerdicts === 1 ? 'verdict' : 'verdicts'
+      }`,
+    );
+  }
+  if ((counts.strandedCrossingVerdicts ?? 0) > 0) {
+    parts.push(
+      `${counts.strandedCrossingVerdicts} crossing ${
+        counts.strandedCrossingVerdicts === 1 ? 'verdict' : 'verdicts'
       }`,
     );
   }
