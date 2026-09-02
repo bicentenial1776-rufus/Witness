@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
@@ -60,8 +61,18 @@ export function PassengerCandidateCard({
   return (
     <Card style={{ marginBottom: 8 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <ThemedText type="smallBold">
-          {candidate.ship}, {candidate.arrivalYear}
+        <ThemedText
+          type="smallBold"
+          onPress={() =>
+            router.push({
+              pathname: '/voyage/[voyageId]',
+              params: { voyageId: candidate.voyageId, treeId: candidate.treeId },
+            })
+          }
+          accessibilityRole="button"
+          accessibilityLabel={`The ${candidate.ship}, ${candidate.arrivalYear} — see everyone of yours aboard`}
+        >
+          {candidate.ship}, {candidate.arrivalYear} ›
         </ThemedText>
         <ExplainerDot
           title={`The ${candidate.ship}, ${candidate.arrivalYear}`}

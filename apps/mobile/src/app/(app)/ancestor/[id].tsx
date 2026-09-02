@@ -1643,8 +1643,15 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           )}
           {shipBadge && (
             <>
-              <View
-                accessibilityLabel={`Sailed on the ${shipBadge.ship}, ${shipBadge.arrivalYear}`}
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: '/voyage/[voyageId]',
+                    params: { voyageId: shipBadge.voyageId, treeId: person.tree_id },
+                  })
+                }
+                accessibilityRole="button"
+                accessibilityLabel={`Sailed on the ${shipBadge.ship}, ${shipBadge.arrivalYear} — see everyone of yours aboard`}
                 style={{
                   borderWidth: 1,
                   borderColor: theme.accent,
@@ -1656,7 +1663,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 <Text style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}>
                   ⛵ {shipBadge.ship}, {shipBadge.arrivalYear}
                 </Text>
-              </View>
+              </Pressable>
               <ExplainerDot
                 title={`The ${shipBadge.ship}, ${shipBadge.arrivalYear}`}
                 text={voyageExplainer({

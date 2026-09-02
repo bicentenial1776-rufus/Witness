@@ -262,3 +262,33 @@ line, re-read it, and share it.
    personal history that survives pool reshuffles. This is also the
    substrate for a drained per-reader rotation ("next unread line ›") if
    cadence-independence is ever wanted.
+
+---
+
+## Ask a Real Question (Explore question-answering)
+
+**Added:** September 2026, after Rufus asked Explore a natural-language
+question and got "Nothing matches." The feature is honest-by-design — a
+question NOTEBOOK wired to keyword search, on-device only, no AI anywhere
+(saved-questions.ts) — but the old label said "Ask your own question" and
+set up an answer. The label was fixed to match the behavior; these are the
+two rungs above it, to build "when it's time" (Rufus, 2026-09-02):
+
+1. **Deterministic extraction** (small, no AI): pull proper nouns and
+   years out of the sentence and run THOSE through the existing engines —
+   "who was the first Howe in Vermont?" → searches Howe + Vermont. A
+   tokenizer + capitalization/roster heuristics; no cost, no guardrail
+   questions, meaningfully better than phrase-matching.
+2. **Question routing** (a real feature): an edge function that maps a
+   question onto the query engines the app already has (temporal
+   aliveDuring, geographic, structure, kindred) and returns real results —
+   the thing the paywall's "Ask any temporal query" bullet gestures at.
+   Needs its own design pass: model choice, cost ceiling per question,
+   decline behavior (silence over guessing), and what happens to questions
+   no engine can serve (they stay in the notebook — that part already
+   works).
+
+Guardrails today, for the record: nothing leaves the device except the
+tree-scoped keyword RPC; saved questions never sync; there is no model
+call. Any rung above keeps the notebook semantics — a question that can't
+be answered yet is kept, not lost.

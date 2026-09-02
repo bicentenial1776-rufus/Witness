@@ -384,7 +384,7 @@ export default function ExploreTab() {
               {/* Your own questions: asked through the ordinary search,
                   kept on this device for the next visit. */}
               <TextField
-                placeholder="Ask your own question — kept on this device"
+                placeholder="Keep a question to ask again — search runs on names, places & moments"
                 value={questionDraft}
                 onChangeText={setQuestionDraft}
                 returnKeyType="search"

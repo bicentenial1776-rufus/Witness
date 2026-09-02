@@ -154,6 +154,7 @@ export default function AppLayout() {
       <Stack.Screen name="patterns" options={{ title: 'Patterns' }} />
       <Stack.Screen name="origins" options={{ title: 'Where It Began' }} />
       <Stack.Screen name="crossings" options={{ title: 'Ocean Crossings' }} />
+      <Stack.Screen name="voyage/[voyageId]" options={{ title: 'The Voyage' }} />
       <Stack.Screen name="migrations" options={{ title: 'Migration Paths' }} />
       <Stack.Screen name="migration" options={{ title: '' }} />
       <Stack.Screen name="kindred" options={{ title: 'Kindred Couples' }} />
