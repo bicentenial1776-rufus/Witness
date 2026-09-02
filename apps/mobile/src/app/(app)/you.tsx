@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, Share, Switch, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, Share, Switch, View } from 'react-native';
 
 import type { LineageScope } from '@witness/core/family';
 
@@ -205,7 +205,17 @@ export default function YouTab() {
     try {
       const { url } = await createInvite(activeTree.id, inviteName);
       const message = `You're invited into the ${activeTree.name} on Witness. Open this link to take your seat: ${url}`;
-      if (Platform.OS === 'web') {
+      const email = inviteName.trim();
+      if (/^\S+@\S+\.\S+$/.test(email)) {
+        // The owner already typed the address — carry it all the way
+        // (Rufus, 2026-09-02: the share sheet made him pick the person a
+        // second time). A pre-addressed compose: recipient, subject, link.
+        const mailto = `mailto:${email}?subject=${encodeURIComponent(
+          `You're invited into the ${activeTree.name} on Witness`,
+        )}&body=${encodeURIComponent(message)}`;
+        if (Platform.OS === 'web') window.location.href = mailto;
+        else await Linking.openURL(mailto).catch(() => Share.share({ message }));
+      } else if (Platform.OS === 'web') {
         const nav = navigator as Navigator & { share?: (data: { text: string }) => Promise<void> };
         if (nav.share) await nav.share({ text: message });
         else {
