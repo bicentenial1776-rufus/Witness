@@ -544,7 +544,9 @@ export default function Home() {
                       recordPiece.subjectId &&
                       router.push({
                         pathname: '/ancestor/[id]',
-                        params: { id: recordPiece.subjectId },
+                        // Land on Sources, where the card waits — the
+                        // trail must not go cold one tap short.
+                        params: { id: recordPiece.subjectId, tab: 'sources' },
                       })
                     }
                     style={{

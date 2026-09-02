@@ -503,7 +503,7 @@ function dedupeByIdentity(list: RegisterPerson[], preferId?: string): RegisterPe
 export default function AncestorScreen({ personId }: { personId?: string } = {}) {
   // Normally a route screen; Tree Health embeds it as the right-hand
   // detail pane by passing personId directly.
-  const params = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; tab?: string }>();
   const id = personId ?? params.id;
   const theme = useTheme();
   const { activeTree, trees } = useActiveTree();
@@ -619,7 +619,14 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // four stay mounted (display-toggled) so a half-typed note, a generated
   // story, or the corrections fetch survives a tab switch — and the ✎
   // pencils in the header work before Sources is ever visited.
-  const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  // A deep link may name its landing tab (Home's "From the records"
+  // piece opens Sources directly — the trail must not go cold one tap
+  // short of the card).
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    params.tab === 'sources' || params.tab === 'life' || params.tab === 'family'
+      ? (params.tab as TabKey)
+      : 'overview',
+  );
   // (The story/world accordion is gone — 2026-08-29, Rufus: the two AI
   // pieces read as one output, so they render stacked under one "Their
   // story" header and both write themselves on tab entry.)
@@ -1603,6 +1610,31 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               </Text>
             </Pressable>
           )}
+          {(() => {
+            const pendingRecords =
+              passengerCandidates.filter((c) => c.status === 'pending').length +
+              registerLinks.filter((l) => l.status === 'candidate').length;
+            if (pendingRecords === 0) return null;
+            return (
+              <Pressable
+                onPress={() => setActiveTab('sources')}
+                accessibilityRole="button"
+                accessibilityLabel={`${pendingRecords} historical record${pendingRecords === 1 ? '' : 's'} may name this person — open Sources to judge them`}
+                style={{
+                  borderWidth: 1,
+                  borderColor: theme.accent,
+                  borderRadius: 12,
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  backgroundColor: theme.backgroundElement,
+                }}
+              >
+                <Text style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}>
+                  {pendingRecords} record{pendingRecords === 1 ? '' : 's'} to check
+                </Text>
+              </Pressable>
+            );
+          })()}
           {crossingFlag && (
             <ExplainerDot
               title={`${crossingFlag.ocean === 'atlantic' ? 'Atlantic' : 'Pacific'} crossing`}
@@ -2456,6 +2488,90 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
 
         {/* ————— Sources: the research desk ————— */}
         <View style={{ display: activeTab === 'sources' ? 'flex' : 'none' }}>
+        {/* Actionable above reference (Rufus, 2026-09-02): the records
+            waiting on a verdict print before the citation list — the
+            reader's job first, the bibliography after. */}
+        {naraCandidates.length > 0 && (
+          <View style={{ gap: 8, marginTop: 16 }}>
+            <ThemedText type="subtitle">In the National Archives</ThemedText>
+            <ThemedText type="small">
+              Records that might be {firstName(person.full_name)} — you decide.
+            </ThemedText>
+            {naraCandidates.map((candidate) => (
+              <NaraCandidateCard
+                key={candidate.id}
+                candidate={candidate}
+                onResolved={(candidateId, status) =>
+                  setNaraCandidates((current) =>
+                    status === 'dismissed'
+                      ? current.filter((c) => c.id !== candidateId)
+                      : current.map((c) => (c.id === candidateId ? { ...c, status } : c)),
+                  )
+                }
+              />
+            ))}
+          </View>
+        )}
+
+        {/* The Crossing: shipping-list passengers who might be this
+            ancestor, from the immigrant-ships dataset (PROJECT_BRIEF.md
+            "Immigrant Ships"). A Mayflower name is the beginning of a
+            question, not a descent — so this stays confirm/dismiss, same
+            as the archives card above it. */}
+        {passengerCandidates.length > 0 && (
+          <View style={{ gap: 8, marginTop: 16 }}>
+            <ThemedText type="subtitle">The Crossing</ThemedText>
+            <ThemedText type="small">
+              A shipping list that might name {firstName(person.full_name)} — you decide.
+            </ThemedText>
+            {passengerCandidates.map((candidate) => (
+              <PassengerCandidateCard
+                key={candidate.id}
+                candidate={candidate}
+                onResolved={(candidateId, status) =>
+                  setPassengerCandidates((current) =>
+                    status === 'dismissed'
+                      ? current.filter((c) => c.id !== candidateId)
+                      : current.map((c) => (c.id === candidateId ? { ...c, status } : c)),
+                  )
+                }
+              />
+            ))}
+          </View>
+        )}
+
+        {/* The record books: historical-record register candidates, the
+            generic frame every future record set rides
+            (docs/witness-historical-record-registers-package.md). Same
+            doctrine as the cards above — a record that MIGHT name this
+            person, and only the reader decides. */}
+        {registerLinks.length > 0 && registerCatalog.size > 0 && (
+          <View style={{ gap: 8, marginTop: 16 }}>
+            <ThemedText type="subtitle">In the record books</ThemedText>
+            <ThemedText type="small">
+              Records that might name {firstName(person.full_name)} — you decide.
+            </ThemedText>
+            {registerLinks.map((link) => {
+              const register = registerCatalog.get(link.registerKey);
+              if (!register) return null;
+              return (
+                <RegisterCandidateCard
+                  key={link.id}
+                  link={link}
+                  register={register}
+                  onResolved={(linkId, status) =>
+                    setRegisterLinks((current) =>
+                      status === 'rejected'
+                        ? current.filter((l) => l.id !== linkId)
+                        : current.map((l) => (l.id === linkId ? { ...l, status } : l)),
+                    )
+                  }
+                />
+              );
+            })}
+          </View>
+        )}
+
           {/* The per-person ways off this page — the brief, the provider
               record, the share card — live with the rest of the research. */}
           {!fromFieldCopy && (providerLink || !person.living) && (
@@ -2708,86 +2824,6 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           </View>
         )}
 
-        {naraCandidates.length > 0 && (
-          <View style={{ gap: 8, marginTop: 16 }}>
-            <ThemedText type="subtitle">In the National Archives</ThemedText>
-            <ThemedText type="small">
-              Records that might be {firstName(person.full_name)} — you decide.
-            </ThemedText>
-            {naraCandidates.map((candidate) => (
-              <NaraCandidateCard
-                key={candidate.id}
-                candidate={candidate}
-                onResolved={(candidateId, status) =>
-                  setNaraCandidates((current) =>
-                    status === 'dismissed'
-                      ? current.filter((c) => c.id !== candidateId)
-                      : current.map((c) => (c.id === candidateId ? { ...c, status } : c)),
-                  )
-                }
-              />
-            ))}
-          </View>
-        )}
-
-        {/* The Crossing: shipping-list passengers who might be this
-            ancestor, from the immigrant-ships dataset (PROJECT_BRIEF.md
-            "Immigrant Ships"). A Mayflower name is the beginning of a
-            question, not a descent — so this stays confirm/dismiss, same
-            as the archives card above it. */}
-        {passengerCandidates.length > 0 && (
-          <View style={{ gap: 8, marginTop: 16 }}>
-            <ThemedText type="subtitle">The Crossing</ThemedText>
-            <ThemedText type="small">
-              A shipping list that might name {firstName(person.full_name)} — you decide.
-            </ThemedText>
-            {passengerCandidates.map((candidate) => (
-              <PassengerCandidateCard
-                key={candidate.id}
-                candidate={candidate}
-                onResolved={(candidateId, status) =>
-                  setPassengerCandidates((current) =>
-                    status === 'dismissed'
-                      ? current.filter((c) => c.id !== candidateId)
-                      : current.map((c) => (c.id === candidateId ? { ...c, status } : c)),
-                  )
-                }
-              />
-            ))}
-          </View>
-        )}
-
-        {/* The record books: historical-record register candidates, the
-            generic frame every future record set rides
-            (docs/witness-historical-record-registers-package.md). Same
-            doctrine as the cards above — a record that MIGHT name this
-            person, and only the reader decides. */}
-        {registerLinks.length > 0 && registerCatalog.size > 0 && (
-          <View style={{ gap: 8, marginTop: 16 }}>
-            <ThemedText type="subtitle">In the record books</ThemedText>
-            <ThemedText type="small">
-              Records that might name {firstName(person.full_name)} — you decide.
-            </ThemedText>
-            {registerLinks.map((link) => {
-              const register = registerCatalog.get(link.registerKey);
-              if (!register) return null;
-              return (
-                <RegisterCandidateCard
-                  key={link.id}
-                  link={link}
-                  register={register}
-                  onResolved={(linkId, status) =>
-                    setRegisterLinks((current) =>
-                      status === 'rejected'
-                        ? current.filter((l) => l.id !== linkId)
-                        : current.map((l) => (l.id === linkId ? { ...l, status } : l)),
-                    )
-                  }
-                />
-              );
-            })}
-          </View>
-        )}
         </View>
       </ScrollView>
     </ThemedView>
