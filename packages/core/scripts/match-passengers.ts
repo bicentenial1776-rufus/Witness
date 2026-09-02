@@ -15,6 +15,7 @@
 // Nothing here decides that an ancestor sailed. It reports which people
 // in the tree are worth checking against a passenger list, and why.
 import './node-polyfills.js';
+import { WebSocket as NodeWebSocket } from 'ws';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -86,6 +87,7 @@ async function loadIndividuals(): Promise<MatchableIndividual[]> {
   const client = createWitnessClient(
     requireEnv('EXPO_PUBLIC_SUPABASE_URL'),
     requireEnv('EXPO_PUBLIC_SUPABASE_ANON_KEY'),
+    { realtime: { transport: NodeWebSocket as never } },
   );
   const { data: signInData, error: signInError } = await client.auth.signInWithPassword({
     email: requireEnv('WITNESS_TEST_USER_EMAIL'),

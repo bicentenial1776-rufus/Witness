@@ -24,6 +24,12 @@ import {
 } from '@witness/core/query';
 
 import { subjectKey } from '@witness/core/corrections';
+import {
+  fetchActiveRegisters,
+  fetchRegisterLinksForIndividual,
+  type PersonRegisterLink,
+  type RegisterDef,
+} from '@witness/core/registers';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
@@ -36,6 +42,7 @@ import { LineagePanel } from '@/components/lineage-panel';
 import { PlaceMap } from '@/components/place-map';
 import { ExplainerDot } from '@/components/explainer-dot';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
+import { RegisterCandidateCard } from '@/components/register-candidate-card';
 import { PassengerCandidateCard } from '@/components/passenger-candidate-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -585,6 +592,8 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   }
   const [naraCandidates, setNaraCandidates] = useState<NaraCandidate[]>([]);
   const [passengerCandidates, setPassengerCandidates] = useState<PassengerCandidate[]>([]);
+  const [registerCatalog, setRegisterCatalog] = useState<Map<string, RegisterDef>>(new Map());
+  const [registerLinks, setRegisterLinks] = useState<PersonRegisterLink[]>([]);
   const [relationship, setRelationship] = useState<string | null>(null);
   // A live walk that found no path: the Portrait states "No relation"
   // outright, where a list row would just stay blank.
@@ -884,6 +893,20 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
       fetchPassengerCandidatesForIndividual(supabase, id)
         .then((rows) => {
           if (!cancelled) setPassengerCandidates(rows.filter((c) => c.status !== 'dismissed'));
+        })
+        .catch(() => {});
+
+      // Historical-record register links — the generic record cards.
+      // One catalog fetch rides along; both fail quietly to an empty
+      // section, like every candidate fetch here.
+      Promise.all([
+        fetchActiveRegisters(supabase),
+        fetchRegisterLinksForIndividual(supabase, id),
+      ])
+        .then(([catalog, links]) => {
+          if (cancelled) return;
+          setRegisterCatalog(catalog);
+          setRegisterLinks(links.filter((l) => l.status !== 'rejected'));
         })
         .catch(() => {});
 
@@ -2731,6 +2754,38 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 }
               />
             ))}
+          </View>
+        )}
+
+        {/* The record books: historical-record register candidates, the
+            generic frame every future record set rides
+            (docs/witness-historical-record-registers-package.md). Same
+            doctrine as the cards above — a record that MIGHT name this
+            person, and only the reader decides. */}
+        {registerLinks.length > 0 && registerCatalog.size > 0 && (
+          <View style={{ gap: 8, marginTop: 16 }}>
+            <ThemedText type="subtitle">In the record books</ThemedText>
+            <ThemedText type="small">
+              Records that might name {firstName(person.full_name)} — you decide.
+            </ThemedText>
+            {registerLinks.map((link) => {
+              const register = registerCatalog.get(link.registerKey);
+              if (!register) return null;
+              return (
+                <RegisterCandidateCard
+                  key={link.id}
+                  link={link}
+                  register={register}
+                  onResolved={(linkId, status) =>
+                    setRegisterLinks((current) =>
+                      status === 'rejected'
+                        ? current.filter((l) => l.id !== linkId)
+                        : current.map((l) => (l.id === linkId ? { ...l, status } : l)),
+                    )
+                  }
+                />
+              );
+            })}
           </View>
         )}
         </View>

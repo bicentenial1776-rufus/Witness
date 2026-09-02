@@ -17,7 +17,7 @@ import type { PassengerCandidate } from '../query/passengerCandidates.js';
  * a server-side findings table is the planned persistence upgrade, and
  * this type is its row shape.
  */
-export type FindingSource = 'tree-health' | 'archives' | 'crossing' | 'migration';
+export type FindingSource = 'tree-health' | 'archives' | 'crossing' | 'migration' | 'register';
 
 export interface Finding {
   /** Stable within a tree: `source:` + the emitting feature's own key. */
@@ -57,6 +57,28 @@ export function fromPassengerCandidate(candidate: PassengerCandidate, individual
     source: 'crossing',
     subjectIds: [candidate.individualId],
     sentence: `${individualName} may have sailed on the ${candidate.ship}, ${candidate.arrivalYear} — a shipping list worth checking.`,
+  };
+}
+
+/**
+ * A strong register candidate, noticed on the ledger. The register key
+ * rides in the id so one source value serves every register
+ * (docs/witness-historical-record-registers-package.md — no bespoke
+ * source per record set).
+ */
+export function fromRegisterCandidate(input: {
+  registerKey: string;
+  individualId: string;
+  recordId: string;
+  individualName: string;
+  recordName: string;
+  displayName: string;
+}): Finding {
+  return {
+    id: `register:${input.registerKey}:${input.individualId}:${input.recordId}`,
+    source: 'register',
+    subjectIds: [input.individualId],
+    sentence: `${input.individualName} may appear in ${input.displayName} — ${input.recordName} is a record worth checking.`,
   };
 }
 

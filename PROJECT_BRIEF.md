@@ -386,6 +386,42 @@ Matching is deterministic — no AI tokens — so candidates can be free-tier vi
 
 ---
 
+## Historical Record Registers (framework built 2026-09-02; first registers pending)
+
+**The idea:** many public-domain record sets share one shape — a seed or a
+deep-link, an exposure heuristic over GEDCOM facts, a user-confirmed link,
+then narrative, map, and research queue. Build the shape once; add each
+record set as configuration plus data. Full spec:
+`docs/witness-historical-record-registers-package.md`; working reference:
+`docs/historical-record-registers.md`.
+
+**Three variants, one frame:** A — curated person table matched to the tree
+(Acadian Deportation, Loyalists, Filles du Roi; the shape the Crossing
+Library proved); B — entity table whose dated events attach to a person
+(Civil War regiments); C — deep-link out with a structured save-back (BLM
+land patents, the LAC sets). The shipped one-offs (Crossing, NARA, Find a
+Grave) stay as they are — the framework copies their patterns.
+
+**Built (2026-09-02):** the `registers` catalog + `register_records` +
+`register_record_events` + `person_register_links` tables (global PD
+reference data, per-user verdicts, snapshot cards); the config-driven
+exposure scorer and Variant A matcher in core; deep-link templating;
+provenance-labeled narrative blocks; map points (person vs entity); the
+generic Portrait card ("In the record books") with verdicts, coverage
+caveats, and the "?" explainer; seed + match/harness CLIs; findings-ledger
+emission for strong candidates; and refresh carry-forward for decided links
+from day one.
+
+**Invariants:** public-domain sources only, per-row citations, copyrighted
+compilations as finding aids; candidates until a human confirms
+(`parsed_from_gedcom` the lone exception); silence over guessing; verdicts
+survive GEDCOM refresh. **Build order (locked):** Acadian Deportation →
+Civil War → GLO patents → Loyalists → config-only additions (CEF WWI, Home
+Children, Grosse-Île, Filles du Roi). Every register's deep link is verified
+against the live target before it ships.
+
+---
+
 ## Features Explicitly Deferred
 
 - **Tree editing** — Witness never modifies a GEDCOM. Read-only always. *(Amended 2026-08-25 by At the Stone: the user may now make supervised, walk-backable additions — ADD person, RECORD marriage — from field evidence they verify themselves. The user is the editor; Witness is the scribe. The GEDCOM source file itself is still never touched.)*
