@@ -6,6 +6,7 @@ import { Platform, Pressable, ScrollView, Share, Switch, View } from 'react-nati
 import type { LineageScope } from '@witness/core/family';
 
 import { Card } from '@/components/card';
+import { TextField } from '@/components/text-field';
 import { RecordText } from '@/components/record-text';
 import { openFieldGuide } from '@/components/field-guide';
 import { ThemedText } from '@/components/themed-text';
@@ -74,6 +75,8 @@ export default function YouTab() {
   const [members, setMembers] = useState<TreeMemberRow[] | null>(null);
   const [invites, setInvites] = useState<InviteRow[] | null>(null);
   const [inviting, setInviting] = useState(false);
+  const [inviteAsking, setInviteAsking] = useState(false);
+  const [inviteName, setInviteName] = useState('');
   const { subscription, restore: restorePurchase } = usePurchases();
   const [restoringPurchase, setRestoringPurchase] = useState(false);
 
@@ -200,7 +203,7 @@ export default function YouTab() {
     if (!activeTree) return;
     setInviting(true);
     try {
-      const { url } = await createInvite(activeTree.id);
+      const { url } = await createInvite(activeTree.id, inviteName);
       const message = `You're invited into the ${activeTree.name} on Witness. Open this link to take your seat: ${url}`;
       if (Platform.OS === 'web') {
         const nav = navigator as Navigator & { share?: (data: { text: string }) => Promise<void> };
@@ -215,6 +218,8 @@ export default function YouTab() {
       fetchPendingInvites()
         .then((rows) => setInvites(rows.filter((invite) => invite.tree_id === activeTree.id)))
         .catch(() => {});
+      setInviteAsking(false);
+      setInviteName('');
     } catch (error) {
       showAlert('Could not create the invitation', error instanceof Error ? error.message : String(error));
     } finally {
@@ -567,7 +572,9 @@ export default function YouTab() {
                   }}
                 >
                   <View style={{ flexShrink: 1 }}>
-                    <ThemedText>Invitation waiting</ThemedText>
+                    <ThemedText>
+                      {invite.invited_name ? `Waiting for ${invite.invited_name}` : 'Invitation waiting'}
+                    </ThemedText>
                     <ThemedText type="small">
                       works once · expires {new Date(invite.expires_at).toLocaleDateString()}
                     </ThemedText>
@@ -590,13 +597,46 @@ export default function YouTab() {
                 </View>
               ))}
               {(members?.length ?? 0) < SEAT_LIMIT ? (
-                <ThemedText
-                  type="link"
-                  onPress={inviting ? undefined : inviteFamily}
-                  style={[{ marginTop: 12 }, inviting ? { opacity: 0.4 } : null]}
-                >
-                  {inviting ? 'Preparing the invitation…' : 'Invite family ›'}
-                </ThemedText>
+                inviteAsking ? (
+                  <View style={{ marginTop: 12, gap: 8 }}>
+                    <ThemedText type="small">
+                      Who is this for? A name is enough — their email lets the seat find them
+                      when they sign in.
+                    </ThemedText>
+                    <TextField
+                      value={inviteName}
+                      onChangeText={setInviteName}
+                      placeholder="Name or email"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      autoFocus
+                    />
+                    <View style={{ flexDirection: 'row', gap: 16 }}>
+                      <ThemedText
+                        type="link"
+                        onPress={inviting ? undefined : inviteFamily}
+                        style={inviting ? { opacity: 0.4 } : null}
+                      >
+                        {inviting ? 'Preparing the invitation…' : 'Send the invitation ›'}
+                      </ThemedText>
+                      {!inviting && (
+                        <ThemedText
+                          type="small"
+                          onPress={() => {
+                            setInviteAsking(false);
+                            setInviteName('');
+                          }}
+                        >
+                          Cancel
+                        </ThemedText>
+                      )}
+                    </View>
+                  </View>
+                ) : (
+                  <ThemedText type="link" onPress={() => setInviteAsking(true)} style={{ marginTop: 12 }}>
+                    Invite family ›
+                  </ThemedText>
+                )
               ) : (
                 <ThemedText type="small" style={{ marginTop: 12 }}>
                   All {SEAT_LIMIT} seats are taken. Remove someone to invite another.

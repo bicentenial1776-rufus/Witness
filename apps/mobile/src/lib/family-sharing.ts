@@ -26,6 +26,9 @@ export interface InviteRow {
   tree_id: string;
   created_at: string;
   expires_at: string;
+  /** Who the owner said this is for — a name, or an email (which lets
+      the paywall offer the seat to that signed-in account directly). */
+  invited_name: string | null;
 }
 
 function token(): string {
@@ -49,7 +52,7 @@ export async function fetchMembers(treeId: string): Promise<TreeMemberRow[]> {
 export async function fetchPendingInvites(): Promise<InviteRow[]> {
   const { data, error } = await supabase
     .from('invites')
-    .select('token, tree_id, created_at, expires_at')
+    .select('token, tree_id, created_at, expires_at, invited_name')
     .is('accepted_at', null)
     .is('revoked_at', null)
     .gt('expires_at', new Date().toISOString())
@@ -59,14 +62,17 @@ export async function fetchPendingInvites(): Promise<InviteRow[]> {
 }
 
 /** Create an invite and return its public URL, ready for the share sheet. */
-export async function createInvite(treeId: string): Promise<{ token: string; url: string }> {
+export async function createInvite(
+  treeId: string,
+  invitedName?: string,
+): Promise<{ token: string; url: string }> {
   const { data: auth } = await supabase.auth.getSession();
   const userId = auth.session?.user.id;
   if (!userId) throw new Error('Not signed in');
   const t = token();
   const { error } = await supabase
     .from('invites')
-    .insert({ token: t, tree_id: treeId, user_id: userId });
+    .insert({ token: t, tree_id: treeId, user_id: userId, invited_name: invitedName?.trim() || null });
   if (error) throw new Error(error.message);
   return { token: t, url: inviteUrl(t) };
 }
@@ -97,6 +103,22 @@ export async function peekInvite(t: string): Promise<InvitePeek | null> {
   const { data, error } = await supabase.rpc('get_invite', { p_token: t });
   if (error) throw new Error(error.message);
   return (data as InvitePeek | null) ?? null;
+}
+
+export interface WaitingSeat {
+  token: string;
+  treeName: string;
+  inviterName: string;
+}
+
+/** The seat kept for the signed-in account, when the inviter addressed
+    the invitation to this account's email. Null otherwise — a name-only
+    invitation can't be matched, and the paywall falls back to the
+    "open your invitation link" line. */
+export async function getWaitingSeat(): Promise<WaitingSeat | null> {
+  const { data, error } = await supabase.rpc('get_waiting_seat');
+  if (error) return null;
+  return (data as WaitingSeat | null) ?? null;
 }
 
 export interface AcceptResult {

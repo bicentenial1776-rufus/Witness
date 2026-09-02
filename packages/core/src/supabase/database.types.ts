@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       ancestor_notes: {
@@ -882,6 +907,7 @@ export type Database = {
           accepted_by: string | null
           created_at: string
           expires_at: string
+          invited_name: string | null
           revoked_at: string | null
           token: string
           tree_id: string
@@ -892,6 +918,7 @@ export type Database = {
           accepted_by?: string | null
           created_at?: string
           expires_at?: string
+          invited_name?: string | null
           revoked_at?: string | null
           token: string
           tree_id: string
@@ -902,6 +929,7 @@ export type Database = {
           accepted_by?: string | null
           created_at?: string
           expires_at?: string
+          invited_name?: string | null
           revoked_at?: string | null
           token?: string
           tree_id?: string
@@ -1396,82 +1424,6 @@ export type Database = {
         }
         Relationships: []
       }
-      relationships: {
-        Row: {
-          computed_at: string
-          generation_distance: number
-          home_person_id: string
-          id: string
-          individual_id: string
-          is_collateral: boolean
-          is_direct_ancestor: boolean
-          is_direct_descendant: boolean
-          label: string
-          line: string
-          path: Json
-          qualifier: string | null
-          tier: string
-          tree_id: string
-          user_id: string
-        }
-        Insert: {
-          computed_at?: string
-          generation_distance: number
-          home_person_id: string
-          id?: string
-          individual_id: string
-          is_collateral?: boolean
-          is_direct_ancestor?: boolean
-          is_direct_descendant?: boolean
-          label: string
-          line: string
-          path: Json
-          qualifier?: string | null
-          tier: string
-          tree_id: string
-          user_id: string
-        }
-        Update: {
-          computed_at?: string
-          generation_distance?: number
-          home_person_id?: string
-          id?: string
-          individual_id?: string
-          is_collateral?: boolean
-          is_direct_ancestor?: boolean
-          is_direct_descendant?: boolean
-          label?: string
-          line?: string
-          path?: Json
-          qualifier?: string | null
-          tier?: string
-          tree_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "relationships_home_person_id_fkey"
-            columns: ["home_person_id"]
-            isOneToOne: false
-            referencedRelation: "individuals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "relationships_individual_id_fkey"
-            columns: ["individual_id"]
-            isOneToOne: false
-            referencedRelation: "individuals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "relationships_tree_id_fkey"
-            columns: ["tree_id"]
-            isOneToOne: false
-            referencedRelation: "trees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       register_record_events: {
         Row: {
           event_date: string | null
@@ -1601,6 +1553,82 @@ export type Database = {
           variant?: string
         }
         Relationships: []
+      }
+      relationships: {
+        Row: {
+          computed_at: string
+          generation_distance: number
+          home_person_id: string
+          id: string
+          individual_id: string
+          is_collateral: boolean
+          is_direct_ancestor: boolean
+          is_direct_descendant: boolean
+          label: string
+          line: string
+          path: Json
+          qualifier: string | null
+          tier: string
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          computed_at?: string
+          generation_distance: number
+          home_person_id: string
+          id?: string
+          individual_id: string
+          is_collateral?: boolean
+          is_direct_ancestor?: boolean
+          is_direct_descendant?: boolean
+          label: string
+          line: string
+          path: Json
+          qualifier?: string | null
+          tier: string
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          computed_at?: string
+          generation_distance?: number
+          home_person_id?: string
+          id?: string
+          individual_id?: string
+          is_collateral?: boolean
+          is_direct_ancestor?: boolean
+          is_direct_descendant?: boolean
+          label?: string
+          line?: string
+          path?: Json
+          qualifier?: string | null
+          tier?: string
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationships_home_person_id_fkey"
+            columns: ["home_person_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationships_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationships_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       research_briefs: {
         Row: {
@@ -2094,6 +2122,7 @@ export type Database = {
       delete_tree_batch: { Args: { p_tree_id: string }; Returns: Json }
       get_invite: { Args: { p_token: string }; Returns: Json }
       get_share: { Args: { p_token: string }; Returns: Json }
+      get_waiting_seat: { Args: never; Returns: Json }
       is_tree_owner: { Args: { p_tree_id: string }; Returns: boolean }
       member_tree_ids: { Args: never; Returns: string[] }
       recount_tree: { Args: { p_tree_id: string }; Returns: Json }
@@ -2173,12 +2202,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2202,11 +2231,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2227,11 +2256,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2252,11 +2281,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2269,11 +2298,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2283,6 +2312,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       curiosity_type: [

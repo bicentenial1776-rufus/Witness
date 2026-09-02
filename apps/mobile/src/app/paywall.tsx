@@ -11,6 +11,7 @@ import { ThemedView } from '@/components/themed-view';
 import { BrandFonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/alert';
+import { getWaitingSeat, type WaitingSeat } from '@/lib/family-sharing';
 import { usePurchases } from '@/lib/purchases';
 import { supabase } from '@/lib/supabase';
 
@@ -40,6 +41,21 @@ export default function Paywall() {
   const { offering, purchasePackage, restore, recheck } = usePurchases();
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [waitingSeat, setWaitingSeat] = useState<WaitingSeat | null>(null);
+
+  // The strongest way past this screen isn't a purchase: when a family
+  // owner addressed an invitation to this account's email, find the seat
+  // and offer it FIRST. One tester walked straight into checkout past the
+  // passive footer line — a kept seat has to interrupt, not whisper.
+  useEffect(() => {
+    let cancelled = false;
+    getWaitingSeat().then((seat) => {
+      if (!cancelled && seat) setWaitingSeat(seat);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Self-heal: anyone standing here who is actually entitled — a comped
   // account whose store handshake was slow or failed on sign-in — gets
@@ -100,6 +116,23 @@ export default function Paywall() {
     <ThemedView style={styles.flex}>
       <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
         <ScrollView contentContainerStyle={styles.content}>
+          {waitingSeat && (
+            <View style={[styles.priceCard, { borderColor: theme.accent, backgroundColor: theme.backgroundElement, marginBottom: 20 }]}>
+              <ThemedText type="subtitle">
+                {waitingSeat.inviterName
+                  ? `${waitingSeat.inviterName} has kept a seat for you.`
+                  : 'A seat has been kept for you.'}
+              </ThemedText>
+              <ThemedText type="small">
+                You&rsquo;re invited into the {waitingSeat.treeName} — a family seat is free, no
+                trial and no card.
+              </ThemedText>
+              <Button
+                title="Take your seat"
+                onPress={() => router.push(`/join/${waitingSeat.token}` as never)}
+              />
+            </View>
+          )}
           <ThemedText type="small" themeColor="accent" style={styles.eyebrow}>
             GET FULL ACCESS
           </ThemedText>
