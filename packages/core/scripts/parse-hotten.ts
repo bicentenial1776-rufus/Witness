@@ -20,23 +20,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const SOURCE = 'John Camden Hotten, The Original Lists of Persons of Quality (1874)';
+import { extractEntries, registerTitleCase as titleCase } from '../src/history/ocrParsers.js';
 
-const GIVEN_ABBREV: Record<string, string> = {
-  jo: 'John', tho: 'Thomas', wm: 'William', geo: 'George', rich: 'Richard',
-  ric: 'Richard', sam: 'Samuel', nic: 'Nicholas', nica: 'Nicholas',
-  rob: 'Robert', robt: 'Robert', edw: 'Edward', fra: 'Francis',
-  franc: 'Francis', mich: 'Michael', dan: 'Daniel', nath: 'Nathaniel',
-  benj: 'Benjamin', anth: 'Anthony', chr: 'Christopher', hen: 'Henry',
-  eliz: 'Elizabeth', eliza: 'Elizabeth', marg: 'Margaret', margt: 'Margaret',
-  kath: 'Katherine', math: 'Matthew', mat: 'Matthew', abra: 'Abraham',
-  tim: 'Timothy', walt: 'Walter', phil: 'Philip', ste: 'Stephen',
-  steph: 'Stephen', gab: 'Gabriel', lawr: 'Lawrence', arth: 'Arthur',
-  jon: 'Jonathan', jos: 'Joseph', humph: 'Humphrey', barth: 'Bartholomew',
-  theo: 'Theophilus', zach: 'Zachary', jeff: 'Jeffrey', greg: 'Gregory',
-  wittm: 'William', wlftm: 'William', wiftm: 'William', wllm: 'William',
-  anto: 'Anthony', antho: 'Anthony',
-};
+const SOURCE = 'John Camden Hotten, The Original Lists of Persons of Quality (1874)';
 
 // The worst recurring OCR misreadings of ship names in the register
 // formulas. Anything not in this table keeps its cleaned reading.
@@ -64,106 +50,6 @@ interface VoyageOut { id: string; ship: string; arrivalYear: number; notes: stri
 
 function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-}
-
-/** Repair 'l' misread for 'I' inside an uppercase run (WlLCOCK → WILCOCK). */
-function fixCapsL(s: string): string {
-  let out = s;
-  for (let pass = 0; pass < 3; pass += 1) {
-    out = out.replace(/([A-Z])l(?=[A-Z])/g, '$1I').replace(/(^|\s)l([A-Z])/g, '$1I$2');
-  }
-  // A glued footnote mark after a caps run: "HEFORDf" — never a real
-  // lowercase ending in these all-caps registers.
-  return out.replace(/([A-Z]{3,})[ft*]\b/g, '$1');
-}
-
-function titleCase(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/(^|[\s-])[a-z]/g, (c) => c.toUpperCase())
-    .replace(/\bAnd\b/g, 'and');
-}
-
-function expandGiven(token: string): string {
-  const key = token.toLowerCase().replace(/[:.°'’]+$/, '');
-  return GIVEN_ABBREV[key] ?? titleCase(token.replace(/[:.°]+$/, ''));
-}
-
-function normalizeAge(raw: string): number | null {
-  const cleaned = raw.replace(/[Oo]/g, '0').replace(/[lI!]/g, '1').replace(/S/g, '5');
-  const n = Number(cleaned);
-  return Number.isFinite(n) && n > 0 && n < 100 ? n : null;
-}
-
-export interface Entry {
-  given: string;
-  surname: string;
-  birth: string;
-  notes: string;
-}
-
-/**
- * Passenger entries on one register line. A line may hold several people
- * joined by '&' ("EDMOND WEAVER 28 yers & his wife MARGRETT aged 30");
- * a lone given name inherits the surname of the person before it, and an
- * age becomes a derived birth year ("c. 1607").
- */
-export function extractEntries(
-  line: string,
-  year: number,
-  lastSurname: string,
-): { entries: Entry[]; lastSurname: string } {
-  const entries: Entry[] = [];
-  const segments = line.split(/\s+&\s+/);
-  for (const seg of segments) {
-    const m =
-      /([A-Z][A-Za-z:.'’°\[\]\- ]{1,40}?)[\s.…_\-•'’,*]*([0-9OoIl!Si]{1,2})[.,]?\s*(?:yeres|yers|yeeres|yeres\.)?\.?\s*$/.exec(
-        seg.trim().replace(/[*†|]/g, ''),
-      );
-    if (!m) continue;
-    const age = normalizeAge(m[2]);
-    if (age === null) continue;
-    // Strip leading occupation prose: keep from the last run of 2+ caps-ish
-    // name tokens. Bracketed corrections win over the misreading.
-    const namePart = fixCapsL(m[1])
-      .replace(/[A-Za-z'’]+\s*\[\s*(?:or\s+)?([A-Za-z'’]+)\s*\]/g, '$1')
-      .replace(/[.…_]+/g, ' ')
-      .trim();
-    const tokens = namePart.split(/\s+/).filter((t) => /^[A-Za-z:'’°-]+$/.test(t));
-    // Name tokens are (mostly) upper-case in the registers; occupation
-    // prefixes are not. Walk from the end collecting caps-run tokens.
-    const nameTokens: string[] = [];
-    for (let t = tokens.length - 1; t >= 0 && nameTokens.length < 4; t -= 1) {
-      const tok = tokens[t];
-      const letters = tok.replace(/[^A-Za-z]/g, '');
-      const upper = letters.replace(/[^A-Z]/g, '').length;
-      // "Jo:"/"NlC°:" — an abbreviated given name is a name token even
-      // though its caps ratio is low.
-      const abbreviated = /^[A-Z][A-Za-z]{0,5}[:°]$/.test(tok);
-      if (abbreviated || (letters.length >= 2 && upper / letters.length >= 0.6)) {
-        nameTokens.unshift(tok);
-      } else if (nameTokens.length > 0) break;
-    }
-    if (nameTokens.length === 0) continue;
-    const prefix = tokens.slice(0, tokens.length - nameTokens.length).join(' ');
-    let given: string;
-    let surname: string;
-    if (nameTokens.length === 1) {
-      // "his wife MARGRETT aged 30" — a lone name inherits the surname.
-      given = expandGiven(nameTokens[0]);
-      surname = lastSurname;
-      if (!surname) continue;
-    } else {
-      surname = titleCase(fixCapsL(nameTokens[nameTokens.length - 1]).replace(/[:.°'’]+$/, ''));
-      given = nameTokens.slice(0, -1).map(expandGiven).join(' ');
-      lastSurname = surname;
-    }
-    const notes = [prefix && /^[A-Za-z]/.test(prefix) ? prefix : '', `aged ${age} in ${year}`]
-      .filter(Boolean)
-      .join('; ');
-    entries.push({ given, surname, birth: `c. ${year - age}`, notes });
-  }
-  return { entries, lastSurname };
 }
 
 function main() {
@@ -232,10 +118,10 @@ function main() {
         continue;
       }
       if (shipMatch) {
-        let ship = shipMatch[1].trim().toLowerCase().replace(/\s+/g, ' ');
+        let ship = shipMatch[1]!.trim().toLowerCase().replace(/\s+/g, ' ');
         ship = SHIP_ALIASES[ship] ?? ship;
         const destMatch = /transported\s+to\s+([A-Za-z£&' \-]{3,25}?)(?=\s*[,.:]|\s+imbarqu|$)/i.exec(window);
-        const dest = destMatch ? destMatch[1].trim() : '';
+        const dest = destMatch ? destMatch[1]!.trim() : '';
         const key = `${slug(ship)}-${year}`;
         currentKey = key;
         inBlock = true;

@@ -201,6 +201,39 @@ if (writeFlag) {
     }
     console.log(`Wrote ${rows.length} candidate${rows.length === 1 ? '' : 's'} to passenger_candidates.`);
   }
+
+  // Findings first (PROJECT_BRIEF.md): every STRONG unresolved candidate
+  // is noticed on the findings ledger (edition_key null = noticed, not
+  // yet printed), so the edition can print crossings it never derived.
+  // Same id format as fromPassengerCandidate in @witness/core/findings.
+  const findingRows = new Map<string, Record<string, unknown>>();
+  for (const c of candidates) {
+    if (c.confidence !== 'strong') continue;
+    if (resolvedKeys.has(`${c.individual.id}:${c.passenger.id}`)) continue;
+    const findingId = `crossing:passenger:${c.individual.id}:${c.voyage.id}`;
+    if (findingRows.has(findingId)) continue;
+    findingRows.set(findingId, {
+      tree_id: treeId!,
+      user_id: userId,
+      finding_id: findingId,
+      source: 'crossing',
+      subject_ids: [c.individual.id],
+      sentence: `${c.individual.fullName} may have sailed on the ${c.voyage.ship}, ${c.voyage.arrivalYear} — a shipping list worth checking.`,
+    });
+  }
+  if (findingRows.size > 0) {
+    const { error: findingError } = await client
+      .from('findings')
+      .upsert([...findingRows.values()], {
+        onConflict: 'tree_id,finding_id',
+        ignoreDuplicates: true,
+      });
+    if (findingError) {
+      console.error('Noticing findings failed (candidates are written):', findingError.message);
+    } else {
+      console.log(`Noticed ${findingRows.size} strong crossing${findingRows.size === 1 ? '' : 's'} on the findings ledger.`);
+    }
+  }
 }
 
 if (csvOut) {

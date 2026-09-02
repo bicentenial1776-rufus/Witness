@@ -19,27 +19,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { readName } from '../src/history/ocrParsers.js';
+
 const SOURCE = 'Charles Edward Banks, The Planters of the Commonwealth (1930)';
-
-// Whole words that mark a line as narrative prose, not a passenger.
-const PROSE_WORDS =
-  /\b(Master|tons?|sailed|arrived|passengers?|ordnance|brought|vessel|ships?|fleet|colonists?|Gravesend|Southampton|Weymouth|Bristol|cattle|voyage|records?|probably|supra|ibid)\b/i;
-
-// A leading token that starts a sentence, a month, or page furniture —
-// never a given name in these lists.
-const BAD_FIRST = new Set([
-  'The', 'She', 'He', 'They', 'It', 'In', 'On', 'At', 'Of', 'And', 'But',
-  'His', 'Her', 'Among', 'About', 'After', 'Before', 'When', 'With', 'This',
-  'These', 'There', 'Left', 'Arrived', 'Sailed', 'See', 'Note', 'Captain',
-  'New', 'Cape', 'Point', 'Lists', 'List', 'Part', 'Passengers', 'January',
-  'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
-  'October', 'November', 'December', 'Bound', 'Per', 'Via', 'From', 'For',
-  'Saint', 'St',
-]);
-
-const TITLES = /^(Mr|Mrs|Rev|Sir|Dr|Capt|Lady|Widow|Goodman|Goodwife)\.?$/;
-const NAME_TOKEN = /^[A-Z][A-Za-z'’-]+[,.]?$/;
-const SUFFIX = /^(Jr|Sr|I{1,3}|IV)\.?,?$/;
 
 interface VoyageOut {
   id: string;
@@ -65,43 +47,6 @@ function titleCase(caps: string): string {
     .replace(/(^|[\s-])[a-z]/g, (c) => c.toUpperCase())
     .replace(/\bAnd\b/g, 'and')
     .replace(/\bOf\b/g, 'of');
-}
-
-/** Leading title-case name tokens of a line, or null when it isn't a name line. */
-export function readName(line: string): { given: string; surname: string; rest: string } | null {
-  if (!/^[A-Z]/.test(line)) return null;
-  if (line === line.toUpperCase()) return null; // headings / furniture
-  if (PROSE_WORDS.test(line)) return null;
-  const tokens = line.split(/\s+/);
-  let i = 0;
-  const name: string[] = [];
-  if (TITLES.test(tokens[0] ?? '')) i += 1;
-  while (i < tokens.length && name.length < 4) {
-    const raw = tokens[i];
-    if (!NAME_TOKEN.test(raw)) break;
-    const bare = raw.replace(/[,.]$/, '');
-    if (name.length === 0 && BAD_FIRST.has(bare)) return null;
-    // A genitive first token ("Olave's Southwark") is a displaced parish
-    // fragment ("St. Olave's, Southwark"), never a given name.
-    if (name.length === 0 && /[’']s$/.test(bare)) return null;
-    name.push(bare);
-    const stop = raw.endsWith(',') || raw.endsWith('.');
-    i += 1;
-    if (stop) break;
-  }
-  // A suffix directly after the name (Jr., Sr.) belongs to it, not the notes.
-  if (i < tokens.length && SUFFIX.test(tokens[i])) {
-    name.push(tokens[i].replace(/[,.]$/, ''));
-    i += 1;
-  }
-  if (name.length < 2) return null;
-  const suffixes: string[] = [];
-  while (name.length > 2 && SUFFIX.test(name[name.length - 1])) suffixes.push(name.pop()!);
-  const surname = name.pop()!;
-  const given = name.join(' ');
-  const restParts = tokens.slice(i).join(' ');
-  const rest = [suffixes.join(' '), restParts].filter(Boolean).join('; ');
-  return { given, surname, rest };
 }
 
 function main() {
@@ -157,10 +102,10 @@ function main() {
     // — some ships are announced without a named Master ("SWAN. A small
     // vessel bringing seven passengers…").
     const heading = /^([A-Z][A-Z'’&\- ]{2,40}?)([,.]| of )\s*(.*)$/.exec(line);
-    if (heading && /[A-Z]{3}/.test(heading[1])) {
+    if (heading && /[A-Z]{3}/.test(heading[1]!)) {
       const lookahead = [line, lines[i + 1], lines[i + 2], lines[i + 3]].join(' ');
       if (/\b(Master|vessel|ships?|tons|passengers|arrived|sailed|consort|brought)\b/.test(lookahead)) {
-        const ship = titleCase(heading[1].trim());
+        const ship = titleCase(heading[1]!.trim());
         let id = `${slug(ship)}-${year}`;
         if (skipIds.has(id)) {
           skipping = true;

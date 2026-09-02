@@ -6,6 +6,8 @@ import { getRelationship } from '@witness/core/family';
 import {
   rankLivedThroughEvents,
   regionsFromPlaceParts,
+  shoreCrossingExplainer,
+  voyageExplainer,
   type LivedThroughTag,
 } from '@witness/core/history';
 import {
@@ -32,6 +34,7 @@ import { capturesForPerson, photoUrl, type GraveCapture } from '@/lib/grave-capt
 import { LineageMark } from '@/components/lineage-mark';
 import { LineagePanel } from '@/components/lineage-panel';
 import { PlaceMap } from '@/components/place-map';
+import { ExplainerDot } from '@/components/explainer-dot';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
 import { PassengerCandidateCard } from '@/components/passenger-candidate-card';
 import { ThemedText } from '@/components/themed-text';
@@ -1160,6 +1163,9 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     setShareState('busy');
     try {
       const lines = [
+        // The earned ship leads — share-links caps at four lines, and the
+        // badge is the line cousins ask about.
+        ...(shipBadge ? [`⛵ Sailed on the ${shipBadge.ship}, ${shipBadge.arrivalYear}`] : []),
         ...events
           .slice(0, 2)
           .map(
@@ -1574,21 +1580,40 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               </Text>
             </Pressable>
           )}
+          {crossingFlag && (
+            <ExplainerDot
+              title={`${crossingFlag.ocean === 'atlantic' ? 'Atlantic' : 'Pacific'} crossing`}
+              text={shoreCrossingExplainer(crossingFlag.ocean)}
+            />
+          )}
           {shipBadge && (
-            <View
-              accessibilityLabel={`Sailed on the ${shipBadge.ship}, ${shipBadge.arrivalYear}`}
-              style={{
-                borderWidth: 1,
-                borderColor: theme.accent,
-                borderRadius: 12,
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-              }}
-            >
-              <Text style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}>
-                ⛵ {shipBadge.ship}, {shipBadge.arrivalYear}
-              </Text>
-            </View>
+            <>
+              <View
+                accessibilityLabel={`Sailed on the ${shipBadge.ship}, ${shipBadge.arrivalYear}`}
+                style={{
+                  borderWidth: 1,
+                  borderColor: theme.accent,
+                  borderRadius: 12,
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                }}
+              >
+                <Text style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}>
+                  ⛵ {shipBadge.ship}, {shipBadge.arrivalYear}
+                </Text>
+              </View>
+              <ExplainerDot
+                title={`The ${shipBadge.ship}, ${shipBadge.arrivalYear}`}
+                text={voyageExplainer({
+                  voyageId: shipBadge.voyageId,
+                  ship: shipBadge.ship,
+                  arrivalYear: shipBadge.arrivalYear,
+                  departurePort: shipBadge.departurePort,
+                  arrivalPlace: shipBadge.arrivalPlace,
+                  source: shipBadge.source,
+                })}
+              />
+            </>
           )}
         </View>
         <Text

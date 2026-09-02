@@ -4,3 +4,5 @@ export * from './shelf.js';
 export * from './presidents.js';
 export * from './passengers.js';
 export * from './passengerImport.js';
+export * from './ocrParsers.js';
+export * from './voyageHistory.js';
