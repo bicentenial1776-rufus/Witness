@@ -37,3 +37,60 @@ export async function shareStory(name: string, years: string, story: string, not
   anchor.click();
   URL.revokeObjectURL(url);
 }
+
+export const LINE_SHARE_LABEL = 'Download this line ›';
+
+/**
+ * A generational line, rendered for sharing. The house rule governs the
+ * cut: nothing shareable includes a living person, and the line runs
+ * founder-to-reader — so the shared text stops at the last deceased
+ * generation and says so.
+ */
+export function renderLineText(arc: {
+  title: string;
+  dek: string;
+  generations: {
+    name: string;
+    birth: number | null;
+    death: number | null;
+    living: boolean;
+    relationLabel: string | null;
+    factLine: string | null;
+    story: string | null;
+  }[];
+}): string {
+  const shareable = arc.generations.filter((g) => !g.living);
+  const omitted = arc.generations.length - shareable.length;
+  const blocks = shareable.map((g) => {
+    const years = `${g.birth ?? '?'}–${g.death ?? '?'}`;
+    const head = g.relationLabel ? `${g.name} (${years}) — ${g.relationLabel}` : `${g.name} (${years})`;
+    return [head, g.factLine, g.story].filter(Boolean).join('\n');
+  });
+  const privacyNote =
+    omitted > 0
+      ? `\n\nThe line continues to the present day — living generations stay private and are not included.`
+      : '';
+  return (
+    `${arc.title}\n${arc.dek}\n\n${blocks.join('\n\n')}${privacyNote}` +
+    `\n\n—\nEvery name, date, and place is from this family's documented record; the connecting prose is written by AI from it · Witness · witnesslives.com`
+  );
+}
+
+export async function shareLine(arc: Parameters<typeof renderLineText>[0]): Promise<void> {
+  const text = renderLineText(arc);
+  if (typeof navigator !== 'undefined' && 'share' in navigator) {
+    try {
+      await navigator.share({ title: arc.title, text });
+      return;
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') return;
+    }
+  }
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = storyFileName(arc.title);
+  a.click();
+  URL.revokeObjectURL(url);
+}
