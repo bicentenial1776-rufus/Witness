@@ -39,6 +39,11 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { showAlert } from '@/lib/alert';
 import { providerPersonLink, type ProviderLink } from '@/lib/ancestry';
+import {
+  ancestryImmigrationSearchUrl,
+  familySearchArrivalsUrl,
+  familySearchRecordsUrl,
+} from '@/lib/record-search';
 import { type CorrectionRow } from '@/lib/corrections';
 import { PedigreeChart } from '@/components/pedigree-chart';
 import { STORY_SHARE_LABEL, shareStory } from '@/lib/share-story';
@@ -1230,6 +1235,17 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
       events.map((e) => ({ year: e.date_year, parts: e.places?.parts ?? null })),
     )[0] ?? null;
 
+  // The unlocked door for post-1820 crossings: the federal arrival lists
+  // (Castle Garden, Ellis Island) are public but live behind search boxes
+  // nobody can bulk-hold — so hand the reader a search already filled in.
+  const arrivalsSearch =
+    crossingFlag && crossingFlag.direction === 'toAmericas'
+      ? familySearchArrivalsUrl(
+          { fullName: person.full_name, birthYear: person.birth_year },
+          crossingFlag.year,
+        )
+      : null;
+
   // "Lived near" minus the household: the register already names immediate
   // family, so the neighbor list is for everyone BEYOND it. Filtered here
   // at render time — the register may land after the neighbor fetch.
@@ -1605,6 +1621,20 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             longitude={birthCoords.longitude}
             label={birthPlace}
           />
+        )}
+        {arrivalsSearch && (
+          <ThemedText type="small" style={{ marginTop: 6 }}>
+            The arrival lists for that era survive —{' '}
+            <ThemedText
+              type="small"
+              themeColor="accent"
+              onPress={() => openExternal(arrivalsSearch.url)}
+              accessibilityRole="button"
+              accessibilityLabel={`Search ${arrivalsSearch.collectionLabel} on FamilySearch`}
+            >
+              search {arrivalsSearch.collectionLabel} for {firstName(person.full_name)} ›
+            </ThemedText>
+          </ThemedText>
         )}
         {parents.length > 0 && (
           <Text
@@ -2506,6 +2536,62 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                   Cancel
                 </ThemedText>
               </Card>
+            )}
+          </View>
+        )}
+
+        {/* The search doors: where Witness cannot hold the list, it opens
+            the reader's search already filled in — the Find A Grave rule,
+            extended to the record sites. A result is the beginning of a
+            question, never a descent. */}
+        {person && !person.living && !fromFieldCopy && (
+          <View style={{ marginTop: 16, gap: 6 }}>
+            <ThemedText type="subtitle">Search the records</ThemedText>
+            <ThemedText type="small">
+              These open pre-filled with what the record knows about{' '}
+              {firstName(person.full_name)} — what comes back is a question for you, not a
+              finding.
+            </ThemedText>
+            <ThemedText
+              type="link"
+              accessibilityRole="button"
+              onPress={() =>
+                openExternal(
+                  familySearchRecordsUrl({
+                    fullName: person.full_name,
+                    birthYear: person.birth_year,
+                    deathYear: person.death_year,
+                    birthPlace: birthPlace ? birthPlace.split(',').slice(0, 2).join(',').trim() : null,
+                  }),
+                )
+              }
+            >
+              Search FamilySearch records ›
+            </ThemedText>
+            {arrivalsSearch && crossingFlag && (
+              <ThemedText
+                type="link"
+                accessibilityRole="button"
+                onPress={() => openExternal(arrivalsSearch.url)}
+              >
+                Search {arrivalsSearch.collectionLabel} for the {crossingFlag.year} crossing ›
+              </ThemedText>
+            )}
+            {providerLink?.label.includes('Ancestry') && (
+              <ThemedText
+                type="link"
+                accessibilityRole="button"
+                onPress={() =>
+                  openExternal(
+                    ancestryImmigrationSearchUrl({
+                      fullName: person.full_name,
+                      birthYear: person.birth_year,
+                    }),
+                  )
+                }
+              >
+                Search Ancestry immigration records ›
+              </ThemedText>
             )}
           </View>
         )}

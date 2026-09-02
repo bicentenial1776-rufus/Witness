@@ -27,12 +27,33 @@
     "source": "Wikipedia: Fortune (1621 ship) — https://en.wikipedia.org/wiki/Fortune_(1621_ship)"
   },
   {
+    "id": "swan-1622",
+    "ship": "Swan",
+    "arrivalYear": 1622,
+    "notes": "SWAN. A small vessel bringing seven passengers sent out by Thomas Weston. Arrived at Damariscove, Maine, in June. They came to Massachusetts Bay.2",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
     "id": "anne-1623",
     "ship": "Anne",
     "arrivalYear": 1623,
     "departurePort": "London, England",
     "arrivalPlace": "Plymouth Colony",
     "source": "Wikipedia: Anne (1623 ship) — https://en.wikipedia.org/wiki/Anne_(1623_ship)"
+  },
+  {
+    "id": "jonathan-1623",
+    "ship": "Jonathan",
+    "arrivalYear": 1623,
+    "notes": "JONATHAN, of Plymouth. It is said that the destination of this ship was Boston Harbor.2 She sailed from Plymouth, England.",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "katherine-1623",
+    "ship": "Katherine",
+    "arrivalYear": 1623,
+    "notes": "KATHERINE, Joseph Stratton, Master, one hundred and eighty tons, sent out by Sir Ferdinando Gorges with ‘sundrie passengers ’ including ‘ six gentlemen and divers men to do his labour and other men with their families.’ 3 Arrived",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
   },
   {
     "id": "little-james-1623",
@@ -44,6 +65,118 @@
     "source": "Wikipedia: Anne (1623 ship) — https://en.wikipedia.org/wiki/Anne_(1623_ship)"
   },
   {
+    "id": "charity-1624",
+    "ship": "Charity",
+    "arrivalYear": 1624,
+    "notes": "CHARITY, of London, one hundred tons, Tobias White, Master; arrived at Plymouth in April. Among her passengers were the following:",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "unity-1624",
+    "ship": "Unity",
+    "arrivalYear": 1624,
+    "notes": "UNITY, of London, Captain . Wollaston, Master. She arrived about May with thirty-five persons, who settled at",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "zouch-phenix-1624",
+    "ship": "Zouch Phenix",
+    "arrivalYear": 1624,
+    "notes": "ZOUCH PHENIX. She was consort of the Unity , or arrived with her in the spring of this year. It is believed she sailed from Weymouth, and brought the following passengers, who",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "jacob-1625",
+    "ship": "Jacob",
+    "arrivalYear": 1625,
+    "notes": "JACOB, ^probably under the command of William Peirce, as Master, arrived at Plymouth early this year with cattle. Edward Winslow returned in her from England, but no other",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "abigail-1628",
+    "ship": "Abigail",
+    "arrivalYear": 1628,
+    "notes": "ABIGAIL, Henry Gaudens, Master, sailed from Weymouth, Dorset, June 20, and arrived at Salem September 6, with the new government for ‘London’s Plantation,’ under the Governorship of Captain John Endicott.1",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "white-angel-1628",
+    "ship": "White Angel",
+    "arrivalYear": 1628,
+    "notes": "WHITE ANGEL, Christopher Burkett, Master, arrived at Plymouth.1 ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "four-sisters-1629",
+    "ship": "Four Sisters",
+    "arrivalYear": 1629,
+    "notes": "FOUR SISTERS, of London, Roger Harman, Master. Sailed from Gravesend April 5, ‘with passengers,’ number not stated.1",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "george-bonaventure-1629",
+    "ship": "George Bonaventure",
+    "arrivalYear": 1629,
+    "notes": "GEORGE BONAVENTURE, Thomas Cox, Master, of three hundred tons, with twenty pieces of ordnance, sailed from Gravesend May 4, and arrived at Salem in July. ‘She",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "lyon-1629",
+    "ship": "Lyon",
+    "arrivalYear": 1629,
+    "notes": "LYON, William Peirce, Master; sailed from Bristol in May and arrived at Plymouth in August. She had landed some goods and passengers ‘at Salem and the Bay.’ 1 The following passengers probably came in her:",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "lyon-s-whelp-1629",
+    "ship": "Lyon’s Whelp",
+    "arrivalYear": 1629,
+    "notes": "LYON’S WHELP, John Gibbs, Master. Sailed from Gravesend April 25, 1629, ‘With above forty planters out of the Countyes of Dorset and Somerset,’ 1 and arrived at Salem in the middle of July. She brought ‘6 fishermen from Dorchester.’ 2",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "mayflower-1629",
+    "ship": "Mayflower",
+    "arrivalYear": 1629,
+    "notes": "MAYFLOWER, William Peirce, Master, left Gravesend in March with thirty-five passengers, mostly from Leyden, Holland, destined for Plymouth. She arrived May 15.1",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "talbot-1629",
+    "ship": "Talbot",
+    "arrivalYear": 1629,
+    "notes": "TALBOT, of London, Thomas Beecher, Master, carrying nineteen pieces of ordnance. Sailed about May 1 1 from the Isle of Wight, and arrived at Salem July 29, with about one",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "friendship-1630",
+    "ship": "Friendship",
+    "arrivalYear": 1630,
+    "notes": "FRIENDSHIP. This vessel arrived ‘aboute the midle of Sommer’ in the Bay.2 The only known passenger was Timothy Hatherly.",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "lyon-1630",
+    "ship": "Lyon",
+    "arrivalYear": 1630,
+    "notes": "LYON. This ship was famous in the history of the early emigration to Massachusetts, and her Master was equally noted for his skillful seamanship and his sympathy with the policy of the Puritan leaders. In 1630, 1631, and 1632 she made",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "mary-and-john-1630",
+    "ship": "Mary and John",
+    "arrivalYear": 1630,
+    "notes": "MARY AND JOHN, Thomas Chubb, Master. She sailed from Plymouth, England, March 20, with one hundred and forty passengers from the counties of Somerset, Dorset, and",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "swift-1630",
+    "ship": "Swift",
+    "arrivalYear": 1630,
+    "notes": "SWIFT, Stephen Reekes, Master, of seventy tons. She sailed from Bristol in April for Saco and Casco Bay in Maine with passengers and freight.3 It is probable that the following",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
     "id": "winthrop-fleet-1630",
     "ship": "Winthrop Fleet",
     "arrivalYear": 1630,
@@ -53,12 +186,565 @@
     "source": "Charles Edward Banks, The Winthrop Fleet of 1630 (1930); Robert Charles Anderson, The Winthrop Fleet (2012); Wikipedia: Winthrop Fleet — https://en.wikipedia.org/wiki/Winthrop_Fleet"
   },
   {
+    "id": "lyon-1631",
+    "ship": "Lyon",
+    "arrivalYear": 1631,
+    "notes": "LYON, William Peirce, Master, sailed from Bristol December 1, 1630, and arrived February 5, with ‘about twenty passengers and two hundred tons of goods.’4 ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "lyon-1631-2",
+    "ship": "Lyon",
+    "arrivalYear": 1631,
+    "notes": "LYON, William Peirce, Master. She left London about August 23 and arrived at Nantasket November 2, bringing ‘in all about sixty persons.’ 2 The following named are known",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "white-angel-1631",
+    "ship": "White Angel",
+    "arrivalYear": 1631,
+    "notes": "WHITE ANGEL, sailed from Bristol for Saco, Maine, and arrived in July ‘with cattle and provisions for the Bay and Plymouth.’ 1",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "charles-1632",
+    "ship": "Charles",
+    "arrivalYear": 1632,
+    "notes": "CHARLES. Sailed from Barnstaple April io and arrived June 5 at Boston, ‘with about twenty passengers, all safe ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "james-1632",
+    "ship": "James",
+    "arrivalYear": 1632,
+    "notes": "JAMES, Captain . Grant, Master. Sailed from London about the first week in April, and arrived at Boston June 5.",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "lyon-1632",
+    "ship": "Lyon",
+    "arrivalYear": 1632,
+    "notes": "LYON, William Peirce, Master, sailed from London June 22 and arrived September 16 at Boston. ‘He brought one hundred and twenty three passengers, whereof fifty children, all in health. They had been twelve weeks aboard and eight",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "whale-1632",
+    "ship": "Whale",
+    "arrivalYear": 1632,
+    "notes": "WHALE, Captain . Graves, Master. She sailed from Southampton April 8 and arrived May 26, with ‘about",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "william-and-francis-1632",
+    "ship": "William and Francis",
+    "arrivalYear": 1632,
+    "notes": "WILLIAM AND FRANCIS, Captain . Thomas, Master. She left London March 9 and arrived June 5, ‘with about",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "elizabeth-bonaventure-1633",
+    "ship": "Elizabeth Bonaventure",
+    "arrivalYear": 1633,
+    "notes": "ELIZABETH BONAVENTURE, John Graves, Master, left Yarmouth, Norfolk, the first week in May and arrived at Boston on June 15, ‘with ninety five passengers.’ 4 The",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "griffin-1633",
+    "ship": "Griffin",
+    "arrivalYear": 1633,
+    "notes": "GRIFFIN. This ship of 300 tons arrived September 4, ‘Having been eight weeks from the Downs. She brought about two hundred passengers.’ 2",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "james-1633",
+    "ship": "James",
+    "arrivalYear": 1633,
+    "notes": "JAMES, . Grant, Master, arrived at Salem October io, ‘having been but eight weeks between Gravesend and Salem.",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "mary-and-jane-1633",
+    "ship": "Mary and Jane",
+    "arrivalYear": 1633,
+    "notes": "MARY AND JANE, . Rose, Master. ‘ She came from London in seven weeks and brought one hundred and ninety",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "welcome-1633",
+    "ship": "Welcome",
+    "arrivalYear": 1633,
+    "notes": "WELCOME. She probably sailed from Plymouth, Devon, in January",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "william-1633",
+    "ship": "William",
+    "arrivalYear": 1633,
+    "notes": "WILLIAM, William Trevor, Master, ‘arrived at Plymouth with some passengers and goods for the Massachusetts Bay.’ 1 ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
     "id": "ark-and-dove-1634",
     "ship": "Ark and Dove",
     "arrivalYear": 1634,
     "departurePort": "Cowes, Isle of Wight, England",
     "arrivalPlace": "St. Clement's Island, Maryland",
-    "notes": "The founding voyage of the Maryland colony.",
-    "source": "Wikipedia: Ark (ship) — https://en.wikipedia.org/wiki/Ark_(ship)"
+    "notes": "The founding voyage of the Maryland colony. No passenger manifest survives — every published list is a reconstruction from Maryland land-patent claims, so presence aboard is inferred, never recorded.",
+    "source": "Maryland land patents (Skordas 1968; Gibb 1997), as compiled in H. W. Newman, The Flowering of the Maryland Palatinate (1968); Wikipedia: Ark (ship) — https://en.wikipedia.org/wiki/Ark_(ship)"
+  },
+  {
+    "id": "elizabeth-1634",
+    "ship": "Elizabeth",
+    "arrivalYear": 1634,
+    "notes": "ELIZABETH, of Ipswich, William Andrews, Master. She sailed from Ipswich ‘bound for New England the last of April, 1634/ and arrived in July at Boston.1",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "francis-1634",
+    "ship": "Francis",
+    "arrivalYear": 1634,
+    "notes": "FRANCIS of Ipswich, John Cutting, Master, ‘ bound for New England the last of Aprill, 1634/ She sailed from Ipswich.1 ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "griffin-1634",
+    "ship": "Griffin",
+    "arrivalYear": 1634,
+    "notes": "GRIFFIN. This ship arrived at Boston September (i 8), with about one hundred passengers and cattle for the plantations.1",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "hercules-1634",
+    "ship": "Hercules",
+    "arrivalYear": 1634,
+    "notes": "HERCULES, John Kiddey, Master. She left London March 24, and Southampton, April 18, with twelve passengers.2 ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "hercules-1634-2",
+    "ship": "Hercules",
+    "arrivalYear": 1634,
+    "notes": "HERCULES of Sandwich, John Witherley, Master, sailed in the spring of this year, and is probably the Hercules ‘of Dover’ mentioned by Winthropas being here in the summer.’1",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "mary-and-john-1634",
+    "ship": "Mary and John",
+    "arrivalYear": 1634,
+    "notes": "MARY AND JOHN, Robert Sayres, Master, sailed from Southampton March 24, 1633/4, but the time of her arrival is not recorded.1",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "merchant-bonaventure-1634",
+    "ship": "Merchant Bonaventure",
+    "arrivalYear": 1634,
+    "notes": "London port register certificates. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "rebecca-1634",
+    "ship": "Rebecca",
+    "arrivalYear": 1634,
+    "notes": "REBECCA. This vessel arrived in Boston (date unknown) and left December 18.1 ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "regard-1634",
+    "ship": "Regard",
+    "arrivalYear": 1634,
+    "notes": "REGARD of Barnstaple, two hundred tons, arrived November 13 at Boston, ‘with twenty passengers and about fifty cattle.’ 2 ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "abigail-1635",
+    "ship": "Abigail",
+    "arrivalYear": 1635,
+    "notes": "ABIGAIL of London, Richard Hackwell, Master. She listed passengers for New England from June 4 until July 24, and sailed from Plymouth, as her last port of departure, about",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930); John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "alexander-1635",
+    "ship": "Alexander",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates, bound for Ye Barbadoes. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "alice-1635",
+    "ship": "Alice",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates, bound for Virginea. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "america-1635",
+    "ship": "America",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates, bound for Virginea. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "angel-gabriel-1635",
+    "ship": "Angel Gabriel",
+    "arrivalYear": 1635,
+    "notes": "ANGEL GABRIEL of Bristol, two hundred and forty tons, . Taylor, Master. Sailed for New England in June and",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "ann-and-elizabeth-1635",
+    "ship": "Ann and Elizabeth",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "assurance-1635",
+    "ship": "Assurance",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates, bound for Virginea. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "batchelor-1635",
+    "ship": "Batchelor",
+    "arrivalYear": 1635,
+    "notes": "BATCHELOR, Thomas Webb, Master, of twenty-five tons, sailed for New England August 1 1 and arrived November 28. ‘ Here arrived,’ wrote Winthrop, ‘ a small Norsey Bark, sent",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "blessing-1635",
+    "ship": "Blessing",
+    "arrivalYear": 1635,
+    "notes": "BLESSING, John Leicester, Master. She sailed in June with the following passengers ‘to be transported to New England’ and arrived at Boston in August.1",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930); John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "christian-1635",
+    "ship": "Christian",
+    "arrivalYear": 1635,
+    "notes": "CHRISTIAN of London, John White, Master. She sailed from London in March and arrived at Boston in June. Her passengers were ‘certified’ by the minister of Saint Mildred,",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930); John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "david-1635",
+    "ship": "David",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "defence-1635",
+    "ship": "Defence",
+    "arrivalYear": 1635,
+    "notes": "DEFENCE of London, Edward Bostock, Master. She sailed from London about the last of July and arrived at Boston October 8, with about one hundred passengers.",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930); John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "desire-1635",
+    "ship": "Desire",
+    "arrivalYear": 1635,
+    "notes": "DESIRE, Edward Boswell, Master. She sailed in June with the following named passengers ‘pr Cert, from ij Justices of Peace and minister of all Saintes Northampton/ The date of",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "elizabeth-1635",
+    "ship": "Elizabeth",
+    "arrivalYear": 1635,
+    "notes": "ELIZABETH of London, William Stagg, Master. She sailed from London in April and arrived at Boston in midsummer. ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930); John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "elizabeth-and-ann-1635",
+    "ship": "Elizabeth and Ann",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates, bound for New-England. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "elizabeth-and-anne-1635",
+    "ship": "Elizabeth and Anne",
+    "arrivalYear": 1635,
+    "notes": "ELIZABETH AND ANNE, Roger Cooper, Master. She sailed about the middle of May and arrived at Boston in Midsummer, with one hundred and two passengers.2",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "expectation-1635",
+    "ship": "Expectation",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates, bound for The Island Of Providence. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "expedition-1635",
+    "ship": "Expedition",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates, bound for The Barbadoes. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "falcon-1635",
+    "ship": "Falcon",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates, bound for The Barbadoes. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "george-1635",
+    "ship": "George",
+    "arrivalYear": 1635,
+    "notes": "GEORGE of Bristol left that port September 28 and arrived at Boston November 7, following.1 ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930); John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "globe-1635",
+    "ship": "Globe",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates, bound for Virginea. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "hopewell-1635",
+    "ship": "Hopewell",
+    "arrivalYear": 1635,
+    "notes": "HOPEWELL of London, William Bundock, Master. She sailed early in April from London and arrived at Boston in June.1",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930); John Camden Hotten, The Original Lists of Persons of Quality (1874); John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "hopewell-1635-2",
+    "ship": "Hopewell",
+    "arrivalYear": 1635,
+    "notes": "HOPEWELL of London, Thomas Babb, Master. She sailed about the middle of September and arrived at Boston in the latter part of November.2",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "increase-1635",
+    "ship": "Increase",
+    "arrivalYear": 1635,
+    "notes": "INCREASE of London, Robert Lea, Master. She left England the latter part of April and arrived Boston the end of July.1 ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930); John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "james-1635",
+    "ship": "James",
+    "arrivalYear": 1635,
+    "notes": "JAMES of Bristol, sailed June 4, arrived August 17, ‘ . . . having one hundred passengers, honest people of Yorkshire, being put into the Isles of Shoals, lost three anchors: and setting sail, no canvas nor ropes would hold, but she was driven",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930); John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "james-1635-2",
+    "ship": "James",
+    "arrivalYear": 1635,
+    "notes": "JAMES of London, William Cooper, Master, three hundred tons. She sailed from Southampton April 5 and arrived June 3 with passengers and cattle. Winthrop calls her master ‘ Mr.",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "james-1635-3",
+    "ship": "James",
+    "arrivalYear": 1635,
+    "notes": "JAMES, John May, Master. She sailed for New England the latter part of July and arrived at Boston the last week in ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "love-1635",
+    "ship": "Love",
+    "arrivalYear": 1635,
+    "notes": "LOVE, Joseph Young, Master. Probably sailed in July or August with the following named passengers but the date of arrival is not known.2",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930); John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "merchant-s-hope-1635",
+    "ship": "Merchant's Hope",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates, bound for Virginea. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "paul-1635",
+    "ship": "Paul",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "phillip-1635",
+    "ship": "Phillip",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates, bound for Virginea. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "pied-cow-1635",
+    "ship": "Pied Cow",
+    "arrivalYear": 1635,
+    "notes": "PIED COW. Nothing is known of this vessel, the time of her departure or her arrival, except what is given below. 1 ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "plain-joan-1635",
+    "ship": "Plain Joan",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "planter-1635",
+    "ship": "Planter",
+    "arrivalYear": 1635,
+    "notes": "PLANTER of London, Nicholas Trerice, Master. She sailed from London about April 10 and arrived at Boston June 7, following.1",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930); John Camden Hotten, The Original Lists of Persons of Quality (1874); John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "primrose-1635",
+    "ship": "Primrose",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates, bound for Virginea. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "rebecca-1635",
+    "ship": "Rebecca",
+    "arrivalYear": 1635,
+    "notes": "REBECCA, John Hodges, Master. She sailed from London ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930); John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "speedwell-1635",
+    "ship": "Speedwell",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates, bound for Virginea. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "susan-and-ellen-1635",
+    "ship": "Susan and Ellen",
+    "arrivalYear": 1635,
+    "notes": "SUSAN AND ELLEN, Edward Payne, Master. She sailed in May, but the date of her arrival is not of record. No certificates of residence accompanied this list.2 ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930); John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "thomas-1635",
+    "ship": "Thomas",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates, bound for Virginea. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "thomas-and-john-1635",
+    "ship": "Thomas and John",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "transport-1635",
+    "ship": "Transport",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates, bound for Virginea. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "truelove-1635",
+    "ship": "Truelove",
+    "arrivalYear": 1635,
+    "notes": "TRUELOVE, John Gibbs, Master. She sailed in September, probably, from London and arrived at Boston late in November.1 ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930); John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "william-and-john-1635",
+    "ship": "William and John",
+    "arrivalYear": 1635,
+    "notes": "London port register certificates. Ages as sworn at embarkation; birth years derived from them.",
+    "source": "John Camden Hotten, The Original Lists of Persons of Quality (1874)"
+  },
+  {
+    "id": "george-1636",
+    "ship": "George",
+    "arrivalYear": 1636,
+    "notes": "GEORGE of Bristol, arrived at Plymouth, December 27, laden with cattle and passengers, under stress of weather, ‘having spent her mainmast about Cape Cod.’ 1 No information as to names of the emigrants.",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "hector-1636",
+    "ship": "Hector",
+    "arrivalYear": 1636,
+    "notes": "HECTOR. No information is available about this ship except that she arrived sometime in May.1 ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "hercules-1637",
+    "ship": "Hercules",
+    "arrivalYear": 1637,
+    "notes": "HERCULES of Sandwich, John Witherley, Master. When this ship sailed from Sandwich is not known, but the following list of passengers ‘ for the American Plantations,’ in the corporation records of Sandwich, is ‘ certified under the seal of the",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "mary-anne-1637",
+    "ship": "Mary Anne",
+    "arrivalYear": 1637,
+    "notes": "MARY ANNE of Yarmouth, William Goose, Master. She ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "rose-1637",
+    "ship": "Rose",
+    "arrivalYear": 1637,
+    "notes": "ROSE of Yarmouth, William Andrews, Jr., Master. The following named passengers sailed in these two ships",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "bevis-1638",
+    "ship": "Bevis",
+    "arrivalYear": 1638,
+    "notes": "BEVIS of Southampton, one hundred and fifty tons, Robert Batten, Master. Probably sailed in May, ‘ by vertue of the Lord Treasurers warrant of the second of May, wch was",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "confidence-1638",
+    "ship": "Confidence",
+    "arrivalYear": 1638,
+    "notes": "CONFIDENCE, of London, two hundred tons, John Gibson, Master. She sailed from Southampton the last of April,' by",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "diligent-1638",
+    "ship": "Diligent",
+    "arrivalYear": 1638,
+    "notes": "DILIGENT, of Ipswich, John Martin, Master. She sailed from Ipswich, Suffolk, in June and arrived August 10 at Boston, with about one hundred passengers, principally from",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "martin-1638",
+    "ship": "Martin",
+    "arrivalYear": 1638,
+    "notes": "MARTIN. The voyage of this ship is only known through the death of one of its passengers, and the settlement of his estate by depositions of witnesses as to the will. She arrived in Boston Harbor before July 13.",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "susan-and-ellen-1638",
+    "ship": "Susan and Ellen",
+    "arrivalYear": 1638,
+    "notes": "SUSAN AND ELLEN, Edward Payne, Master, sailed from London April 11 and arrived July 17 this year.2 ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "jonathan-1639",
+    "ship": "Jonathan",
+    "arrivalYear": 1639,
+    "notes": "JONATHAN. The facts concerning this ship are taken from local records, but it is not known when she departed or arrived. The passengers are believed to be from the county of Hampshire and it is supposed that she sailed from Southampton.1",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "charles-1640",
+    "ship": "Charles",
+    "arrivalYear": 1640,
+    "notes": "CHARLES of Bristol was licensed to carry two hundred and fifty passengers to New England.3 Of this vessel Winthrop made the following record: ‘A great ship called the Charles ,",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
+  },
+  {
+    "id": "fellowship-1640",
+    "ship": "Fellowship",
+    "arrivalYear": 1640,
+    "notes": "FELLOWSHIP of Bristol was licensed to carry two hundred and fifty passengers to New England.2 She sailed about April. ",
+    "source": "Charles Edward Banks, The Planters of the Commonwealth (1930)"
   }
 ]

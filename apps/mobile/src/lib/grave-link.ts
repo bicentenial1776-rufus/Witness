@@ -1,3 +1,4 @@
+import { splitSearchName } from '@/lib/record-search';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -37,13 +38,7 @@ export function buildFindAGraveSearchUrl(input: {
   deathYear: number | null;
   location?: string | null;
 }): string {
-  // Generational suffixes aren't surnames — "Ariel Cooke Sr" must search
-  // lastname=Cooke, not lastname=Sr.
-  const SUFFIX = /^(sr|jr|i{1,3}|iv|v|esq)\.?,?$/i;
-  const tokens = input.fullName.trim().split(/\s+/).filter(Boolean);
-  while (tokens.length > 1 && SUFFIX.test(tokens[tokens.length - 1])) tokens.pop();
-  const lastname = tokens.length ? tokens[tokens.length - 1] : '';
-  const firstname = tokens.slice(0, -1).join(' ');
+  const { firstname, lastname } = splitSearchName(input.fullName);
   const params = new URLSearchParams();
   if (firstname) params.set('firstname', firstname);
   if (lastname) params.set('lastname', lastname);
