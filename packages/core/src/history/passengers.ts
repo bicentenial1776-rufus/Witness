@@ -129,7 +129,14 @@ function compareYears(
   if (a === null || b === null) return { agrees: false, conflicts: false, reason: null };
   const gap = Math.abs(a - b);
   if (gap <= tolerance) {
-    return { agrees: true, conflicts: false, reason: `${label} ${a} and ${b} agree within ${gap}` };
+    return {
+      agrees: true,
+      conflicts: false,
+      reason:
+        gap === 0
+          ? `${label} year ${a} matches exactly`
+          : `${label} ${a} and ${b} agree within ${gap}`,
+    };
   }
   if (gap > conflict) {
     return { agrees: false, conflicts: true, reason: `${label} ${a} and ${b} are ${gap} apart` };

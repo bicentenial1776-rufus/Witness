@@ -2535,6 +2535,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               <PassengerCandidateCard
                 key={candidate.id}
                 candidate={candidate}
+                readOnly={!treeOwned}
                 onResolved={(candidateId, status) =>
                   setPassengerCandidates((current) =>
                     status === 'dismissed'
@@ -2566,6 +2567,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                   key={link.id}
                   link={link}
                   register={register}
+                  readOnly={!treeOwned}
                   onResolved={(linkId, status) =>
                     setRegisterLinks((current) =>
                       status === 'rejected'

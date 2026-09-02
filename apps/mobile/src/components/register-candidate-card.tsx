@@ -23,10 +23,13 @@ export function RegisterCandidateCard({
   link,
   register,
   onResolved,
+  readOnly = false,
 }: {
   link: PersonRegisterLink;
   register: RegisterDef;
   onResolved?: (id: string, status: 'confirmed' | 'rejected') => void;
+  /** Family members see the record and the verdict; only the owner rules. */
+  readOnly?: boolean;
 }) {
   const theme = useTheme();
   const [busy, setBusy] = useState(false);
@@ -72,6 +75,10 @@ export function RegisterCandidateCard({
           {link.status === 'confirmed'
             ? `Confirmed — ${register.provenanceLabel.toLowerCase()}`
             : 'From your own tree’s record'}
+        </ThemedText>
+      ) : readOnly ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          Awaiting the tree owner’s verdict
         </ThemedText>
       ) : (
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>

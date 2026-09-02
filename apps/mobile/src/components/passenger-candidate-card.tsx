@@ -27,9 +27,12 @@ const CONFIDENCE_LABEL: Record<PassengerCandidate['confidence'], string> = {
 export function PassengerCandidateCard({
   candidate,
   onResolved,
+  readOnly = false,
 }: {
   candidate: PassengerCandidate;
   onResolved?: (id: string, status: 'confirmed' | 'dismissed') => void;
+  /** Family members see the record and the verdict; only the owner rules. */
+  readOnly?: boolean;
 }) {
   const theme = useTheme();
   const [busy, setBusy] = useState(false);
@@ -99,6 +102,10 @@ export function PassengerCandidateCard({
       {candidate.status === 'confirmed' ? (
         <ThemedText type="small" themeColor="accent" style={{ fontWeight: 600 }}>
           Confirmed — an immigration event now carries this crossing
+        </ThemedText>
+      ) : readOnly ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          Awaiting the tree owner’s verdict
         </ThemedText>
       ) : (
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>

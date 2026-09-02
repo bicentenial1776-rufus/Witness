@@ -124,7 +124,11 @@ export function matchRegisterRecords(
         const gap = Math.abs(ours - theirs);
         if (gap <= tolerance) {
           yearAgrees = true;
-          reasons.push(`${label} ${theirs} and ${ours} agree within ${gap}`);
+          reasons.push(
+            gap === 0
+              ? `${label} year ${ours} matches exactly`
+              : `${label} ${theirs} and ${ours} agree within ${gap}`,
+          );
         } else if (gap > conflict) {
           contradicted = true;
         }
