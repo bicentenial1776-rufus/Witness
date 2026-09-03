@@ -50,7 +50,8 @@ through. This change is the door, and nothing more.
 
 - It adds no part to the app and moves no version. The web-page panel is
   already in the toolkit the app is built from; the built-in browser view is
-  already used in six places. No third-party web view was added.
+  already used in seven places, counted screen by screen. No third-party web
+  view was added.
 - It changes nothing a reader can reach. The screen is unreachable unless
   you type its address, and no behaviour anywhere else in the app is
   altered. It does add weight to every build, though, and that should be
@@ -65,6 +66,13 @@ through. This change is the door, and nothing more.
 - It does not check that sign-in or the subscription gate carry into the
   panel. That can ride along on the same build if there is time, but it is
   not what this is for.
+- It does not put the screen outside the app's own gate, and that matters
+  before you build. The hidden screen sits inside the group of screens the
+  app keeps behind sign-in and the subscription, so typing its address on a
+  fresh install lands you on the sign-in screen or the subscription screen,
+  not on the world. Nothing here was changed to get around that — it is your
+  app and the gate is there for a reason — so the recipe says instead what to
+  arrange first. It is the note at step 6.
 - It touches nothing else in the app: one line of bundler configuration, one
   new screen, and the one new panel that line exists for. The copy step and
   the world's folder are exactly as the earlier branch left them — the app
@@ -154,6 +162,12 @@ that gives the world a home in this repository, and the one-line fix without
 which the install does not finish on Windows. Both are merged in here, so
 this one branch is all you need to try it.
 
+**One warning before you go on, so it does not surprise you at the wrong
+moment.** The next step changes a file you are used to seeing clean: the
+record of exactly which versions of everything are installed. It is expected,
+it is not part of this change, and it must not be committed. What to do about
+it is at the end of step 2.
+
 ### 2. Install
 
 From the top of the repository:
@@ -162,11 +176,12 @@ From the top of the repository:
 npm install
 ```
 
-One thing to expect rather than worry about: this rewrites the lock file the
-first time, because the earlier branch added a folder to the workspace and
-the lock was never regenerated for it. Your repository will look dirty
-straight after installing, and that change belongs to that branch's review,
-not to this one. Leave it alone, or put it back with
+This is the step that changes the record of installed versions, as warned in
+step 1. It happens because the earlier branch added a folder to the workspace
+and that record was never regenerated for it — nothing to do with the hidden
+door. Your repository will look dirty straight after installing. **Do not
+commit that file.** Leave it alone while you work, and put it back before any
+commit with
 
 ```bash
 git checkout -- package-lock.json
@@ -237,6 +252,38 @@ cd ..
 
 ### 6. First quick build, on your device
 
+**Read this before you type the command. The hidden screen is inside the
+app's gate.** The screen lives in the group of screens the app keeps behind
+sign-in and the subscription, and the gate asks two questions before it lets
+that whole group exist: is somebody signed in, and does that account hold the
+subscription. Both have to answer yes. If they do not, typing the address in
+step 7 puts you on the sign-in screen or on the subscription screen, and no
+amount of retyping gets you past it. Nothing on the hidden screen was changed
+to slip out from behind the gate: it is your app, the gate is deliberate, and
+a trial screen is not a reason to punch a hole in it.
+
+So arrange one of these two before you build.
+
+- **Sign in with an account that already holds the subscription.** A live
+  one, or one you have granted for nothing in the subscription service — the
+  app treats a granted subscription exactly like a bought one. Then just sign
+  in on the device as any reader would. Nothing else to do.
+- **Or use the switch you already have for simulators.** It grants the
+  subscription without the store. Put this in the app's own settings file,
+  which is never committed:
+
+  ```
+  # apps/mobile/.env
+  EXPO_PUBLIC_DEV_SKIP_PAYWALL=1
+  ```
+
+  Two things about it. It is read when the app is built, so it has to be in
+  place **before** the command below, not after. And it answers only the
+  second question — you still have to sign in, with any account that works.
+  It is compiled out of finished-quality builds on purpose, so it will not
+  help you in part three; there the account must genuinely hold the
+  subscription.
+
 With the iPad attached and unlocked:
 
 ```bash
@@ -259,14 +306,48 @@ mobile://field
 If the app opens on its own developer launcher instead of on the field,
 open the app first and let it finish loading, then type the address again.
 In a finished-quality build there is no launcher and the address goes
-straight to the screen.
+straight to the screen. If you land on the sign-in screen or the subscription
+screen instead, that is the gate, not a fault — go back to the note at the
+top of step 6.
 
-You should see the world fill the screen, with a thin bar at the bottom of
-it. If instead you see a black rectangle, or the app's own background, the
-main door did not load. Please write down which of the two it was, then use
-the button in that bottom bar — the fallback door — so the session still
-yields a number. It only works once somebody has filled in a hosted address;
-if nobody has, part five below is the way to get a number today.
+**What you will actually see, so nothing looks like a fault.** From the top:
+the app's own title bar reading The Field; the world below it; and under the
+world a thin bar of its own carrying one line of small print and the fallback
+button.
+
+Held upright, there is a fourth thing. The app draws its own four-door bar
+across the bottom of every screen in this part of it, and this screen is no
+exception. It costs about seventy-six points of height — about fifty-six
+points of bar, plus the strip the tablet keeps clear at its bottom edge,
+which is twenty points on an iPad with a home indicator and nothing at all on
+one with a home button. Those numbers are read out of the app's own code, not
+measured on a device; nobody has had this screen on a tablet yet.
+
+The good news is that the bar sits under the world rather than over it, so
+nothing in the world is hidden: the world simply gets a shorter window, and
+its own controls — which sit thirty points up from the bottom edge of that
+window — ride up with it and stay where your thumb expects them. The two
+buttons this recipe asks you to press are not down there anyway; they are in
+the measuring panel in the top-left corner.
+
+Turn the iPad on its side and the bar goes away altogether. Above nine
+hundred points of width the app switches to its wide reading layout, which
+drops the four-door bar, and on this screen nothing replaces it — the wide
+layout's side rail belongs to the four main destinations and this is not one
+of them. The tablet the plan names is 820 points wide held upright, which is
+under the line, and 1,180 on its side, which is over it: so it shows the bar
+upright and loses it sideways. A large iPad is over the line either way and
+never shows it at all. Walk the world on its side. It is the better reading
+and the fuller window, and it is the one orientation where the app takes
+nothing off the bottom.
+
+If instead you see a black rectangle, or the app's own background, the main
+door did not load. Please write down which of the two it was, then use the
+button in that bottom bar — the fallback door — so the session still yields a
+number. It only works once somebody has filled in a hosted address; if nobody
+has, part five below is the way to get a number today. If this happens on a
+finished-quality build rather than the quick one, there is a first thing to
+check, and it is in part three.
 
 ### 8. Switch measuring on
 
@@ -347,7 +428,30 @@ xcrun altool --upload-app -f <path>.ipa -t ios \
 ```
 
 Then install through TestFlight, and run steps 7 to 10 again on that build.
-Label the report so we know which build it came from.
+Label the report so we know which build it came from. Remember that the
+subscription switch from step 6 does not exist in a build of this kind: the
+account you sign in with has to hold the subscription for real, granted or
+bought.
+
+**If the panel comes up white on a build of this kind, check the panel's own
+page first, not the world.** There are two separate files involved. The world
+is one, and it is certainly in the build, because a build with the world
+missing stops rather than finishes — so if you got an app at all, the world
+travelled. The panel's own page is the other: a small web page the toolkit
+generates at export time and copies into the app, which is what the panel
+actually loads before the world is put inside it. It is the piece with no
+history in this app, and it is generated by a different part of the build from
+everything else. If it is not in the finished app, the panel has nothing to
+load and paints white, and the world's presence makes no difference at all.
+
+Two minutes to tell the two apart, using part four below. Attach the Web
+Inspector and look at what the iPad offers. Nothing at all listed under the
+app means the panel's page never loaded, and the panel is your problem: build
+again from a clean generate-and-install so that page is regenerated and
+copied in. A page listed, but empty inside, means the panel loaded and the
+world's address inside it did not, which is a different and more interesting
+fault — write down whatever the log says and send it, and use the fallback
+door for the number.
 
 The signing, the team, the upload key and the issuer identifier are all
 yours and only exist on your machine. Nothing in this recipe can be run
