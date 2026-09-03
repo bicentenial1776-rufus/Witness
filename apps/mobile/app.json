@@ -2,7 +2,7 @@
   "expo": {
     "name": "Witness",
     "slug": "witness",
-    "version": "1.6.0",
+    "version": "1.7.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mobile",
@@ -67,9 +67,10 @@
           }
         ]
       },
-      "buildNumber": "13",
+      "buildNumber": "15",
       "appleTeamId": "SLD65K94V7",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "associatedDomains": ["applinks:app.witnesslives.com"]
     },
     "android": {
       "adaptiveIcon": {

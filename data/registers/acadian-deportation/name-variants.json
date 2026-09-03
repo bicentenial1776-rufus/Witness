@@ -1,0 +1,285 @@
+{
+  "_comment": "Versioned Acadian name-variant table, v1 (2026-09-02). canonical -> variants, all compared lowercase. Deterministic folding only: period spellings and French/English given-name equivalents. Translated dit-names (LeBlanc/White, Bourg/Burke) are deliberately ABSENT in v1 — on Anglo trees they flood the matcher; add them only with a tighter gate.",
+  "given": {
+    "pierre": [
+      "peter",
+      "pierrs",
+      "piere"
+    ],
+    "jean": [
+      "john",
+      "jehan"
+    ],
+    "joseph": [
+      "jos",
+      "josef",
+      "jose"
+    ],
+    "charles": [
+      "charle",
+      "charls"
+    ],
+    "guillaume": [
+      "william",
+      "guilliaume"
+    ],
+    "étienne": [
+      "etienne",
+      "stephen",
+      "estienne"
+    ],
+    "françois": [
+      "francois",
+      "francis",
+      "francoise"
+    ],
+    "michel": [
+      "michael",
+      "michell"
+    ],
+    "olivier": [
+      "oliver",
+      "olivere"
+    ],
+    "claude": [
+      "claud",
+      "claudius"
+    ],
+    "antoine": [
+      "anthony",
+      "anthoine",
+      "antoin"
+    ],
+    "rené": [
+      "rene",
+      "rener",
+      "renny"
+    ],
+    "jacques": [
+      "james",
+      "jaque",
+      "jacque"
+    ],
+    "basile": [
+      "basil"
+    ],
+    "alexandre": [
+      "alexander",
+      "alexis"
+    ],
+    "baptiste": [
+      "batiste",
+      "babtiste"
+    ],
+    "honoré": [
+      "honore"
+    ],
+    "augustin": [
+      "austin",
+      "augusten"
+    ],
+    "amand": [
+      "armand",
+      "amond"
+    ],
+    "paul": [
+      "pol"
+    ],
+    "simon": [
+      "simeon"
+    ],
+    "germain": [
+      "german"
+    ],
+    "ambroise": [
+      "ambrose"
+    ],
+    "noël": [
+      "noel",
+      "nowel"
+    ]
+  },
+  "surname": {
+    "boudrot": [
+      "boudro",
+      "boudreau",
+      "boudreaux",
+      "boudrott",
+      "boudreault"
+    ],
+    "hébert": [
+      "hebert",
+      "abair",
+      "aybar",
+      "heber"
+    ],
+    "terriot": [
+      "theriot",
+      "thériot",
+      "theriault",
+      "terriau",
+      "terriott",
+      "terrio"
+    ],
+    "comeau": [
+      "commo",
+      "comeaux",
+      "como",
+      "comau"
+    ],
+    "gautrot": [
+      "gautreau",
+      "gautreaux",
+      "gotro",
+      "gautro",
+      "gauthreaux"
+    ],
+    "breau": [
+      "braud",
+      "breaux",
+      "brault",
+      "bro",
+      "braux"
+    ],
+    "daigre": [
+      "daigle",
+      "dagle",
+      "daig"
+    ],
+    "robichaud": [
+      "robicheaux",
+      "robichaux",
+      "robisheau",
+      "robichau"
+    ],
+    "thibodeau": [
+      "thibodau",
+      "thibodeaux",
+      "tibaudeau",
+      "tibodo",
+      "tibouday",
+      "tiboudo"
+    ],
+    "melanson": [
+      "melancon",
+      "melanson",
+      "melanson"
+    ],
+    "aucoin": [
+      "aucoine",
+      "aucoins",
+      "wedge"
+    ],
+    "trahan": [
+      "trahane",
+      "trahant"
+    ],
+    "bourg": [
+      "bourque",
+      "bourgh"
+    ],
+    "landry": [
+      "landrie",
+      "landree",
+      "landrey"
+    ],
+    "dupuis": [
+      "dupuy",
+      "dupui",
+      "dupees"
+    ],
+    "granger": [
+      "grange",
+      "grainger"
+    ],
+    "babin": [
+      "babine",
+      "babbin"
+    ],
+    "saulnier": [
+      "sonnier",
+      "saunier",
+      "solnier"
+    ],
+    "guilbeau": [
+      "guilbeaux",
+      "gilbeau",
+      "guilbault"
+    ],
+    "poirier": [
+      "porrier",
+      "poirié",
+      "poiriere"
+    ],
+    "doucet": [
+      "doucette",
+      "doucett",
+      "douset"
+    ],
+    "girouard": [
+      "giroir",
+      "girouir",
+      "girroir"
+    ],
+    "belliveau": [
+      "beliveau",
+      "beliveaux",
+      "bellefontaine",
+      "belliveaux"
+    ],
+    "leblanc": [
+      "le blanc",
+      "leblank"
+    ],
+    "lejeune": [
+      "le jeune",
+      "lejune"
+    ],
+    "bourgeois": [
+      "bourgois",
+      "burgeois"
+    ],
+    "cormier": [
+      "cormie",
+      "cormior"
+    ],
+    "blanchard": [
+      "blanchar",
+      "blanshard"
+    ],
+    "dugas": [
+      "dugast",
+      "dugass"
+    ],
+    "gaudet": [
+      "gaudett",
+      "godet"
+    ],
+    "savoie": [
+      "savoy",
+      "savoye"
+    ],
+    "pellerin": [
+      "pelerin",
+      "pellerine"
+    ],
+    "petitpas": [
+      "petitpass",
+      "petipas"
+    ],
+    "lanoue": [
+      "lanou",
+      "la noue"
+    ],
+    "brun": [
+      "lebrun",
+      "brunn"
+    ],
+    "doiron": [
+      "douaron",
+      "doueron",
+      "douairon",
+      "doiron"
+    ]
+  }
+}

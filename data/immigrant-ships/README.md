@@ -26,6 +26,9 @@ as CSV, and import.
 | Voyage | Source | Notes |
 |---|---|---|
 | Mayflower, 1620 | [List of Mayflower passengers](https://en.wikipedia.org/wiki/List_of_Mayflower_passengers) (CC BY-SA) | All ~102, with birth and death years where known. Companion pages list [those who died at sea](https://en.wikipedia.org/wiki/List_of_Mayflower_passengers_who_died_at_sea_November/December_1620) and [in the first winter](https://en.wikipedia.org/wiki/List_of_Mayflower_passengers_who_died_in_the_winter_of_1620%E2%80%9321). |
+| ~90 ships, 1620–1640 | Banks, *Planters of the Commonwealth* (1930, PD) — [archive.org](https://archive.org/details/plantersofcommon00bank) | Parsed by `packages/core/scripts/parse-banks.ts` from the OCR text. Names are reliable; the flattened columns mean origins ride in notes only when they shared the name's line. No birth/death years — matches lean on name + alive-window. |
+| ~35 ships, 1634–1635 | Hotten, *The Original Lists of Persons of Quality* (1874, PD) — raw OCR committed at repo root as `hotten.txt` | Parsed by `packages/core/scripts/parse-hotten.ts` from the London port register certificates. Ages as sworn at embarkation become derived birth years (`c. 1608`). Ships also in Banks were merged into one voyage, per-row sources kept. |
+| Ark and Dove, 1634 | Maryland land patents (Skordas 1968; Gibb 1997) as compiled in Newman, *The Flowering of the Maryland Palatinate* (1968) | **No manifest survives** — presence aboard is inferred from patent claims, never recorded. The voyage notes say so. |
 | Mayflower, 1620 | [General Society of Mayflower Descendants](https://themayflowersociety.org/passenger-profiles/) | Passenger profiles — the authority, but not bulk-downloadable. |
 | Mayflower, 1620 | [Massachusetts Society of Mayflower Descendants](https://massmayflower.org/mayflower-passengers/) | Parentage, birth, death, marriages per passenger. |
 | Mayflower, 1620 | [FamilySearch](https://www.familysearch.org/en/blog/mayflower-passenger-list) | By surname, with age at departure. |
@@ -73,7 +76,18 @@ npx tsx scripts/match-passengers.ts --gedcom "fixtures/Howe_Field Family Tree.ge
 
 # From the live tree — needs .env, like the other live scripts
 npx tsx scripts/match-passengers.ts --tree <treeId> --min probable --csv candidates.csv
+
+# Same, but also persist candidates for the Portrait's Crossing card
+npx tsx scripts/match-passengers.ts --tree <treeId> --min probable --write
 ```
+
+`--write` upserts into `passenger_candidates` (see
+`supabase/migrations/20260830090000_passenger_candidates.sql`) as the
+signed-in tree owner. Re-running is safe: a candidate someone has already
+confirmed or dismissed on the Portrait is left alone; only pending rows
+get refreshed. There is no worker running this on a schedule yet (unlike
+`nara-enrich`) — matching is fast and deterministic, so a manual re-run
+after every import is enough for now.
 
 ### How a match is decided
 

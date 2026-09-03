@@ -6,15 +6,18 @@
 // says which side (via_parent_id), unplaced ones at the right — and the
 // subject's generation below, the sibship in birth order with the subject
 // lit. Squared tiles, hairline rules, names readable on every node; plain
-// flexbox, no trig, no canvas, both carriers.
+// flexbox, no trig, no canvas, both carriers. Each band is ONE line, always
+// (2026-08-31): a wrapped tile between the couple and the descent line reads
+// as a phantom generation (an uncle rendered as a parent in the field), so
+// an overflowing band scrolls sideways, opening centered on its anchor.
 //
 // Tap a node: has_story navigates to that person's Portrait (where their
 // story lives); no story shows the lightweight fact card below the chart —
 // never a dead node. The subject is not tappable (you are already here).
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
@@ -101,6 +104,63 @@ function Tile({
   );
 }
 
+function GenerationBand({
+  before,
+  anchor,
+  after,
+  align,
+}: {
+  before?: ReactNode;
+  /** The tile(s) the band opens centered on — the marriage tie, the subject. */
+  anchor?: ReactNode;
+  after?: ReactNode;
+  align: 'flex-end' | 'flex-start';
+}) {
+  const scrollRef = useRef<ScrollView>(null);
+  const viewportWidth = useRef(0);
+  const anchorBox = useRef<{ x: number; width: number } | null>(null);
+  const centerOnAnchor = () => {
+    const a = anchorBox.current;
+    if (!a || !viewportWidth.current) return;
+    scrollRef.current?.scrollTo({
+      x: Math.max(0, a.x + a.width / 2 - viewportWidth.current / 2),
+      animated: false,
+    });
+  };
+  return (
+    <ScrollView
+      ref={scrollRef}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      onLayout={(e) => {
+        viewportWidth.current = e.nativeEvent.layout.width;
+        centerOnAnchor();
+      }}
+      contentContainerStyle={{
+        flexGrow: 1,
+        flexDirection: 'row',
+        alignItems: align,
+        justifyContent: 'center',
+        gap: 6,
+      }}
+    >
+      {before}
+      {anchor != null && (
+        <View
+          onLayout={(e) => {
+            const { x, width } = e.nativeEvent.layout;
+            anchorBox.current = { x, width };
+            centerOnAnchor();
+          }}
+        >
+          {anchor}
+        </View>
+      )}
+      {after}
+    </ScrollView>
+  );
+}
+
 export function PedigreeChart({
   subject,
   parents,
@@ -162,6 +222,7 @@ export function PedigreeChart({
       isSubject: true,
     },
   ].sort(byBirth);
+  const subjectIndex = subjectRow.findIndex((p) => p.isSubject);
 
   // Aunts/uncles seated beside their own sibling where the record says
   // which parent that is; unplaced ones close the row.
@@ -219,38 +280,36 @@ export function PedigreeChart({
                 ? 'Parents · aunts & uncles'
                 : 'Parents'}
           </RecordText>
-          <View
-            style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              alignItems: 'flex-end',
-              justifyContent: 'center',
-              gap: 6,
-            }}
-          >
-            {leftSide.map((p) => (
+          {/* One line, always: a wrapped tile below the couple reads as a
+              phantom extra generation above the descent line. Overflow
+              scrolls sideways instead, opening centered on the couple. */}
+          <GenerationBand
+            align="flex-end"
+            before={leftSide.map((p) => (
               <Tile key={p.id} person={p} small onPress={() => tap(p)} theme={theme} />
             ))}
-            {parents.length > 0 && (
-              // The couple inside one accent hairline — the marriage tie.
-              <View
-                style={{
-                  flexDirection: 'row',
-                  gap: 6,
-                  padding: 5,
-                  borderWidth: 1,
-                  borderColor: theme.accent,
-                }}
-              >
-                {parents.map((p) => (
-                  <Tile key={p.id} person={p} onPress={() => tap(p)} theme={theme} />
-                ))}
-              </View>
-            )}
-            {rightSide.map((p) => (
+            anchor={
+              parents.length > 0 ? (
+                // The couple inside one accent hairline — the marriage tie.
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    gap: 6,
+                    padding: 5,
+                    borderWidth: 1,
+                    borderColor: theme.accent,
+                  }}
+                >
+                  {parents.map((p) => (
+                    <Tile key={p.id} person={p} onPress={() => tap(p)} theme={theme} />
+                  ))}
+                </View>
+              ) : undefined
+            }
+            after={rightSide.map((p) => (
               <Tile key={p.id} person={p} small onPress={() => tap(p)} theme={theme} />
             ))}
-          </View>
+          />
 
           {/* The descent line, parents to children. */}
           <View style={{ alignItems: 'center' }}>
@@ -259,24 +318,17 @@ export function PedigreeChart({
         </>
       )}
 
-      {/* SIBSHIP BAND — the subject's generation, in birth order. */}
-      <View
-        style={{
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          alignItems: 'flex-start',
-          justifyContent: 'center',
-          gap: 6,
-        }}
-      >
-        {subjectRow.map((p) =>
-          p.isSubject ? (
-            <Tile key={p.id} person={p} lit theme={theme} />
-          ) : (
-            <Tile key={p.id} person={p} onPress={() => tap(p)} theme={theme} />
-          ),
-        )}
-      </View>
+      {/* SIBSHIP BAND — the subject's generation, in birth order, one line. */}
+      <GenerationBand
+        align="flex-start"
+        before={subjectRow.slice(0, subjectIndex).map((p) => (
+          <Tile key={p.id} person={p} onPress={() => tap(p)} theme={theme} />
+        ))}
+        anchor={<Tile person={subjectRow[subjectIndex]} lit theme={theme} />}
+        after={subjectRow.slice(subjectIndex + 1).map((p) => (
+          <Tile key={p.id} person={p} onPress={() => tap(p)} theme={theme} />
+        ))}
+      />
       {(shownSiblings.length > 0 || hiddenCount > 0) && (
         <RecordText eyebrow muted style={{ marginTop: 6, alignSelf: 'center' }}>
           {shownSiblings.length > 0 ? `${givenName(subject.name)} & siblings · birth order` : ''}

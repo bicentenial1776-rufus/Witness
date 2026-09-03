@@ -6,20 +6,30 @@ import { getRelationship } from '@witness/core/family';
 import {
   rankLivedThroughEvents,
   regionsFromPlaceParts,
+  shoreCrossingExplainer,
+  voyageExplainer,
   type LivedThroughTag,
 } from '@witness/core/history';
 import {
   eventTypeLabel,
   fetchNaraCandidatesForIndividual,
+  fetchPassengerCandidatesForIndividual,
   isFindAGraveUrl,
   livedNear,
   personShoreCrossings,
   stageKeyForPerson,
   type LivedNearNeighbor,
   type NaraCandidate,
+  type PassengerCandidate,
 } from '@witness/core/query';
 
 import { subjectKey } from '@witness/core/corrections';
+import {
+  fetchActiveRegisters,
+  fetchRegisterLinksForIndividual,
+  type PersonRegisterLink,
+  type RegisterDef,
+} from '@witness/core/registers';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
@@ -30,7 +40,10 @@ import { capturesForPerson, photoUrl, type GraveCapture } from '@/lib/grave-capt
 import { LineageMark } from '@/components/lineage-mark';
 import { LineagePanel } from '@/components/lineage-panel';
 import { PlaceMap } from '@/components/place-map';
+import { ExplainerDot } from '@/components/explainer-dot';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
+import { RegisterCandidateCard } from '@/components/register-candidate-card';
+import { PassengerCandidateCard } from '@/components/passenger-candidate-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
@@ -39,6 +52,11 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { showAlert } from '@/lib/alert';
 import { providerPersonLink, type ProviderLink } from '@/lib/ancestry';
+import {
+  ancestryImmigrationSearchUrl,
+  familySearchArrivalsUrl,
+  familySearchRecordsUrl,
+} from '@/lib/record-search';
 import { type CorrectionRow } from '@/lib/corrections';
 import { PedigreeChart } from '@/components/pedigree-chart';
 import { STORY_SHARE_LABEL, shareStory } from '@/lib/share-story';
@@ -485,7 +503,7 @@ function dedupeByIdentity(list: RegisterPerson[], preferId?: string): RegisterPe
 export default function AncestorScreen({ personId }: { personId?: string } = {}) {
   // Normally a route screen; Tree Health embeds it as the right-hand
   // detail pane by passing personId directly.
-  const params = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; tab?: string }>();
   const id = personId ?? params.id;
   const theme = useTheme();
   const { activeTree, trees } = useActiveTree();
@@ -500,7 +518,14 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // notes, Tree Check prompts — is the owner's work surface and stays off
   // the page (design brief §6). Unknown trees default to owned: the
   // server's policies are the real guard.
-  const treeOwned = person ? (trees?.find((t) => t.id === person.tree_id)?.owned ?? true) : true;
+  // While the trees list is still loading, fail READ-ONLY — a member's
+  // verdict buttons must never flash live. Once loaded, unknown trees
+  // default to owned as before.
+  const treeOwned = person
+    ? trees
+      ? (trees.find((t) => t.id === person.tree_id)?.owned ?? true)
+      : false
+    : true;
   // Network down AND no saved copy covers this person — say that, not
   // "this record isn't here anymore".
   const [unreachable, setUnreachable] = useState(false);
@@ -573,6 +598,9 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     }
   }
   const [naraCandidates, setNaraCandidates] = useState<NaraCandidate[]>([]);
+  const [passengerCandidates, setPassengerCandidates] = useState<PassengerCandidate[]>([]);
+  const [registerCatalog, setRegisterCatalog] = useState<Map<string, RegisterDef>>(new Map());
+  const [registerLinks, setRegisterLinks] = useState<PersonRegisterLink[]>([]);
   const [relationship, setRelationship] = useState<string | null>(null);
   // A live walk that found no path: the Portrait states "No relation"
   // outright, where a list row would just stay blank.
@@ -598,7 +626,14 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // four stay mounted (display-toggled) so a half-typed note, a generated
   // story, or the corrections fetch survives a tab switch — and the ✎
   // pencils in the header work before Sources is ever visited.
-  const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  // A deep link may name its landing tab (Home's "From the records"
+  // piece opens Sources directly — the trail must not go cold one tap
+  // short of the card).
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    params.tab === 'sources' || params.tab === 'life' || params.tab === 'family'
+      ? (params.tab as TabKey)
+      : 'overview',
+  );
   // (The story/world accordion is gone — 2026-08-29, Rufus: the two AI
   // pieces read as one output, so they render stacked under one "Their
   // story" header and both write themselves on tab entry.)
@@ -865,6 +900,27 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
       fetchNaraCandidatesForIndividual(supabase, id)
         .then((rows) => {
           if (!cancelled) setNaraCandidates(rows.filter((c) => c.status !== 'dismissed'));
+        })
+        .catch(() => {});
+
+      // Ship-passenger candidates for this person — the Crossing card.
+      fetchPassengerCandidatesForIndividual(supabase, id)
+        .then((rows) => {
+          if (!cancelled) setPassengerCandidates(rows.filter((c) => c.status !== 'dismissed'));
+        })
+        .catch(() => {});
+
+      // Historical-record register links — the generic record cards.
+      // One catalog fetch rides along; both fail quietly to an empty
+      // section, like every candidate fetch here.
+      Promise.all([
+        fetchActiveRegisters(supabase),
+        fetchRegisterLinksForIndividual(supabase, id),
+      ])
+        .then(([catalog, links]) => {
+          if (cancelled) return;
+          setRegisterCatalog(catalog);
+          setRegisterLinks(links.filter((l) => l.status !== 'rejected'));
         })
         .catch(() => {});
 
@@ -1144,6 +1200,9 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     setShareState('busy');
     try {
       const lines = [
+        // The earned ship leads — share-links caps at four lines, and the
+        // badge is the line cousins ask about.
+        ...(shipBadge ? [`⛵ Sailed on the ${shipBadge.ship}, ${shipBadge.arrivalYear}`] : []),
         ...events
           .slice(0, 2)
           .map(
@@ -1229,6 +1288,22 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     personShoreCrossings(
       events.map((e) => ({ year: e.date_year, parts: e.places?.parts ?? null })),
     )[0] ?? null;
+
+  // The unlocked door for post-1820 crossings: the federal arrival lists
+  // (Castle Garden, Ellis Island) are public but live behind search boxes
+  // nobody can bulk-hold — so hand the reader a search already filled in.
+  const arrivalsSearch =
+    crossingFlag && crossingFlag.direction === 'toAmericas'
+      ? familySearchArrivalsUrl(
+          { fullName: person.full_name, birthYear: person.birth_year },
+          crossingFlag.year,
+        )
+      : null;
+
+  // The ship badge: PROJECT_BRIEF.md calls this out as the first emoji in
+  // Witness — earned only once a Crossing card candidate is confirmed, not
+  // decorative. Derived from state already on hand, no extra query.
+  const shipBadge = passengerCandidates.find((c) => c.status === 'confirmed') ?? null;
 
   // "Lived near" minus the household: the register already names immediate
   // family, so the neighbor list is for everyone BEYOND it. Filtered here
@@ -1542,6 +1617,73 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               </Text>
             </Pressable>
           )}
+          {(() => {
+            const pendingRecords =
+              passengerCandidates.filter((c) => c.status === 'pending').length +
+              registerLinks.filter((l) => l.status === 'candidate').length;
+            if (pendingRecords === 0) return null;
+            return (
+              <Pressable
+                onPress={() => setActiveTab('sources')}
+                accessibilityRole="button"
+                accessibilityLabel={`${pendingRecords} historical record${pendingRecords === 1 ? '' : 's'} may name this person — open Sources to judge them`}
+                style={{
+                  borderWidth: 1,
+                  borderColor: theme.accent,
+                  borderRadius: 12,
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  backgroundColor: theme.backgroundElement,
+                }}
+              >
+                <Text style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}>
+                  {pendingRecords} record{pendingRecords === 1 ? '' : 's'} to check
+                </Text>
+              </Pressable>
+            );
+          })()}
+          {crossingFlag && (
+            <ExplainerDot
+              title={`${crossingFlag.ocean === 'atlantic' ? 'Atlantic' : 'Pacific'} crossing`}
+              text={shoreCrossingExplainer(crossingFlag.ocean)}
+            />
+          )}
+          {shipBadge && (
+            <>
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: '/voyage/[voyageId]',
+                    params: { voyageId: shipBadge.voyageId, treeId: person.tree_id },
+                  })
+                }
+                accessibilityRole="button"
+                accessibilityLabel={`Sailed on the ${shipBadge.ship}, ${shipBadge.arrivalYear} — see everyone of yours aboard`}
+                style={{
+                  borderWidth: 1,
+                  borderColor: theme.accent,
+                  borderRadius: 12,
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                }}
+              >
+                <Text style={{ fontFamily: Fonts.mono, fontSize: 12, color: theme.accent }}>
+                  ⛵ {shipBadge.ship}, {shipBadge.arrivalYear}
+                </Text>
+              </Pressable>
+              <ExplainerDot
+                title={`The ${shipBadge.ship}, ${shipBadge.arrivalYear}`}
+                text={voyageExplainer({
+                  voyageId: shipBadge.voyageId,
+                  ship: shipBadge.ship,
+                  arrivalYear: shipBadge.arrivalYear,
+                  departurePort: shipBadge.departurePort,
+                  arrivalPlace: shipBadge.arrivalPlace,
+                  source: shipBadge.source,
+                })}
+              />
+            </>
+          )}
         </View>
         <Text
           style={{
@@ -1605,6 +1747,20 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             longitude={birthCoords.longitude}
             label={birthPlace}
           />
+        )}
+        {arrivalsSearch && (
+          <ThemedText type="small" style={{ marginTop: 6 }}>
+            The arrival lists for that era survive —{' '}
+            <ThemedText
+              type="small"
+              themeColor="accent"
+              onPress={() => openExternal(arrivalsSearch.url)}
+              accessibilityRole="button"
+              accessibilityLabel={`Search ${arrivalsSearch.collectionLabel} on FamilySearch`}
+            >
+              search {arrivalsSearch.collectionLabel} for {firstName(person.full_name)} ›
+            </ThemedText>
+          </ThemedText>
         )}
         {parents.length > 0 && (
           <Text
@@ -2346,6 +2502,92 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
 
         {/* ————— Sources: the research desk ————— */}
         <View style={{ display: activeTab === 'sources' ? 'flex' : 'none' }}>
+        {/* Actionable above reference (Rufus, 2026-09-02): the records
+            waiting on a verdict print before the citation list — the
+            reader's job first, the bibliography after. */}
+        {naraCandidates.length > 0 && (
+          <View style={{ gap: 8, marginTop: 16 }}>
+            <ThemedText type="subtitle">In the National Archives</ThemedText>
+            <ThemedText type="small">
+              Records that might be {firstName(person.full_name)} — you decide.
+            </ThemedText>
+            {naraCandidates.map((candidate) => (
+              <NaraCandidateCard
+                key={candidate.id}
+                candidate={candidate}
+                onResolved={(candidateId, status) =>
+                  setNaraCandidates((current) =>
+                    status === 'dismissed'
+                      ? current.filter((c) => c.id !== candidateId)
+                      : current.map((c) => (c.id === candidateId ? { ...c, status } : c)),
+                  )
+                }
+              />
+            ))}
+          </View>
+        )}
+
+        {/* The Crossing: shipping-list passengers who might be this
+            ancestor, from the immigrant-ships dataset (PROJECT_BRIEF.md
+            "Immigrant Ships"). A Mayflower name is the beginning of a
+            question, not a descent — so this stays confirm/dismiss, same
+            as the archives card above it. */}
+        {passengerCandidates.length > 0 && (
+          <View style={{ gap: 8, marginTop: 16 }}>
+            <ThemedText type="subtitle">The Crossing</ThemedText>
+            <ThemedText type="small">
+              A shipping list that might name {firstName(person.full_name)} — you decide.
+            </ThemedText>
+            {passengerCandidates.map((candidate) => (
+              <PassengerCandidateCard
+                key={candidate.id}
+                candidate={candidate}
+                readOnly={!treeOwned}
+                onResolved={(candidateId, status) =>
+                  setPassengerCandidates((current) =>
+                    status === 'dismissed'
+                      ? current.filter((c) => c.id !== candidateId)
+                      : current.map((c) => (c.id === candidateId ? { ...c, status } : c)),
+                  )
+                }
+              />
+            ))}
+          </View>
+        )}
+
+        {/* The record books: historical-record register candidates, the
+            generic frame every future record set rides
+            (docs/witness-historical-record-registers-package.md). Same
+            doctrine as the cards above — a record that MIGHT name this
+            person, and only the reader decides. */}
+        {registerLinks.length > 0 && registerCatalog.size > 0 && (
+          <View style={{ gap: 8, marginTop: 16 }}>
+            <ThemedText type="subtitle">In the record books</ThemedText>
+            <ThemedText type="small">
+              Records that might name {firstName(person.full_name)} — you decide.
+            </ThemedText>
+            {registerLinks.map((link) => {
+              const register = registerCatalog.get(link.registerKey);
+              if (!register) return null;
+              return (
+                <RegisterCandidateCard
+                  key={link.id}
+                  link={link}
+                  register={register}
+                  readOnly={!treeOwned}
+                  onResolved={(linkId, status) =>
+                    setRegisterLinks((current) =>
+                      status === 'rejected'
+                        ? current.filter((l) => l.id !== linkId)
+                        : current.map((l) => (l.id === linkId ? { ...l, status } : l)),
+                    )
+                  }
+                />
+              );
+            })}
+          </View>
+        )}
+
           {/* The per-person ways off this page — the brief, the provider
               record, the share card — live with the rest of the research. */}
           {!fromFieldCopy && (providerLink || !person.living) && (
@@ -2510,6 +2752,62 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           </View>
         )}
 
+        {/* The search doors: where Witness cannot hold the list, it opens
+            the reader's search already filled in — the Find A Grave rule,
+            extended to the record sites. A result is the beginning of a
+            question, never a descent. */}
+        {person && !person.living && !fromFieldCopy && (
+          <View style={{ marginTop: 16, gap: 6 }}>
+            <ThemedText type="subtitle">Search the records</ThemedText>
+            <ThemedText type="small">
+              These open pre-filled with what the record knows about{' '}
+              {firstName(person.full_name)} — what comes back is a question for you, not a
+              finding.
+            </ThemedText>
+            <ThemedText
+              type="link"
+              accessibilityRole="button"
+              onPress={() =>
+                openExternal(
+                  familySearchRecordsUrl({
+                    fullName: person.full_name,
+                    birthYear: person.birth_year,
+                    deathYear: person.death_year,
+                    birthPlace: birthPlace ? birthPlace.split(',').slice(0, 2).join(',').trim() : null,
+                  }),
+                )
+              }
+            >
+              Search FamilySearch records ›
+            </ThemedText>
+            {arrivalsSearch && crossingFlag && (
+              <ThemedText
+                type="link"
+                accessibilityRole="button"
+                onPress={() => openExternal(arrivalsSearch.url)}
+              >
+                Search {arrivalsSearch.collectionLabel} for the {crossingFlag.year} crossing ›
+              </ThemedText>
+            )}
+            {providerLink?.label.includes('Ancestry') && (
+              <ThemedText
+                type="link"
+                accessibilityRole="button"
+                onPress={() =>
+                  openExternal(
+                    ancestryImmigrationSearchUrl({
+                      fullName: person.full_name,
+                      birthYear: person.birth_year,
+                    }),
+                  )
+                }
+              >
+                Search Ancestry immigration records ›
+              </ThemedText>
+            )}
+          </View>
+        )}
+
         {/* The margin: the reader's own corrections, pencilled beside the
             record and carried to the source on the punch list. Renders for
             living people too — a census error on a living relative is real.
@@ -2542,27 +2840,6 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           </View>
         )}
 
-        {naraCandidates.length > 0 && (
-          <View style={{ gap: 8, marginTop: 16 }}>
-            <ThemedText type="subtitle">In the National Archives</ThemedText>
-            <ThemedText type="small">
-              Records that might be {firstName(person.full_name)} — you decide.
-            </ThemedText>
-            {naraCandidates.map((candidate) => (
-              <NaraCandidateCard
-                key={candidate.id}
-                candidate={candidate}
-                onResolved={(candidateId, status) =>
-                  setNaraCandidates((current) =>
-                    status === 'dismissed'
-                      ? current.filter((c) => c.id !== candidateId)
-                      : current.map((c) => (c.id === candidateId ? { ...c, status } : c)),
-                  )
-                }
-              />
-            ))}
-          </View>
-        )}
         </View>
       </ScrollView>
     </ThemedView>

@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
 
   const { data: invite, error: inviteError } = await ctx.admin
     .from('invites')
-    .select('token, tree_id, user_id, expires_at, accepted_at, revoked_at')
+    .select('token, tree_id, user_id, expires_at, accepted_at, revoked_at, invited_name')
     .eq('token', token)
     .maybeSingle();
   if (inviteError) return json(500, { error: inviteError.message });
@@ -95,20 +95,54 @@ Deno.serve(async (req) => {
   }
   if (ownerPlan.unknown) console.error('accept-invite: owner entitlement unknown — proceeding');
 
-  // Someone already entitled on their own — a comp, or their own
+  // Someone already entitled on their own — a comp, or their own paid
   // subscription — takes the seat without a grant, and removal will
-  // never touch what the seat didn't create.
+  // never touch what the seat didn't create. A store TRIAL is the
+  // exception: they only started it because the paywall gave no other
+  // way in, so the seat's grant stacks on top — cancel the trial and
+  // the seat still carries them, instead of the trial converting into
+  // a bill for what should be a free seat.
   const memberState = await getEntitlement(ctx.userId);
-  const needsGrant = !memberState.active;
+  const trialCovered = memberState.active && memberState.periodType === 'trial';
+  const needsGrant = !memberState.active || trialCovered;
+
+  // Claim the token ATOMICALLY before seating: two people accepting the
+  // same forwarded link concurrently both read accepted_at = null, and
+  // without this gate a single-use invite would spend two seats and two
+  // grants (release-gate review, 2026-09-03). Exactly one update matches;
+  // the loser gets invalid_invite. Failure paths below un-claim so a
+  // botched grant doesn't burn the invitation.
+  const { data: claimed } = await ctx.admin
+    .from('invites')
+    .update({ accepted_by: ctx.userId, accepted_at: new Date().toISOString() })
+    .eq('token', token)
+    .is('accepted_at', null)
+    .select('token');
+  if (!claimed || claimed.length === 0) {
+    return json(404, { error: 'This invite is no longer valid.', code: 'invalid_invite' });
+  }
+  const unclaim = () =>
+    ctx.admin
+      .from('invites')
+      .update({ accepted_by: null, accepted_at: null })
+      .eq('token', token)
+      .then(() => undefined, () => undefined);
 
   const { error: insertError } = await ctx.admin.from('tree_members').insert({
     tree_id: invite.tree_id,
     user_id: ctx.userId,
-    display_name: name,
+    // The join flow sends no name — the invitation already knows who it
+    // was for, so the seat inherits it (Rufus, 2026-09-02: an accepted
+    // member showed as "A family member" while her email sat on the
+    // spent invite).
+    display_name: name ?? invite.invited_name ?? null,
     rc_granted: needsGrant,
     invited_by: ownerId,
   });
-  if (insertError) return json(500, { error: insertError.message });
+  if (insertError) {
+    await unclaim();
+    return json(500, { error: insertError.message });
+  }
 
   if (needsGrant) {
     try {
@@ -120,15 +154,11 @@ Deno.serve(async (req) => {
         .delete()
         .eq('tree_id', invite.tree_id)
         .eq('user_id', ctx.userId);
+      await unclaim();
       console.error('accept-invite: grant failed, seat rolled back', error);
       return json(502, { error: 'Could not activate the seat. Try again shortly.' });
     }
   }
 
-  await ctx.admin
-    .from('invites')
-    .update({ accepted_by: ctx.userId, accepted_at: new Date().toISOString() })
-    .eq('token', token);
-
-  return json(200, { ok: true, treeId: tree.id, treeName: tree.name, granted: needsGrant });
+  return json(200, { ok: true, treeId: tree.id, treeName: tree.name, granted: needsGrant, trialCovered });
 });

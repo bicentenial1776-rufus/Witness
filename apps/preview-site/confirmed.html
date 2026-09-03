@@ -87,9 +87,22 @@
     <p>Head back to the Witness app on your phone and sign in with the email and password you used to create your account. That's it, you're in.</p>
   </div>
 
-  <a class="cta" href="mobile://">Open Witness</a>
+  <a class="cta" id="open-cta" href="mobile://">Open Witness</a>
   <p class="fine">If tapping that doesn't do anything, just find Witness on your Home Screen and open it yourself — then sign in from there.</p>
 </main>
+
+<script>
+  // Sign-up carries a waiting invitation here as ?next=/join/<token> — point
+  // the button at the app domain so the universal link reopens the app (or
+  // the web app without it) exactly where the invitation left off, instead
+  // of a bare app launch with the invite stranded.
+  (function () {
+    var next = new URLSearchParams(location.search).get('next');
+    if (next && /^\/(join|shared)\/[0-9a-f]{32}$/.test(next)) {
+      document.getElementById('open-cta').href = 'https://app.witnesslives.com' + next;
+    }
+  })();
+</script>
 
 <footer>
   <div>Witness — Family History Intelligence · <a href="https://witnesslives.com">witnesslives.com</a></div>

@@ -15,6 +15,7 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { showAlert } from '@/lib/alert';
+import { peekPendingInvite } from '@/lib/family-sharing';
 import { supabase } from '@/lib/supabase';
 
 export default function SignUp() {
@@ -35,11 +36,18 @@ export default function SignUp() {
     // Without this, Supabase falls back to the project's dashboard-configured
     // Site URL for the confirmation link — which is witnesslives.com's
     // marketing homepage, not anything that tells the reader what to do
-    // next. This page just says "you're confirmed, go open the app."
+    // next. This page just says "you're confirmed, go open the app" — and
+    // when an invitation is waiting, it carries the invite forward so the
+    // page's Open Witness button lands back on /join, not a blank app.
+    const pendingInvite = await peekPendingInvite();
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: 'https://witnesslives.com/confirmed' },
+      options: {
+        emailRedirectTo: pendingInvite
+          ? `https://witnesslives.com/confirmed?next=/join/${pendingInvite}`
+          : 'https://witnesslives.com/confirmed',
+      },
     });
     setIsSubmitting(false);
     if (error) {

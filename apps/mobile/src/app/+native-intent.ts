@@ -14,5 +14,14 @@ export async function redirectSystemPath({ path }: { path: string; initial: bool
     await setPendingImportUri(path).catch(() => {});
     return '/';
   }
+  // Universal links arrive in their public short forms — /j/<token> from a
+  // family invitation, /s/<token> from a companion share card. On the web
+  // those are Vercel rewrites into the SPA's real routes; the app has only
+  // the real routes, so translate before the router looks for a screen.
+  // Tolerate trailing query/fragment junk — link-rewriting mail clients
+  // append tracking params, and an untranslated /j/<token>?utm=x would
+  // land on the unmatched-route screen.
+  const short = /^(?:https?:\/\/[^/]+)?\/(j|s)\/([0-9a-f]{32})\/?(?:[?#].*)?$/.exec(path);
+  if (short) return `/${short[1] === 'j' ? 'join' : 'shared'}/${short[2]}`;
   return path;
 }

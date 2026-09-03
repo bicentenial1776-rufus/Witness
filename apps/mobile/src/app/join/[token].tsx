@@ -15,6 +15,7 @@ import {
   stashPendingInvite,
   type InvitePeek,
 } from '@/lib/family-sharing';
+import { showAlert } from '@/lib/alert';
 import { usePurchases } from '@/lib/purchases';
 import { invalidateRelationshipCache } from '@/lib/relationship-cache';
 
@@ -67,6 +68,14 @@ export default function JoinScreen() {
     setError(null);
     try {
       const result = await acceptInvite(token);
+      // The seat was granted over a running store trial — say so, or the
+      // trial quietly converts into a bill for what the seat covers free.
+      if (result.trialCovered) {
+        showAlert(
+          'Your seat is free',
+          'This family seat covers your access on its own. If you started a free trial, you can cancel it in Settings — your seat keeps you in, and nothing will lapse.',
+        );
+      }
       // The seat came with an entitlement — re-read it so the router's
       // paywall guard opens without a relaunch. Failure is fine: the guard
       // re-checks on next launch, and the seat itself is already real.

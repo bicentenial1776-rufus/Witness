@@ -16,6 +16,7 @@
     "./findings": "./dist/findings/index.js",
     "./export": "./dist/export/index.js",
     "./pulse": "./dist/pulse/index.js",
+    "./registers": "./dist/registers/index.js",
     "./corrections": "./dist/corrections/index.js",
     "./fsv": "./dist/fsv/index.js"
   },
