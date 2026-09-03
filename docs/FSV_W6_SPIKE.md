@@ -50,8 +50,8 @@ through. This change is the door, and nothing more.
 
 - It adds no part to the app and moves no version. The web-page panel is
   already in the toolkit the app is built from; the built-in browser view is
-  already used in seven places, counted screen by screen. No third-party web
-  view was added.
+  already used in seven other places — five screens, and two shared pieces
+  that appear on several more. No third-party web view was added.
 - It changes nothing a reader can reach. The screen is unreachable unless
   you type its address, and no behaviour anywhere else in the app is
   altered. It does add weight to every build, though, and that should be
