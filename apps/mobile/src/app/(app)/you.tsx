@@ -210,7 +210,7 @@ export default function YouTab() {
         // The owner already typed the address — carry it all the way
         // (Rufus, 2026-09-02: the share sheet made him pick the person a
         // second time). A pre-addressed compose: recipient, subject, link.
-        const mailto = `mailto:${email}?subject=${encodeURIComponent(
+        const mailto = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(
           `You're invited into the ${activeTree.name} on Witness`,
         )}&body=${encodeURIComponent(message)}`;
         if (Platform.OS === 'web') window.location.href = mailto;

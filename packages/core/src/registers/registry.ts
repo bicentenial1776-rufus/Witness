@@ -115,12 +115,23 @@ export async function fetchRegisterRecords(
   client: WitnessSupabaseClient,
   registerKey: string,
 ): Promise<RegisterRecord[]> {
-  const { data, error } = await client
-    .from('register_records')
-    .select('id, register_key, record_kind, name_as_recorded, surname_normalized, given_normalized, entity_key, attributes, source_citation, finding_aid_url')
-    .eq('register_key', registerKey);
-  if (error) throw new Error(`Fetching register records failed: ${error.message}`);
-  return ((data ?? []) as unknown as RecordRow[]).map(toRecord);
+  // Paged: PostgREST caps unranged selects at 1,000 rows, and the Acadian
+  // register alone is 2,645 — an unpaged read silently matched against a
+  // third of the roll. Ordered so pages can't skip or repeat rows.
+  const rows: RecordRow[] = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await client
+      .from('register_records')
+      .select('id, register_key, record_kind, name_as_recorded, surname_normalized, given_normalized, entity_key, attributes, source_citation, finding_aid_url')
+      .eq('register_key', registerKey)
+      .order('id')
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(`Fetching register records failed: ${error.message}`);
+    rows.push(...((data ?? []) as unknown as RecordRow[]));
+    if (!data || data.length < PAGE) break;
+  }
+  return rows.map(toRecord);
 }
 
 export async function fetchRegisterLinksForIndividual(
@@ -156,14 +167,18 @@ export async function setRegisterLinkStatus(
   linkId: string,
   status: Exclude<RegisterLinkStatus, 'candidate'>,
 ): Promise<void> {
-  const { error } = await client
+  const { data, error } = await client
     .from('person_register_links')
     .update({
       status,
       confirmed_at: status === 'confirmed' ? new Date().toISOString() : null,
     })
-    .eq('id', linkId);
+    .eq('id', linkId)
+    .select('id');
   if (error) throw new Error(`Updating register link failed: ${error.message}`);
+  // RLS filters a row you can't write into a 0-row "success" — a family
+  // member's tap must fail loudly, not half-complete the confirm flow.
+  if (!data || data.length === 0) throw new Error('Only the tree owner can decide this record.');
 }
 
 /** Variant C: the structured save-back — one confirmed row per saved record. */

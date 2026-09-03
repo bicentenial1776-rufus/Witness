@@ -118,9 +118,13 @@ export async function setPassengerCandidateStatus(
   candidateId: string,
   status: Exclude<PassengerCandidateStatus, 'pending'>,
 ): Promise<void> {
-  const { error } = await client
+  const { data, error } = await client
     .from('passenger_candidates')
     .update({ status, resolved_at: new Date().toISOString() })
-    .eq('id', candidateId);
+    .eq('id', candidateId)
+    .select('id');
   if (error) throw new Error(`Updating passenger candidate failed: ${error.message}`);
+  // RLS filters a row you can't write into a 0-row "success" — a family
+  // member's tap must fail loudly, not half-complete the confirm flow.
+  if (!data || data.length === 0) throw new Error('Only the tree owner can decide this record.');
 }

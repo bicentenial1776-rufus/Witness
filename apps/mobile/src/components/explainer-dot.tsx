@@ -28,7 +28,7 @@ export function ExplainerDot({ title, text }: { title: string; text: string }) {
         }}
         accessibilityRole="button"
         accessibilityLabel={`What does ${title} mean?`}
-        hitSlop={8}
+        hitSlop={14}
         style={{
           width: 16,
           height: 16,

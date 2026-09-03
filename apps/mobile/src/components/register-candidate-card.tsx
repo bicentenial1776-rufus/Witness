@@ -66,7 +66,12 @@ export function RegisterCandidateCard({
         </ThemedText>
       )}
       {link.findingAidUrl && (
-        <ThemedText type="link" onPress={() => openExternal(link.findingAidUrl!)}>
+        <ThemedText
+          type="link"
+          accessibilityRole="button"
+          accessibilityLabel={`View the source for ${register.displayName}`}
+          onPress={() => openExternal(link.findingAidUrl!)}
+        >
           View source ›
         </ThemedText>
       )}

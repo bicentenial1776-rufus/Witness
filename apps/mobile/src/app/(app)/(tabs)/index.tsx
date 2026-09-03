@@ -539,6 +539,8 @@ export default function Home() {
               {recordPiece && (
                 <Feed eyebrow="From the records">
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="From the records — judge it on their Portrait"
                     disabled={!recordPiece.subjectId}
                     onPress={() =>
                       recordPiece.subjectId &&

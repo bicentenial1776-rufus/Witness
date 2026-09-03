@@ -111,7 +111,7 @@ export function splitName(fullName: string): { givenNames: string; surname: stri
   return { givenNames: parts.slice(0, -1).join(' '), surname: parts[parts.length - 1]! };
 }
 
-function firstGiven(givenNames: string): string {
+export function firstGiven(givenNames: string): string {
   return givenNames.trim().split(/\s+/)[0] ?? '';
 }
 

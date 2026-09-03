@@ -77,6 +77,7 @@ async function loadPeople(
       .from('individuals')
       .select('id, full_name, sex, birth_year, death_year, living')
       .eq('tree_id', treeId!)
+      .order('id')
       .range(from, from + PAGE - 1);
     if (error) {
       console.error('Loading individuals failed:', error.message);
@@ -101,6 +102,7 @@ async function loadPeople(
       .from('individual_events')
       .select('individual_id, event_type, date_year, places (parts)')
       .eq('tree_id', treeId!)
+      .order('id')
       .range(from, from + PAGE - 1);
     if (error) {
       console.error('Loading events failed:', error.message);

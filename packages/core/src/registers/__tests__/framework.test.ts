@@ -87,6 +87,17 @@ describe('Variant A matcher', () => {
     expect(matchRegisterRecords([RECORD], [late])).toHaveLength(0);
   });
 
+  it('finds the roll through a compound given name', () => {
+    // A tree's "Joseph Marie Comeau" must still find the roll's "Joseph
+    // Comeau" — first given tokens compare, the passengers strategy
+    // (2026-09-03 release-gate finding: whole-string compare returned
+    // zero candidates for the register's own French-Canadian audience).
+    const compound = person({ fullName: 'Joseph Marie Comeau' });
+    const [candidate] = matchRegisterRecords([RECORD], [compound]);
+    expect(candidate).toBeDefined();
+    expect(candidate!.confidence).toBe('strong');
+  });
+
   it('caps candidates per person', () => {
     const records = Array.from({ length: 9 }, (_, i) => ({
       ...RECORD,

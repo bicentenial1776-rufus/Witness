@@ -1,4 +1,4 @@
-import { normalizeNamePart, splitName } from '../history/passengers.js';
+import { firstGiven, normalizeNamePart, splitName } from '../history/passengers.js';
 import { soundex } from '../query/orphanRecords.js';
 import type {
   MatchConfig,
@@ -90,10 +90,16 @@ export function matchRegisterRecords(
     for (const record of bucket) {
       const recordGiven = record.givenNormalized ?? splitName(record.nameAsRecorded).givenNames;
       const recordSurname = record.surnameNormalized ?? splitName(record.nameAsRecorded).surname;
-      const givenNorm = normalizeNamePart(canonGiven(given));
-      const recordGivenNorm = normalizeNamePart(canonGiven(recordGiven));
+      // Compare FIRST given tokens, the passengers strategy — a tree's
+      // "Jean Baptiste" must still find the roll's "Jean" (compound
+      // givens are the norm on this framework's first audience). The
+      // whole string only has to agree when both sides carry one.
+      const givenNorm = normalizeNamePart(canonGiven(firstGiven(given)));
+      const recordGivenNorm = normalizeNamePart(canonGiven(firstGiven(recordGiven)));
       if (!givenNorm || !recordGivenNorm) continue;
-      const givenExact = givenNorm === recordGivenNorm;
+      const givenExact =
+        normalizeNamePart(canonGiven(given)) === normalizeNamePart(canonGiven(recordGiven)) ||
+        givenNorm === recordGivenNorm;
       const givenSound = soundex(givenNorm) === soundex(recordGivenNorm);
       if (!givenExact && !givenSound) continue;
       const surnameExact =

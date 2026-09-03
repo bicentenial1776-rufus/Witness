@@ -39,7 +39,11 @@ export default function VoyageScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!voyageId || !treeId) return;
+    if (!voyageId || !treeId) {
+      // A deep link without its treeId would otherwise spin forever.
+      setError('This voyage link is missing its tree — open it from a Portrait.');
+      return;
+    }
     let cancelled = false;
     (async () => {
       const { data, error: fetchError } = await supabase

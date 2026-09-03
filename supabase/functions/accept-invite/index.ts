@@ -106,6 +106,28 @@ Deno.serve(async (req) => {
   const trialCovered = memberState.active && memberState.periodType === 'trial';
   const needsGrant = !memberState.active || trialCovered;
 
+  // Claim the token ATOMICALLY before seating: two people accepting the
+  // same forwarded link concurrently both read accepted_at = null, and
+  // without this gate a single-use invite would spend two seats and two
+  // grants (release-gate review, 2026-09-03). Exactly one update matches;
+  // the loser gets invalid_invite. Failure paths below un-claim so a
+  // botched grant doesn't burn the invitation.
+  const { data: claimed } = await ctx.admin
+    .from('invites')
+    .update({ accepted_by: ctx.userId, accepted_at: new Date().toISOString() })
+    .eq('token', token)
+    .is('accepted_at', null)
+    .select('token');
+  if (!claimed || claimed.length === 0) {
+    return json(404, { error: 'This invite is no longer valid.', code: 'invalid_invite' });
+  }
+  const unclaim = () =>
+    ctx.admin
+      .from('invites')
+      .update({ accepted_by: null, accepted_at: null })
+      .eq('token', token)
+      .then(() => undefined, () => undefined);
+
   const { error: insertError } = await ctx.admin.from('tree_members').insert({
     tree_id: invite.tree_id,
     user_id: ctx.userId,
@@ -117,7 +139,10 @@ Deno.serve(async (req) => {
     rc_granted: needsGrant,
     invited_by: ownerId,
   });
-  if (insertError) return json(500, { error: insertError.message });
+  if (insertError) {
+    await unclaim();
+    return json(500, { error: insertError.message });
+  }
 
   if (needsGrant) {
     try {
@@ -129,15 +154,11 @@ Deno.serve(async (req) => {
         .delete()
         .eq('tree_id', invite.tree_id)
         .eq('user_id', ctx.userId);
+      await unclaim();
       console.error('accept-invite: grant failed, seat rolled back', error);
       return json(502, { error: 'Could not activate the seat. Try again shortly.' });
     }
   }
-
-  await ctx.admin
-    .from('invites')
-    .update({ accepted_by: ctx.userId, accepted_at: new Date().toISOString() })
-    .eq('token', token);
 
   return json(200, { ok: true, treeId: tree.id, treeName: tree.name, granted: needsGrant, trialCovered });
 });

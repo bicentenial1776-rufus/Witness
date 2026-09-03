@@ -61,6 +61,7 @@ async function loadPeople(client: Client, treeId: string): Promise<RegisterPerso
       .from('individuals')
       .select('id, full_name, sex, birth_year, death_year, living')
       .eq('tree_id', treeId)
+      .order('id')
       .range(from, from + PAGE - 1);
     if (error) throw new Error(`individuals: ${error.message}`);
     for (const row of data ?? []) {
@@ -81,6 +82,7 @@ async function loadPeople(client: Client, treeId: string): Promise<RegisterPerso
       .from('individual_events')
       .select('individual_id, event_type, date_year, places (parts)')
       .eq('tree_id', treeId)
+      .order('id')
       .range(from, from + PAGE - 1);
     if (error) throw new Error(`events: ${error.message}`);
     for (const row of data ?? []) {
@@ -193,6 +195,7 @@ async function matchTree(client: Client, treeId: string, userId: string): Promis
         .from('register_records')
         .select('id, register_key, record_kind, name_as_recorded, surname_normalized, given_normalized, entity_key, attributes, source_citation, finding_aid_url')
         .eq('register_key', register.register_key)
+        .order('id')
         .range(from, from + PAGE - 1);
       if (error) throw new Error(`register_records: ${error.message}`);
       for (const row of data ?? []) {
@@ -239,7 +242,6 @@ async function matchTree(client: Client, treeId: string, userId: string): Promis
         individual_id: c.person.id,
         register_key: register.register_key,
         record_id: c.record.id,
-        status: 'candidate',
         match_reasons: c.reasons,
         record_name: c.record.nameAsRecorded,
         record_summary: c.record.sourceCitation,
@@ -300,19 +302,29 @@ Deno.serve(async (req) => {
       .order('imported_at', { ascending: false })
       .limit(MAX_TREES_PER_SWEEP);
     if (error) return json(500, { error: error.message });
-    const results: TreeResult[] = [];
-    for (const tree of trees ?? []) {
-      try {
-        results.push(await matchTree(admin, tree.id, tree.user_id));
-      } catch (err) {
-        console.error(`match-records sweep failed for ${tree.id}:`, err);
+    // Respond 202 and finish in the background — pg_net aborts its HTTP
+    // call at ~55s and a full sweep can outlive that; the story-arc
+    // warming cron proved the 202+waitUntil shape (release-gate review).
+    const sweep = (async () => {
+      const results: TreeResult[] = [];
+      for (const tree of trees ?? []) {
+        try {
+          results.push(await matchTree(admin, tree.id, tree.user_id));
+        } catch (err) {
+          console.error(`match-records sweep failed for ${tree.id}:`, err);
+        }
       }
-    }
-    return json(200, { mode: 'sweep', results });
+      console.log('match-records sweep done:', JSON.stringify(results));
+    })();
+    // deno-lint-ignore no-explicit-any
+    (globalThis as any).EdgeRuntime?.waitUntil?.(sweep);
+    return json(202, { mode: 'sweep', trees: (trees ?? []).length });
   }
 
-  // The per-tree door: the caller matches a tree they can read, and every
-  // row written is their own (candidates are per-user, like verdicts).
+  // The per-tree door: the caller matches a tree they OWN — a family
+  // member can read a shared tree, but candidate rows belong to the
+  // owner, and a member-triggered run would write rows the owner's
+  // verdicts can't touch (release-gate review).
   const ctx = await authenticate(req);
   if (ctx instanceof Response) return ctx;
   let treeId: unknown;
@@ -322,7 +334,12 @@ Deno.serve(async (req) => {
     return json(400, { error: 'Body must be JSON with a treeId' });
   }
   if (typeof treeId !== 'string') return json(400, { error: 'treeId required' });
-  const { data: tree } = await ctx.db.from('trees').select('id').eq('id', treeId).maybeSingle();
+  const { data: tree } = await ctx.db
+    .from('trees')
+    .select('id, user_id')
+    .eq('id', treeId)
+    .eq('user_id', ctx.userId)
+    .maybeSingle();
   if (!tree) return json(404, { error: 'No such tree, or no access.' });
   try {
     const result = await matchTree(ctx.db, treeId, ctx.userId);

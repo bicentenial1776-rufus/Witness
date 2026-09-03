@@ -518,7 +518,14 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // notes, Tree Check prompts — is the owner's work surface and stays off
   // the page (design brief §6). Unknown trees default to owned: the
   // server's policies are the real guard.
-  const treeOwned = person ? (trees?.find((t) => t.id === person.tree_id)?.owned ?? true) : true;
+  // While the trees list is still loading, fail READ-ONLY — a member's
+  // verdict buttons must never flash live. Once loaded, unknown trees
+  // default to owned as before.
+  const treeOwned = person
+    ? trees
+      ? (trees.find((t) => t.id === person.tree_id)?.owned ?? true)
+      : false
+    : true;
   // Network down AND no saved copy covers this person — say that, not
   // "this record isn't here anymore".
   const [unreachable, setUnreachable] = useState(false);
