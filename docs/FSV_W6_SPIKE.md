@@ -219,8 +219,10 @@ straight to the screen.
 
 You should see the world fill the screen, with a thin bar at the bottom of
 it. If instead you see a black rectangle, or the app's own background, the
-main door did not load — go to step 12, and please write down which of the
-two it was.
+main door did not load. Please write down which of the two it was, then use
+the button in that bottom bar — the fallback door — so the session still
+yields a number. It only works once somebody has filled in a hosted address;
+if nobody has, part five below is the way to get a number today.
 
 ### 8. Switch measuring on
 
