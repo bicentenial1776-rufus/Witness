@@ -1,0 +1,7 @@
+# The world is copied over the committed stand-in page by
+# `npm run world:sync -w @witness/fsv`, so a three-megabyte file passes
+# through this folder on every developer's machine. Never let git rewrite
+# line endings here: the design repo asserts its build reproduces that file
+# byte for byte, and a line-ending pass on checkout quietly breaks the claim.
+# Same rule, same reason, as apps/fsv/.gitattributes.
+*.html -text -diff
