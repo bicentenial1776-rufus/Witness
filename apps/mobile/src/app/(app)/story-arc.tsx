@@ -7,6 +7,7 @@ import { BrandFonts, Letterpress, mono } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { getTodayArc, type ArcGeneration, type StoryArc } from '@/lib/story-arc';
+import { LINE_SHARE_LABEL, shareLine } from '@/lib/share-story';
 
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'];
@@ -387,6 +388,18 @@ export default function StoryArcScreen() {
                 <GenerationBlock key={g.personId} g={g} index={i} />
               ))}
             </View>
+
+            {/* The soft landing for "I want to send this to someone"
+                (Rufus, 2026-09-02 — step one of the IDEAS.md history
+                ladder). The shared text stops at the last deceased
+                generation, the living-person rule. */}
+            <Pressable
+              onPress={() => void shareLine(arc).catch(() => {})}
+              accessibilityRole="button"
+              style={{ marginTop: 22, alignSelf: 'flex-start' }}
+            >
+              <Text style={mono(13, L.amber)}>{LINE_SHARE_LABEL.toUpperCase()}</Text>
+            </Pressable>
 
             <Text style={{ ...mono(12.5, L.muted), marginTop: 26, lineHeight: 15 }}>
               EVERY NAME, DATE, PLACE, AND MARRIAGE IS FROM YOUR TREE'S RECORD. THE CONNECTING PROSE

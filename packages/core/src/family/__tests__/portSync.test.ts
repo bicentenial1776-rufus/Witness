@@ -31,6 +31,32 @@ const PAIRS: Array<{ core: string; port: string; rewrites: Array<[string, string
       ["'./relationship.ts'", "'./relationship.js'"],
     ],
   },
+  // The record-matching mirrors (match-records worker).
+  { core: 'packages/core/src/registers/types.ts', port: 'supabase/functions/_shared/records/types.ts', rewrites: [] },
+  {
+    core: 'packages/core/src/registers/exposure.ts',
+    port: 'supabase/functions/_shared/records/exposure.ts',
+    rewrites: [["'./types.ts'", "'./types.js'"]],
+  },
+  {
+    core: 'packages/core/src/history/passengers.ts',
+    port: 'supabase/functions/_shared/records/passengers.ts',
+    rewrites: [["'./soundex.ts'", "'../query/orphanRecords.js'"]],
+  },
+  {
+    core: 'packages/core/src/registers/match.ts',
+    port: 'supabase/functions/_shared/records/match.ts',
+    rewrites: [
+      ["'./passengers.ts'", "'../history/passengers.js'"],
+      ["'./soundex.ts'", "'../query/orphanRecords.js'"],
+      ["'./types.ts'", "'./types.js'"],
+    ],
+  },
+  {
+    core: 'packages/core/src/registers/normalizers/acadianNames.ts',
+    port: 'supabase/functions/_shared/records/acadianNames.ts',
+    rewrites: [["'./mod.ts'", "'../index.js'"]],
+  },
 ];
 
 function stripHeader(text: string): string {

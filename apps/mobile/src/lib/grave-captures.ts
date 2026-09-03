@@ -1,6 +1,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
 import { invalidateRelationshipCache } from '@/lib/relationship-cache';
+import { splitSearchName } from '@/lib/record-search';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -419,13 +420,10 @@ export async function capturesForPerson(individualId: string): Promise<GraveCapt
 
 /** The Find A Grave search for this stone — the research road-back. */
 export function findAGraveUrl(capture: GraveCapture): string {
-  const name = capture.divined?.name?.trim() ?? '';
-  const tokens = name.split(/\s+/);
-  const last = tokens.length > 1 ? tokens[tokens.length - 1] : name;
-  const first = tokens.length > 1 ? tokens[0] : '';
+  const { firstname, lastname } = splitSearchName(capture.divined?.name?.trim() ?? '');
   const params = new URLSearchParams();
-  if (first) params.set('firstname', first);
-  if (last) params.set('lastname', last);
+  if (firstname) params.set('firstname', firstname);
+  if (lastname) params.set('lastname', lastname);
   if (capture.divined?.death_year) params.set('deathyear', String(capture.divined.death_year));
   return `https://www.findagrave.com/memorial/search?${params.toString()}`;
 }

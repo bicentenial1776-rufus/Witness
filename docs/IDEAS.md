@@ -212,3 +212,83 @@ are parked here until their capability exists:
 
 (Considered and rejected outright, not parked: a "% traced" completeness metric — dropped
 by Rufus 2026-07-25.)
+
+---
+
+## Generational Line History (re-read and share past lines)
+
+**Added:** September 2026, from Rufus fleshing out the daily-line story
+(deliberately unbuilt — no user has asked yet; expected to surface within a
+month of family-sharing seats being taken, as "what was that line from
+Tuesday?").
+
+Home shows one founder-to-reader line per UTC day, picked by
+`founders[dayNumber % pool]` (~1,003 founders on the Howe/Field tree ≈ 2¾
+years per cycle, reshuffling whenever the tree changes). A 3×-a-week reader
+never sees ~57% of lines. The idea: let the reader reach back to a past
+line, re-read it, and share it.
+
+**What already exists (more than expected):**
+- Arcs are cached server-side per founder forever — the nightly warmer
+  means the "archive" accretes today as a side effect.
+- Rebuild-on-refreshed-GEDCOM is already the caching contract (staleness
+  signals: home person, individual count, ancestor count → retold on first
+  sight). A history view needs no new rebuild machinery.
+
+**The sticky parts (found in advance):**
+1. **Identity across re-imports.** Arc rows key on founder row ids, which
+   are reassigned every refresh — the history's unit must be
+   *(day, founder gedcom_xref)*, prose retold on demand (the corrections
+   lesson: stable fact keys, never row ids). Never store old prose as the
+   record.
+2. **Disqualified lines.** A correction can remove a founder from the pool
+   (gains parents, drops below depth 6). Latent bug: generate-story-arc
+   silently falls back to today's pick when given an unknown founderId — a
+   history needs an honest "this line no longer runs — a correction changed
+   it," which is the *good* outcome (the history records the tree getting
+   truer).
+3. **Sharing truncation.** Lines run founder-to-reader; nothing shareable
+   may include a living person, so a shared line truncates at the last
+   deceased generation. share_links handles mechanics; truncation is the
+   design call.
+
+**The cheap ladder (build only as demand appears):**
+1. Share button on *today's* line (likely the actual first ask) with
+   living-generation truncation.
+2. "Yesterday's line ›" — nearly free; any past day's pick is computable
+   from the modulo while the pool is unchanged.
+3. Only if readers reach past yesterday: a read-marks table
+   (day + founder xref, the ancestor_visits pattern) as the durable
+   personal history that survives pool reshuffles. This is also the
+   substrate for a drained per-reader rotation ("next unread line ›") if
+   cadence-independence is ever wanted.
+
+---
+
+## Ask a Real Question (Explore question-answering)
+
+**Added:** September 2026, after Rufus asked Explore a natural-language
+question and got "Nothing matches." The feature is honest-by-design — a
+question NOTEBOOK wired to keyword search, on-device only, no AI anywhere
+(saved-questions.ts) — but the old label said "Ask your own question" and
+set up an answer. The label was fixed to match the behavior; these are the
+two rungs above it, to build "when it's time" (Rufus, 2026-09-02):
+
+1. **Deterministic extraction** (small, no AI): pull proper nouns and
+   years out of the sentence and run THOSE through the existing engines —
+   "who was the first Howe in Vermont?" → searches Howe + Vermont. A
+   tokenizer + capitalization/roster heuristics; no cost, no guardrail
+   questions, meaningfully better than phrase-matching.
+2. **Question routing** (a real feature): an edge function that maps a
+   question onto the query engines the app already has (temporal
+   aliveDuring, geographic, structure, kindred) and returns real results —
+   the thing the paywall's "Ask any temporal query" bullet gestures at.
+   Needs its own design pass: model choice, cost ceiling per question,
+   decline behavior (silence over guessing), and what happens to questions
+   no engine can serve (they stay in the notebook — that part already
+   works).
+
+Guardrails today, for the record: nothing leaves the device except the
+tree-scoped keyword RPC; saved questions never sync; there is no model
+call. Any rung above keeps the notebook semantics — a question that can't
+be answered yet is kept, not lost.

@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       ancestor_notes: {
@@ -882,6 +907,7 @@ export type Database = {
           accepted_by: string | null
           created_at: string
           expires_at: string
+          invited_name: string | null
           revoked_at: string | null
           token: string
           tree_id: string
@@ -892,6 +918,7 @@ export type Database = {
           accepted_by?: string | null
           created_at?: string
           expires_at?: string
+          invited_name?: string | null
           revoked_at?: string | null
           token: string
           tree_id: string
@@ -902,6 +929,7 @@ export type Database = {
           accepted_by?: string | null
           created_at?: string
           expires_at?: string
+          invited_name?: string | null
           revoked_at?: string | null
           token?: string
           tree_id?: string
@@ -1128,6 +1156,173 @@ export type Database = {
         }
         Relationships: []
       }
+      passenger_candidates: {
+        Row: {
+          arrival_place: string | null
+          arrival_year: number
+          confidence: string
+          created_at: string
+          departure_port: string | null
+          id: string
+          individual_id: string
+          passenger_birth_year: number | null
+          passenger_death_year: number | null
+          passenger_id: string
+          passenger_name: string
+          reasons: string[]
+          resolved_at: string | null
+          ship: string
+          source: string
+          status: Database["public"]["Enums"]["passenger_candidate_status"]
+          tree_id: string
+          user_id: string
+          voyage_id: string
+        }
+        Insert: {
+          arrival_place?: string | null
+          arrival_year: number
+          confidence: string
+          created_at?: string
+          departure_port?: string | null
+          id?: string
+          individual_id: string
+          passenger_birth_year?: number | null
+          passenger_death_year?: number | null
+          passenger_id: string
+          passenger_name: string
+          reasons?: string[]
+          resolved_at?: string | null
+          ship: string
+          source: string
+          status?: Database["public"]["Enums"]["passenger_candidate_status"]
+          tree_id: string
+          user_id: string
+          voyage_id: string
+        }
+        Update: {
+          arrival_place?: string | null
+          arrival_year?: number
+          confidence?: string
+          created_at?: string
+          departure_port?: string | null
+          id?: string
+          individual_id?: string
+          passenger_birth_year?: number | null
+          passenger_death_year?: number | null
+          passenger_id?: string
+          passenger_name?: string
+          reasons?: string[]
+          resolved_at?: string | null
+          ship?: string
+          source?: string
+          status?: Database["public"]["Enums"]["passenger_candidate_status"]
+          tree_id?: string
+          user_id?: string
+          voyage_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passenger_candidates_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passenger_candidates_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      person_register_links: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string
+          finding_aid_url: string | null
+          id: string
+          individual_id: string
+          match_reasons: Json
+          match_score: number | null
+          record_id: string | null
+          record_name: string | null
+          record_summary: string | null
+          register_key: string
+          saved_payload: Json | null
+          source_citation: string | null
+          status: string
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string
+          finding_aid_url?: string | null
+          id?: string
+          individual_id: string
+          match_reasons?: Json
+          match_score?: number | null
+          record_id?: string | null
+          record_name?: string | null
+          record_summary?: string | null
+          register_key: string
+          saved_payload?: Json | null
+          source_citation?: string | null
+          status?: string
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string
+          finding_aid_url?: string | null
+          id?: string
+          individual_id?: string
+          match_reasons?: Json
+          match_score?: number | null
+          record_id?: string | null
+          record_name?: string | null
+          record_summary?: string | null
+          register_key?: string
+          saved_payload?: Json | null
+          source_citation?: string | null
+          status?: string
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_register_links_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_register_links_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "register_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_register_links_register_key_fkey"
+            columns: ["register_key"]
+            isOneToOne: false
+            referencedRelation: "registers"
+            referencedColumns: ["register_key"]
+          },
+          {
+            foreignKeyName: "person_register_links_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       places: {
         Row: {
           geocoded_at: string | null
@@ -1226,6 +1421,136 @@ export type Database = {
           params?: Json
           sort_order?: number
           title?: string
+        }
+        Relationships: []
+      }
+      register_record_events: {
+        Row: {
+          event_date: string | null
+          event_end_year: number | null
+          event_type: string
+          event_year: number | null
+          id: string
+          latitude: number | null
+          linked_event_ref: string | null
+          longitude: number | null
+          place_text: string | null
+          record_id: string
+          source_citation: string
+        }
+        Insert: {
+          event_date?: string | null
+          event_end_year?: number | null
+          event_type: string
+          event_year?: number | null
+          id?: string
+          latitude?: number | null
+          linked_event_ref?: string | null
+          longitude?: number | null
+          place_text?: string | null
+          record_id: string
+          source_citation: string
+        }
+        Update: {
+          event_date?: string | null
+          event_end_year?: number | null
+          event_type?: string
+          event_year?: number | null
+          id?: string
+          latitude?: number | null
+          linked_event_ref?: string | null
+          longitude?: number | null
+          place_text?: string | null
+          record_id?: string
+          source_citation?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "register_record_events_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "register_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      register_records: {
+        Row: {
+          attributes: Json
+          entity_key: string | null
+          finding_aid_url: string | null
+          given_normalized: string | null
+          id: string
+          name_as_recorded: string
+          record_kind: string
+          register_key: string
+          source_citation: string
+          surname_normalized: string | null
+          transcription_confidence: string | null
+        }
+        Insert: {
+          attributes?: Json
+          entity_key?: string | null
+          finding_aid_url?: string | null
+          given_normalized?: string | null
+          id: string
+          name_as_recorded: string
+          record_kind: string
+          register_key: string
+          source_citation: string
+          surname_normalized?: string | null
+          transcription_confidence?: string | null
+        }
+        Update: {
+          attributes?: Json
+          entity_key?: string | null
+          finding_aid_url?: string | null
+          given_normalized?: string | null
+          id?: string
+          name_as_recorded?: string
+          record_kind?: string
+          register_key?: string
+          source_citation?: string
+          surname_normalized?: string | null
+          transcription_confidence?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "register_records_register_key_fkey"
+            columns: ["register_key"]
+            isOneToOne: false
+            referencedRelation: "registers"
+            referencedColumns: ["register_key"]
+          },
+        ]
+      }
+      registers: {
+        Row: {
+          config: Json
+          coverage_caveat: string | null
+          display_name: string
+          provenance_label: string
+          register_key: string
+          status: string
+          variant: string
+        }
+        Insert: {
+          config?: Json
+          coverage_caveat?: string | null
+          display_name: string
+          provenance_label: string
+          register_key: string
+          status?: string
+          variant: string
+        }
+        Update: {
+          config?: Json
+          coverage_caveat?: string | null
+          display_name?: string
+          provenance_label?: string
+          register_key?: string
+          status?: string
+          variant?: string
         }
         Relationships: []
       }
@@ -1797,6 +2122,7 @@ export type Database = {
       delete_tree_batch: { Args: { p_tree_id: string }; Returns: Json }
       get_invite: { Args: { p_token: string }; Returns: Json }
       get_share: { Args: { p_token: string }; Returns: Json }
+      get_waiting_seat: { Args: never; Returns: Json }
       is_tree_owner: { Args: { p_tree_id: string }; Returns: boolean }
       member_tree_ids: { Args: never; Returns: string[] }
       recount_tree: { Args: { p_tree_id: string }; Returns: Json }
@@ -1858,6 +2184,7 @@ export type Database = {
         | "emigration"
         | "naturalization"
       nara_candidate_status: "pending" | "confirmed" | "dismissed"
+      passenger_candidate_status: "pending" | "confirmed" | "dismissed"
       research_brief_status: "open" | "in_progress" | "resolved" | "archived"
       sex_type: "M" | "F" | "U"
     }
@@ -1875,12 +2202,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1904,11 +2231,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1929,11 +2256,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1954,11 +2281,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1971,11 +2298,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1985,6 +2312,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       curiosity_type: [
@@ -2029,6 +2359,7 @@ export const Constants = {
         "naturalization",
       ],
       nara_candidate_status: ["pending", "confirmed", "dismissed"],
+      passenger_candidate_status: ["pending", "confirmed", "dismissed"],
       research_brief_status: ["open", "in_progress", "resolved", "archived"],
       sex_type: ["M", "F", "U"],
     },

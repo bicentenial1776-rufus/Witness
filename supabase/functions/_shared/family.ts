@@ -23,6 +23,8 @@ export interface EntitlementState {
   active: boolean;
   productId: string | null;
   expiresAt: string | null;
+  /** "trial" while a store intro trial runs; null for promos/comps and paid periods. */
+  periodType: string | null;
   /** RevenueCat could not answer — treat as "unknown", never as lapsed. */
   unknown: boolean;
 }
@@ -31,31 +33,36 @@ export async function getEntitlement(userId: string): Promise<EntitlementState> 
   const key = secretKey();
   if (!key) {
     console.error('REVENUECAT_SECRET_API_KEY not set — entitlement state unknown');
-    return { active: false, productId: null, expiresAt: null, unknown: true };
+    return { active: false, productId: null, expiresAt: null, periodType: null, unknown: true };
   }
   try {
     const res = await fetch(`${RC_BASE}/${encodeURIComponent(userId)}`, {
       headers: { Authorization: `Bearer ${key}` },
     });
-    if (res.status === 404) return { active: false, productId: null, expiresAt: null, unknown: false };
+    if (res.status === 404)
+      return { active: false, productId: null, expiresAt: null, periodType: null, unknown: false };
     if (!res.ok) {
       console.error('RevenueCat subscriber fetch failed', res.status);
-      return { active: false, productId: null, expiresAt: null, unknown: true };
+      return { active: false, productId: null, expiresAt: null, periodType: null, unknown: true };
     }
     const body = await res.json();
     const ent = body?.subscriber?.entitlements?.[ENTITLEMENT];
     const active = Boolean(
       ent && (ent.expires_date === null || Date.parse(ent.expires_date) > Date.now()),
     );
+    const sub = ent?.product_identifier
+      ? body?.subscriber?.subscriptions?.[ent.product_identifier]
+      : undefined;
     return {
       active,
       productId: ent?.product_identifier ?? null,
       expiresAt: ent?.expires_date ?? null,
+      periodType: sub?.period_type ?? null,
       unknown: false,
     };
   } catch (error) {
     console.error('RevenueCat unreachable', error);
-    return { active: false, productId: null, expiresAt: null, unknown: true };
+    return { active: false, productId: null, expiresAt: null, periodType: null, unknown: true };
   }
 }
 

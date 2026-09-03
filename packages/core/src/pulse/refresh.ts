@@ -57,6 +57,8 @@ export interface RefreshPreview {
   remap: IdRemap;
   strandedBriefs: number;
   strandedArchiveVerdicts: number;
+  strandedCrossingVerdicts: number;
+  strandedRecordLinks: number;
   strandedBackIssues: number;
   homePersonLost: boolean;
   /** "You marked N fixed — this file confirms M of them." Null without marks. */
@@ -84,6 +86,19 @@ interface CandidateRow {
   /** Needed to find the new tree's duplicate of this same document. */
   na_id: number;
 }
+interface CrossingRow {
+  id: string;
+  individual_id: string;
+  /** Needed to find the new tree's duplicate of this same passenger. */
+  passenger_id: string;
+}
+interface RegisterLinkRow {
+  id: string;
+  individual_id: string;
+  register_key: string;
+  /** Null for Variant C save-backs, which cannot collide on the new tree. */
+  record_id: string | null;
+}
 
 interface ShareLinkRow {
   token: string;
@@ -91,8 +106,19 @@ interface ShareLinkRow {
 }
 
 async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: string) {
-  const [briefs, candidates, findings, marks, shareLinks, corrections, notes, visits, graves] =
-    await Promise.all([
+  const [
+    briefs,
+    candidates,
+    findings,
+    marks,
+    shareLinks,
+    corrections,
+    notes,
+    visits,
+    graves,
+    crossings,
+    registerLinks,
+  ] = await Promise.all([
     supabase.from('research_briefs').select('id, individual_id').eq('tree_id', oldTreeId),
     // Only decided candidates are worth carrying. A pending row is a machine
     // suggestion the new tree's enrichment will regenerate anyway; moving it
@@ -131,6 +157,24 @@ async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: strin
     // The user's own confirmed Find a Grave memorial URLs — testimony, not
     // imported data, so they move like notes.
     supabase.from('grave_confirmations').select('id, individual_id').eq('tree_id', oldTreeId),
+    // Crossing verdicts move like the archive verdicts above: only decided
+    // rows carry — a pending row is a machine suggestion the next
+    // match-passengers --write regenerates, and moving it would fight the
+    // unique (individual_id, passenger_id) constraint.
+    supabase
+      .from('passenger_candidates')
+      .select('id, individual_id, passenger_id')
+      .eq('tree_id', oldTreeId)
+      .neq('status', 'pending'),
+    // Register verdicts (confirmed / rejected / parsed_from_gedcom) are
+    // the researcher's work — the registers framework's day-one invariant
+    // is that they survive the refresh. Candidates regenerate on the next
+    // match-registers run and stay behind.
+    supabase
+      .from('person_register_links')
+      .select('id, individual_id, register_key, record_id')
+      .eq('tree_id', oldTreeId)
+      .neq('status', 'candidate'),
   ]);
   return {
     briefs: (briefs.data ?? []) as BriefRow[],
@@ -142,6 +186,8 @@ async function fetchCarryables(supabase: WitnessSupabaseClient, oldTreeId: strin
     notes: (notes.data ?? []) as BriefRow[],
     visits: (visits.data ?? []) as BriefRow[],
     graves: (graves.data ?? []) as BriefRow[],
+    crossings: (crossings.data ?? []) as CrossingRow[],
+    registerLinks: (registerLinks.data ?? []) as RegisterLinkRow[],
   };
 }
 
@@ -238,6 +284,8 @@ export async function previewRefresh(
 
   const briefPlan = planCarryForward(carryables.briefs, remap);
   const candidatePlan = planCarryForward(carryables.candidates, remap);
+  const crossingPlan = planCarryForward(carryables.crossings, remap);
+  const registerLinksPlan = planCarryForward(carryables.registerLinks, remap);
   const findingsPlan = planFindingsCarry(carryables.findings, remap);
   const homePersonId = oldTree.data?.home_person_id ?? null;
   const homePersonLost = Boolean(homePersonId && !remap.map.has(homePersonId));
@@ -290,6 +338,8 @@ export async function previewRefresh(
     costWarning: carryCostWarning({
       strandedBriefs: briefPlan.stranded.length,
       strandedArchiveVerdicts: candidatePlan.stranded.length,
+      strandedCrossingVerdicts: crossingPlan.stranded.length,
+      strandedRecordLinks: registerLinksPlan.stranded.length,
       strandedBackIssues: findingsPlan.stranded.length,
       strandedMarks: marksPlan.stranded,
       strandedShareLinks: shareLinksStranded,
@@ -300,6 +350,8 @@ export async function previewRefresh(
     remap,
     strandedBriefs: briefPlan.stranded.length,
     strandedArchiveVerdicts: candidatePlan.stranded.length,
+    strandedCrossingVerdicts: crossingPlan.stranded.length,
+    strandedRecordLinks: registerLinksPlan.stranded.length,
     strandedBackIssues: findingsPlan.stranded.length,
     homePersonLost,
     marksNote,
@@ -318,6 +370,8 @@ export async function previewRefresh(
 export interface RefreshResult {
   briefsMoved: number;
   verdictsMoved: number;
+  crossingVerdictsMoved: number;
+  recordLinksMoved: number;
   backIssuePiecesMoved: number;
   marksCarried: number;
   marksGraduated: number;
@@ -346,6 +400,8 @@ export async function applyRefresh(
   const carryables = await fetchCarryables(supabase, oldTreeId);
   const briefPlan = planCarryForward(carryables.briefs, preview.remap);
   const candidatePlan = planCarryForward(carryables.candidates, preview.remap);
+  const crossingPlan = planCarryForward(carryables.crossings, preview.remap);
+  const registerLinksPlan = planCarryForward(carryables.registerLinks, preview.remap);
   const findingsPlan = planFindingsCarry(carryables.findings, preview.remap);
   // Marks re-plan against the new tree's live findings, same as the preview.
   const newHealth = await fetchTreeHealthData(supabase, newTreeId);
@@ -431,6 +487,53 @@ export async function applyRefresh(
       .update({ tree_id: newTreeId, individual_id: newIndividualId })
       .eq('id', row.id);
     if (error) throw new Error(`Could not move an archive verdict: ${error.message}`);
+  }
+
+  for (const { row, newIndividualId } of crossingPlan.moving) {
+    // Same shape as the archive verdicts: a fresh match-passengers run may
+    // already have re-suggested this same passenger for this same person on
+    // the new tree, and `unique (individual_id, passenger_id)` would turn
+    // the move into a constraint violation — clear the machine's pending
+    // guess and let the researcher's verdict land.
+    const { error: clearError } = await supabase
+      .from('passenger_candidates')
+      .delete()
+      .eq('tree_id', newTreeId)
+      .eq('individual_id', newIndividualId)
+      .eq('passenger_id', row.passenger_id);
+    if (clearError) {
+      throw new Error(`Could not clear a duplicate crossing candidate: ${clearError.message}`);
+    }
+
+    const { error } = await supabase
+      .from('passenger_candidates')
+      .update({ tree_id: newTreeId, individual_id: newIndividualId })
+      .eq('id', row.id);
+    if (error) throw new Error(`Could not move a crossing verdict: ${error.message}`);
+  }
+
+  for (const { row, newIndividualId } of registerLinksPlan.moving) {
+    // Same shape again: where a record id exists, a fresh match-registers
+    // run may have re-suggested the pair on the new tree — clear the
+    // machine's candidate before the verdict lands. Variant C rows
+    // (record_id null) sit outside the unique index and move directly.
+    if (row.record_id !== null) {
+      const { error: clearError } = await supabase
+        .from('person_register_links')
+        .delete()
+        .eq('tree_id', newTreeId)
+        .eq('individual_id', newIndividualId)
+        .eq('register_key', row.register_key)
+        .eq('record_id', row.record_id);
+      if (clearError) {
+        throw new Error(`Could not clear a duplicate register candidate: ${clearError.message}`);
+      }
+    }
+    const { error } = await supabase
+      .from('person_register_links')
+      .update({ tree_id: newTreeId, individual_id: newIndividualId })
+      .eq('id', row.id);
+    if (error) throw new Error(`Could not move a record link: ${error.message}`);
   }
 
   // The ledger crosses by insert rather than update: finding_id is half the
@@ -522,6 +625,8 @@ export async function applyRefresh(
   return {
     briefsMoved: briefPlan.moving.length,
     verdictsMoved: candidatePlan.moving.length,
+    crossingVerdictsMoved: crossingPlan.moving.length,
+    recordLinksMoved: registerLinksPlan.moving.length,
     backIssuePiecesMoved: findingsPlan.moving.length,
     marksCarried: marksPlan.carrying.length,
     marksGraduated: marksPlan.graduated,

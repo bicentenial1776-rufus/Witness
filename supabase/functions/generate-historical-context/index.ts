@@ -122,14 +122,44 @@ Deno.serve(async (req) => {
   const endYear = person.death_year ?? person.birth_year! + 70;
   const places = profilePlaces(events);
 
-  const [wikidataEvents, newspapers] = await Promise.all([
+  const [wikidataEvents, newspapers, registerLinks] = await Promise.all([
     fetchWikidataEvents(places.country, startYear, endYear),
     places.isAmerican
       ? fetchChroniclingAmerica(places.town, places.usState, startYear, endYear)
       : Promise.resolve([]),
+    // Confirmed historical-record register links (the registers framework):
+    // the researcher's own verdicts, RLS-scoped, each carrying provenance.
+    ctx.db
+      .from('person_register_links')
+      .select('register_key, record_name, record_summary, source_citation')
+      .eq('individual_id', individualId)
+      .in('status', ['confirmed', 'parsed_from_gedcom'])
+      .then(({ data }) => data ?? []),
   ]);
 
+  const registerLabels = new Map<string, string>();
+  if (registerLinks.length) {
+    const keys = [...new Set(registerLinks.map((l) => l.register_key as string))];
+    const { data: regs } = await ctx.db
+      .from('registers')
+      .select('register_key, provenance_label')
+      .in('register_key', keys);
+    for (const r of regs ?? []) registerLabels.set(r.register_key, r.provenance_label);
+  }
+
   const sources: string[] = [];
+  if (registerLinks.length) {
+    sources.push(
+      'Historical records this ancestor is CONFIRMED to appear in (weave each documented appearance into the prose naturally, attributing it — state only what the record itself says, nothing more):\n' +
+        registerLinks
+          .map((l) => {
+            const label = registerLabels.get(l.register_key as string) ?? 'From historical records';
+            const summary = l.record_summary ? ` — ${l.record_summary}` : '';
+            return `- ${label}: ${l.record_name ?? ''}${summary}`;
+          })
+          .join('\n'),
+    );
+  }
   if (wikidataEvents.length) {
     sources.push(
       'Historical events in their country during their lifetime (from Wikidata):\n' +
@@ -197,6 +227,9 @@ Deno.serve(async (req) => {
   }
 
   const sourceNames = [
+    ...[...new Set(registerLinks.map((l) => registerLabels.get(l.register_key as string)))].filter(
+      (label): label is string => Boolean(label),
+    ),
     ...(wikidataEvents.length ? ['Wikidata'] : []),
     ...(newspapers.length ? ['Chronicling America'] : []),
   ];

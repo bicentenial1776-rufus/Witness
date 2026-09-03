@@ -3,6 +3,7 @@ import { findingKey } from '../query/treeHealth.js';
 import type { NaraCandidate } from '../query/naraRecords.js';
 import type { OceanCrossing } from '../query/placeDiscovery.js';
 import type { MigrationPath } from '../query/migrations.js';
+import type { PassengerCandidate } from '../query/passengerCandidates.js';
 
 /**
  * The unified finding — Approach A's plumbing (docs/cohesion-design-brief.md).
@@ -16,7 +17,7 @@ import type { MigrationPath } from '../query/migrations.js';
  * a server-side findings table is the planned persistence upgrade, and
  * this type is its row shape.
  */
-export type FindingSource = 'tree-health' | 'archives' | 'crossing' | 'migration';
+export type FindingSource = 'tree-health' | 'archives' | 'crossing' | 'migration' | 'register';
 
 export interface Finding {
   /** Stable within a tree: `source:` + the emitting feature's own key. */
@@ -43,6 +44,41 @@ export function fromNaraCandidate(candidate: NaraCandidate): Finding {
     source: 'archives',
     subjectIds: [candidate.individualId],
     sentence: `A federal record — ${candidate.title} — might be ${candidate.individualName}.`,
+  };
+}
+
+// PassengerCandidate carries no individual name (unlike NaraCandidate,
+// whose row joins to individuals) — the one caller today already has the
+// name in hand (Home's ancestor-of-the-day pick), so it travels as a
+// parameter rather than growing the query with a join nothing else needs.
+export function fromPassengerCandidate(candidate: PassengerCandidate, individualName: string): Finding {
+  return {
+    id: `crossing:passenger:${candidate.individualId}:${candidate.voyageId}`,
+    source: 'crossing',
+    subjectIds: [candidate.individualId],
+    sentence: `${individualName} may have sailed on the ${candidate.ship}, ${candidate.arrivalYear} — a shipping list worth checking.`,
+  };
+}
+
+/**
+ * A strong register candidate, noticed on the ledger. The register key
+ * rides in the id so one source value serves every register
+ * (docs/witness-historical-record-registers-package.md — no bespoke
+ * source per record set).
+ */
+export function fromRegisterCandidate(input: {
+  registerKey: string;
+  individualId: string;
+  recordId: string;
+  individualName: string;
+  recordName: string;
+  displayName: string;
+}): Finding {
+  return {
+    id: `register:${input.registerKey}:${input.individualId}:${input.recordId}`,
+    source: 'register',
+    subjectIds: [input.individualId],
+    sentence: `${input.individualName} may appear in ${input.displayName} — ${input.recordName} is a record worth checking.`,
   };
 }
 

@@ -386,6 +386,103 @@ Matching is deterministic — no AI tokens — so candidates can be free-tier vi
 
 ---
 
+## Historical Record Registers (framework built 2026-09-02; first registers pending)
+
+**The idea:** many public-domain record sets share one shape — a seed or a
+deep-link, an exposure heuristic over GEDCOM facts, a user-confirmed link,
+then narrative, map, and research queue. Build the shape once; add each
+record set as configuration plus data. Full spec:
+`docs/witness-historical-record-registers-package.md`; working reference:
+`docs/historical-record-registers.md`.
+
+**Three variants, one frame:** A — curated person table matched to the tree
+(Acadian Deportation, Loyalists, Filles du Roi; the shape the Crossing
+Library proved); B — entity table whose dated events attach to a person
+(Civil War regiments); C — deep-link out with a structured save-back (BLM
+land patents, the LAC sets). The shipped one-offs (Crossing, NARA, Find a
+Grave) stay as they are — the framework copies their patterns.
+
+**Built (2026-09-02):** the `registers` catalog + `register_records` +
+`register_record_events` + `person_register_links` tables (global PD
+reference data, per-user verdicts, snapshot cards); the config-driven
+exposure scorer and Variant A matcher in core; deep-link templating;
+provenance-labeled narrative blocks; map points (person vs entity); the
+generic Portrait card ("In the record books") with verdicts, coverage
+caveats, and the "?" explainer; seed + match/harness CLIs; findings-ledger
+emission for strong candidates; and refresh carry-forward for decided links
+from day one.
+
+**Invariants:** public-domain sources only, per-row citations, copyrighted
+compilations as finding aids; candidates until a human confirms
+(`parsed_from_gedcom` the lone exception); silence over guessing; verdicts
+survive GEDCOM refresh. **Build order (locked):** Acadian Deportation →
+Civil War → GLO patents → Loyalists → config-only additions (CEF WWI, Home
+Children, Grosse-Île, Filles du Roi). Every register's deep link is verified
+against the live target before it ships.
+
+### Acadian Deportation Records (register `acadian-deportation` — Phase 0, decisions locked)
+
+The first real register (Variant A), per
+`docs/witness-acadian-deportation-prompt.md` re-expressed on the framework:
+
+1. **Provenance (amended 2026-09-02, Rufus's call after the source
+   survey).** The curated rows hold only facts attributable to public-domain
+   primary records of 1755–1764. The Grand-Pré roll was never printed in a
+   pre-copyright edition (the NSHS *Collections* print of Winslow's journal
+   carries the narrative and letters, not the name roll), so the register
+   takes the **facts-not-expression** posture already shipped for the Ark &
+   Dove: bare facts of the PD 1755 record (name, village, household counts)
+   are taken from accessible reproductions, never their annotations or
+   identifications, and every row cites BOTH the original record (Winslow's
+   returns, Oct 1755, Massachusetts Historical Society manuscript) and the
+   finding aid used to reach it. acadian-home.org, acadian.org, WikiTree's
+   Acadians Project, and every modern compilation (Acadians in Gray
+   included) remain finding aids and deep-link targets; Stephen White's
+   *Dictionnaire* is never ingested.
+2. **Scope for v1, amended by the source survey.** Grand-Pré (Winslow's
+   lists, Sept–Oct 1755) seeds fully — the list survives with heads of
+   family, family sizes, and home villages. For the seven Chignectou ships
+   to South Carolina/Georgia, named EMBARKATION returns largely do not
+   survive; person rows are seeded only where a PD primary record (South
+   Carolina council/assembly returns) actually names someone, and otherwise
+   the ships enter as voyage-context only. Pisiquid stays out — no reliable
+   list exists. Widening is a data change, per the framework.
+3. **Match semantics.** Candidates only; the user confirms on the Portrait
+   card ("curiosities, not verdicts"). No auto-linking.
+4. **Narrative.** Confirmed links feed the sourced tier as "From Deportation
+   records (Grand-Pré, 1755)" / "(Chignectou–Carolinas, 1755)". Candidates
+   never appear in prose. Aggregate counts may join Tree Health as a
+   research-queue check; per-candidate verdicts stay on the Portrait, per
+   the framework's correction of the original prompt.
+5. **Names.** A deterministic `acadianNames` normalizer (dit-names, spelling
+   variants, French/English given-name equivalents) backed by a versioned
+   variant data file in `data/registers/acadian-deportation/` — a first
+   pass, expected to be tuned. The Acadian surname roster derives from the
+   PD censuses (1671–1752), not from any secondary site.
+6. **Match signals beyond the framework's core** (the register's plugin, the
+   framework's first): origin-settlement consistency against GEDCOM
+   birthplace, destination-colony consistency against later events, and
+   household-role age plausibility — each an explicit, plain-words reason.
+
+### Civil War Enrichment (register `cw-regiments` — Phase 0 locked; foundation built)
+
+Variant B, per `docs/witness-civil-war-prompt.md` on the framework:
+**regiment-first** — 1,593 Union units from Dyer's *Compendium* (1908, PD)
+seeded as entity records with verbatim service narratives; the 6.3M-name
+CWSS index, state rosters, and commercial sets are never ingested.
+Person-level links are **user-confirmed only** (exposure → prefilled
+FamilySearch Soldiers Index search, since CWSS verified to have no
+parameterized search → confirm), except a GEDCOM military event with a
+parseable unit string attaches its UNIT as `parsed_from_gedcom` — this
+tree has none (its military events are 1917 draft cards), so that path
+awaits trees that do. `parseUnitDesignation` (versioned unit-terms file)
+passes a 52-string gauntlet at 100%. Confederate coverage: NPS histories
+later, silence where thin, caveat on every card. Known-thin and tracked:
+engagement-event extraction (17 events on a 20-unit sample — needs its own
+pass before the map integration), the Add-unit picker, NPS battles.
+
+---
+
 ## Features Explicitly Deferred
 
 - **Tree editing** — Witness never modifies a GEDCOM. Read-only always. *(Amended 2026-08-25 by At the Stone: the user may now make supervised, walk-backable additions — ADD person, RECORD marriage — from field evidence they verify themselves. The user is the editor; Witness is the scribe. The GEDCOM source file itself is still never touched.)*

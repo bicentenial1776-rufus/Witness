@@ -4,16 +4,18 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { ShelfEntry } from '@witness/core/history';
-import { dailyIssueOf, pickWeekly } from '@witness/core/findings';
+import { dailyIssueOf, fromPassengerCandidate, pickWeekly } from '@witness/core/findings';
 import {
   buildFamilyStages,
   fetchNaraCandidatesForTree,
   fetchNaraCounts,
+  fetchPassengerCandidatesForIndividual,
   weeklyDigest,
   type DigestEntry,
   type FamilyStage,
   type NaraCandidate,
   type NaraCounts,
+  type PassengerCandidate,
   type WeeklyDigest,
 } from '@witness/core/query';
 
@@ -26,6 +28,7 @@ import { ThemedText } from '@/components/themed-text';
 import { BrandFonts, WideContent, mono } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
+import { pullRecordPiece, recordEditionPieces, type RecordPiece } from '@/lib/edition-ledger';
 import { layIssueTrail, openTrailPiece, type TrailPiece } from '@/lib/issue-trail';
 import { armDigestNotification } from '@/lib/digest-notifications';
 import { getFeaturedIds, getKinMap, type Kin } from '@/lib/relationship-cache';
@@ -93,6 +96,14 @@ export default function Home() {
   const [relationships, setRelationships] = useState<Map<string, Kin>>(new Map());
   const [ancestor, setAncestor] = useState<DailyAncestor | null>(null);
   const [ancestorNote, setAncestorNote] = useState<string | null>(null);
+  // A strong, unconfirmed Crossing candidate for today's ancestor — the
+  // "Findings first" doctrine (PROJECT_BRIEF.md): riding the pick that's
+  // already made, rather than a new module of its own ("no new shelf").
+  const [crossingFinding, setCrossingFinding] = useState<PassengerCandidate | null>(null);
+  // "From the records": one noticed crossing/register finding prints per
+  // edition — the ledger's notice→print loop, closed (the registers
+  // package's "findings that actually arrive").
+  const [recordPiece, setRecordPiece] = useState<RecordPiece | null>(null);
   const [arc, setArc] = useState<StoryArc | 'loading' | 'failed'>('loading');
   const [stage, setStage] = useState<FamilyStage | null>(null);
   const [naraCounts, setNaraCounts] = useState<NaraCounts | null>(null);
@@ -106,6 +117,23 @@ export default function Home() {
 
   // Today's issue — new at midnight, the seed for every module's pick.
   const issue = dailyIssueOf(new Date());
+
+  // The records slot: today's piece if one printed, else the oldest
+  // noticed finding takes it. Null days print nothing.
+  useEffect(() => {
+    if (!activeTree) return;
+    let cancelled = false;
+    setRecordPiece(null);
+    pullRecordPiece(activeTree.id, issue.key)
+      .then((piece) => {
+        if (!cancelled) setRecordPiece(piece);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTree?.id, issue.key]);
 
   // Today's line: cached after its first telling, so this is one cheap
   // function round-trip on every Home visit after the first of the day.
@@ -171,6 +199,7 @@ export default function Home() {
             if (cancelled) return;
             const byId = new Map((rows ?? []).map((r) => [r.id, r]));
             const pick = window.map((id) => byId.get(id)).find((p) => p && !p.living) ?? null;
+            setCrossingFinding(null);
             if (pick) {
               setAncestor(pick);
               const { data: note } = await supabase
@@ -180,6 +209,21 @@ export default function Home() {
                 .eq('enrichment_type', 'digest_note')
                 .maybeSingle();
               if (!cancelled) setAncestorNote(note?.content ?? null);
+
+              // Findings first (PROJECT_BRIEF.md): a strong, still-pending
+              // Crossing candidate for today's ancestor prints right here,
+              // and is logged to the findings ledger — its first real writer.
+              const candidates = await fetchPassengerCandidatesForIndividual(supabase, pick.id).catch(
+                () => [] as PassengerCandidate[],
+              );
+              const strong = candidates.find((c) => c.status === 'pending' && c.confidence === 'strong');
+              if (cancelled) return;
+              if (strong) {
+                setCrossingFinding(strong);
+                recordEditionPieces(treeId, issueKey, [
+                  { finding: fromPassengerCandidate(strong, pick.full_name), section: 'lead' },
+                ]);
+              }
             }
           }
         } catch {
@@ -463,6 +507,14 @@ export default function Home() {
                         style={mono(13, L.deepAmber)}
                       />
                     )}
+                    {/* No ⛵ here — PROJECT_BRIEF.md reserves the ship glyph
+                        for a CONFIRMED crossing (the Portrait badge); this
+                        is still an unconfirmed candidate to check. */}
+                    {crossingFinding && (
+                      <Text style={mono(13, L.deepAmber)}>
+                        {`A SHIPPING LIST MAY NAME THEM: THE ${crossingFinding.ship.toUpperCase()}, ${crossingFinding.arrivalYear}`}
+                      </Text>
+                    )}
                     {ancestorNote && (
                       <Text
                         style={{
@@ -477,6 +529,55 @@ export default function Home() {
                       </Text>
                     )}
                     <Text style={{ ...mono(13, L.amber), marginTop: 4 }}>THEIR FULL STORY ›</Text>
+                  </Pressable>
+                </Feed>
+              )}
+
+              {/* From the records: the day's noticed crossing/register
+                  finding, printed once and stable all day. A question,
+                  never a claim — the verdict waits on the Portrait. */}
+              {recordPiece && (
+                <Feed eyebrow="From the records">
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="From the records — judge it on their Portrait"
+                    disabled={!recordPiece.subjectId}
+                    onPress={() =>
+                      recordPiece.subjectId &&
+                      router.push({
+                        pathname: '/ancestor/[id]',
+                        // Land on Sources, where the card waits — the
+                        // trail must not go cold one tap short.
+                        params: { id: recordPiece.subjectId, tab: 'sources' },
+                      })
+                    }
+                    style={{
+                      borderWidth: 1,
+                      borderColor: L.rule,
+                      backgroundColor: L.raised,
+                      padding: 18,
+                      gap: 7,
+                      shadowColor: L.ink,
+                      shadowOpacity: 0.05,
+                      shadowRadius: 4,
+                      shadowOffset: { width: 0, height: 2 },
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: BrandFonts.serif.regular,
+                        fontSize: 17,
+                        lineHeight: 25,
+                        color: L.ink,
+                      }}
+                    >
+                      {recordPiece.sentence}
+                    </Text>
+                    {recordPiece.subjectId && (
+                      <Text style={{ ...mono(13, L.amber), marginTop: 2 }}>
+                        JUDGE IT ON THEIR PORTRAIT ›
+                      </Text>
+                    )}
                   </Pressable>
                 </Feed>
               )}

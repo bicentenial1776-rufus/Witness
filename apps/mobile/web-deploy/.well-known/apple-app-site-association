@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["SLD65K94V7.com.witnesslives.witness"],
+        "components": [
+          { "/": "/j/*" },
+          { "/": "/join/*" },
+          { "/": "/s/*" },
+          { "/": "/shared/*" }
+        ]
+      }
+    ]
+  }
+}
