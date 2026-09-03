@@ -349,17 +349,31 @@ has, part five below is the way to get a number today. If this happens on a
 finished-quality build rather than the quick one, there is a first thing to
 check, and it is in part three.
 
-### 8. Switch measuring on
+### 8. The measuring panel — already up on this screen
 
-The readout is off by default and off means off. Two ways in:
+**There is nothing to switch on here.** Both doors on the hidden screen hand
+the world an address with the measuring switch already in it, so the panel
+appears in the top-left corner as soon as the world finishes loading. If you
+can see it, go straight to step 9.
 
-- **Three taps** within about three quarters of a second, in the top-left
-  corner of the world — roughly a thumb's width square.
-- **The letter M**, if a keyboard is attached.
+The panel reads: frames a second now and the worst frame in the last ten
+seconds, triangles, draws, sharpness, the size of the drawing area, and
+whatever the browser will say about the graphics chip.
 
-A panel appears in that corner: frames a second now and the worst frame in
-the last ten seconds, triangles, draws, sharpness, the size of the drawing
-area, and whatever the browser will say about the graphics chip.
+**So do not tap three times in that corner on this screen.** Three taps is not
+an on switch, it is a switch that flips whichever way the panel is currently
+set — so here it turns the panel *off*, and if a walk is already running it
+stops the walk with it. The letter M on an attached keyboard does the same.
+If you do it out of habit, three more taps bring the panel back and you have
+lost only the walk you would then start again. The three taps belong to part
+five below, where the world is opened from a file that carries no address, and
+there the panel genuinely does start off.
+
+If the world paints but no panel comes with it, that is worth writing down —
+it would mean the address did not carry through to the world — and then three
+taps in the top-left corner, roughly a thumb's width square and within about
+three quarters of a second, will raise it so the session still yields a
+number.
 
 ### 9. Walk for ten minutes
 
@@ -487,7 +501,10 @@ and only the app can give it.
 2. On the iPad, open it from the Files app. It opens in a page view with no
    address bar, which is precisely why the readout has a three-tap corner
    switch.
-3. Three taps in the top-left corner.
+3. Three taps in the top-left corner. This is the one route where the panel
+   really does start off, because a page opened from the Files app carries no
+   address to switch it on with — so unlike step 8, here the taps are the way
+   in rather than the way out.
 4. Press "Walk 10 minutes", put it down, come back.
 5. Press "Copy the numbers" and paste the report into the pull request. The
    same rule as step 10 applies here, and for the same reason: ten minutes
