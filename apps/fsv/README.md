@@ -26,6 +26,17 @@ to another repo. `world:sync` copies it instead:
 It fails loudly with the build command if it cannot find one, rather than
 serving a stale world.
 
+**It copies to two places.** The second is `apps/mobile/assets/world/`, where
+the hidden `/field` screen picks the world up and carries it inside the app
+binary. That second copy is different in one way: the path is *tracked*. A
+one-kilobyte stand-in page is committed there so the app always builds — if
+the file were simply absent the bundler would stop with "unable to resolve"
+for anyone who had not run the sync — and `world:sync` writes the real three
+megabytes over it. Never commit that. The script prints the way back at the
+end of every run:
+
+    git checkout -- apps/mobile/assets/world/witness_fsv_demo.html
+
 **Anything that reads the tree** is not here either. That is the bridge —
 `packages/core/src/fsv/` — which is pure, tested, and importable by the
 mobile app. Rendering never crosses that line.
