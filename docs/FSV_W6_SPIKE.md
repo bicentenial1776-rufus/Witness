@@ -18,12 +18,14 @@ shape for something nobody has run yet.
 The screen has two doors onto the same world.
 
 **The main door** is the world carried inside the app. The world is one
-self-contained web page, about three and a quarter megabytes, built in the
-design repository. The app now ships that page as one of its own files and
-shows it in a web-page panel. This is the first such panel in the app:
-nothing here has used one before, and the app on the store was never built
-with one. Its first run on a device is an experiment, and should be read as
-one.
+self-contained web page — about three and two-thirds megabytes as it stands
+on the morning of 3 September, and it grows a little every time the world is
+rebuilt, so take the size the copy step prints over any figure written here
+— built in the design repository. The app now ships that page as one of its
+own files and shows it in a web-page panel. This is the first such panel in
+the app: nothing here has used one before, and the app on the store was never
+built with one. Its first run on a device is an experiment, and should be
+read as one.
 
 **The fallback door** is a single button that opens the hosted world in the
 app's own built-in browser view — the same one the ancestor screen and the
@@ -57,10 +59,10 @@ through. This change is the door, and nothing more.
   altered. It does add weight to every build, though, and that should be
   said plainly: the web-page panel compiles into a small bundle of its own —
   one page and about a quarter of a megabyte of script — and the world
-  itself, three and a quarter megabytes, is carried inside the binary
-  whether or not anyone ever types the address. That is the true cost of the
-  trial, and it is one of the reasons this is a branch to look at rather
-  than something to merge.
+  itself, three and two-thirds megabytes this morning and growing, is carried
+  inside the binary whether or not anyone ever types the address. That is the
+  true cost of the trial, and it is one of the reasons this is a branch to
+  look at rather than something to merge.
 - It does not feed the world from the tree. The world it opens is the baked
   demonstration file as it stands today. The live path is a later job.
 - It does not check that sign-in or the subscription gate carry into the
@@ -80,7 +82,7 @@ through. This change is the door, and nothing more.
   of its own, so nothing about the copy step changed.
 - It commits no part of the world. The world's folder is the one this
   repository is told to ignore, and the app reads it from there, so there is
-  no tracked file anywhere that a copy step writes three megabytes over.
+  no tracked file anywhere that a copy step writes those megabytes over.
   Nothing you can do with an ordinary commit puts the world in this history.
   The price of that is in step 3 below: copy the world in before you build,
   or the build stops.
@@ -129,11 +131,21 @@ On Windows, with the install fix that is stacked underneath this change:
 - The app's linter reports **119 problems before and 119 after**, 74 of them
   errors. It names neither new file.
 - An iPad bundle was exported on Windows, which is as close to a build as
-  this machine can get. The world came through it whole — three and a quarter
-  megabytes, and its checksum is identical to the built page in the design
-  repository, so it is the same file down to the byte, not merely the same
+  this machine can get. The world came through it whole: the copy carried at
+  the time went in at 3,429,887 bytes and came out with the same checksum it
+  went in with, so it is the same file down to the byte, not merely the same
   size. The web-page panel compiled into its own small bundle alongside. So
   the world does travel inside the app, and it travels unchanged.
+- **The world has been rebuilt since that export test, and it is now larger.**
+  The built page in the design repository stands at 3,841,780 bytes this
+  morning — about three and two-thirds megabytes, and a different page from
+  the one the export test saw. The copy step at step 3 takes whatever is
+  current, so what you carry will be the newer one, and the size it prints
+  will not match the figure above. What the export test proved is that a
+  world of this shape rides through the bundle unchanged; it did not prove it
+  on this exact file, and it does not need to — it is the same single
+  self-contained page, only bigger. Said here only so the difference does not
+  read as something going wrong.
 - The world is carried the same way the app already carries its typefaces:
   as a file that lives outside the app's own folder but inside this
   repository, which the bundler has been reading from since the app was
@@ -191,9 +203,9 @@ git checkout -- package-lock.json
 
 **Do this before you build. The build stops without it.**
 
-The world is not kept in this repository — it is three and a quarter
-megabytes and it is rebuilt every time it changes, so carrying it would grow
-the history by that much every time. It is copied in instead:
+The world is not kept in this repository — it is three and two-thirds
+megabytes today and it is rebuilt every time it changes, so carrying it
+would grow the history by that much every time. It is copied in instead:
 
 ```bash
 npm run world:sync -w @witness/fsv
@@ -390,8 +402,20 @@ turning is a drag, and a tablet with no keyboard cannot do either. Every
 minute is written down: average and worst frames a second, triangles, draws,
 where the walker was, and how the dials were set.
 
-Touching the screen stops the walk early. That is deliberate — it is the way
-out — but it also ends the measurement, so leave it be.
+**A stray touch does not end the walk.** Touching the screen does stop the
+self-driving tour — that is how you take the controls back — but while a
+walk is running the world starts the tour again about a second later, on
+purpose, so a hand brushing the glass cannot cost you a measurement. Two
+things do end a walk early, and both take a deliberate press:
+
+- **The button you just pressed.** While the walk runs it changes its words
+  to *Stop the walk*. Pressing it there ends the walk and hands you the
+  minutes it did reach, with a line saying it was stopped by hand.
+- **Turning the panel off** — the three taps in the top-left corner, or the
+  letter M on a keyboard. That stops the walk with it, which is what step 8
+  warned about.
+
+Leave both alone and let the ten minutes run.
 
 ### 10. Copy the numbers and paste them
 
@@ -407,10 +431,12 @@ pull request.
 **The third reading — did the page reload — is the shape of what you get,
 not a line inside it.** A report with all ten minutes in it means the page
 did not reload, because a reload would have ended the walk; the report says
-so on its first line and you can take that line at its word. If instead you
-come back to a world that has forgotten it was walking — the button offering
-to walk ten minutes again, and copying giving you a few lines of numbers as
-of right now rather than ten minutes of them — then the page reloaded, and
+so in a line of its own — the seventh, just under the six lines of heading
+that name the tablet, the chip and the dials — and you can take that line at
+its word. If instead you come back to a world that has forgotten it was
+walking — the button offering to walk ten minutes again, and copying giving
+you a few lines of numbers as of right now rather than ten minutes of them
+— then the page reloaded, and
 that is the answer even though nothing says the word. The world does try to
 leave itself a mark so it can name the minute it died on, but that mark
 needs the small scratchpad a browser gives a page, and a page opened from a
