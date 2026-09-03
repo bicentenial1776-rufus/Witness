@@ -27,8 +27,9 @@ import { useTheme } from '@/hooks/use-theme';
  * There are two doors here, onto the same world.
  *
  *   The main door is the world shipped inside the app: the built page is
- *   copied into the app's own files and shown in a web view. This is the
- *   one the week is trying to measure, and the one nobody has run yet.
+ *   copied into this repository by the copy step, carried inside the app
+ *   binary, and shown in a web view. This is the one the week is trying to
+ *   measure, and the one nobody has run yet.
  *
  *   The fallback door is one button that opens the hosted world in the
  *   app's own built-in browser view — the same one the ancestor screen and
@@ -59,15 +60,31 @@ const HOSTED_WORLD = '';
  * counts as a shippable file in metro.config.js; without that line this
  * does not resolve and the app does not build.
  *
- * A stand-in page is committed at this path so the app always builds. The
- * real world is three megabytes and lives in the design repository; it is
- * copied over the stand-in by `npm run world:sync -w @witness/fsv`. If the
- * door opens on a page that says the world has not been copied in, that
- * copy step has not been run.
+ * The path reaches out of this app and into the one home the monorepo gives
+ * the world, apps/fsv/public/world, rather than keeping a second copy under
+ * this app. Two reasons, and the second is the one that decided it. The
+ * world is three megabytes, rebuilt every time it changes, and belongs to
+ * another repository; that folder is the only place set up to hold it, and
+ * it is the one folder git is told to ignore, so the world cannot be
+ * committed into this repository by accident. Anywhere under this app's own
+ * files would be tracked, and a copy step that writes three megabytes over
+ * a tracked file is one careless commit away from putting the world into
+ * this history for good.
+ *
+ * The price is that the world has to be there before the app is built. Run
+ *
+ *     npm run world:sync -w @witness/fsv
+ *
+ * from the top of the repository first. Skip it and the build stops with
+ * "unable to resolve", naming this file — a loud failure with an obvious
+ * cure, chosen over a quiet one that ships a stand-in page pretending to be
+ * the world.
  */
 const WORLD_URI: string | null = (() => {
   try {
-    const source = Image.resolveAssetSource(require('@/assets/world/witness_fsv_demo.html'));
+    const source = Image.resolveAssetSource(
+      require('../../../../fsv/public/world/witness_fsv_demo.html')
+    );
     return source?.uri ?? null;
   } catch {
     return null;

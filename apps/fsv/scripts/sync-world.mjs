@@ -8,14 +8,6 @@
  * a build that belongs to another repo.
  *
  * Point FSV_DESIGN_REPO at your checkout, or pass the path as an argument.
- *
- * SECOND DESTINATION, added for the W6 spike: apps/mobile/assets/world/.
- * The hidden /field screen carries the world INSIDE the app binary, so the
- * same file has to land where Metro can bundle it. The difference between
- * the two destinations is that the mobile one is TRACKED — a ~1 KB stand-in
- * page is committed there so the app always builds, and this script writes
- * the real 3 MB world over it. That copy must never be committed; the
- * reminder at the end of the run says how to put the stand-in back.
  */
 import { existsSync, mkdirSync, copyFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -23,10 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const dests = [
-  resolve(here, '..', 'public', 'world'),
-  resolve(here, '..', '..', 'mobile', 'assets', 'world')
-];
+const dest = resolve(here, '..', 'public', 'world');
 
 const candidates = [
   process.argv[2],
@@ -54,15 +43,8 @@ if (!src) {
   process.exit(1);
 }
 
-const mb = (statSync(src).size / 1048576).toFixed(2);
-for (const dest of dests) {
-  mkdirSync(dest, { recursive: true });
-  copyFileSync(src, join(dest, 'witness_fsv_demo.html'));
-  console.log('sync-world: ' + mb + ' MB  ->  ' + join(dest, 'witness_fsv_demo.html'));
-}
-console.log('sync-world:              <-  ' + src);
-console.log(
-  '\n  The copy under apps/mobile is tracked and must not be committed.\n' +
-  '  To put the committed stand-in page back before committing:\n' +
-  '    git checkout -- apps/mobile/assets/world/witness_fsv_demo.html'
-);
+mkdirSync(dest, { recursive: true });
+const out = join(dest, 'witness_fsv_demo.html');
+copyFileSync(src, out);
+const mb = (statSync(out).size / 1048576).toFixed(2);
+console.log('sync-world: ' + mb + ' MB  <-  ' + src);

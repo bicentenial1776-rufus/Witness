@@ -16,9 +16,17 @@ config.resolver.nodeModulesPaths = [
 
 // The walkable world is one self-contained web page, and Metro ships a web
 // page only if it is told that a web page is a shippable file. Without this
-// line `require('@/assets/world/witness_fsv_demo.html')` in the field screen
-// fails to resolve and the app does not build. It is the whole cost of
-// carrying the world inside the binary.
+// line the `require` of the world in the field screen fails to resolve and
+// the app does not build. It is the whole cost of carrying the world inside
+// the binary.
+//
+// The world itself is not under this app: it sits in the one home the
+// monorepo gives it, apps/fsv/public/world, which the watchFolders line
+// above already lets Metro read. That folder is git-ignored, so the 3 MB
+// artifact cannot be committed into this repo by accident; the price is
+// that `npm run world:sync -w @witness/fsv` has to have been run before a
+// build, and if it has not, the build stops here rather than shipping a
+// stand-in that only looks like the world.
 config.resolver.assetExts.push('html');
 
 module.exports = config;

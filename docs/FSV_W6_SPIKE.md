@@ -51,16 +51,31 @@ through. This change is the door, and nothing more.
 - It adds no part to the app and moves no version. The web-page panel is
   already in the toolkit the app is built from; the built-in browser view is
   already used in six places. No third-party web view was added.
-- It changes nothing that ships to a reader. The screen is unreachable
-  unless you type its address.
+- It changes nothing a reader can reach. The screen is unreachable unless
+  you type its address, and no behaviour anywhere else in the app is
+  altered. It does add weight to every build, though, and that should be
+  said plainly: the web-page panel compiles into a small bundle of its own —
+  one page and about a quarter of a megabyte of script — and the world
+  itself, three and a quarter megabytes, is carried inside the binary
+  whether or not anyone ever types the address. That is the true cost of the
+  trial, and it is one of the reasons this is a branch to look at rather
+  than something to merge.
 - It does not feed the world from the tree. The world it opens is the baked
   demonstration file as it stands today. The live path is a later job.
 - It does not check that sign-in or the subscription gate carry into the
   panel. That can ride along on the same build if there is time, but it is
   not what this is for.
 - It touches nothing else in the app: one line of bundler configuration, one
-  new screen, one new panel, and a second destination for the copy step that
-  was already there.
+  new screen, and the one new panel that line exists for. The copy step and
+  the world's folder are exactly as the earlier branch left them — the app
+  now reads the world out of that folder rather than keeping a second copy
+  of its own, so nothing about the copy step changed.
+- It commits no part of the world. The world's folder is the one this
+  repository is told to ignore, and the app reads it from there, so there is
+  no tracked file anywhere that a copy step writes three megabytes over.
+  Nothing you can do with an ordinary commit puts the world in this history.
+  The price of that is in step 3 below: copy the world in before you build,
+  or the build stops.
 
 ## The bar
 
@@ -70,9 +85,21 @@ On whichever iPad is in your hand:
 - **At least 30 frames a second** through the transitions — crossing a
   threshold, stepping into a room.
 - **No reload in ten minutes.** A reload is how iPadOS kills a page that has
-  used too much memory; the world leaves itself a mark at the start of the
-  walk and tells you at the top of the report if it finds that mark still
-  there when it loads.
+  used too much memory. Read this reading from the report itself rather than
+  from any one line in it: a walk that finishes and hands you all ten
+  minutes is proof there was no reload, because a reload ends the walk. If
+  the walk is killed there is no report at all — you come back to a world
+  that has forgotten it was walking, and pressing copy gives you only the
+  numbers as of that moment. That is the reload, and it is the same answer
+  whichever way you get it.
+
+  The world also tries to leave itself a mark at the start of the walk so it
+  can name the minute it died on. That mark needs the small scratchpad the
+  browser gives a page, which a page opened from a file is sometimes refused
+  — and both routes in this recipe open the world from a file. If it was
+  refused, you get the silence above instead of the detail, and nothing is
+  wrong. So what you write down is the plain thing: did a complete
+  ten-minute report come out, yes or no.
 
 Three readings, one session. If the first fails, the readout carries four
 dials — sharpness, shadows, ground cover, and how far the fog lets you see —
@@ -95,9 +122,14 @@ On Windows, with the install fix that is stacked underneath this change:
   errors. It names neither new file.
 - An iPad bundle was exported on Windows, which is as close to a build as
   this machine can get. The world came through it whole — three and a quarter
-  megabytes, byte for byte the size of the source — and the web-page panel
-  compiled into its own small bundle alongside. So the world does travel
-  inside the app.
+  megabytes, and its checksum is identical to the built page in the design
+  repository, so it is the same file down to the byte, not merely the same
+  size. The web-page panel compiled into its own small bundle alongside. So
+  the world does travel inside the app, and it travels unchanged.
+- The world is carried the same way the app already carries its typefaces:
+  as a file that lives outside the app's own folder but inside this
+  repository, which the bundler has been reading from since the app was
+  built. So the arrangement is not new ground, only a new file.
 
 What that does **not** prove, and only your Mac and your tablet can: that
 the panel actually paints the world once it is on the device. Everything up
@@ -130,11 +162,23 @@ From the top of the repository:
 npm install
 ```
 
+One thing to expect rather than worry about: this rewrites the lock file the
+first time, because the earlier branch added a folder to the workspace and
+the lock was never regenerated for it. Your repository will look dirty
+straight after installing, and that change belongs to that branch's review,
+not to this one. Leave it alone, or put it back with
+
+```bash
+git checkout -- package-lock.json
+```
+
 ### 3. Copy the world in
 
-The world is not kept in this repository — it is three and a quarter megabytes
-and it is rebuilt every time it changes, so carrying it would grow the
-history by that much every time. It is copied in instead:
+**Do this before you build. The build stops without it.**
+
+The world is not kept in this repository — it is three and a quarter
+megabytes and it is rebuilt every time it changes, so carrying it would grow
+the history by that much every time. It is copied in instead:
 
 ```bash
 npm run world:sync -w @witness/fsv
@@ -142,26 +186,26 @@ npm run world:sync -w @witness/fsv
 
 That looks for a checkout of the design repository next to this one, or
 wherever an environment setting points. If it finds one it copies the world
-into two places and prints both. If it does not, it stops and tells you what
-it looked for.
+into the world's folder in this repository and prints where it put it. If it
+does not, it stops and tells you what it looked for.
 
 **If you have no checkout of the design repository**, Greg sends you the
-single built page and you put it here by hand, replacing the small stand-in
-page that is already there:
+single built page and you put it here by hand, making the folder if it is
+not there:
 
 ```
-apps/mobile/assets/world/witness_fsv_demo.html
+apps/fsv/public/world/witness_fsv_demo.html
 ```
 
-A stand-in page is committed at that path on purpose, so the app always
-builds. If you skip this step the app still runs and the door still opens —
-it just opens on a page that says the world has not been copied in.
+That folder is the one this repository is told to ignore, so nothing you put
+in it can be committed by accident, and there is nothing to undo afterwards.
+The app reads the world from there and carries it inside the binary.
 
-**Do not commit the copied world.** When you are done:
-
-```bash
-git checkout -- apps/mobile/assets/world/witness_fsv_demo.html
-```
+If you skip this step the build stops at the screen that wants the world,
+with a message about not being able to resolve it. That is on purpose: the
+alternative was to commit a small stand-in page at that path so the build
+always succeeds, and a stand-in is a page that looks like the world right up
+until you measure it. Come back here and run the copy step.
 
 ### 4. Generate the iPad project
 
@@ -263,8 +307,20 @@ Copy the numbers
 ```
 
 That puts the whole report on the clipboard as plain text. Paste it into the
-pull request. The first line says whether the page reloaded during the ten
-minutes, which is the third of the three readings the bar asks for.
+pull request.
+
+**The third reading — did the page reload — is the shape of what you get,
+not a line inside it.** A report with all ten minutes in it means the page
+did not reload, because a reload would have ended the walk; the report says
+so on its first line and you can take that line at its word. If instead you
+come back to a world that has forgotten it was walking — the button offering
+to walk ten minutes again, and copying giving you a few lines of numbers as
+of right now rather than ten minutes of them — then the page reloaded, and
+that is the answer even though nothing says the word. The world does try to
+leave itself a mark so it can name the minute it died on, but that mark
+needs the small scratchpad a browser gives a page, and a page opened from a
+file is sometimes refused it. So please write down which of the two you got,
+in a sentence, alongside the paste.
 
 ---
 
@@ -329,7 +385,9 @@ and only the app can give it.
    switch.
 3. Three taps in the top-left corner.
 4. Press "Walk 10 minutes", put it down, come back.
-5. Press "Copy the numbers" and paste the report into the pull request.
+5. Press "Copy the numbers" and paste the report into the pull request. The
+   same rule as step 10 applies here, and for the same reason: ten minutes
+   in the report means it survived; no report at all means it did not.
 
 If a hosted address exists by then, open that in Safari instead and add
 `#measure` to the end of it, which switches the readout on without the taps.
