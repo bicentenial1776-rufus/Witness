@@ -15,3 +15,6 @@ apps/streetview-lab/data/
 apps/streetview-lab/*.ged
 apps/streetview-lab/*.gdz
 apps/streetview-lab/scene-spec-*.json
+
+# The walkable world is copied here for the DOM panel by `npm run world:sync -w @witness/fsv`; never commit it.
+apps/mobile/public/world/

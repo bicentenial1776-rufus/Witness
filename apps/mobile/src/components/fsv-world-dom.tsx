@@ -3,34 +3,31 @@
 /**
  * The walkable world, running inside the app.
  *
- * This is an Expo DOM component: the directive above tells the bundler to
- * compile this file as a web page and show it in a web view, rather than as
- * a native screen. It is the first one in this app — nothing here has used
- * `'use dom'` before — so treat its first run on a device as the experiment
- * it is, not as settled ground.
+ * This is a DOM component: it is bundled as its own small web page and shown
+ * in a web-page panel, and the world is put inside it as an iframe. The
+ * world is the single self-contained page the design repository builds.
  *
- * The world itself is not written in React. It is a single self-contained
- * page, built in the design repository and copied into the app, which draws
- * its own canvas and runs its own loop. So this component does one thing:
- * it hands that page a frame to fill. The frame is a plain inline frame
- * pointed at the copied file, which the web view can read because it opens
- * its own page from the same file store.
+ * How the world is found. Expo copies everything in apps/mobile/public/ into
+ * the folder this page lives in (www.bundle inside the app; served at the
+ * root by the dev server), so the world is opened by a plain path relative
+ * to this page — no asset resolver in between. The path is *not* passed
+ * through Metro's require(): for a file outside the app's own folder the
+ * Release resolver builds an address that does not exist in the binary, and
+ * the panel paints black. That was the first iPad reading (2026-09-04).
  *
- * Why the world is not simply drawn here: it is three megabytes of one
- * page, and the point of the exercise is to measure that page exactly as it
- * is, unchanged, on the device. Anything that rewrote or re-wrapped it
- * would be measuring something else.
- *
- * The address it is given already carries the measuring switch, because the
- * only reason this screen exists is to take a number.
+ * `npm run world:sync -w @witness/fsv` puts the world in place.
  */
-
 import type { DOMProps } from 'expo/dom';
 
-export default function FsvWorldDom({ uri }: { uri: string; dom?: DOMProps }) {
+export default function FsvWorldDom({ path }: { path: string; dom?: DOMProps }) {
+  // Inside the binary this page is a file:// URL and the world sits beside
+  // it. On the dev server this page is served under /_expo/@dom/, while the
+  // public folder is served from the root, so there the path is absolute.
+  const fromFile = typeof location !== 'undefined' && location.protocol === 'file:';
+  const src = fromFile ? path : `/${path}`;
   return (
     <iframe
-      src={uri}
+      src={src}
       title="The walkable world"
       allow="fullscreen; accelerometer; gyroscope"
       // Squared off, edge to edge, no chrome of its own: the world supplies

@@ -48,3 +48,15 @@ const out = join(dest, 'witness_fsv_demo.html');
 copyFileSync(src, out);
 const mb = (statSync(out).size / 1048576).toFixed(2);
 console.log('sync-world: ' + mb + ' MB  <-  ' + src);
+
+// A second copy for the mobile app's DOM panel. Expo copies everything in
+// apps/mobile/public/ into the panel's own folder (www.bundle) at build time,
+// so the panel can open the world by a plain relative path. The app must NOT
+// require() the file as a Metro asset: for a file outside the app's own
+// folder the Release-build resolver produces an address that does not exist
+// in the binary (learned on the first iPad run, 2026-09-04). That folder is
+// git-ignored at the repository root.
+const mobileDest = resolve(here, '..', '..', 'mobile', 'public', 'world');
+mkdirSync(mobileDest, { recursive: true });
+copyFileSync(src, join(mobileDest, 'witness_fsv_demo.html'));
+console.log('sync-world: copied again into ' + mobileDest);

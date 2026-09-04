@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import FsvWorldDom from '@/components/fsv-world-dom';
 import { Fonts, Spacing } from '@/constants/theme';
@@ -55,41 +55,24 @@ const HOSTED_WORLD = '';
 /**
  * The world as a file inside the app.
  *
- * `require` rather than an import, because this is not code: it is a page
- * the app carries and hands to a web view whole. Metro is told a web page
- * counts as a shippable file in metro.config.js; without that line this
- * does not resolve and the app does not build.
- *
- * The path reaches out of this app and into the one home the monorepo gives
- * the world, apps/fsv/public/world, rather than keeping a second copy under
- * this app. Two reasons, and the second is the one that decided it. The
- * world is three megabytes, rebuilt every time it changes, and belongs to
- * another repository; that folder is the only place set up to hold it, and
- * it is the one folder git is told to ignore, so the world cannot be
- * committed into this repository by accident. Anywhere under this app's own
- * files would be tracked, and a copy step that writes three megabytes over
- * a tracked file is one careless commit away from putting the world into
- * this history for good.
- *
- * The price is that the world has to be there before the app is built. Run
+ * The world lives in apps/mobile/public/world/, put there by
  *
  *     npm run world:sync -w @witness/fsv
  *
- * from the top of the repository first. Skip it and the build stops with
- * "unable to resolve", naming this file — a loud failure with an obvious
- * cure, chosen over a quiet one that ships a stand-in page pretending to be
- * the world.
+ * from the top of the repository. Expo copies the app's public folder into
+ * the DOM panel's own folder at build time, so the panel opens the world by
+ * this plain relative path. It is deliberately NOT a Metro require(): the
+ * first iPad reading (2026-09-04) came up black because, for a file outside
+ * the app's own folder, the Release-build asset resolver hands back an
+ * address that does not exist in the binary. The public folder is
+ * git-ignored at the repository root, so the world cannot be committed by
+ * accident.
+ *
+ * The price of not going through require() is that a build no longer stops
+ * when the world is missing; it ships a panel that opens on nothing. Run the
+ * copy step first.
  */
-const WORLD_URI: string | null = (() => {
-  try {
-    const source = Image.resolveAssetSource(
-      require('../../../../fsv/public/world/witness_fsv_demo.html')
-    );
-    return source?.uri ?? null;
-  } catch {
-    return null;
-  }
-})();
+const WORLD_PATH = 'world/witness_fsv_demo.html';
 
 /** The same address with the world's measuring readout switched on. */
 function measured(uri: string): string {
@@ -109,38 +92,27 @@ export default function FieldScreen() {
       <Stack.Screen options={{ title: 'The Field' }} />
 
       <View style={styles.world}>
-        {WORLD_URI ? (
-          <FsvWorldDom
-            uri={measured(WORLD_URI)}
-            dom={{
-              style: styles.world,
-              // A world you walk by dragging must not have the page scroll
-              // out from under the drag, and it must never bounce at the
-              // edges: both read as the world slipping.
-              scrollEnabled: false,
-              bounces: false,
-              // So Safari's Web Inspector on a Mac can see the world's own
-              // log while it runs on the device. Without this the inspector
-              // lists the app and shows nothing inside it.
-              webviewDebuggingEnabled: true,
-            }}
-          />
-        ) : (
-          <View style={styles.empty}>
-            <Text style={[styles.body, { color: theme.textSecondary }]}>
-              The app is not carrying a copy of the world. Run the copy step at the top of the
-              repository, build again, and this door will open on it. The button below opens the
-              hosted world instead.
-            </Text>
-          </View>
-        )}
+        <FsvWorldDom
+          path={measured(WORLD_PATH)}
+          dom={{
+            style: styles.world,
+            // A world you walk by dragging must not have the page scroll
+            // out from under the drag, and it must never bounce at the
+            // edges: both read as the world slipping.
+            scrollEnabled: false,
+            bounces: false,
+            // So Safari's Web Inspector on a Mac can see the world's own
+            // log while it runs on the device. Without this the inspector
+            // lists the app and shows nothing inside it.
+            webviewDebuggingEnabled: true,
+          }}
+        />
       </View>
 
       <View style={[styles.bar, { borderTopColor: theme.border, backgroundColor: theme.background }]}>
         <Text style={[styles.note, { color: theme.textSecondary }]}>
-          {WORLD_URI
-            ? 'The world above is the copy shipped inside the app. Three taps in its top-left corner show the numbers.'
-            : 'No copy of the world is shipped inside the app.'}
+          The world above is the copy shipped inside the app. Its measuring panel is already
+          up, in the top-left corner; press Walk 10 minutes there.
         </Text>
         <Pressable
           accessibilityRole="button"
@@ -167,8 +139,6 @@ export default function FieldScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   world: { flex: 1 },
-  empty: { flex: 1, justifyContent: 'center', padding: Spacing.four },
-  body: { fontFamily: Fonts.serif, fontSize: 16, lineHeight: 24 },
   bar: {
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: Spacing.three,
