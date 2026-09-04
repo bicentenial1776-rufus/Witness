@@ -61,7 +61,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "postinstall": "cp node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs public/ 2>/dev/null || true"
+    "postinstall": "node scripts/copy-maplibre.mjs"
   },
   "private": true
 }
