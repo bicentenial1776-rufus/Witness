@@ -8692,11 +8692,11 @@
       "fullName": "Christian Penn",
       "givenNames": "Christian",
       "surname": "Penn",
-      "birthYear": 1627,
-      "deathYear": 1633,
+      "birthYear": null,
+      "deathYear": 1684,
       "ageAtVoyage": null,
-      "notes": "A female of the John Oldham group but oddly no connection to any other Anne pass",
-      "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA); dates via Wikidata (Q5480820)"
+      "notes": "A female of the John Oldham group but oddly no connection to any other Anne pass; married Francis Eaton before 1627 (his third wife), then Francis Billington 1634",
+      "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA); death via Wikipedia, \"Francis Eaton (Mayflower passenger)\" (died c. 1684 Middleborough)"
     },
     {
       "id": "anne-1623:pierce-abraham",
@@ -48802,11 +48802,11 @@
       "fullName": "Samuel Eaton",
       "givenNames": "Samuel",
       "surname": "Eaton",
-      "birthYear": 1596,
-      "deathYear": 1633,
+      "birthYear": 1620,
+      "deathYear": 1684,
       "ageAtVoyage": 1,
-      "notes": "son",
-      "source": "Wikipedia, \"List of Mayflower passengers\" (CC BY-SA); dates via Wikidata (Q5480820)"
+      "notes": "son; 'a sucking child' per Bradford",
+      "source": "Wikipedia, \"List of Mayflower passengers\" (CC BY-SA); dates via Wikipedia, \"Francis Eaton (Mayflower passenger)\" (born c. early 1620, died c. 1684 Middleborough)"
     },
     {
       "id": "mayflower-1620:eaton-sarah",

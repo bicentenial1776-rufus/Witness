@@ -99,6 +99,30 @@ async function loadPeople(client: Client, treeId: string): Promise<RegisterPerso
   return [...people.values()];
 }
 
+/**
+ * Spouse links for the Crossing Library's household pass — a wife the
+ * list writes under her husband's surname and the tree under her own.
+ */
+async function loadSpouses(client: Client, treeId: string): Promise<Map<string, string[]>> {
+  const spouses = new Map<string, string[]>();
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await client
+      .from('families')
+      .select('husband_id, wife_id')
+      .eq('tree_id', treeId)
+      .order('id')
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(`families: ${error.message}`);
+    for (const row of data ?? []) {
+      if (!row.husband_id || !row.wife_id) continue;
+      spouses.set(row.husband_id, [...(spouses.get(row.husband_id) ?? []), row.wife_id]);
+      spouses.set(row.wife_id, [...(spouses.get(row.wife_id) ?? []), row.husband_id]);
+    }
+    if (!data || data.length < PAGE) break;
+  }
+  return spouses;
+}
+
 interface TreeResult {
   treeId: string;
   crossingCandidates: number;
@@ -108,6 +132,7 @@ interface TreeResult {
 
 async function matchTree(client: Client, treeId: string, userId: string): Promise<TreeResult> {
   const people = await loadPeople(client, treeId);
+  const spouses = await loadSpouses(client, treeId);
   const findingRows = new Map<string, Record<string, unknown>>();
   let crossingCandidates = 0;
   let registerLinks = 0;
@@ -118,6 +143,8 @@ async function matchTree(client: Client, treeId: string, userId: string): Promis
     fullName: p.fullName,
     birthYear: p.birthYear,
     deathYear: p.deathYear,
+    spouseIds: spouses.get(p.id),
+    sex: p.sex,
   }));
   const crossing = matchPassengers(dataset, individuals, { minimumConfidence: 'weak' });
 

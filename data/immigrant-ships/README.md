@@ -106,6 +106,18 @@ fifteen years apart, when the person was born after the ship arrived, or
 when they were already dead. Every candidate carries its reasons in
 plain words, because the reasons are the useful part.
 
+Then a second pass for households. A list writes a wife under her
+husband's surname; a tree writes her under her maiden name, or as plain
+"Sarah" with no surname at all, and no surname bucket brings those rows
+together. So every candidate at probable or better anchors a look at
+their spouses on the same voyage: the anchor passenger's surname, a
+given name that sounds alike, and the same year tests. The result is
+capped at **probable** (the anchor is evidence of the household, not of
+the person) and its reasons say so in plain words. Only spouses not
+recorded as male are read this way, since the lists of this era never
+write a man under his wife's name, and anyone the name pass already
+placed on the voyage is left as found.
+
 The matcher reports every candidate rather than picking a winner. Two
 men named John Cooke born within a decade of each other is a question,
 and the answer lives in the record.

@@ -75,11 +75,19 @@ let liveUserId: string | null = null;
 async function loadIndividuals(): Promise<MatchableIndividual[]> {
   if (gedcomPath) {
     const parsed = parseGedcom(readFileSync(gedcomPath, 'utf-8'));
+    const spouses = new Map<string, string[]>();
+    for (const family of parsed.families.values()) {
+      if (!family.husbandId || !family.wifeId) continue;
+      spouses.set(family.husbandId, [...(spouses.get(family.husbandId) ?? []), family.wifeId]);
+      spouses.set(family.wifeId, [...(spouses.get(family.wifeId) ?? []), family.husbandId]);
+    }
     return [...parsed.individuals.values()].map((person) => ({
       id: person.id,
       fullName: person.name.full,
       birthYear: person.birth?.date?.year ?? null,
       deathYear: person.death?.date?.year ?? null,
+      spouseIds: spouses.get(person.id),
+      sex: person.sex,
     }));
   }
   loadEnv();
@@ -99,12 +107,33 @@ async function loadIndividuals(): Promise<MatchableIndividual[]> {
   }
   liveClient = client;
   liveUserId = signInData.user?.id ?? null;
-  const people: MatchableIndividual[] = [];
   const PAGE = 1000;
+  // Spouses feed the household pass: a wife the list writes under her
+  // husband's surname, the tree under her own (or none).
+  const spouses = new Map<string, string[]>();
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await client
+      .from('families')
+      .select('husband_id, wife_id')
+      .eq('tree_id', treeId!)
+      .order('id')
+      .range(from, from + PAGE - 1);
+    if (error) {
+      console.error('Fetching families failed:', error.message);
+      process.exit(1);
+    }
+    for (const row of data ?? []) {
+      if (!row.husband_id || !row.wife_id) continue;
+      spouses.set(row.husband_id, [...(spouses.get(row.husband_id) ?? []), row.wife_id]);
+      spouses.set(row.wife_id, [...(spouses.get(row.wife_id) ?? []), row.husband_id]);
+    }
+    if (!data || data.length < PAGE) break;
+  }
+  const people: MatchableIndividual[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await client
       .from('individuals')
-      .select('id, full_name, birth_year, death_year')
+      .select('id, full_name, sex, birth_year, death_year')
       .eq('tree_id', treeId!)
       .order('id')
       .range(from, from + PAGE - 1);
@@ -118,6 +147,8 @@ async function loadIndividuals(): Promise<MatchableIndividual[]> {
         fullName: row.full_name,
         birthYear: row.birth_year,
         deathYear: row.death_year,
+        spouseIds: spouses.get(row.id),
+        sex: row.sex ?? 'U',
       });
     }
     if (!data || data.length < PAGE) return people;
