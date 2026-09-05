@@ -8311,10 +8311,10 @@
       "givenNames": "Patience",
       "surname": "Brewster",
       "birthYear": 1600,
-      "deathYear": 1673,
+      "deathYear": 1634,
       "ageAtVoyage": null,
       "notes": "Daughter of Elder William Brewster coming from Leiden",
-      "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA); dates via Wikidata (Q7793263)"
+      "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA); dates via Wikipedia, \"William Brewster (Mayflower passenger)\" (c. 1600; died 12 December 1634)"
     },
     {
       "id": "anne-1623:buckett-mary",
@@ -8322,11 +8322,11 @@
       "fullName": "Mary Buckett",
       "givenNames": "Mary",
       "surname": "Buckett",
-      "birthYear": 1590,
-      "deathYear": 1679,
+      "birthYear": 1605,
+      "deathYear": 1676,
       "ageAtVoyage": null,
       "notes": "until recently nothing has been known of her ancestry",
-      "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA); dates via Wikidata (Q5544702)"
+      "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA); birth per the list (baptized 24 February 1605); death via Wikipedia, \"George Soule (Mayflower passenger)\" (1676)"
     },
     {
       "id": "anne-1623:clark-thomas",
@@ -8406,11 +8406,11 @@
       "fullName": "John Faunce",
       "givenNames": "John",
       "surname": "Faunce",
-      "birthYear": 1647,
+      "birthYear": null,
       "deathYear": 1654,
       "ageAtVoyage": null,
       "notes": "His ancestry is uncertain",
-      "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA); dates via Wikidata (Q140067760)"
+      "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA); death per the list (died in Plymouth 1654)"
     },
     {
       "id": "anne-1623:flavell-elizabeth",
@@ -8455,10 +8455,10 @@
       "givenNames": "Godbert",
       "surname": "Godbertson",
       "birthYear": null,
-      "deathYear": 1620,
+      "deathYear": 1633,
       "ageAtVoyage": null,
-      "notes": "Hat maker from Leiden, Holland",
-      "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA)"
+      "notes": "Hat maker from Leiden, Holland; he and his wife died in the 1633 epidemic",
+      "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA); death per the list (1633 epidemic)"
     },
     {
       "id": "anne-1623:godbertson-samuel",
@@ -8579,18 +8579,6 @@
       "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA)"
     },
     {
-      "id": "anne-1623:junior-thomas-morton",
-      "voyageId": "anne-1623",
-      "fullName": "Thomas Morton Junior",
-      "givenNames": "Thomas Morton",
-      "surname": "Junior",
-      "birthYear": 1591,
-      "deathYear": 1673,
-      "ageAtVoyage": null,
-      "notes": "Son of Thomas Morton who came on Fortune in 1621 and nephew of George Morton, pa",
-      "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA); dates via Wikidata (Q6240151)"
-    },
-    {
       "id": "anne-1623:kempton-manassah",
       "voyageId": "anne-1623",
       "fullName": "Manassah  Kempton",
@@ -8624,6 +8612,18 @@
       "deathYear": 1689,
       "ageAtVoyage": null,
       "notes": "Banks states he was from Duke’s Place, a parish in Aldgate, London, son of Thoma",
+      "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA)"
+    },
+    {
+      "id": "anne-1623:morton-thomas-junior",
+      "voyageId": "anne-1623",
+      "fullName": "Thomas Morton Junior",
+      "givenNames": "Thomas",
+      "surname": "Morton",
+      "birthYear": null,
+      "deathYear": null,
+      "ageAtVoyage": null,
+      "notes": "Son of Thomas Morton who came on Fortune in 1621 and nephew of George Morton, pa; Junior",
       "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA)"
     },
     {
@@ -8789,10 +8789,10 @@
       "givenNames": "Alice",
       "surname": "Southworth",
       "birthYear": 1591,
-      "deathYear": 1621,
+      "deathYear": 1670,
       "ageAtVoyage": null,
       "notes": "born about 1591, one of five daughters of Alexander and Priscilla Carpenter of W",
-      "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA)"
+      "source": "Wikipedia, \"Passengers of the ships Anne and Little James 1623\" (CC BY-SA); death via Wikipedia, \"William Bradford (governor)\" (married him 14 August 1623 aged about 32; died Plymouth 26 March 1670)"
     },
     {
       "id": "anne-1623:sprague-francis",
@@ -42644,7 +42644,7 @@
       "givenNames": "Thomas",
       "surname": "Sands",
       "birthYear": null,
-      "deathYear": 1561,
+      "deathYear": null,
       "ageAtVoyage": null,
       "notes": "Gentleman",
       "source": "Wikipedia, \"List of Jamestown colonists\" original settlers (CC BY-SA)"
@@ -48989,11 +48989,11 @@
       "fullName": "John Howland",
       "givenNames": "John",
       "surname": "Howland",
-      "birthYear": 1591,
+      "birthYear": null,
       "deathYear": 1673,
       "ageAtVoyage": 21,
       "notes": "manservant and executive assistant for Governor John Carver",
-      "source": "Wikipedia, \"List of Mayflower passengers\" (CC BY-SA); dates via Wikidata (Q6240151)"
+      "source": "Wikipedia, \"List of Mayflower passengers\" (CC BY-SA); death via Wikipedia, \"John Howland\" (23 February 1672/3); birth disputed there (c. 1592 or 1599) and left blank — the list's \"about 21\" stands"
     },
     {
       "id": "mayflower-1620:langemore-john",
@@ -49180,11 +49180,11 @@
       "fullName": "Degory Priest",
       "givenNames": "Degory",
       "surname": "Priest",
-      "birthYear": 1501,
+      "birthYear": 1579,
       "deathYear": 1621,
       "ageAtVoyage": null,
       "notes": "died winter 1620–21",
-      "source": "Wikipedia, \"List of Mayflower passengers\" (CC BY-SA); dates via Wikidata (Q5251803)"
+      "source": "Wikipedia, \"List of Mayflower passengers\" (CC BY-SA); dates via Wikipedia, \"Degory Priest\" (aged 40 in April 1619 per Banks; died 1 January 1621)"
     },
     {
       "id": "mayflower-1620:prowe-solomon",
@@ -49276,11 +49276,11 @@
       "fullName": "George Soule",
       "givenNames": "George",
       "surname": "Soule",
-      "birthYear": 1590,
+      "birthYear": 1601,
       "deathYear": 1679,
       "ageAtVoyage": 21,
       "notes": "servant or employee of Edward Winslow",
-      "source": "Wikipedia, \"List of Mayflower passengers\" (CC BY-SA); dates via Wikidata (Q5544702)"
+      "source": "Wikipedia, \"List of Mayflower passengers\" (CC BY-SA); dates via Wikipedia, \"George Soule (Mayflower passenger)\" (c. 1601; died shortly before 22 January 1679)"
     },
     {
       "id": "mayflower-1620:standish-myles",
@@ -73490,15 +73490,16 @@
       "source": "Wikipedia, \"Winthrop Fleet\" notable passengers (CC BY-SA); dates via Wikidata (Q7518325)"
     },
     {
-      "id": "winthrop-fleet-1630:burr-aaron",
+      "id": "winthrop-fleet-1630:burr-jehu",
       "voyageId": "winthrop-fleet-1630",
-      "fullName": "Aaron Burr",
-      "givenNames": "Aaron",
+      "fullName": "Jehu Burr",
+      "givenNames": "Jehu",
       "surname": "Burr",
-      "birthYear": 1756,
-      "deathYear": 1836,
+      "birthYear": null,
+      "deathYear": null,
       "ageAtVoyage": null,
-      "source": "Wikipedia, \"Winthrop Fleet\" notable passengers (CC BY-SA); dates via Wikidata (Q179090)"
+      "source": "Wikipedia, \"Winthrop Fleet\" notable passengers (CC BY-SA)",
+      "notes": "ancestor of Aaron Burr"
     },
     {
       "id": "winthrop-fleet-1630:chesebrough-william",

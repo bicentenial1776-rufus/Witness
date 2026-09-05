@@ -6,3 +6,4 @@ export * from './passengers.js';
 export * from './passengerImport.js';
 export * from './ocrParsers.js';
 export * from './voyageHistory.js';
+export * from './passengerAudit.js';

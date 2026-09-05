@@ -68,6 +68,26 @@ npx tsx scripts/import-passenger-list.ts ~/mayflower.csv mayflower-1620
 
 Re-importing a voyage replaces its rows rather than doubling them.
 
+Every import is audited before it is written. A **contradiction** is a
+row impossible on its face — born after the ship arrived, dead before it
+sailed, a lifespan past 105, an age that cannot square with the birth
+year — and stops the import until the transcription is fixed (or
+`--allow-contradictions` says a person has looked). A **look** is a
+pattern that has meant trouble before but is sometimes innocent: one
+Wikidata item cited on two rows (a wife wearing her husband's dates), a
+same-surname pair on one voyage with identical dates, a source that names
+where its dates came from on a row carrying none. Looks print; nobody is
+blocked by them. The contradiction rules know nothing about ships — they
+read a birth, a death, an age and the year of a dated event — so any list
+loaded into this shape gets them, and `auditDated` is there for a census
+or a deportation roll too. A test keeps the committed library free of
+contradictions and the worker's bundled copy identical to it.
+
+Why this exists: Samuel Eaton, aged one on the Mayflower, was imported
+wearing his father's dates because Wikipedia links his name to his
+father's article and the enrichment followed the link. The matcher
+rightly refused the pair, and he was simply never found.
+
 ## Comparing against a tree
 
 ```bash
