@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useSession } from '@/auth/session-provider';
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -11,6 +12,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { showAlert, showDestructiveConfirm } from '@/lib/alert';
 import { useActiveTree } from '@/lib/active-tree';
 import { discardOriginal } from '@/lib/gedcom-vault';
+import { discardTreeMedia } from '@/lib/tree-media';
 import { manageSubscriptionUrl, openManageSubscription } from '@/lib/manage-subscription';
 import { usePurchases } from '@/lib/purchases';
 import { clearResumePoint } from '@/lib/resume';
@@ -30,6 +32,7 @@ import { supabase } from '@/lib/supabase';
 export default function DeleteAccount() {
   const theme = useTheme();
   const { trees, refresh } = useActiveTree();
+  const { session } = useSession();
   const { subscription } = usePurchases();
   const [working, setWorking] = useState<{ stage: string; removed: number } | null>(null);
 
@@ -88,6 +91,9 @@ export default function DeleteAccount() {
         // The edge function sweeps the folder anyway; this just does the
         // bulk of it under the user's own key while we're here.
         await discardOriginal(tree.gedcom_path).catch(() => {});
+      }
+      if (session?.user.id) {
+        await discardTreeMedia(session.user.id, tree.id).catch(() => {});
       }
     }
 

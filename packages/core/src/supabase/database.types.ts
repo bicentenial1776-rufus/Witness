@@ -197,6 +197,135 @@ export type Database = {
           },
         ]
       }
+      media: {
+        Row: {
+          byte_size: number | null
+          content_hash: string | null
+          file_path: string | null
+          format: string | null
+          gedcom_xref: string
+          id: string
+          storage_path: string | null
+          title: string | null
+          tree_id: string
+          upload_status: string
+          user_id: string
+        }
+        Insert: {
+          byte_size?: number | null
+          content_hash?: string | null
+          file_path?: string | null
+          format?: string | null
+          gedcom_xref: string
+          id?: string
+          storage_path?: string | null
+          title?: string | null
+          tree_id: string
+          upload_status?: string
+          user_id: string
+        }
+        Update: {
+          byte_size?: number | null
+          content_hash?: string | null
+          file_path?: string | null
+          format?: string | null
+          gedcom_xref?: string
+          id?: string
+          storage_path?: string | null
+          title?: string | null
+          tree_id?: string
+          upload_status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      media_links: {
+        Row: {
+          citation_id: string | null
+          family_id: string | null
+          id: string
+          individual_event_id: string | null
+          individual_id: string | null
+          is_primary: boolean
+          media_id: string
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          citation_id?: string | null
+          family_id?: string | null
+          id?: string
+          individual_event_id?: string | null
+          individual_id?: string | null
+          is_primary?: boolean
+          media_id: string
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          citation_id?: string | null
+          family_id?: string | null
+          id?: string
+          individual_event_id?: string | null
+          individual_id?: string | null
+          is_primary?: boolean
+          media_id?: string
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_links_citation_id_fkey"
+            columns: ["citation_id"]
+            isOneToOne: false
+            referencedRelation: "citations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_links_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_links_individual_event_id_fkey"
+            columns: ["individual_event_id"]
+            isOneToOne: false
+            referencedRelation: "individual_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_links_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_links_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_links_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       corrections: {
         Row: {
           corrected_value: string

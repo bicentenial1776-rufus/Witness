@@ -1,6 +1,8 @@
 import type { GedcomNode } from '../types/raw.js';
 import type { SourceCitation, SourceRecord } from '../types/witness.js';
-import { child, value } from './query.js';
+import { child, children, value } from './query.js';
+import type { SharedRecords } from './records.js';
+import { resolveMediaRef } from './records.js';
 import { stripXref } from './xref.js';
 
 /**
@@ -52,10 +54,11 @@ function factLabel(tag: string): string {
   return FACT_LABELS[tag] ?? tag.replace(/^_/, '').toLowerCase();
 }
 
-function parseCitation(node: GedcomNode, fact: string): SourceCitation | null {
+function parseCitation(node: GedcomNode, fact: string, shared: SharedRecords): SourceCitation | null {
   const raw = node.value.trim();
   if (!POINTER.test(raw)) return null;
   const data = child(node, 'DATA');
+  const media = children(node, 'OBJE').map((mediaNode) => resolveMediaRef(mediaNode, shared));
   return {
     sourceId: stripXref(raw),
     fact,
@@ -63,6 +66,7 @@ function parseCitation(node: GedcomNode, fact: string): SourceCitation | null {
     text: value(data, 'TEXT'),
     url: value(data, 'WWW'),
     apid: value(node, '_APID'),
+    ...(media.length > 0 ? { media } : {}),
   };
 }
 
@@ -71,17 +75,21 @@ function parseCitation(node: GedcomNode, fact: string): SourceCitation | null {
  * record itself cite the person/family as a whole, SOUR grandchildren
  * cite the fact they sit under. Deeper nesting doesn't occur in 5.5.1.
  */
-export function collectCitations(record: GedcomNode, recordFact: string): SourceCitation[] {
+export function collectCitations(
+  record: GedcomNode,
+  recordFact: string,
+  shared: SharedRecords,
+): SourceCitation[] {
   const citations: SourceCitation[] = [];
   for (const node of record.children) {
     if (node.tag === 'SOUR') {
-      const citation = parseCitation(node, recordFact);
+      const citation = parseCitation(node, recordFact, shared);
       if (citation) citations.push(citation);
       continue;
     }
     for (const grandchild of node.children) {
       if (grandchild.tag !== 'SOUR') continue;
-      const citation = parseCitation(grandchild, factLabel(node.tag));
+      const citation = parseCitation(grandchild, factLabel(node.tag), shared);
       if (citation) citations.push(citation);
     }
   }

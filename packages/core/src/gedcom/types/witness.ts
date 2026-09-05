@@ -34,6 +34,8 @@ export interface GedcomEvent {
   label?: string;
   /** Free-text payload: occupation title, custom-event description. */
   detail?: string;
+  /** Media attached directly to this fact. */
+  media?: MediaRef[];
 }
 
 export interface IndividualName {
@@ -77,6 +79,8 @@ export interface SourceCitation {
   url?: string;
   /** Ancestry _APID of the specific record — the deep-link id. */
   apid?: string;
+  /** Media attached to this citation, including FTM record images. */
+  media?: MediaRef[];
 }
 
 export interface Individual {
@@ -153,6 +157,8 @@ export interface Family {
   wifeId?: string;
   childIds: string[];
   marriage?: GedcomEvent;
+  /** Media attached directly to the family record. */
+  media: MediaRef[];
   /** Only children with a non-default relationship qualifier appear here. */
   childRelationships: ChildRelationship[];
   /** Source citations for the family's facts (marriage, divorce, …). */

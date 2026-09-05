@@ -27,7 +27,8 @@
     "parse:sample": "tsx scripts/parse-sample.ts",
     "create-test-user": "tsx scripts/create-test-user.ts",
     "create-beta-user": "tsx scripts/create-beta-user.ts",
-    "live-import": "tsx scripts/live-import.ts"
+    "live-import": "tsx scripts/live-import.ts",
+    "ingest:ftm": "tsx scripts/ingest-ftm-media.ts"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

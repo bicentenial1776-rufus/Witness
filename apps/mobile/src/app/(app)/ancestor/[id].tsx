@@ -42,6 +42,7 @@ import { LineagePanel } from '@/components/lineage-panel';
 import { PlaceMap } from '@/components/place-map';
 import { ExplainerDot } from '@/components/explainer-dot';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
+import { GedcomMediaStrip } from '@/components/gedcom-media-strip';
 import { RegisterCandidateCard } from '@/components/register-candidate-card';
 import { PassengerCandidateCard } from '@/components/passenger-candidate-card';
 import { ThemedText } from '@/components/themed-text';
@@ -1885,6 +1886,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             </View>
           </Pressable>
         )}
+        <GedcomMediaStrip individualId={person.id} treeId={person.tree_id} enabled={!fromFieldCopy} />
 
         {/* On the saved copy every control in this row needs the server —
             one quiet line stands in for all of them. */}

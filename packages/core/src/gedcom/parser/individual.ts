@@ -8,7 +8,11 @@ import { resolveMediaRef, resolveNote, type SharedRecords } from './records.js';
 import { collectCitations } from './sources.js';
 import { stripXref } from './xref.js';
 
-function parseEvent(node: GedcomNode | undefined, places: PlaceRegistry): GedcomEvent | undefined {
+function parseEvent(
+  node: GedcomNode | undefined,
+  places: PlaceRegistry,
+  shared: SharedRecords,
+): GedcomEvent | undefined {
   if (!node) return undefined;
   const dateNode = child(node, 'DATE');
   const dateValue = dateNode?.value.trim();
@@ -20,6 +24,7 @@ function parseEvent(node: GedcomNode | undefined, places: PlaceRegistry): Gedcom
   return {
     date: date && phrase ? { ...date, raw: phrase } : date,
     placeId: places.intern(placeValue),
+    media: children(node, 'OBJE').map((media) => resolveMediaRef(media, shared)),
   };
 }
 
@@ -34,7 +39,7 @@ function parseDetailedEvent(
   places: PlaceRegistry,
   shared: SharedRecords,
 ): GedcomEvent | undefined {
-  const base = parseEvent(node, places) ?? {};
+  const base = parseEvent(node, places, shared) ?? {};
   const label = value(node, 'TYPE');
   const noteNode = child(node, 'NOTE') ?? child(node, 'SNOTE');
   const detail = node.value.trim() || (noteNode ? resolveNote(noteNode, shared) : undefined);
@@ -110,14 +115,14 @@ export function parseIndividual(
   const sexValue = value(node, 'SEX');
   const sex: Individual['sex'] = sexValue === 'M' || sexValue === 'F' ? sexValue : 'U';
 
-  const birth = parseEvent(child(node, 'BIRT'), places);
+  const birth = parseEvent(child(node, 'BIRT'), places, shared);
   const deathNode = child(node, 'DEAT');
-  const death = parseEvent(deathNode, places);
+  const death = parseEvent(deathNode, places, shared);
   const hasDeathRecord = Boolean(deathNode);
 
   const parseEvents = (tag: string) =>
     children(node, tag)
-      .map((n) => parseEvent(n, places))
+      .map((n) => parseEvent(n, places, shared))
       .filter((e): e is GedcomEvent => Boolean(e));
 
   return {
@@ -127,7 +132,7 @@ export function parseIndividual(
     birth,
     death,
     hasDeathRecord,
-    burial: parseEvent(child(node, 'BURI'), places),
+    burial: parseEvent(child(node, 'BURI'), places, shared),
     residences: parseEvents('RESI'),
     // Previously dropped on the floor (Katie Grafer review 2026-08-15):
     censuses: parseEvents('CENS'),
@@ -142,7 +147,7 @@ export function parseIndividual(
     customEvents: children(node, 'EVEN')
       .map((n) => parseDetailedEvent(n, places, shared))
       .filter((e): e is GedcomEvent => Boolean(e)),
-    probate: parseEvent(child(node, 'PROB'), places),
+    probate: parseEvent(child(node, 'PROB'), places, shared),
     familyAsChild: children(node, 'FAMC').map((n) => stripXref(n.value)),
     parentage: parseParentage(node),
     familyAsSpouse: children(node, 'FAMS').map((n) => stripXref(n.value)),
@@ -150,11 +155,16 @@ export function parseIndividual(
     notes: [...children(node, 'NOTE'), ...children(node, 'SNOTE')]
       .map((n) => resolveNote(n, shared))
       .filter((text): text is string => Boolean(text)),
-    media: children(node, 'OBJE').map((n) => resolveMediaRef(n, shared)),
+    // FTM stores its primary portrait as a sibling `_PHOTO` pointer rather
+    // than an OBJE with `_PRIM Y`.
+    media: [
+      ...children(node, 'OBJE').map((n) => resolveMediaRef(n, shared)),
+      ...children(node, '_PHOTO').map((n) => ({ ...resolveMediaRef(n, shared), primary: true })),
+    ],
     // Newer Ancestry exports emit bare UID instead of the older _UID.
     uid: value(node, '_UID') ?? value(node, 'UID'),
     apid: findApid(node),
     familySearchId: value(node, '_FSFTID'),
-    citations: collectCitations(node, 'person'),
+    citations: collectCitations(node, 'person', shared),
   };
 }

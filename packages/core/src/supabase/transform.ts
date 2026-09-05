@@ -1,4 +1,4 @@
-import type { ChildParentage, NormalizedDate, ParsedGedcom, SourceCitation } from '../gedcom/index.js';
+import type { ChildParentage, MediaRef, NormalizedDate, ParsedGedcom, SourceCitation } from '../gedcom/index.js';
 import type { Database } from './database.types.js';
 
 type TreeInsert = Database['public']['Tables']['trees']['Insert'];
@@ -11,7 +11,19 @@ type CuriosityInsert = Database['public']['Tables']['curiosities']['Insert'];
 type CuriosityIndividualInsert = Database['public']['Tables']['curiosity_individuals']['Insert'];
 type SourceInsert = Database['public']['Tables']['sources']['Insert'];
 type CitationInsert = Database['public']['Tables']['citations']['Insert'];
+type MediaInsert = Database['public']['Tables']['media']['Insert'];
+type MediaLinkInsert = Database['public']['Tables']['media_links']['Insert'];
 type IndividualEventType = Database['public']['Enums']['individual_event_type'];
+
+type MediaSubject = Pick<
+  MediaLinkInsert,
+  'individual_id' | 'family_id' | 'individual_event_id' | 'citation_id'
+>;
+
+interface MediaAttachment {
+  ref: MediaRef;
+  subject: MediaSubject;
+}
 
 export interface ImportPayload {
   tree: TreeInsert;
@@ -24,6 +36,8 @@ export interface ImportPayload {
   curiosityIndividuals: CuriosityIndividualInsert[];
   sources: SourceInsert[];
   citations: CitationInsert[];
+  media: MediaInsert[];
+  mediaLinks: MediaLinkInsert[];
 }
 
 export interface BuildImportPayloadOptions {
@@ -37,12 +51,14 @@ function toIndividualEvent(
   treeId: string,
   userId: string,
   eventType: IndividualEventType,
-  event: { date?: NormalizedDate; placeId?: string; label?: string; detail?: string } | undefined,
+  event: { date?: NormalizedDate; placeId?: string; label?: string; detail?: string; media?: MediaRef[] } | undefined,
   placeIdMap: Map<string, string>,
   sortOrder: number,
+  generateId: () => string,
 ): IndividualEventInsert {
   const date = event?.date;
   return {
+    id: generateId(),
     individual_id: individualId,
     tree_id: treeId,
     user_id: userId,
@@ -113,6 +129,15 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
 
   const individuals: IndividualInsert[] = [];
   const individualEvents: IndividualEventInsert[] = [];
+  const mediaAttachments: MediaAttachment[] = [];
+
+  const pushEvent = (...args: Parameters<typeof toIndividualEvent>) => {
+    const row = toIndividualEvent(...args);
+    individualEvents.push(row);
+    for (const ref of args[4]?.media ?? []) {
+      mediaAttachments.push({ ref, subject: { individual_event_id: row.id! } });
+    }
+  };
 
   for (const individual of parsed.individuals.values()) {
     const individualId = individualIdMap.get(individual.id)!;
@@ -135,45 +160,48 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
       ancestry_apid: individual.apid ?? null,
       familysearch_id: individual.familySearchId ?? null,
     });
+    for (const ref of individual.media) {
+      mediaAttachments.push({ ref, subject: { individual_id: individualId } });
+    }
 
     if (individual.birth) {
-      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'birth', individual.birth, placeIdMap, 0));
+      pushEvent(individualId, treeId, userId, 'birth', individual.birth, placeIdMap, 0, generateId);
     }
     if (individual.death) {
-      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'death', individual.death, placeIdMap, 0));
+      pushEvent(individualId, treeId, userId, 'death', individual.death, placeIdMap, 0, generateId);
     }
     if (individual.burial) {
-      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'burial', individual.burial, placeIdMap, 0));
+      pushEvent(individualId, treeId, userId, 'burial', individual.burial, placeIdMap, 0, generateId);
     }
     individual.residences.forEach((residence, index) => {
-      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'residence', residence, placeIdMap, index));
+      pushEvent(individualId, treeId, userId, 'residence', residence, placeIdMap, index, generateId);
     });
     individual.censuses.forEach((census, index) => {
-      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'census', census, placeIdMap, index));
+      pushEvent(individualId, treeId, userId, 'census', census, placeIdMap, index, generateId);
     });
     individual.baptisms.forEach((baptism, index) => {
-      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'baptism', baptism, placeIdMap, index));
+      pushEvent(individualId, treeId, userId, 'baptism', baptism, placeIdMap, index, generateId);
     });
     individual.immigrations.forEach((immigration, index) => {
-      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'immigration', immigration, placeIdMap, index));
+      pushEvent(individualId, treeId, userId, 'immigration', immigration, placeIdMap, index, generateId);
     });
     individual.emigrations.forEach((emigration, index) => {
-      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'emigration', emigration, placeIdMap, index));
+      pushEvent(individualId, treeId, userId, 'emigration', emigration, placeIdMap, index, generateId);
     });
     individual.naturalizations.forEach((naturalization, index) => {
-      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'naturalization', naturalization, placeIdMap, index));
+      pushEvent(individualId, treeId, userId, 'naturalization', naturalization, placeIdMap, index, generateId);
     });
     individual.military.forEach((service, index) => {
-      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'military', service, placeIdMap, index));
+      pushEvent(individualId, treeId, userId, 'military', service, placeIdMap, index, generateId);
     });
     individual.occupations.forEach((occupation, index) => {
-      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'occupation', occupation, placeIdMap, index));
+      pushEvent(individualId, treeId, userId, 'occupation', occupation, placeIdMap, index, generateId);
     });
     individual.customEvents.forEach((event, index) => {
-      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'custom', event, placeIdMap, index));
+      pushEvent(individualId, treeId, userId, 'custom', event, placeIdMap, index, generateId);
     });
     if (individual.probate) {
-      individualEvents.push(toIndividualEvent(individualId, treeId, userId, 'probate', individual.probate, placeIdMap, 0));
+      pushEvent(individualId, treeId, userId, 'probate', individual.probate, placeIdMap, 0, generateId);
     }
   }
 
@@ -210,6 +238,14 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
       marriage_date_range_start_year: marriageDate?.rangeStartYear ?? null,
       marriage_date_range_end_year: marriageDate?.rangeEndYear ?? null,
     });
+    for (const ref of family.media) {
+      mediaAttachments.push({ ref, subject: { family_id: familyId } });
+    }
+    // There is no separate family-event table yet; keep marriage media on
+    // the family until the event model gains a family_event row.
+    for (const ref of family.marriage?.media ?? []) {
+      mediaAttachments.push({ ref, subject: { family_id: familyId } });
+    }
 
     // A CHIL/FAMC pointer that references an xref we never parsed as an
     // INDI record is a real (if rare) possibility in messy exports; skip
@@ -264,7 +300,9 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
     for (const citation of list) {
       const sourceId = sourceIdMap.get(citation.sourceId);
       if (!sourceId) continue;
+      const citationId = generateId();
       citations.push({
+        id: citationId,
         tree_id: treeId,
         user_id: userId,
         source_id: sourceId,
@@ -275,6 +313,9 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
         ancestry_apid: citation.apid ?? null,
         ...subject,
       });
+      for (const ref of citation.media ?? []) {
+        mediaAttachments.push({ ref, subject: { citation_id: citationId } });
+      }
     }
   };
   for (const individual of parsed.individuals.values()) {
@@ -282,6 +323,45 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
   }
   for (const family of parsed.families.values()) {
     pushCitations(family.citations, { family_id: familyIdMap.get(family.id)! });
+  }
+
+  const mediaIdByKey = new Map<string, string>();
+  const media: MediaInsert[] = [];
+  const mediaLinks: MediaLinkInsert[] = [];
+  const mediaKey = (ref: MediaRef): string =>
+    ref.objeId ?? `inline:${ref.file ?? ''}:${ref.title ?? ''}`;
+  const mediaFormat = (file: string | undefined): string | null => {
+    const match = file?.match(/\.([^.\\/]+)$/);
+    return match?.[1]?.toLowerCase() ?? null;
+  };
+
+  for (const attachment of mediaAttachments) {
+    const key = mediaKey(attachment.ref);
+    let mediaId = mediaIdByKey.get(key);
+    if (!mediaId) {
+      mediaId = generateId();
+      mediaIdByKey.set(key, mediaId);
+      media.push({
+        id: mediaId,
+        tree_id: treeId,
+        user_id: userId,
+        gedcom_xref: key,
+        file_path: attachment.ref.file ?? null,
+        title: attachment.ref.title ?? null,
+        format: mediaFormat(attachment.ref.file),
+        storage_path: null,
+        byte_size: null,
+        content_hash: null,
+        upload_status: 'pending',
+      });
+    }
+    mediaLinks.push({
+      tree_id: treeId,
+      user_id: userId,
+      media_id: mediaId,
+      is_primary: attachment.ref.primary,
+      ...attachment.subject,
+    });
   }
 
   const curiosities: CuriosityInsert[] = [];
@@ -315,5 +395,7 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
     curiosityIndividuals,
     sources,
     citations,
+    media,
+    mediaLinks,
   };
 }

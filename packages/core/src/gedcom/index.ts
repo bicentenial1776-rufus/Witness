@@ -114,7 +114,7 @@ export function parseGedcom(text: string, sourceFile?: string): ParsedGedcom {
         break;
       }
       case 'FAM': {
-        const family = parseFamily(record, places);
+        const family = parseFamily(record, places, shared);
         if (family) families.set(family.id, family);
         break;
       }

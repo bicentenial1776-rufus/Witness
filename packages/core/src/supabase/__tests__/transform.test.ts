@@ -125,4 +125,46 @@ describe('buildImportPayload', () => {
       date_year: 1920,
     });
   });
+
+  it('deduplicates shared media and links people, events, families, and citations', () => {
+    const mediaText = [
+      '0 HEAD',
+      '1 GEDC',
+      '2 VERS 5.5.1',
+      '0 @I1@ INDI',
+      '1 NAME Ada /Kin/',
+      '1 OBJE @M1@',
+      '1 BIRT',
+      '2 DATE 12 MAR 1850',
+      '2 OBJE @M2@',
+      '1 SOUR @S1@',
+      '2 OBJE @M1@',
+      '0 @F1@ FAM',
+      '1 HUSB @I1@',
+      '1 OBJE @M1@',
+      '0 @S1@ SOUR',
+      '1 TITL Synthetic source',
+      '0 @M1@ OBJE',
+      '1 FILE /export/shared.jpg',
+      '2 TITL Shared image',
+      '0 @M2@ OBJE',
+      '1 FILE /export/birth.pdf',
+      '0 TRLR',
+    ].join('\n');
+    const payload = buildImportPayload(parseGedcom(mediaText, 'media.ged'), {
+      userId: USER_ID,
+      generateId: sequentialIdGenerator(),
+    });
+
+    expect(payload.media).toHaveLength(2);
+    expect(payload.media.find((row) => row.gedcom_xref === 'M1')).toMatchObject({
+      file_path: '/export/shared.jpg',
+      format: 'jpg',
+    });
+    expect(payload.mediaLinks).toHaveLength(4);
+    expect(payload.mediaLinks.filter((link) => link.media_id === payload.media[0]!.id)).toHaveLength(3);
+    expect(payload.mediaLinks.some((link) => link.individual_event_id)).toBe(true);
+    expect(payload.mediaLinks.some((link) => link.family_id)).toBe(true);
+    expect(payload.mediaLinks.some((link) => link.citation_id)).toBe(true);
+  });
 });

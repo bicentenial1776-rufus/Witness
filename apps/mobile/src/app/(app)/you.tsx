@@ -36,6 +36,7 @@ import { manageSubscriptionUrl, openManageSubscription } from '@/lib/manage-subs
 import { usePurchases } from '@/lib/purchases';
 import { invalidateCuriositiesCache } from '@/lib/curiosities-cache';
 import { discardOriginal, isVaultAvailable, restoreToCacheFile } from '@/lib/gedcom-vault';
+import { discardTreeMedia } from '@/lib/tree-media';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
 import {
   getLineageCounts,
@@ -326,6 +327,14 @@ export default function YouTab() {
             await discardOriginal(tree.gedcom_path);
           } catch (storageError) {
             console.warn('Stored original left behind', storageError);
+          }
+        }
+        // Same rule for the tree's photos: the bucket has no cascade either.
+        if (done && session?.user.id) {
+          try {
+            await discardTreeMedia(session.user.id, tree.id);
+          } catch (storageError) {
+            console.warn('Tree photos left behind', storageError);
           }
         }
         invalidateGeographyCache();

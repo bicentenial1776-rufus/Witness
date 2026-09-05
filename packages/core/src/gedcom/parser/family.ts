@@ -4,10 +4,11 @@ import { normalizeDate } from '../normalize/date.js';
 import type { PlaceRegistry } from '../normalize/places.js';
 import { child, children, value } from './query.js';
 import { collectCitations } from './sources.js';
+import { resolveMediaRef, type SharedRecords } from './records.js';
 import { stripXref } from './xref.js';
 
 /** Parses one `0 @F...@ FAM` record. Returns null if it has no xref to key it by. */
-export function parseFamily(node: GedcomNode, places: PlaceRegistry): Family | null {
+export function parseFamily(node: GedcomNode, places: PlaceRegistry, shared: SharedRecords): Family | null {
   if (!node.xref) return null;
   const id = stripXref(node.xref);
 
@@ -38,9 +39,11 @@ export function parseFamily(node: GedcomNode, places: PlaceRegistry): Family | n
       ? {
           date: dateValue ? normalizeDate(dateValue) : undefined,
           placeId: places.intern(placeValue),
+          media: children(marrNode, 'OBJE').map((media) => resolveMediaRef(media, shared)),
         }
       : undefined,
+    media: children(node, 'OBJE').map((media) => resolveMediaRef(media, shared)),
     childRelationships,
-    citations: collectCitations(node, 'family'),
+    citations: collectCitations(node, 'family', shared),
   };
 }
