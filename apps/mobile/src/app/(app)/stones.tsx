@@ -4,9 +4,11 @@ import { ActivityIndicator, Image, Linking, Pressable, SectionList, Text, View }
 import * as WebBrowser from 'expo-web-browser';
 
 import { showAlert, showDestructiveConfirm } from '@/lib/alert';
+import { KinLine } from '@/components/kin-line';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { mono } from '@/constants/theme';
+import { useKinMap } from '@/hooks/use-kin-map';
 import { useLetterpress } from '@/hooks/use-theme';
 import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { addCorrection } from '@/lib/corrections';
@@ -69,6 +71,7 @@ function CandidateCard({
   onAttach: (individualId: string, correction: boolean) => void;
   onRecordMarriage: (individualId: string, anchor: KinAnchor) => void;
 }) {
+  const kin = useKinMap(capture.tree_id);
   const L = useLetterpress();
   const stoneYear = capture.divined?.death_year ?? null;
   const conflict =
@@ -93,6 +96,7 @@ function CandidateCard({
           </Text>
         </Text>
       </Pressable>
+      <KinLine kin={kin.get(cand.individual_id)} />
       <Text style={mono(10.5, L.deepAmber)}>WHY: {cand.reasons.join(' · ').toUpperCase()}</Text>
       {conflict && (
         <Text style={mono(10.5, L.muted)}>

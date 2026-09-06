@@ -10,10 +10,12 @@ import {
 } from '@witness/core/query';
 
 import { useBroadsheet } from '@/components/broadsheet';
+import { KinLine } from '@/components/kin-line';
 import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Broadsheet, BrandFonts, Letterpress, WideContent, mono } from '@/constants/theme';
+import { useKinMap } from '@/hooks/use-kin-map';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { setPendingStage } from '@/lib/stage-handoff';
@@ -42,6 +44,7 @@ export default function RegisterScreen() {
   const broadsheet = useBroadsheet();
   const { activeTree } = useActiveTree();
   const treeId = activeTree?.id;
+  const kin = useKinMap(treeId);
   const [register, setRegister] = useState<Register | null>(null);
   const [failed, setFailed] = useState(false);
   const [ordering, setOrdering] = useState<Ordering>('time');
@@ -147,6 +150,7 @@ export default function RegisterScreen() {
       <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15, color: L.ink, flexShrink: 1 }} numberOfLines={1}>
         {entry.headName} <Text style={{ fontFamily: BrandFonts.serif.italic }}>m.</Text> {entry.spouseLine}
       </Text>
+      <KinLine kin={kin.get(entry.headId)} />
       <Text style={mono(12.5, L.muted)} numberOfLines={1}>
         {entry.childCount} {entry.childCount === 1 ? 'child' : 'children'}
         {entry.place ? ` · ${entry.place}` : ''}
@@ -201,6 +205,7 @@ export default function RegisterScreen() {
                             <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 14, color: L.ink }}>
                               {entry.headName} m. {entry.spouseLine} ›
                             </Text>
+                            <KinLine kin={kin.get(entry.headId)} />
                           </Pressable>
                         ) : (
                           <Text key={key} style={mono(13, L.muted)}>

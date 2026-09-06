@@ -18,9 +18,11 @@ import {
 
 import AncestorScreen from '@/app/(app)/ancestor/[id]';
 import { Card } from '@/components/card';
+import { KinLine } from '@/components/kin-line';
 import { useBroadsheet } from '@/components/broadsheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useKinMap } from '@/hooks/use-kin-map';
 import { useActiveTree } from '@/lib/active-tree';
 import { showAlert } from '@/lib/alert';
 import { providerPersonLink } from '@/lib/ancestry';
@@ -75,6 +77,7 @@ interface PunchSection {
 export default function PunchListScreen() {
   const { activeTree } = useActiveTree();
   const treeId = activeTree?.id;
+  const kin = useKinMap(treeId);
   const broadsheet = useBroadsheet();
   const [bundle, setBundle] = useState<AuditRun | null>(null);
   const [orphans, setOrphans] = useState<OrphanReport | null>(null);
@@ -357,6 +360,7 @@ export default function PunchListScreen() {
           <ThemedText type="smallBold">
             {c.individuals?.full_name ?? 'Unnamed'} · {subjectLabel(c.subject)}
           </ThemedText>
+          <KinLine kin={kin.get(c.individual_id)} />
           {c.current_value && <ThemedText type="small">Record says: {c.current_value}</ThemedText>}
           <ThemedText type="small">Should be: {c.corrected_value}</ThemedText>
           {maybeAdopted(c) && (
@@ -388,6 +392,7 @@ export default function PunchListScreen() {
       return (
         <Card onPress={() => openPerson(f.individualIds[0])} style={{ marginBottom: 6, paddingVertical: 10 }}>
           <ThemedText type="small">{f.detail}</ThemedText>
+          <KinLine kin={kin.get(f.individualIds[0] ?? '')} />
           {link && (
             <Pressable onPress={() => openExternalLink(link.url)} hitSlop={8} style={{ marginTop: 6 }}>
               <ThemedText type="smallBold" themeColor="accent">
@@ -405,6 +410,7 @@ export default function PunchListScreen() {
     return (
       <Card onPress={() => openPerson(id)} style={{ marginBottom: 6, paddingVertical: 10 }}>
         <ThemedText type="smallBold">{person?.full_name ?? 'Unnamed'}</ThemedText>
+        <KinLine kin={kin.get(id)} />
         <ThemedText type="small">
           {row.kind === 'island'
             ? `An island of ${row.island.memberIds.length} — connected to each other, not to you.`

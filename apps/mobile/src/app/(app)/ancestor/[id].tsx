@@ -35,6 +35,7 @@ import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { MarginCorrections } from '@/components/margin-corrections';
 import { TextField } from '@/components/text-field';
+import { KinLine } from '@/components/kin-line';
 import { KinReveal } from '@/components/kin-reveal';
 import { capturesForPerson, photoUrl, type GraveCapture } from '@/lib/grave-captures';
 import { LineageMark } from '@/components/lineage-mark';
@@ -90,6 +91,7 @@ import {
 import { invokeError, openResearchBrief } from '@/lib/research-brief';
 import { supabase } from '@/lib/supabase';
 import { BrandFonts, Fonts, WideContent } from '@/constants/theme';
+import { useKinMap } from '@/hooks/use-kin-map';
 
 interface Person {
   id: string;
@@ -509,6 +511,8 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   const theme = useTheme();
   const { activeTree, trees } = useActiveTree();
   const [person, setPerson] = useState<Person | null>(null);
+  // Every name on the page carries the same symbol as every list in the app.
+  const kinMap = useKinMap(person?.tree_id);
   const [missing, setMissing] = useState(false);
   // The page is standing on the saved field copy: identity, vitals, and the
   // register are real; everything that needs the server stays quiet
@@ -1342,6 +1346,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     const age = lostYoung ? record.death_year! - record.birth_year! : null;
     const nameColor = isSelf ? theme.text : lostYoung ? theme.textSecondary : sexInk(record.sex);
     const inner = (
+      <View>
       <View
         style={{
           flexDirection: 'row',
@@ -1374,6 +1379,8 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           {age != null ? `  ~${age}` : ''}
           {visited && !isSelf ? `  ${VISITED_MARK}` : ''}
         </Text>
+      </View>
+      {!isSelf && <KinLine kin={kinMap.get(record.id)} />}
       </View>
     );
     if (isSelf) {
@@ -2298,7 +2305,6 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                         documented event within 25 miles, nearest first.
                       </ThemedText>
                       {shownNeighbors.map((neighbor) => {
-                        const kinLabel = neighborKin.get(neighbor.individual.id)?.label;
                         return (
                           <Pressable
                             key={neighbor.individual.id}
@@ -2339,8 +2345,8 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                                 {`${neighbor.individual.birth_year ?? '?'}–${
                                   neighbor.individual.death_year ?? '?'
                                 }`}
-                                {kinLabel ? `  ·  ${kinLabel}` : ''}
                               </Text>
+                              <KinLine kin={neighborKin.get(neighbor.individual.id)} />
                             </View>
                             <Text
                               style={{

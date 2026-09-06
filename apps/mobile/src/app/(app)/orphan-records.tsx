@@ -14,9 +14,11 @@ import { exportFileName, orphanRecordsCsv, type OrphanCsvRow } from '@witness/co
 
 import AncestorScreen from '@/app/(app)/ancestor/[id]';
 import { Card } from '@/components/card';
+import { KinLine } from '@/components/kin-line';
 import { useBroadsheet } from '@/components/broadsheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useKinMap } from '@/hooks/use-kin-map';
 import { useActiveTree } from '@/lib/active-tree';
 import { showAlert } from '@/lib/alert';
 import { saveTextFile } from '@/lib/export-file';
@@ -54,6 +56,7 @@ export default function OrphanRecordsScreen() {
   const params = useLocalSearchParams<{ treeId?: string }>();
   const { activeTree } = useActiveTree();
   const treeId = params.treeId ?? activeTree?.id;
+  const kin = useKinMap(treeId);
   const broadsheet = useBroadsheet();
   const [report, setReport] = useState<OrphanReport | null>(null);
   const [people, setPeople] = useState<Map<string, HealthIndividual>>(new Map());
@@ -333,6 +336,7 @@ export default function OrphanRecordsScreen() {
             <ThemedText type="smallBold">{row.island.memberIds.length} records</ThemedText>
           )}
         </View>
+        <KinLine kin={kin.get(id)} />
         {row.kind === 'solo' && row.solo.deletionCandidate ? (
           <ThemedText type="small" themeColor="accent" style={{ marginTop: 2 }}>
             Candidate for deletion — a name and nothing else, likely lost in a merge. Verify at

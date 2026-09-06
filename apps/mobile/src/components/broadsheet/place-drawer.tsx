@@ -4,8 +4,11 @@ import { Animated, Platform, Pressable, ScrollView, Text, View } from 'react-nat
 
 import { ancestorsAtPlace, type GeographyIndex } from '@witness/core/query';
 
+import { KinLine } from '@/components/kin-line';
+import { usePeopleList } from '@/components/people-list';
 import { RecordText } from '@/components/record-text';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
+import { useKinMap } from '@/hooks/use-kin-map';
 
 const C = Broadsheet.color;
 const WIDTH = 420;
@@ -17,6 +20,7 @@ const WIDTH = 420;
  */
 export function PlaceDrawer({
   placeId,
+  treeId,
   index,
   onClose,
 }: {
@@ -41,6 +45,14 @@ export function PlaceDrawer({
     const eventCount = residents.reduce((n, r) => n + r.events.length, 0);
     return { place, residents, years, eventCount };
   }, [index, placeId]);
+
+  const kin = useKinMap(treeId);
+  const list = usePeopleList({
+    listKey: 'place-drawer',
+    treeId,
+    rows: detail?.residents,
+    person: (r) => ({ id: r.individual.id, fullName: r.individual.full_name, birthYear: r.individual.birth_year, deathYear: r.individual.death_year }),
+  });
 
   if (!detail) return null;
   const { place, residents, years, eventCount } = detail;
@@ -103,7 +115,8 @@ export function PlaceDrawer({
           <RecordText eyebrow muted style={{ marginBottom: 4 }}>
             The people here
           </RecordText>
-          {residents.map((resident, i) => (
+          {list.bar}
+          {list.rows.map((resident, i) => (
             <Pressable
               key={resident.individual.id}
               onPress={() => {
@@ -125,6 +138,7 @@ export function PlaceDrawer({
               >
                 {resident.individual.full_name}
               </Text>
+              <KinLine kin={kin.get(resident.individual.id)} />
             </Pressable>
           ))}
         </ScrollView>

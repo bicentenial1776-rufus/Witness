@@ -23,6 +23,8 @@ import {
 import { VISITED_MARK, fetchVisitedSet } from '@/lib/visits';
 
 import { Card } from '@/components/card';
+import { KinLine } from '@/components/kin-line';
+import { usePeopleList } from '@/components/people-list';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -32,6 +34,9 @@ import { getShelf } from '@/lib/shelf-cache';
 import { supabase } from '@/lib/supabase';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 import { WideContent } from '@/constants/theme';
+
+/** With the filter open the page is the wrong unit: load this many matches at once. */
+const WIDE_PAGE = 200;
 
 interface PersonHit {
   id: string;
@@ -97,6 +102,15 @@ export default function ExploreTab() {
   // True when the hits came from the saved field copy, not the server.
   const [searchFromCopy, setSearchFromCopy] = useState(false);
   const [peoplePage, setPeoplePage] = useState(0);
+  const peopleList = usePeopleList({
+    listKey: 'explore-search',
+    treeId: activeTree?.id,
+    rows: people,
+    person: (p) => ({ id: p.id, fullName: p.full_name, birthYear: p.birth_year, deathYear: p.death_year }),
+  });
+  // Search, filter, and order need to see the whole match, not one page
+  // of it: while the filter is open or in force, fetch wide and stop paging.
+  const wide = peopleList.open || peopleList.active;
   const broadsheet = useBroadsheet();
   const [geoIndex, setGeoIndex] = useState<GeographyIndex | null>(null);
   const [eras, setEras] = useState<EraCount[]>([]);
@@ -218,8 +232,8 @@ export default function ExploreTab() {
         .rpc('search_people', {
           p_tree_id: activeTree.id,
           p_query: q,
-          p_limit: PEOPLE_PAGE,
-          p_offset: peoplePage * PEOPLE_PAGE,
+          p_limit: wide ? WIDE_PAGE : PEOPLE_PAGE,
+          p_offset: wide ? 0 : peoplePage * PEOPLE_PAGE,
         })
         .returns<SearchPersonRow[]>();
       const result = await Promise.race([
@@ -237,7 +251,7 @@ export default function ExploreTab() {
       try {
         const index = await getTreeIndex(activeTree.id);
         if (cancelled) return;
-        const page = searchIndex(index, q, PEOPLE_PAGE, peoplePage * PEOPLE_PAGE);
+        const page = searchIndex(index, q, wide ? WIDE_PAGE : PEOPLE_PAGE, wide ? 0 : peoplePage * PEOPLE_PAGE);
         setSearchFromCopy(true);
         setPeopleTotal(page.total);
         setPeople(page.hits.map(({ place, ...person }) => ({ ...person, place: place ?? undefined })));
@@ -252,7 +266,7 @@ export default function ExploreTab() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [search, activeTree?.id, peoplePage]);
+  }, [search, activeTree?.id, peoplePage, wide]);
 
   function openEvent(event: HistoricalEvent) {
     if (!activeTree) return;
@@ -274,6 +288,10 @@ export default function ExploreTab() {
         eras={eras}
         treeId={activeTree.id}
         searchPeople={people}
+        searchRows={peopleList.rows}
+        searchBar={peopleList.bar}
+        kin={peopleList.kin}
+        searchWide={wide}
         visitedIds={visitedIds}
         searchTotal={peopleTotal}
         searchPage={peoplePage}
@@ -438,7 +456,13 @@ export default function ExploreTab() {
                 {peopleTotal === 1
                   ? '1 person'
                   : `${peopleTotal.toLocaleString()} people — newest first${
-                      peopleTotal > PEOPLE_PAGE ? `, showing ${peopleFirst}–${peopleLast}` : ''
+                      wide
+                        ? peopleTotal > WIDE_PAGE
+                          ? `, first ${WIDE_PAGE} loaded for the filter`
+                          : ''
+                        : peopleTotal > PEOPLE_PAGE
+                          ? `, showing ${peopleFirst}–${peopleLast}`
+                          : ''
                     }`}
               </ThemedText>
               {searchFromCopy && (
@@ -446,13 +470,15 @@ export default function ExploreTab() {
                   From your saved copy — searched without a connection.
                 </ThemedText>
               )}
-              {people.map((person) => (
+              {peopleList.bar}
+              {peopleList.rows.map((person) => (
                 <Card
                   key={person.id}
                   onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: person.id } })}
                   style={{ paddingVertical: 12 }}
                 >
                   <ThemedText>{person.full_name}</ThemedText>
+                  <KinLine kin={peopleList.kin.get(person.id)} />
                   <ThemedText type="small">
                     {person.birth_year ?? '?'}–{person.living ? '' : (person.death_year ?? '?')}
                     {person.living ? ' · living' : ''}
@@ -463,7 +489,7 @@ export default function ExploreTab() {
               ))}
               {/* Page through time: forward in the list is backward in the
                   years, so the controls say newer/older, not prev/next. */}
-              {peopleTotal > PEOPLE_PAGE && (
+              {peopleTotal > PEOPLE_PAGE && !wide && (
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
                   <Pressable
                     disabled={peoplePage === 0}

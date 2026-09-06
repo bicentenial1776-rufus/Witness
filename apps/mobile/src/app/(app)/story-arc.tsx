@@ -3,7 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
+import { KinLine } from '@/components/kin-line';
 import { BrandFonts, Letterpress, mono } from '@/constants/theme';
+import { useKinMap } from '@/hooks/use-kin-map';
+import type { Kin } from '@/lib/relationship-cache';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { getTodayArc, type ArcGeneration, type StoryArc } from '@/lib/story-arc';
@@ -28,7 +31,7 @@ function paperDate(iso: string): string {
  * gesture stays single and the telling keeps its flow (Rufus,
  * 2026-08-25).
  */
-function GenerationBlock({ g, index }: { g: ArcGeneration; index: number }) {
+function GenerationBlock({ g, index, kin }: { g: ArcGeneration; index: number; kin: Map<string, Kin> }) {
   const L = useLetterpress();
   const [open, setOpen] = useState(false);
   const further = Boolean(g.worldFacts?.length || g.paper || g.audio || g.scene);
@@ -56,21 +59,9 @@ function GenerationBlock({ g, index }: { g: ArcGeneration; index: number }) {
         >
           <Text style={mono(12.5, L.deepAmber)}>{ROMAN[index] ?? String(index + 1)}{'  '}</Text>
           {g.name}
-          {g.relationLabel ? (
-            <Text
-              style={{
-                fontFamily: BrandFonts.serif.italic,
-                fontStyle: 'italic',
-                fontWeight: '400',
-                fontSize: 17,
-                color: L.muted,
-              }}
-            >
-              {`, your ${g.relationLabel}`}
-            </Text>
-          ) : null}
         </Text>
       </Pressable>
+      <KinLine kin={kin.get(g.personId)} />
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 14, marginTop: 3 }}>
         <Text style={mono(12.5, L.muted)}>
           {g.living ? `b. ${g.birth ?? '?'}` : `${g.birth ?? '?'}–${g.death ?? '?'}`}
@@ -245,6 +236,7 @@ function GenerationBlock({ g, index }: { g: ArcGeneration; index: number }) {
 export default function StoryArcScreen() {
   const L = useLetterpress();
   const { activeTree } = useActiveTree();
+  const kin = useKinMap(activeTree?.id);
   const [arc, setArc] = useState<StoryArc | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -385,7 +377,7 @@ export default function StoryArcScreen() {
             {/* The descent. */}
             <View style={{ marginTop: 10 }}>
               {arc.generations.map((g, i) => (
-                <GenerationBlock key={g.personId} g={g} index={i} />
+                <GenerationBlock key={g.personId} g={g} index={i} kin={kin} />
               ))}
             </View>
 

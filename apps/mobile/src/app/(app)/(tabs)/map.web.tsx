@@ -12,11 +12,13 @@ import {
   type PlaceActivity,
 } from '@witness/core/query';
 
+import { KinLine } from '@/components/kin-line';
 import { RecordText } from '@/components/record-text';
 import { Masthead, MarginPanel, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { PlaceDrawer } from '@/components/broadsheet/place-drawer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useKinMap } from '@/hooks/use-kin-map';
 import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { getGeographyIndex, invalidateGeographyCache } from '@/lib/geography-cache';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
@@ -226,6 +228,7 @@ export default function AncestorMapTab() {
   const broadsheet = useBroadsheet();
   const { activeTree, loadFailed } = useActiveTree();
   const treeId = activeTree?.id;
+  const kin = useKinMap(treeId);
   const { index, progress } = useGeography(treeId);
   const [eraIndex, setEraIndex] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -403,6 +406,7 @@ export default function AncestorMapTab() {
                           {resident.individual.birth_year ?? '?'} – {resident.individual.death_year ?? '?'}
                         </RecordText>
                       </Text>
+                      <KinLine kin={kin.get(resident.individual.id)} />
                     </View>
                   ) : null,
                 )}

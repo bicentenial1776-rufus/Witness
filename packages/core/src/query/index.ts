@@ -15,3 +15,4 @@ export * from './orphanRecords.js';
 export * from './familyStage.js';
 export * from './register.js';
 export * from './offline.js';
+export * from './peopleList.js';

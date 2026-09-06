@@ -5,6 +5,8 @@ import { ActivityIndicator, FlatList } from 'react-native';
 import { oceanCrossings, type OceanCrossing } from '@witness/core/query';
 
 import { Card } from '@/components/card';
+import { KinLine } from '@/components/kin-line';
+import { usePeopleList } from '@/components/people-list';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
@@ -60,6 +62,8 @@ export default function CrossingsScreen() {
     };
   }, [treeId]);
 
+  const list = usePeopleList({ listKey: 'crossings', treeId, rows, person: (r) => ({ id: r.individual.id, fullName: r.individual.full_name, birthYear: r.individual.birth_year, deathYear: r.individual.death_year }) });
+
   return (
     <ThemedView style={{ flex: 1, padding: 24, gap: 8 }}>
       <ThemedText type="small">
@@ -76,15 +80,17 @@ export default function CrossingsScreen() {
 
       {rows && rows.length > 0 && (
         <FlatList
-          data={rows}
+          data={list.rows}
           keyExtractor={(row, index) => `${row.individual.id}-${index}`}
           style={{ marginTop: 4 }}
+          ListHeaderComponent={list.bar}
           renderItem={({ item }) => (
             <Card
               onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: item.individual.id } })}
               style={{ marginBottom: 8 }}
             >
               <ThemedText>{item.individual.full_name}</ThemedText>
+              <KinLine kin={list.kin.get(item.individual.id)} />
               <ThemedText type="small">
                 {item.individual.birth_year ?? '?'}–
                 {item.individual.living ? '' : (item.individual.death_year ?? '?')}

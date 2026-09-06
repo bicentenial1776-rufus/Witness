@@ -2,19 +2,19 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList } from 'react-native';
 
-import { migrationPaths, type MigrationPath } from '@witness/core/query';
+import { migrationPaths, type GeographyIndex, type MigrationPath } from '@witness/core/query';
 
 import { Card } from '@/components/card';
-import { KinReveal } from '@/components/kin-reveal';
+import { KinLine } from '@/components/kin-line';
+import { usePeopleList } from '@/components/people-list';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
-import { getKinMap, type Kin } from '@/lib/relationship-cache';
 
 export default function MigrationScreen() {
   const { treeId, from, to } = useLocalSearchParams<{ treeId: string; from: string; to: string }>();
   const [path, setPath] = useState<MigrationPath | null | undefined>(undefined);
-  const [relationships, setRelationships] = useState<Map<string, Kin>>(new Map());
+  const [index, setIndex] = useState<GeographyIndex | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,18 +23,26 @@ export default function MigrationScreen() {
     getGeographyIndex(treeId)
       .then((index) => {
         if (cancelled) return;
+        setIndex(index);
         setPath(migrationPaths(index).find((p) => p.from === from && p.to === to) ?? null);
       })
       .catch((e: unknown) => {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       });
-    getKinMap(treeId).then((map) => {
-      if (!cancelled) setRelationships(map);
-    });
     return () => {
       cancelled = true;
     };
   }, [treeId, from, to]);
+
+  const list = usePeopleList({
+    listKey: 'migration',
+    treeId,
+    rows: path?.movers,
+    person: (m) => {
+      const who = index?.individuals.get(m.individualId);
+      return { id: m.individualId, fullName: m.name, birthYear: who?.birth_year ?? null, deathYear: who?.death_year ?? null };
+    },
+  });
 
   return (
     <ThemedView style={{ flex: 1, padding: 24, gap: 8 }}>
@@ -51,9 +59,10 @@ export default function MigrationScreen() {
             {path.medianYear ? `, mostly around ${path.medianYear}` : ''}
           </ThemedText>
           <FlatList
-            data={path.movers}
-            keyExtractor={(mover, index) => `${mover.individualId}-${index}`}
+            data={list.rows}
+            keyExtractor={(mover, i) => `${mover.individualId}-${i}`}
             style={{ marginTop: 12 }}
+            ListHeaderComponent={list.bar}
             renderItem={({ item }) => (
               <Card
                 onPress={() =>
@@ -62,12 +71,7 @@ export default function MigrationScreen() {
                 style={{ marginBottom: 8 }}
               >
                 <ThemedText>{item.name}</ThemedText>
-                {relationships.has(item.individualId) && (
-                  <KinReveal
-                    tier={relationships.get(item.individualId)!.tier}
-                    label={relationships.get(item.individualId)!.label}
-                  />
-                )}
+                <KinLine kin={list.kin.get(item.individualId)} />
                 <ThemedText type="small">
                   {item.fromYear ? `last seen in ${from} ${item.fromYear}` : from}
                   {' · '}

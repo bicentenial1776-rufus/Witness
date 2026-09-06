@@ -5,9 +5,11 @@ import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { getRelationshipPath, type RelationshipPath } from '@witness/core/family';
 
 import { Card } from '@/components/card';
+import { KinLine } from '@/components/kin-line';
 import { TIER_WORD } from '@/components/kin-reveal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useKinMap } from '@/hooks/use-kin-map';
 import { useTheme } from '@/hooks/use-theme';
 import { getParentageMap } from '@/lib/parentage';
 import { supabase } from '@/lib/supabase';
@@ -22,6 +24,8 @@ export default function RelationshipScreen() {
   const theme = useTheme();
   const [path, setPath] = useState<RelationshipPath | null | 'loading'>('loading');
   const [parentage, setParentage] = useState<Map<string, string>>(new Map());
+  const [treeId, setTreeId] = useState<string | null>(null);
+  const kin = useKinMap(treeId);
 
   useEffect(() => {
     if (!individualId) return;
@@ -37,6 +41,7 @@ export default function RelationshipScreen() {
         if (!cancelled) setPath(null);
         return;
       }
+      if (!cancelled) setTreeId(person.tree_id);
       // Parentage under every step: on a cousin path (up one line, down
       // another) the chain alone doesn't say how each hop connects.
       getParentageMap(person.tree_id)
@@ -111,6 +116,7 @@ export default function RelationshipScreen() {
                         {person.full_name}
                         {isYou ? '  (you)' : ''}
                       </ThemedText>
+                      {!isYou && <KinLine kin={kin.get(person.id)} />}
                       <ThemedText type="small">
                         {person.birth_year ?? '?'}–{person.death_year ?? ''}
                       </ThemedText>

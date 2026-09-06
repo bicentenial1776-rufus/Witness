@@ -17,6 +17,7 @@ import {
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
+import { Chip, ChipDivider } from '@/components/chip';
 import { KinReveal } from '@/components/kin-reveal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -63,44 +64,6 @@ function centuriesOf(places: NearbyPlace[]): number[] {
     }
   }
   return [...centuries].sort((a, b) => a - b);
-}
-
-function Chip({
-  label,
-  active,
-  onPress,
-  activeColor,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-  activeColor: string;
-}) {
-  const theme = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      hitSlop={6}
-      style={{
-        // Slimmed 2026-08-27 (Rufus: the filter stack ate the screen) —
-        // the text keeps its Large Print size; only the padding thinned.
-        backgroundColor: active ? activeColor : theme.text,
-        borderRadius: 14,
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-      }}
-    >
-      <ThemedText type="small" style={{ color: theme.background }}>{label}</ThemedText>
-    </Pressable>
-  );
-}
-
-/** Hairline between chip groups in the single filter row. */
-function ChipDivider() {
-  const theme = useTheme();
-  return <View style={{ width: 1, height: 18, backgroundColor: theme.border, alignSelf: 'center' }} />;
 }
 
 export function NearMe({ onExit }: { onExit?: () => void }) {

@@ -14,9 +14,11 @@ import { exportFileName, treeHealthCsv, type TreeHealthCsvRow } from '@witness/c
 
 import AncestorScreen from '@/app/(app)/ancestor/[id]';
 import { Card } from '@/components/card';
+import { KinLine } from '@/components/kin-line';
 import { useBroadsheet } from '@/components/broadsheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useKinMap } from '@/hooks/use-kin-map';
 import { useActiveTree } from '@/lib/active-tree';
 import { showAlert } from '@/lib/alert';
 import { getAuditReport } from '@/lib/curiosities-cache';
@@ -49,6 +51,7 @@ export default function TreeHealthScreen() {
   const params = useLocalSearchParams<{ treeId?: string }>();
   const { activeTree } = useActiveTree();
   const treeId = params.treeId ?? activeTree?.id;
+  const kin = useKinMap(treeId);
   const broadsheet = useBroadsheet();
   const [report, setReport] = useState<TreeHealthReport | null>(null);
   const [people, setPeople] = useState<Map<string, { gedcom_xref: string | null; full_name?: string | null }>>(new Map());
@@ -341,6 +344,7 @@ export default function TreeHealthScreen() {
             }}
           >
             <ThemedText type="small">{item.detail}</ThemedText>
+            <KinLine kin={kin.get(item.individualIds[0] ?? '')} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
               <View style={{ flexDirection: 'row', gap: 18 }}>
                 {itemRuled ? (

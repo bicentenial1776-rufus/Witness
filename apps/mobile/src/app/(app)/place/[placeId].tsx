@@ -12,19 +12,18 @@ import {
 } from '@witness/core/query';
 
 import { Card } from '@/components/card';
-import { KinReveal } from '@/components/kin-reveal';
+import { KinLine } from '@/components/kin-line';
+import { usePeopleList } from '@/components/people-list';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
 import { SanbornBlock } from '@/components/sanborn-block';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
-import { getKinMap, type Kin } from '@/lib/relationship-cache';
 import { supabase } from '@/lib/supabase';
 
 export default function PlaceScreen() {
   const { placeId, treeId } = useLocalSearchParams<{ placeId: string; treeId: string }>();
   const [index, setIndex] = useState<GeographyIndex | null>(null);
-  const [relationships, setRelationships] = useState<Map<string, Kin>>(new Map());
   const [candidates, setCandidates] = useState<NaraCandidate[]>([]);
 
   useEffect(() => {
@@ -32,9 +31,6 @@ export default function PlaceScreen() {
     let cancelled = false;
     getGeographyIndex(treeId).then((i) => {
       if (!cancelled) setIndex(i);
-    });
-    getKinMap(treeId).then((map) => {
-      if (!cancelled) setRelationships(map);
     });
     // Papers of this place: NARA documents the worker matched to people
     // with events here. The section simply hides while empty (enrichment
@@ -62,6 +58,8 @@ export default function PlaceScreen() {
     .sort((a, b) => a - b);
   const aroundYear = eventYears.length ? eventYears[Math.floor(eventYears.length / 2)] : null;
 
+  const list = usePeopleList({ listKey: 'place', treeId, rows: residents, person: (r) => ({ id: r.individual.id, fullName: r.individual.full_name, birthYear: r.individual.birth_year, deathYear: r.individual.death_year }) });
+
   return (
     <ThemedView style={{ flex: 1, padding: 24, gap: 8 }}>
       <Stack.Screen options={{ title: place ? (place.parts[0] ?? place.raw) : '' }} />
@@ -76,11 +74,13 @@ export default function PlaceScreen() {
             {residents.length.toLocaleString()} people in your family have events here
           </ThemedText>
           <FlatList
-            data={residents}
+            data={list.rows}
             keyExtractor={(resident) => resident.individual.id}
             style={{ marginTop: 12 }}
             ListHeaderComponent={
-              candidates.length > 0 ? (
+              <>
+              {list.bar}
+              {candidates.length > 0 ? (
                 <>
                   <ThemedText type="subtitle">Papers of this place</ThemedText>
                   <ThemedText type="small" style={{ marginBottom: 8 }}>
@@ -104,7 +104,8 @@ export default function PlaceScreen() {
                     People
                   </ThemedText>
                 </>
-              ) : null
+              ) : null}
+              </>
             }
             ListFooterComponent={
               place ? <SanbornBlock parts={place.parts} aroundYear={aroundYear} /> : null
@@ -117,12 +118,7 @@ export default function PlaceScreen() {
                 style={{ marginBottom: 8 }}
               >
                 <ThemedText>{item.individual.full_name}</ThemedText>
-                {relationships.has(item.individual.id) && (
-                  <KinReveal
-                    tier={relationships.get(item.individual.id)!.tier}
-                    label={relationships.get(item.individual.id)!.label}
-                  />
-                )}
+                <KinLine kin={list.kin.get(item.individual.id)} />
                 <ThemedText type="small">
                   {item.events
                     .map((e) => `${eventTypeLabel(e.eventType)}${e.year ? ` ${e.year}` : ''}`)

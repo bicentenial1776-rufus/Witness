@@ -5,6 +5,8 @@ import { ActivityIndicator, FlatList, View } from 'react-native';
 import { voyageExplainer } from '@witness/core/history';
 
 import { Card } from '@/components/card';
+import { KinLine } from '@/components/kin-line';
+import { usePeopleList } from '@/components/people-list';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { supabase } from '@/lib/supabase';
@@ -91,6 +93,12 @@ export default function VoyageScreen() {
     };
   }, [voyageId, treeId]);
 
+  const list = usePeopleList({
+    listKey: 'voyage',
+    treeId,
+    rows,
+    person: (r) => ({ id: r.individualId, fullName: r.fullName, birthYear: r.birthYear, deathYear: r.deathYear }),
+  });
   const first = rows?.[0];
   const confirmed = rows?.filter((r) => r.status === 'confirmed') ?? [];
   const pending = rows?.filter((r) => r.status === 'pending') ?? [];
@@ -102,7 +110,7 @@ export default function VoyageScreen() {
       ) : (
         <FlatList
           contentContainerStyle={{ padding: 20, paddingBottom: 48, gap: 8 }}
-          data={rows ?? []}
+          data={list.rows}
           keyExtractor={(row) => row.id}
           ListHeaderComponent={
             <View style={{ gap: 8, marginBottom: 8 }}>
@@ -135,12 +143,13 @@ export default function VoyageScreen() {
                     : '.'}
                 </ThemedText>
               )}
+              {list.bar}
             </View>
           }
           renderItem={({ item, index }) => (
             <>
               {item.status === 'pending' &&
-                (index === 0 || rows![index - 1]!.status === 'confirmed') && (
+                (index === 0 || list.rows[index - 1]!.status === 'confirmed') && (
                   <ThemedText type="subtitle" style={{ marginTop: 12, marginBottom: 4 }}>
                     Awaiting your verdict — {pending.length}
                   </ThemedText>
@@ -154,6 +163,7 @@ export default function VoyageScreen() {
                   {item.status === 'confirmed' ? '⛵ ' : ''}
                   {item.fullName}
                 </ThemedText>
+                <KinLine kin={list.kin.get(item.individualId)} />
                 <ThemedText type="small">
                   {`${item.birthYear ?? '?'}–${item.deathYear ?? '?'}`}
                   {item.passengerName.toLowerCase() !== item.fullName.toLowerCase()

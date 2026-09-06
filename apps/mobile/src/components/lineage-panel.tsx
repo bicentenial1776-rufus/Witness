@@ -5,8 +5,10 @@ import { ActivityIndicator, Pressable, View } from 'react-native';
 import { getRelationshipPath, type RelationshipPath } from '@witness/core/family';
 
 import { Card } from '@/components/card';
+import { KinLine } from '@/components/kin-line';
 import { TIER_WORD } from '@/components/kin-reveal';
 import { ThemedText } from '@/components/themed-text';
+import { useKinMap } from '@/hooks/use-kin-map';
 import { useTheme } from '@/hooks/use-theme';
 import { getParentageMap } from '@/lib/parentage';
 import { supabase } from '@/lib/supabase';
@@ -31,6 +33,7 @@ export function LineagePanel({
   fromName?: string;
 }) {
   const theme = useTheme();
+  const kin = useKinMap(treeId);
   const [path, setPath] = useState<RelationshipPath | null | 'loading'>('loading');
   const [parentage, setParentage] = useState<Map<string, string>>(new Map());
 
@@ -114,6 +117,7 @@ export function LineagePanel({
                   {person.full_name}
                   {isAnchor && !fromPersonId ? '  (you)' : ''}
                 </ThemedText>
+                {!isAnchor && <KinLine kin={kin.get(person.id)} />}
                 <ThemedText type="small">
                   {person.birth_year ?? '?'}–{person.death_year ?? ''}
                 </ThemedText>

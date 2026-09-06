@@ -12,6 +12,8 @@ import type { TreeIndex } from './treeIndex.js';
 export interface RegisterEntry {
   key: string;
   year: number;
+  /** The head's individual id — the stage key is the head. */
+  headId: string;
   headName: string;
   spouseLine: string; // "Mary Beliveau" or "Mary Beliveau, then Ann Marsh"
   surname: string;
@@ -65,6 +67,7 @@ export function buildRegister(index: TreeIndex, stages: FamilyStageIndex): Regis
     entries.push({
       key: stage.key,
       year: stage.marriage,
+      headId: stage.key,
       headName: head.n,
       spouseLine: spouses.map((s) => s.n).join(', then ') || 'a spouse unrecorded',
       surname: headPerson?.surname ?? head.n.split(' ').pop() ?? '?',

@@ -5,8 +5,11 @@ import { Animated, Platform, Pressable, ScrollView, Text, View } from 'react-nat
 import { aliveDuring, type AliveDuringResult, type AliveMatch } from '@witness/core/query';
 import type { HistoricalEvent } from '@witness/core/history';
 
+import { KinLine } from '@/components/kin-line';
+import { usePeopleList } from '@/components/people-list';
 import { RecordText } from '@/components/record-text';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
+import { useKinMap } from '@/hooks/use-kin-map';
 import { getEventLibrary } from '@/lib/event-library';
 import { supabase } from '@/lib/supabase';
 
@@ -31,6 +34,18 @@ export function QueryDrawer({
   const [event, setEvent] = useState<HistoricalEvent | null>(null);
   const [result, setResult] = useState<AliveDuringResult | null>(null);
   const slide = useRef(new Animated.Value(WIDTH)).current;
+  const kin = useKinMap(treeId);
+  const list = usePeopleList({
+    listKey: 'who-was-alive-drawer',
+    treeId,
+    rows: result?.matches,
+    person: (m) => ({
+      id: m.individual.id,
+      fullName: m.individual.full_name,
+      birthYear: m.individual.birth_year ?? null,
+      deathYear: m.individual.death_year ?? null,
+    }),
+  });
 
   useEffect(() => {
     Animated.timing(slide, { toValue: 0, duration: 240, useNativeDriver: false }).start();
@@ -77,6 +92,7 @@ export function QueryDrawer({
       >
         {match.individual.full_name}
       </Text>
+      <KinLine kin={kin.get(match.individual.id)} />
       <RecordText muted>
         {match.ageAtStart !== null
           ? `${match.ageAtStart} in ${event?.startYear}`
@@ -87,8 +103,8 @@ export function QueryDrawer({
     </Pressable>
   );
 
-  const documented = result?.matches.filter((m) => m.confidence === 'documented') ?? [];
-  const probable = result?.matches.filter((m) => m.confidence === 'probable') ?? [];
+  const documented = list.rows.filter((m) => m.confidence === 'documented');
+  const probable = list.rows.filter((m) => m.confidence === 'probable');
 
   // 'fixed' is web-only; native ignores it and the drawer rendered
   // in-flow and invisible on iPad (caught 2026-08-28).
@@ -159,6 +175,7 @@ export function QueryDrawer({
               Reading the tree…
             </Text>
           )}
+          {list.bar}
           {documented.length > 0 && (
             <>
               <RecordText eyebrow muted style={{ marginBottom: 4 }}>

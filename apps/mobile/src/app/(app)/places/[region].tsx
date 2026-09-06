@@ -5,11 +5,11 @@ import { ActivityIndicator, FlatList } from 'react-native';
 import { ancestorsInRegion, eventTypeLabel, type RegionResident } from '@witness/core/query';
 
 import { Card } from '@/components/card';
-import { KinReveal } from '@/components/kin-reveal';
+import { KinLine } from '@/components/kin-line';
+import { usePeopleList } from '@/components/people-list';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
-import { getKinMap, type Kin } from '@/lib/relationship-cache';
 
 function lifeSpan(resident: RegionResident): string {
   const { birth_year, death_year } = resident.individual;
@@ -26,7 +26,6 @@ function connection(resident: RegionResident): string {
 export default function RegionScreen() {
   const { region, treeId } = useLocalSearchParams<{ region: string; treeId: string }>();
   const [residents, setResidents] = useState<RegionResident[] | null>(null);
-  const [relationships, setRelationships] = useState<Map<string, Kin>>(new Map());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,13 +38,12 @@ export default function RegionScreen() {
       .catch((e: unknown) => {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       });
-    getKinMap(treeId).then((map) => {
-      if (!cancelled) setRelationships(map);
-    });
     return () => {
       cancelled = true;
     };
   }, [treeId, region]);
+
+  const list = usePeopleList({ listKey: 'region', treeId, rows: residents, person: (r) => ({ id: r.individual.id, fullName: r.individual.full_name, birthYear: r.individual.birth_year, deathYear: r.individual.death_year }) });
 
   return (
     <ThemedView style={{ flex: 1, padding: 24, gap: 8 }}>
@@ -60,9 +58,10 @@ export default function RegionScreen() {
             {residents.length.toLocaleString()} people in your family lived here
           </ThemedText>
           <FlatList
-            data={residents}
+            data={list.rows}
             keyExtractor={(resident) => resident.individual.id}
             style={{ marginTop: 12 }}
+            ListHeaderComponent={list.bar}
             renderItem={({ item }) => (
               <Card
                 onPress={() =>
@@ -71,12 +70,7 @@ export default function RegionScreen() {
                 style={{ marginBottom: 8 }}
               >
                 <ThemedText>{item.individual.full_name}</ThemedText>
-                {relationships.has(item.individual.id) && (
-                  <KinReveal
-                    tier={relationships.get(item.individual.id)!.tier}
-                    label={relationships.get(item.individual.id)!.label}
-                  />
-                )}
+                <KinLine kin={list.kin.get(item.individual.id)} />
                 <ThemedText type="small">{lifeSpan(item)}</ThemedText>
                 <ThemedText type="small">{connection(item)}</ThemedText>
               </Card>

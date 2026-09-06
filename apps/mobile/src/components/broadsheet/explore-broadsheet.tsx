@@ -1,11 +1,13 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactElement } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
 import type { GeographyIndex } from '@witness/core/query';
 import type { HistoricalEvent, ShelfEntry } from '@witness/core/history';
 
+import { KinLine } from '@/components/kin-line';
 import { RecordText } from '@/components/record-text';
+import type { Kin } from '@/lib/relationship-cache';
 import { VISITED_MARK } from '@/lib/visits';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
 
@@ -61,6 +63,10 @@ export function ExploreBroadsheet({
   eras,
   treeId,
   searchPeople,
+  searchRows,
+  searchBar,
+  kin,
+  searchWide = false,
   searchTotal,
   visitedIds,
   searchPage,
@@ -74,6 +80,12 @@ export function ExploreBroadsheet({
   eras: EraCount[];
   treeId: string;
   searchPeople: PersonHit[];
+  /** The page after the list's own filter and order; falls back to the page as fetched. */
+  searchRows?: PersonHit[];
+  searchBar?: ReactElement | null;
+  kin?: Map<string, Kin>;
+  /** The page was fetched wide for the filter — no paging controls. */
+  searchWide?: boolean;
   /** Every person the query matches, of which searchPeople is one page. */
   searchTotal: number;
   /** Betsey's star (2026-08-19): results the reader has already been to. */
@@ -242,18 +254,20 @@ export function ExploreBroadsheet({
           {searchTotal > 0 && (
             <RecordText muted style={{ marginTop: 14, marginBottom: 4 }}>
               {searchTotal.toLocaleString()} {searchTotal === 1 ? 'PERSON' : 'PEOPLE'} · NEWEST FIRST
-              {searchTotal > PEOPLE_PAGE
+              {searchTotal > PEOPLE_PAGE && !searchWide
                 ? ` · SHOWING ${searchPage * PEOPLE_PAGE + 1}–${Math.min((searchPage + 1) * PEOPLE_PAGE, searchTotal)}`
                 : ''}
             </RecordText>
           )}
-          {searchPeople.map((person, i) => (
+          {searchBar}
+          {(searchRows ?? searchPeople).map((person, i) => (
             <LedgerRow
               key={person.id}
               first={i === 0}
               onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: person.id } })}
             >
               <Serif>{person.full_name}</Serif>
+              <KinLine kin={kin?.get(person.id)} />
               <View style={{ flex: 1 }} />
               <RecordText muted>
                 {person.birth_year ?? '?'} – {person.death_year ?? '?'}
@@ -263,7 +277,7 @@ export function ExploreBroadsheet({
             </LedgerRow>
           ))}
           {/* Page through time: forward is older, so the controls say so. */}
-          {searchTotal > PEOPLE_PAGE && (
+          {searchTotal > PEOPLE_PAGE && !searchWide && (
             <View
               style={{
                 flexDirection: 'row',
