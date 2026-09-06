@@ -356,6 +356,15 @@ Witness 1.5.2 (build 12) is **live on the App Store** as of August 24, 2026, aft
 - Beta reader requests shipped as features: **twin rendering**, **personal notes on ancestors**, and **starred people** — all web-live
 - A hidden, annotated-screenshot **Field Guide** at witnesslives.com/guide documents every screen
 
+### Family Photographs from the Tree File (shipped 2026-09-05)
+The GEDCOM has always named the family's photographs; Witness now takes them. Every import records what the file says about media — Family Tree Maker's `_PHOTO` portrait pointer, Ancestry's `_PRIM` flag, photos on the person, on a fact, behind a citation, on the family — as `media` rows and an attachment graph (`media_links`), with bytes kept in a private per-tree bucket. The Portrait carries a **"Photos from your tree file"** strip, portrait first, and a tap opens the original full-screen on black with the GEDCOM's title as caption (pinch to zoom on iOS). Family-sharing companions see the photos through the same read grant as everything else on the tree; deleting a tree takes its photos with it.
+
+**The rule that keeps this honest:** a standard GEDCOM shows nothing new. Ancestry's export names 1,832 photos with empty file lines; the rows land as *pending* and the strip stays hidden until bytes exist. Nothing changes on any screen for a user whose file carries no media. Only a file exported **with** its media folder — Family Tree Maker's "Include media files" — can light the strip.
+
+**How the bytes arrive today:** a desktop overlay (`npm run overlay:ftm`), run on the owner's Mac against the FTM export and its Media folder. It attaches the photos to the tree already in Witness rather than re-importing — a re-import would orphan verdicts, notes, stones, and family seats — by matching people on name and years in strict-to-loose tiers that refuse ambiguity rather than guess. First run on the Howe/Field tree: 5,189 of 5,611 people matched, 848 people with attachments, 552 portraits, ~1,500 gallery photos. Design brief: `docs/gedcom-media-design-brief.md`.
+
+**Not yet:** the ~16,000 record images filed under citations (census pages beside their source on the Sources tab — needs event/citation matching), the 190 Find a Grave and book clippings as readable notes rather than files, resizing, and any way for a user who is not at a Mac terminal to bring photos in. That last gap is the V2 item below.
+
 ### Immigrant Ships (in progress — data layer built, product layer designed)
 The newest chapter, begun 2026-08-26. See the dedicated section below.
 
@@ -672,6 +681,10 @@ Unscheduled ideas live in [docs/IDEAS.md](docs/IDEAS.md).
 - Family plan pricing ($34.99/year, up to 5 accounts)
 - Meteostat historical weather enrichment
 - Inheritance Transfer feature
+- **Photos for everyone, not just the owner at a terminal** *(decided 2026-09-05; the display side shipped, the intake side is this item)*. Two doors, either or both:
+  - **"Send to Witness" desktop companion** — a small Mac/Windows app that takes a Family Tree Maker (or any) GEDCOM plus its Media folder, matches people onto the user's existing Witness tree the way the overlay does, and uploads. Grows from the overlay CLI. This is also the natural shape of a MacKiev partnership: FTM already sells companion products from its own paywall.
+  - **In-app bundle import** — the app accepts a zip of `.ged` + media (the iPad Files app can make one; drag-and-drop on the web), records the media, and uploads in the background with a progress line. Same overlay-not-reimport rule; same "pending until bytes exist" honesty.
+  - Behind both: resize on upload (2048 web + 400 thumb, originals kept for documents), hash dedupe across a user's trees, record images surfaced beside their citation on the Sources tab, and `.htm` clippings rendered as notes.
 
 *Web browser version shipped ahead of schedule in Phase 5 (July 2026) — see Platform and Build Status above.*
 
@@ -748,6 +761,6 @@ The following documents in /docs/ provide scene-by-scene UI guidance for each co
 
 ---
 
-*Brief v3.0 — August 26, 2026. Witness is an independent project by Rufus Howe.*  
+*Brief v3.1 — September 5, 2026. Witness is an independent project by Rufus Howe.*  
 *Repository: bicentenial1776-rufus/Witness*  
 *witnesslives.com*
