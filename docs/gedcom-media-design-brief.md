@@ -1,6 +1,6 @@
 # GEDCOM media — design brief
 
-*2026-09-05. Status: v1 built (parser, tables, bucket, desktop CLI, Portrait strip). Overlay onto an existing tree not built.*
+*2026-09-05. Status: v1 built (parser, tables, bucket, desktop CLIs, Portrait strip). Overlay onto an existing tree built the same evening.*
 
 ## Why
 
@@ -38,10 +38,21 @@ Dry run by default: parses, matches FILE paths to the folder (full path first, t
 
 Portrait page, below the stone: "PHOTOS FROM YOUR TREE FILE", a horizontal strip of the person's own attached images, portrait first, uploaded-only, signed URLs. Quiet on the saved field copy.
 
+## Overlay onto an existing tree (v1)
+
+```
+npm run overlay:ftm -- <tree.ged> <Media folder> --tree-id <existing tree> [--write] [--images|--all] [--report <path>]
+```
+
+Rufus's real tree carries verdicts, notes, stones, and family shares; a re-import orphans them. The overlay leaves the tree alone and attaches the FTM file's photos to the people already there. FTM's export has no `_UID`, so people are matched by name and years (`packages/core/src/gedcom/personMatch.ts`): tiers run strict to loose (name + both years, nickname-folded, name + birth, name only), each tier only pairs keys unique on **both** sides, and years or sexes that conflict are never paired. Two "Israel Hill 1719–1777" on the FTM side stay unmatched rather than guessed; `--report` lists them.
+
+First run against the Howe/Field tree (5,611 FTM people vs 5,529 in Witness): 5,189 matched (4,663 on name + both years, 519 on name alone), 1,758 of 1,865 person-level attachments land, 549 of 606 portraits.
+
+v1 carries **person-level** media only (portraits and photos on the person). Idempotent: media rows key on `(tree_id, gedcom_xref)`, links are skipped when the pair exists, completed uploads are left alone.
+
 ## Not built, decided direction
 
-- **Overlay, not re-import.** Rufus's real tree carries verdicts, notes, stones, and family shares; a re-import orphans them. The route is to match the FTM file's people onto the existing tree by name + years and attach media to the rows already there. The CLI's new-tree import is a proving vehicle only.
-- Record images on citations (the 16k) surfaced beside the source on the Portrait's sources tab.
+- Fact- and citation-level record images (the 16k) need event/citation matching on the existing tree, then surface beside the source on the Portrait's sources tab.
 - `.htm` clippings (190, Find a Grave and book bios) as text into notes, not as files.
 - Resizing (2048 web + 400 thumb), hash dedupe across trees.
-- A "Send to Witness" companion for the MacKiev pitch grows from this CLI.
+- A "Send to Witness" companion for the MacKiev pitch grows from these CLIs.

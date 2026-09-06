@@ -17,6 +17,8 @@ import type {
 
 export * from './types/witness.js';
 export { extractGedcomText, isZipData } from './gdz.js';
+export { matchPeople, normalizeName, looseName } from './personMatch.js';
+export type { PersonKey, PersonMatch, MatchReport, MatchTier } from './personMatch.js';
 
 // HEAD.SOUR payloads seen in the wild, most specific first. FTM before
 // Ancestry: Family Tree Maker headers mention both ("FTM ... Ancestry.com").
