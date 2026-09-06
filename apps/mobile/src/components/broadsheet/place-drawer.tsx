@@ -4,7 +4,7 @@ import { Animated, Platform, Pressable, ScrollView, Text, View } from 'react-nat
 
 import { ancestorsAtPlace, type GeographyIndex } from '@witness/core/query';
 
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { usePeopleList } from '@/components/people-list';
 import { RecordText } from '@/components/record-text';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
@@ -132,12 +132,12 @@ export function PlaceDrawer({
                 borderTopColor: C.ruleLight,
               }}
             >
-              <Text
+              <KinName kin={kin.get(resident.individual.id)} style={{ flex: 1 }}><Text
                 numberOfLines={1}
                 style={{ flex: 1, fontFamily: BrandFonts.serif.regular, fontSize: 16.5, color: C.ink }}
               >
                 {resident.individual.full_name}
-              </Text>
+              </Text></KinName>
               <KinLine kin={kin.get(resident.individual.id)} />
             </Pressable>
           ))}

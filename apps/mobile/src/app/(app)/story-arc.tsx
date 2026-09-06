@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { BrandFonts, Letterpress, mono } from '@/constants/theme';
 import { useKinMap } from '@/hooks/use-kin-map';
 import type { Kin } from '@/lib/relationship-cache';
@@ -49,6 +49,7 @@ function GenerationBlock({ g, index, kin }: { g: ArcGeneration; index: number; k
         disabled={g.living}
         onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: g.personId } })}
       >
+        <KinName kin={kin.get(g.personId)} size={14}>
         <Text
           style={{
             fontFamily: BrandFonts.serif.semiBold,
@@ -60,6 +61,7 @@ function GenerationBlock({ g, index, kin }: { g: ArcGeneration; index: number; k
           <Text style={mono(12.5, L.deepAmber)}>{ROMAN[index] ?? String(index + 1)}{'  '}</Text>
           {g.name}
         </Text>
+        </KinName>
       </Pressable>
       <KinLine kin={kin.get(g.personId)} />
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 14, marginTop: 3 }}>

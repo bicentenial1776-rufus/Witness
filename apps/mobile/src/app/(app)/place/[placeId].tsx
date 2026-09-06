@@ -12,7 +12,7 @@ import {
 } from '@witness/core/query';
 
 import { Card } from '@/components/card';
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { usePeopleList } from '@/components/people-list';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
 import { SanbornBlock } from '@/components/sanborn-block';
@@ -117,7 +117,7 @@ export default function PlaceScreen() {
                 }
                 style={{ marginBottom: 8 }}
               >
-                <ThemedText>{item.individual.full_name}</ThemedText>
+                <KinName kin={list.kin.get(item.individual.id)}><ThemedText>{item.individual.full_name}</ThemedText></KinName>
                 <KinLine kin={list.kin.get(item.individual.id)} />
                 <ThemedText type="small">
                   {item.events

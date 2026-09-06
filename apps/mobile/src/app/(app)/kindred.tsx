@@ -6,7 +6,7 @@ import { kindredCouples, type KindredCouple } from '@witness/core/family';
 import type { GraphPerson } from '@witness/core/family';
 
 import { Card } from '@/components/card';
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useKinMap } from '@/hooks/use-kin-map';
@@ -29,14 +29,14 @@ function DescentColumn({ path, kin }: { path: GraphPerson[]; kin: Map<string, Ki
       {path.slice(1).map((person) => (
         <View key={person.id} style={{ alignItems: 'center' }}>
           <ThemedText type="small">↓</ThemedText>
-          <ThemedText
+          <KinName kin={kin.get(person.id)}><ThemedText
             type="small"
             themeColor="accent"
             style={{ textAlign: 'center' }}
             onPress={() => visit(person.id)}
           >
             {person.name}
-          </ThemedText>
+          </ThemedText></KinName>
           <KinLine kin={kin.get(person.id)} />
           <ThemedText type="small">{years(person)}</ThemedText>
         </View>
@@ -53,9 +53,9 @@ function CoupleDiagram({ couple, kin }: { couple: KindredCouple; kin: Map<string
   return (
     <View style={{ marginTop: 12, gap: 8 }}>
       <View style={{ alignItems: 'center' }}>
-        <ThemedText type="smallBold" themeColor="accent" onPress={() => visit(couple.commonAncestor.id)}>
+        <KinName kin={kin.get(couple.commonAncestor.id)}><ThemedText type="smallBold" themeColor="accent" onPress={() => visit(couple.commonAncestor.id)}>
           {couple.commonAncestor.name}
-        </ThemedText>
+        </ThemedText></KinName>
         <KinLine kin={kin.get(couple.commonAncestor.id)} />
         <ThemedText type="small">{years(couple.commonAncestor)}</ThemedText>
         <ThemedText type="small">↙ ↘</ThemedText>

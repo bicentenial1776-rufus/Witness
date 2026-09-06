@@ -23,7 +23,7 @@ import {
 import { VISITED_MARK, fetchVisitedSet } from '@/lib/visits';
 
 import { Card } from '@/components/card';
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { usePeopleList } from '@/components/people-list';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
@@ -477,7 +477,7 @@ export default function ExploreTab() {
                   onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: person.id } })}
                   style={{ paddingVertical: 12 }}
                 >
-                  <ThemedText>{person.full_name}</ThemedText>
+                  <KinName kin={peopleList.kin.get(person.id)}><ThemedText>{person.full_name}</ThemedText></KinName>
                   <KinLine kin={peopleList.kin.get(person.id)} />
                   <ThemedText type="small">
                     {person.birth_year ?? '?'}–{person.living ? '' : (person.death_year ?? '?')}

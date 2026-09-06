@@ -12,7 +12,7 @@ import {
   type PlaceActivity,
 } from '@witness/core/query';
 
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { RecordText } from '@/components/record-text';
 import { Masthead, MarginPanel, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { PlaceDrawer } from '@/components/broadsheet/place-drawer';
@@ -397,7 +397,7 @@ export default function AncestorMapTab() {
                   resident ? (
                     <View key={label}>
                       <RecordText eyebrow muted>{label}</RecordText>
-                      <Text
+                      <KinName kin={kin.get(resident.individual.id)}><Text
                         style={{ fontFamily: BrandFonts.serif.regular, fontSize: 17, color: C.ink }}
                         onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: resident.individual.id } })}
                       >
@@ -405,7 +405,7 @@ export default function AncestorMapTab() {
                         <RecordText muted>
                           {resident.individual.birth_year ?? '?'} – {resident.individual.death_year ?? '?'}
                         </RecordText>
-                      </Text>
+                      </Text></KinName>
                       <KinLine kin={kin.get(resident.individual.id)} />
                     </View>
                   ) : null,

@@ -4,7 +4,7 @@ import { ActivityIndicator, Image, Linking, Pressable, SectionList, Text, View }
 import * as WebBrowser from 'expo-web-browser';
 
 import { showAlert, showDestructiveConfirm } from '@/lib/alert';
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { mono } from '@/constants/theme';
@@ -89,12 +89,12 @@ function CandidateCard({
       <Pressable
         onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: cand.individual_id } })}
       >
-        <Text style={{ fontSize: 16, fontWeight: '600', color: L.ink }}>
+        <KinName kin={kin.get(cand.individual_id)}><Text style={{ fontSize: 16, fontWeight: '600', color: L.ink }}>
           {cand.full_name}{' '}
           <Text style={mono(12, L.muted)}>
             {cand.birth_year ?? '?'}–{cand.death_year ?? '?'}
           </Text>
-        </Text>
+        </Text></KinName>
       </Pressable>
       <KinLine kin={kin.get(cand.individual_id)} />
       <Text style={mono(10.5, L.deepAmber)}>WHY: {cand.reasons.join(' · ').toUpperCase()}</Text>

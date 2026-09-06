@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { getRelationshipPath, type RelationshipPath } from '@witness/core/family';
 
 import { Card } from '@/components/card';
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { TIER_WORD } from '@/components/kin-reveal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -112,10 +112,10 @@ export default function RelationshipScreen() {
                       )}
                     </View>
                     <View style={{ flex: 1, paddingLeft: 10, paddingBottom: last ? 0 : 20 }}>
-                      <ThemedText style={isYou || last ? { fontWeight: 600 } : undefined}>
+                      <KinName kin={isYou ? undefined : kin.get(person.id)}><ThemedText style={isYou || last ? { fontWeight: 600 } : undefined}>
                         {person.full_name}
                         {isYou ? '  (you)' : ''}
-                      </ThemedText>
+                      </ThemedText></KinName>
                       {!isYou && <KinLine kin={kin.get(person.id)} />}
                       <ThemedText type="small">
                         {person.birth_year ?? '?'}–{person.death_year ?? ''}

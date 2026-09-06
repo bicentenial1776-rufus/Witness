@@ -14,7 +14,7 @@ import { exportFileName, orphanRecordsCsv, type OrphanCsvRow } from '@witness/co
 
 import AncestorScreen from '@/app/(app)/ancestor/[id]';
 import { Card } from '@/components/card';
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { useBroadsheet } from '@/components/broadsheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -328,10 +328,10 @@ export default function OrphanRecordsScreen() {
         }}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-          <ThemedText style={{ flex: 1 }}>
+          <KinName kin={kin.get(id)} style={{ flex: 1 }}><ThemedText style={{ flex: 1 }}>
             {person?.full_name ?? 'Unknown'}{' '}
             <ThemedText type="small">({years(person)})</ThemedText>
-          </ThemedText>
+          </ThemedText></KinName>
           {row.kind === 'island' && (
             <ThemedText type="smallBold">{row.island.memberIds.length} records</ThemedText>
           )}

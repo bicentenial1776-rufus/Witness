@@ -5,7 +5,7 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 import type { GeographyIndex } from '@witness/core/query';
 import type { HistoricalEvent, ShelfEntry } from '@witness/core/history';
 
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { RecordText } from '@/components/record-text';
 import type { Kin } from '@/lib/relationship-cache';
 import { VISITED_MARK } from '@/lib/visits';
@@ -266,7 +266,7 @@ export function ExploreBroadsheet({
               first={i === 0}
               onPress={() => router.push({ pathname: '/ancestor/[id]', params: { id: person.id } })}
             >
-              <Serif>{person.full_name}</Serif>
+              <KinName kin={kin?.get(person.id)}><Serif>{person.full_name}</Serif></KinName>
               <KinLine kin={kin?.get(person.id)} />
               <View style={{ flex: 1 }} />
               <RecordText muted>

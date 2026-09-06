@@ -5,7 +5,7 @@ import { ActivityIndicator, FlatList } from 'react-native';
 import { migrationPaths, type GeographyIndex, type MigrationPath } from '@witness/core/query';
 
 import { Card } from '@/components/card';
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { usePeopleList } from '@/components/people-list';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -70,7 +70,7 @@ export default function MigrationScreen() {
                 }
                 style={{ marginBottom: 8 }}
               >
-                <ThemedText>{item.name}</ThemedText>
+                <KinName kin={list.kin.get(item.individualId)}><ThemedText>{item.name}</ThemedText></KinName>
                 <KinLine kin={list.kin.get(item.individualId)} />
                 <ThemedText type="small">
                   {item.fromYear ? `last seen in ${from} ${item.fromYear}` : from}

@@ -18,6 +18,7 @@ import {
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { Chip, ChipDivider } from '@/components/chip';
+import { KinName } from '@/components/kin-line';
 import { KinReveal } from '@/components/kin-reveal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -452,7 +453,7 @@ export function NearMe({ onExit }: { onExit?: () => void }) {
                   }
                   style={{ marginTop: 8 }}
                 >
-                  <ThemedText>{item.individual.full_name}</ThemedText>
+                  <KinName kin={relationships.get(item.individual.id)}><ThemedText>{item.individual.full_name}</ThemedText></KinName>
                   {relationships.has(item.individual.id) && (
                     <KinReveal
                       tier={relationships.get(item.individual.id)!.tier}

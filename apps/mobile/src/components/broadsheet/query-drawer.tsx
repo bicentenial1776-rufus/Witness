@@ -5,7 +5,7 @@ import { Animated, Platform, Pressable, ScrollView, Text, View } from 'react-nat
 import { aliveDuring, type AliveDuringResult, type AliveMatch } from '@witness/core/query';
 import type { HistoricalEvent } from '@witness/core/history';
 
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { usePeopleList } from '@/components/people-list';
 import { RecordText } from '@/components/record-text';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
@@ -86,12 +86,12 @@ export function QueryDrawer({
         borderTopColor: C.ruleLight,
       }}
     >
-      <Text
+      <KinName kin={kin.get(match.individual.id)} style={{ flex: 1 }}><Text
         numberOfLines={1}
         style={{ flex: 1, fontFamily: BrandFonts.serif.regular, fontSize: 16.5, color: C.ink }}
       >
         {match.individual.full_name}
-      </Text>
+      </Text></KinName>
       <KinLine kin={kin.get(match.individual.id)} />
       <RecordText muted>
         {match.ageAtStart !== null

@@ -18,7 +18,7 @@ import {
 
 import AncestorScreen from '@/app/(app)/ancestor/[id]';
 import { Card } from '@/components/card';
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { useBroadsheet } from '@/components/broadsheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -357,9 +357,9 @@ export default function PunchListScreen() {
       const link = linkFor(xref, c.individuals?.familysearch_id ?? null);
       return (
         <Card onPress={() => openPerson(c.individual_id)} style={{ marginBottom: 6, paddingVertical: 10 }}>
-          <ThemedText type="smallBold">
+          <KinName kin={kin.get(c.individual_id)}><ThemedText type="smallBold">
             {c.individuals?.full_name ?? 'Unnamed'} · {subjectLabel(c.subject)}
-          </ThemedText>
+          </ThemedText></KinName>
           <KinLine kin={kin.get(c.individual_id)} />
           {c.current_value && <ThemedText type="small">Record says: {c.current_value}</ThemedText>}
           <ThemedText type="small">Should be: {c.corrected_value}</ThemedText>
@@ -409,7 +409,7 @@ export default function PunchListScreen() {
     const link = linkFor(person?.gedcom_xref);
     return (
       <Card onPress={() => openPerson(id)} style={{ marginBottom: 6, paddingVertical: 10 }}>
-        <ThemedText type="smallBold">{person?.full_name ?? 'Unnamed'}</ThemedText>
+        <KinName kin={kin.get(id)}><ThemedText type="smallBold">{person?.full_name ?? 'Unnamed'}</ThemedText></KinName>
         <KinLine kin={kin.get(id)} />
         <ThemedText type="small">
           {row.kind === 'island'

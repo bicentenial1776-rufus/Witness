@@ -17,6 +17,7 @@ import {
 
 import { Masthead, MarginPanel, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { Card } from '@/components/card';
+import { KinName } from '@/components/kin-line';
 import { KinReveal } from '@/components/kin-reveal';
 import { RecordText } from '@/components/record-text';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
@@ -602,9 +603,9 @@ export default function ProximityTab() {
                       gap: 12,
                     }}
                   >
-                    <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 18, color: BC.ink }}>
+                    <KinName kin={relationships.get(resident.individual.id)}><Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 18, color: BC.ink }}>
                       {resident.individual.full_name}
-                    </Text>
+                    </Text></KinName>
                     {relationships.has(resident.individual.id) && (
                       <KinReveal
                         tier={relationships.get(resident.individual.id)!.tier}
@@ -746,7 +747,7 @@ export default function ProximityTab() {
                       router.push({ pathname: '/ancestor/[id]', params: { id: item.individual.id } })
                     }
                   >
-                    <ThemedText>{item.individual.full_name}</ThemedText>
+                    <KinName kin={relationships.get(item.individual.id)}><ThemedText>{item.individual.full_name}</ThemedText></KinName>
                     {relationships.has(item.individual.id) && (
                       <KinReveal
                         tier={relationships.get(item.individual.id)!.tier}

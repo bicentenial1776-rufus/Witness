@@ -10,7 +10,7 @@ import {
 } from '@witness/core/query';
 
 import { useBroadsheet } from '@/components/broadsheet';
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -147,9 +147,9 @@ export default function RegisterScreen() {
       }}
     >
       <Text style={mono(13.5, L.deepAmber)}>{entry.year}</Text>
-      <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15, color: L.ink, flexShrink: 1 }} numberOfLines={1}>
+      <KinName kin={kin.get(entry.headId)}><Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15, color: L.ink, flexShrink: 1 }} numberOfLines={1}>
         {entry.headName} <Text style={{ fontFamily: BrandFonts.serif.italic }}>m.</Text> {entry.spouseLine}
-      </Text>
+      </Text></KinName>
       <KinLine kin={kin.get(entry.headId)} />
       <Text style={mono(12.5, L.muted)} numberOfLines={1}>
         {entry.childCount} {entry.childCount === 1 ? 'child' : 'children'}
@@ -202,9 +202,9 @@ export default function RegisterScreen() {
                           <Pressable key={key} onPress={() => openStage(key)} style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
                             <Text style={mono(13, L.deepAmber)}>{i + 1}.</Text>
                             <Text style={mono(13, L.deepAmber)}>{entry.year}</Text>
-                            <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 14, color: L.ink }}>
+                            <KinName kin={kin.get(entry.headId)}><Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 14, color: L.ink }}>
                               {entry.headName} m. {entry.spouseLine} ›
-                            </Text>
+                            </Text></KinName>
                             <KinLine kin={kin.get(entry.headId)} />
                           </Pressable>
                         ) : (

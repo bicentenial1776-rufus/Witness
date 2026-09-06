@@ -5,7 +5,7 @@ import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
 import type { LibraryCatalogEntry, LibraryMatch } from '@witness/core/query';
 
 import { ThemedText } from '@/components/themed-text';
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { usePeopleList } from '@/components/people-list';
 import { ThemedView } from '@/components/themed-view';
 import { getPinnedIds, runLibraryQuery, setPinned } from '@/lib/library-cache';
@@ -104,7 +104,7 @@ export default function LibraryResultsScreen() {
                 borderBottomColor: theme.border,
               }}
             >
-              <ThemedText>{item.individual.full_name}</ThemedText>
+              <KinName kin={list.kin.get(item.individual.id)}><ThemedText>{item.individual.full_name}</ThemedText></KinName>
               <KinLine kin={list.kin.get(item.individual.id)} />
               <ThemedText type="small">
                 {item.individual.birth_year ?? '?'}–

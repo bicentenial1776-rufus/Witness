@@ -5,7 +5,7 @@ import { ActivityIndicator, FlatList, View } from 'react-native';
 import { voyageExplainer } from '@witness/core/history';
 
 import { Card } from '@/components/card';
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { usePeopleList } from '@/components/people-list';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -159,10 +159,10 @@ export default function VoyageScreen() {
                   router.push({ pathname: '/ancestor/[id]', params: { id: item.individualId, tab: 'sources' } })
                 }
               >
-                <ThemedText type="smallBold">
+                <KinName kin={list.kin.get(item.individualId)}><ThemedText type="smallBold">
                   {item.status === 'confirmed' ? '⛵ ' : ''}
                   {item.fullName}
-                </ThemedText>
+                </ThemedText></KinName>
                 <KinLine kin={list.kin.get(item.individualId)} />
                 <ThemedText type="small">
                   {`${item.birthYear ?? '?'}–${item.deathYear ?? '?'}`}

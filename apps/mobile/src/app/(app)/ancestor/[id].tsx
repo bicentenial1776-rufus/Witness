@@ -35,7 +35,7 @@ import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { MarginCorrections } from '@/components/margin-corrections';
 import { TextField } from '@/components/text-field';
-import { KinLine } from '@/components/kin-line';
+import { KinLine, KinName } from '@/components/kin-line';
 import { KinReveal } from '@/components/kin-reveal';
 import { capturesForPerson, photoUrl, type GraveCapture } from '@/lib/grave-captures';
 import { LineageMark } from '@/components/lineage-mark';
@@ -1356,7 +1356,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           paddingVertical: 4,
         }}
       >
-        <Text
+        <KinName kin={isSelf ? undefined : kinMap.get(record.id)}><Text
           style={{
             fontFamily: Fonts.serif,
             fontSize: 16,
@@ -1367,7 +1367,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
         >
           {record.full_name}
           {isSelf ? '' : ' ›'}
-        </Text>
+        </Text></KinName>
         <Text
           style={{
             fontFamily: Fonts.mono,
@@ -2325,7 +2325,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                             }}
                           >
                             <View style={{ flexShrink: 1 }}>
-                              <Text
+                              <KinName kin={neighborKin.get(neighbor.individual.id)}><Text
                                 style={{
                                   fontFamily: Fonts.serif,
                                   fontSize: 15.5,
@@ -2333,7 +2333,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                                 }}
                               >
                                 {neighbor.individual.full_name} ›
-                              </Text>
+                              </Text></KinName>
                               <Text
                                 style={{
                                   fontFamily: Fonts.mono,
