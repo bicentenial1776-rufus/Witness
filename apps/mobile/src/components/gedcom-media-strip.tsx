@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Image, ScrollView, Text, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/hooks/use-theme';
@@ -27,6 +27,10 @@ const MAX_ITEMS = 24;
  * portrait first, then the rest. Only files whose bytes have actually
  * been uploaded show; a pending row is a promise, not a picture.
  *
+ * Tapping a thumbnail opens the full image: uploads are the originals
+ * (Family Tree Maker portraits run 500 KB to 8 MB), so there is real
+ * resolution behind the 116-point square. Pinch to zoom on native.
+ *
  * `enabled` is false on the saved field copy: the strip needs the server
  * for both the rows and the signed URLs (SPEC_offline-field-mode.md).
  */
@@ -41,6 +45,7 @@ export function GedcomMediaStrip({
 }) {
   const theme = useTheme();
   const [items, setItems] = useState<MediaItem[]>([]);
+  const [open, setOpen] = useState<MediaItem | null>(null);
 
   useEffect(() => {
     if (!enabled) {
@@ -95,17 +100,102 @@ export function GedcomMediaStrip({
       >
         PHOTOS FROM YOUR TREE FILE
       </Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingTop: 8 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 10, paddingTop: 8 }}
+      >
         {items.map((item) => (
-          <Image
+          <Pressable
             key={item.id}
-            source={{ uri: item.url }}
+            onPress={() => setOpen(item)}
+            accessibilityRole="imagebutton"
             accessibilityLabel={item.title ?? 'Photo from your tree file'}
-            style={{ width: 116, height: 116, borderWidth: 1, borderColor: theme.border }}
-            resizeMode="cover"
-          />
+            accessibilityHint="Opens the full-size photo"
+          >
+            <Image
+              source={{ uri: item.url }}
+              style={{ width: 116, height: 116, borderWidth: 1, borderColor: theme.border }}
+              resizeMode="cover"
+            />
+          </Pressable>
         ))}
       </ScrollView>
+      <PhotoViewer item={open} onClose={() => setOpen(null)} />
     </View>
+  );
+}
+
+/**
+ * Full-screen viewer. Dark ground regardless of theme — a photograph is
+ * looked at against black — with the GEDCOM's title as the only caption.
+ * Tap the scrim or the close control to leave; the ScrollView gives
+ * pinch-to-zoom on iOS and Android for free (no-op on web).
+ */
+function PhotoViewer({ item, onClose }: { item: MediaItem | null; onClose: () => void }) {
+  const { width, height } = useWindowDimensions();
+  return (
+    <Modal visible={item !== null} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: '#000000' }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ width, height, justifyContent: 'center' }}
+          minimumZoomScale={1}
+          maximumZoomScale={4}
+          centerContent
+          bouncesZoom
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+        >
+          <Pressable onPress={onClose} style={{ width, height, justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel="Close photo">
+            {item && (
+              <Image
+                source={{ uri: item.url }}
+                style={{ width, height: height * 0.82 }}
+                resizeMode="contain"
+                accessibilityLabel={item.title ?? 'Photo from your tree file'}
+              />
+            )}
+          </Pressable>
+        </ScrollView>
+        {item?.title ? (
+          <Text
+            style={{
+              position: 'absolute',
+              left: 20,
+              right: 20,
+              bottom: 40,
+              fontFamily: BrandFonts.mono.regular,
+              fontSize: 12,
+              letterSpacing: 0.5,
+              color: '#E9E2D6',
+              textAlign: 'center',
+            }}
+            numberOfLines={2}
+          >
+            {item.title.toUpperCase()}
+          </Text>
+        ) : null}
+        <Pressable
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close photo"
+          hitSlop={12}
+          style={{
+            position: 'absolute',
+            top: 56,
+            right: 20,
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: 'rgba(255, 255, 255, 0.14)',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: '#FFFFFF', fontSize: 20, lineHeight: 22 }}>×</Text>
+        </Pressable>
+      </View>
+    </Modal>
   );
 }
