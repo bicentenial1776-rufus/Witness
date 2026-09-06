@@ -223,7 +223,7 @@ The right metaphor is a **timeshare in time** — a stake in something that exis
 - First-person spatial navigation through the family tree, in a full 3D environment (not isometric or fly-over) — chosen for immersion and emotional resonance, drawing on theatrical staging and Disney-park design language
 - Each family unit rendered as a navigable house interior — period-accurate architecture, candlelit
 - Figures sized proportionally to age at current date (time slider)
-- Silhouette figures with period clothing; photos populate faces where available
+- Silhouette figures with period clothing; photos populate faces where available — **and as of 2026-09-05 the photos exist**: the media pipeline (see *Family Photographs from the Tree File*) puts the family's own portraits, group photographs, house and headstone pictures, and record images in a private per-tree bucket, linked to the person, fact, or citation they belong to. These are the walkable world's assets-in-waiting: a portrait on the face of the figure at the door, the family group photo on the parlour wall, the house photograph as the house, the census page on the desk. Nothing needs re-collecting; the world only has to ask the tree for what it already holds.
 - Back door exits to two houses side by side — the parents' families of origin
 - Time slider animates the family: children grow, parents age, deaths cause figures to fade
 - Tap any figure for detail card with biography and historical context
@@ -362,6 +362,8 @@ The GEDCOM has always named the family's photographs; Witness now takes them. Ev
 **The rule that keeps this honest:** a standard GEDCOM shows nothing new. Ancestry's export names 1,832 photos with empty file lines; the rows land as *pending* and the strip stays hidden until bytes exist. Nothing changes on any screen for a user whose file carries no media. Only a file exported **with** its media folder — Family Tree Maker's "Include media files" — can light the strip.
 
 **How the bytes arrive today:** a desktop overlay (`npm run overlay:ftm`), run on the owner's Mac against the FTM export and its Media folder. It attaches the photos to the tree already in Witness rather than re-importing — a re-import would orphan verdicts, notes, stones, and family seats — by matching people on name and years in strict-to-loose tiers that refuse ambiguity rather than guess. First run on the Howe/Field tree: 5,189 of 5,611 people matched, 848 people with attachments, 552 portraits, ~1,500 gallery photos. Design brief: `docs/gedcom-media-design-brief.md`.
+
+**Where else they go:** these are also Family Street View's assets — faces on figures, group photographs on parlour walls, the house photo as the house (see the FSV concept section).
 
 **Not yet:** the ~16,000 record images filed under citations (census pages beside their source on the Sources tab — needs event/citation matching), the 190 Find a Grave and book clippings as readable notes rather than files, resizing, and any way for a user who is not at a Mac terminal to bring photos in. That last gap is the V2 item below.
 
