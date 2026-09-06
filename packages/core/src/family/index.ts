@@ -7,3 +7,4 @@ export * from './queries.js';
 export * from './kindred.js';
 export * from './relatives.js';
 export * from './treeHealth.js';
+export * from './kinds.js';

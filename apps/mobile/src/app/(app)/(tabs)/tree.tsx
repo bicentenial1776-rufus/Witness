@@ -126,6 +126,23 @@ export default function TreeTab() {
   // findings re-voiced (curiosities-cache.ts says so outright), and two
   // surfaces for one audit read as clutter. The workbench under Tree
   // health is the audit's home; the Portrait keeps its per-person prompts.
+  // Two doors for the reader who is "too deep" (2026-09-06): the line one
+  // generation at a time, and everyone by kind — both seen from anyone.
+  const peopleSection = (
+    <Section eyebrow="Your people">
+      <Row
+        title="One generation at a time"
+        detail="Parents, then grandparents, then the greats — each a page you can finish"
+        onPress={() => router.push('/generations' as never)}
+      />
+      <Row
+        title="Relatives by kind"
+        detail="First cousins, great-aunts, in-laws — every kind with a count, seen from you or anyone"
+        onPress={() => router.push('/relatives' as never)}
+      />
+    </Section>
+  );
+
   const familyStageDoor = (
     <Section eyebrow="Family register">
           <Pressable
@@ -226,6 +243,7 @@ export default function TreeTab() {
         <View style={{ marginTop: 36 }}>
           <FamilyStage treeId={activeTree.id} />
         </View>
+        <View style={{ maxWidth: 680 }}>{peopleSection}</View>
         {owned && <View style={{ maxWidth: 680 }}>{treeHealthSection}</View>}
         {owned && <View style={{ maxWidth: 680 }}>{archivesSection}</View>}
         {owned && <View style={{ maxWidth: 680 }}>{briefsSection}</View>}
@@ -244,6 +262,7 @@ export default function TreeTab() {
         >
           {activeTree.name}
         </Text>
+        {peopleSection}
         {familyStageDoor}
         {owned && treeHealthSection}
         {owned && archivesSection}

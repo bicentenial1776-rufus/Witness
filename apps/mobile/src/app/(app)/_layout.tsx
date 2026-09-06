@@ -137,6 +137,9 @@ export default function AppLayout() {
       <Stack.Screen name="you" options={{ title: 'You' }} />
       <Stack.Screen name="recovery-code" options={{ title: 'Recovery Code' }} />
       <Stack.Screen name="register" options={{ title: 'The Register' }} />
+      <Stack.Screen name="generations" options={{ title: 'One Generation at a Time' }} />
+      <Stack.Screen name="relatives/index" options={{ title: 'Relatives by Kind' }} />
+      <Stack.Screen name="relatives/[kind]" options={{ title: '' }} />
       <Stack.Screen
         name="tree-health"
         options={{
