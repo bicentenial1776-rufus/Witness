@@ -134,7 +134,6 @@ export default function AliveDuringScreen() {
 
       {result && (
         <>
-          {list.bar}
           <ThemedText type="subtitle" style={{ marginTop: 8 }}>
             {shown.length.toLocaleString()}{' '}
             {list.active ? 'people shown by this filter were alive' : 'people in your tree were alive'}
@@ -157,10 +156,13 @@ export default function AliveDuringScreen() {
             detail={event.summary}
             years={`${years} · ${event.region}`}
           />
+          {/* The bar sits right above the rows it changes, so a narrowed or
+              reordered list is visible without scrolling. */}
+          {list.bar}
           <FlatList
             data={shown}
             keyExtractor={(match) => match.individual.id}
-            style={{ marginTop: 12 }}
+            style={{ marginTop: 4 }}
             renderItem={({ item }) => (
               <Card
                 onPress={() =>
