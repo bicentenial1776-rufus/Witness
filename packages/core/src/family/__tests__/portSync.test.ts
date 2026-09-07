@@ -52,6 +52,17 @@ const PAIRS: Array<{ core: string; port: string; rewrites: Array<[string, string
       ["'./types.ts'", "'./types.js'"],
     ],
   },
+  { core: 'packages/core/src/registers/deeplink.ts', port: 'supabase/functions/_shared/records/deeplink.ts', rewrites: [] },
+  {
+    core: 'packages/core/src/registers/exposureCandidates.ts',
+    port: 'supabase/functions/_shared/records/exposureCandidates.ts',
+    rewrites: [
+      ["'./deeplink.ts'", "'./deeplink.js'"],
+      ["'./exposure.ts'", "'./exposure.js'"],
+      ["'./passengers.ts'", "'../history/passengers.js'"],
+      ["'./types.ts'", "'./types.js'"],
+    ],
+  },
   {
     core: 'packages/core/src/registers/normalizers/acadianNames.ts',
     port: 'supabase/functions/_shared/records/acadianNames.ts',

@@ -24,6 +24,7 @@ import { requireCronSecret } from '../_shared/cron.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
   matchPassengers,
+  exposureCandidates,
   matchRegisterRecords,
   scoreExposure,
   type MatchableIndividual,
@@ -209,8 +210,44 @@ async function matchTree(client: Client, treeId: string, userId: string): Promis
   if (regError) throw new Error(`registers: ${regError.message}`);
 
   for (const register of registers ?? []) {
-    if (register.variant !== 'A') continue;
     const config = (register.config ?? {}) as RegisterConfig;
+    // Variant B: exposure is the candidate — one row per exposed person
+    // with no link of any status yet, no finding (a plausibility is not a
+    // record). Mirrors the CLI in packages/core/scripts/match-registers.ts.
+    if (register.variant === 'B') {
+      const exposed = exposureCandidates(config, people);
+      if (exposed.length === 0) continue;
+      const { data: held, error: heldError } = await client
+        .from('person_register_links')
+        .select('individual_id')
+        .eq('tree_id', treeId)
+        .eq('register_key', register.register_key);
+      if (heldError) throw new Error(`held links: ${heldError.message}`);
+      const heldIds = new Set((held ?? []).map((r: { individual_id: string }) => r.individual_id));
+      const rows = exposed
+        .filter((c) => !heldIds.has(c.person.id))
+        .map((c) => ({
+          tree_id: treeId,
+          user_id: userId,
+          individual_id: c.person.id,
+          register_key: register.register_key,
+          record_id: null,
+          status: 'candidate',
+          match_score: c.score,
+          match_reasons: c.reasons,
+          record_name: null,
+          record_summary: 'No record attached yet — search the index, and add his regiment when you find him.',
+          source_citation: null,
+          finding_aid_url: c.deepLink,
+        }));
+      for (let i = 0; i < rows.length; i += 500) {
+        const { error } = await client.from('person_register_links').insert(rows.slice(i, i + 500));
+        if (error) throw new Error(`exposure link insert: ${error.message}`);
+      }
+      registerLinks += rows.length;
+      continue;
+    }
+    if (register.variant !== 'A') continue;
     const exposed = config.exposure
       ? people.filter((p) => scoreExposure(p, config.exposure!).exposed)
       : people;

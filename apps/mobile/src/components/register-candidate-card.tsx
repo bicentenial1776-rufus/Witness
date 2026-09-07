@@ -65,7 +65,7 @@ export function RegisterCandidateCard({
           {register.coverageCaveat}
         </ThemedText>
       )}
-      {link.findingAidUrl && (
+      {link.findingAidUrl && !(link.recordId === null && register.variant === 'B') && (
         <ThemedText
           type="link"
           accessibilityRole="button"
@@ -81,6 +81,57 @@ export function RegisterCandidateCard({
             ? `Confirmed — ${register.provenanceLabel.toLowerCase()}`
             : 'From your own tree’s record'}
         </ThemedText>
+      ) : link.recordId === null && register.variant === 'B' ? (
+        // Variant B: exposure is the candidate — there is no record to say
+        // "this is them" to. The verdicts are search the outside index, or
+        // rule him out; the regiment picker (the confirm) arrives with it.
+        <View style={{ gap: 8, marginTop: 6 }}>
+          <ThemedText type="small">{link.recordSummary}</ThemedText>
+          {readOnly ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              Awaiting the tree owner’s verdict
+            </ThemedText>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              {link.findingAidUrl && (
+                <Pressable
+                  onPress={() => openExternal(link.findingAidUrl!)}
+                  accessibilityRole="button"
+                  style={{
+                    backgroundColor: theme.accent,
+                    borderWidth: 1,
+                    borderColor: theme.accent,
+                    borderRadius: 16,
+                    paddingHorizontal: 14,
+                    paddingVertical: 7,
+                  }}
+                >
+                  <ThemedText type="small" style={{ color: theme.onAccent, fontWeight: 600 }}>
+                    Search the index ›
+                  </ThemedText>
+                </Pressable>
+              )}
+              <Pressable
+                disabled={busy}
+                onPress={() => resolve('rejected')}
+                accessibilityRole="button"
+                style={{
+                  backgroundColor: theme.backgroundElement,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  borderRadius: 16,
+                  paddingHorizontal: 14,
+                  paddingVertical: 7,
+                  opacity: busy ? 0.5 : 1,
+                }}
+              >
+                <ThemedText type="small" style={{ fontWeight: 600 }}>
+                  Not a soldier
+                </ThemedText>
+              </Pressable>
+            </View>
+          )}
+        </View>
       ) : readOnly ? (
         <ThemedText type="small" themeColor="textSecondary">
           Awaiting the tree owner’s verdict

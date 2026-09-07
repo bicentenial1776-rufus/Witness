@@ -22,6 +22,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  exposureCandidates,
   fetchActiveRegisters,
   fetchRegisterRecords,
   makeAcadianPlugin,
@@ -152,6 +153,51 @@ async function main() {
       : people;
 
     let candidates: RegisterMatchCandidate[] = [];
+    // Variant B: exposure is the candidate (no roll to match). One row per
+    // exposed person with no link of any status yet; no findings — a
+    // plausibility, not a record, does not belong on the ledger.
+    if (register.variant === 'B') {
+      const exposed = exposureCandidates(register.config, people);
+      const { data: held } = await client
+        .from('person_register_links')
+        .select('individual_id')
+        .eq('tree_id', treeId!)
+        .eq('register_key', register.registerKey);
+      const heldIds = new Set((held ?? []).map((r) => r.individual_id as string));
+      const fresh = exposed.filter((c) => !heldIds.has(c.person.id));
+      console.log(
+        `── ${register.displayName} (${register.registerKey}, Variant B)\n` +
+          `   exposed: ${exposed.length} of ${people.length} · already held: ${exposed.length - fresh.length} · new: ${fresh.length}\n`,
+      );
+      if (!report) {
+        for (const c of fresh.slice(0, 40)) console.log(`   [${String(c.score).padStart(2)}] ${c.person.fullName} · ${c.reasons.join(' · ')}`);
+      }
+      if (write && fresh.length > 0 && userId) {
+        const rows = fresh.map((c) => ({
+          tree_id: treeId!,
+          user_id: userId,
+          individual_id: c.person.id,
+          register_key: register.registerKey,
+          record_id: null,
+          status: 'candidate',
+          match_score: c.score,
+          match_reasons: c.reasons as never,
+          record_name: null,
+          record_summary: 'No record attached yet — search the index, and add his regiment when you find him.',
+          source_citation: null,
+          finding_aid_url: c.deepLink,
+        }));
+        for (let i = 0; i < rows.length; i += 500) {
+          const { error } = await client.from('person_register_links').insert(rows.slice(i, i + 500));
+          if (error) {
+            console.error('Writing exposure links failed:', error.message);
+            process.exit(1);
+          }
+        }
+        console.log(`   wrote ${rows.length} exposure candidate(s).`);
+      }
+      continue;
+    }
     if (register.variant === 'A') {
       const records = await fetchRegisterRecords(client as never, register.registerKey);
       candidates = matchRegisterRecords(

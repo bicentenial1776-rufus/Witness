@@ -3,3 +3,5 @@ export * from './types.ts';
 export * from './exposure.ts';
 export * from './match.ts';
 export * from './passengers.ts';
+export * from './deeplink.ts';
+export * from './exposureCandidates.ts';

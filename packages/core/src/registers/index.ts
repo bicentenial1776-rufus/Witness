@@ -6,3 +6,4 @@ export * from './narrative.js';
 export * from './map.js';
 export * from './registry.js';
 export * from './normalizers/index.js';
+export * from './exposureCandidates.js';
