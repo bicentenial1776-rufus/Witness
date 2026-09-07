@@ -144,7 +144,10 @@ Deno.serve(async (req) => {
   // signed in for weeks (2026-09-07). A tree is active when its owner or
   // any family member signed in within ACTIVE_DAYS; a dormant reader who
   // returns still gets today's arc on demand through the same function.
-  const ACTIVE_DAYS = 14;
+  // Two days, not fourteen (Rufus, same evening): at $19.99 a year a
+  // subscriber who opens the app twice a month should cost two arcs, not
+  // thirty, while a daily reader still finds tomorrow's story waiting.
+  const ACTIVE_DAYS = 2;
   const activeSince = Date.now() - ACTIVE_DAYS * 86_400_000;
   const activeUsers = new Set<string>();
   for (let page = 1; ; page++) {
