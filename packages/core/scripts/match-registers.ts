@@ -195,7 +195,7 @@ async function main() {
           if (!prior || prior.status !== 'candidate') continue;
           await client
             .from('person_register_links')
-            .update({ match_score: c.score, match_reasons: c.reasons as never, finding_aid_url: c.deepLink })
+            .update({ match_score: c.score, match_reasons: c.reasons as never, finding_aid_url: c.deepLink, record_summary: 'Of the generation that fought; whether he served is for the index to say. Search it, and add his regiment if you find him.' })
             .eq('id', prior.id as string);
         }
       }
@@ -217,7 +217,7 @@ async function main() {
           match_score: c.score,
           match_reasons: c.reasons as never,
           record_name: null,
-          record_summary: 'No record attached yet — search the index, and add his regiment when you find him.',
+          record_summary: 'Of the generation that fought; whether he served is for the index to say. Search it, and add his regiment if you find him.',
           source_citation: null,
           finding_aid_url: c.deepLink,
         }));

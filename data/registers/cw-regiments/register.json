@@ -18,7 +18,13 @@
       ],
       "coincidenceBonus": 1,
       "citationSignals": [
-        { "pattern": "civil war", "weight": 4, "reason": "your own tree cites a Civil War record" }
+        { "pattern": "draft registration", "weight": 2, "reason": "your own tree cites his Civil War draft enrollment — he was of age and on the roll; the roll does not say he served" },
+        { "pattern": "civil war pension", "weight": 4, "reason": "your own tree cites a Civil War pension record — service, or a widow's claim on it" },
+        { "pattern": "civil war soldier", "weight": 4, "reason": "your own tree cites a Civil War soldier record" },
+        { "pattern": "civil war service", "weight": 4, "reason": "your own tree cites a Civil War service record" },
+        { "pattern": "civil war muster", "weight": 4, "reason": "your own tree cites a Civil War muster roll" },
+        { "pattern": "american civil war soldiers", "weight": 4, "reason": "your own tree cites a Civil War soldier record" },
+        { "pattern": "veterans schedules", "weight": 3, "reason": "your own tree cites the 1890 veterans schedule — a census of surviving Union veterans" }
       ],
       "threshold": 4
     },
