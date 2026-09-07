@@ -292,3 +292,78 @@ Guardrails today, for the record: nothing leaves the device except the
 tree-scoped keyword RPC; saved questions never sync; there is no model
 call. Any rung above keeps the notebook semantics — a question that can't
 be answered yet is kept, not lost.
+
+---
+
+## Tree Pulse (GEDCOM Refresh) on iPhone/iPad
+
+**Added:** September 2026, from Betsey's 2026-09-07 beta call
+(`docs/beta-feedback-betsey-2026-09-07.md`).
+
+Her single biggest complaint was sync friction: FamilySearch has no export
+of its own, so every tree change means FamilySearch → RootsMagic (sync) →
+GEDCOM export → re-import into Witness, by hand, from scratch, every time.
+This is already a known rough edge — `docs/competitive-treelab.md:195-199`
+calls "each upload creates a new tree" *"our roughest shipped edge"* — and
+Tree Pulse / GEDCOM Refresh (diff a re-upload against the saved tree,
+report what changed, replace instead of duplicate) is already built and
+shipped in the browser (`packages/core/src/pulse/refresh.ts`). The preview
+site copy already promises it "on iPhone and iPad in the next release."
+
+Betsey only uses the iPad. For her, and for anyone else who came in through
+FamilySearch/RootsMagic rather than the browser, this is a "ship the
+existing fix to the surface people actually use" item, not new design work.
+Worth confirming where it sits in the mobile build queue given a real user
+just independently named it as her top frustration.
+
+---
+
+## Simplify the FamilySearch "partner software" copy
+
+**Added:** September 2026, from Betsey's 2026-09-07 beta call.
+
+The import guide's FamilySearch blurb (`apps/mobile/src/constants/gedcom-
+guide.ts:54-63`) opens with "No export of its own — use free partner
+software" and explains that FamilySearch's API "is open to certified
+partner programs." Betsey, a non-technical user, hit this screen and said
+plainly: "I didn't know what that meant." The explanation is accurate but
+front-loads API/partner-program vocabulary before saying what to actually
+do.
+
+Idea: rewrite the headline as an instruction, not a mechanism — something
+like "FamilySearch won't let any app pull your tree directly. We'll walk
+you through the free 5-minute workaround (RootsMagic)" — and push
+"certified partner program" language down into supporting detail for
+readers who want the why. Cheap copy change; the audience (comfortable-
+with-technology-but-not-technical family testers) is exactly who this
+screen needs to work for.
+
+---
+
+## Explain FamilySearch re-authentication when it happens
+
+**Added:** September 2026, from Betsey's 2026-09-07 beta call.
+
+Mid-demo she was unexpectedly asked to sign in again ("with Google or some
+other kind of thing") to reach FamilySearch records, and hadn't seen that
+before — almost certainly an expired session token, not a bug. Her
+reaction ("if that came up, I would have absolutely no idea what to do —
+I'll be calling 911, no joke") is a useful data point on how little runway
+a confused-but-willing user gives an unexplained auth wall. Idea: when a
+FamilySearch session has expired, show a short in-context line before
+handing off to the sign-in screen — "Your FamilySearch link expired; sign
+in again to keep syncing" — rather than surfacing a bare login prompt.
+
+---
+
+## Confirm onboarding fires per-install, not just per-account
+
+**Added:** September 2026, from Betsey's 2026-09-07 beta call.
+
+She saw the welcome/tutorial flow for the first time this call, on her
+phone — and said she'd never seen it on her iPad, which she's used for
+weeks. Likely just means she got a fresh install on the phone and
+onboarding is (correctly) per-install; worth a quick check that it isn't
+silently being skipped on one platform for an account that's already
+"seen" it elsewhere, which would quietly rob every iPad-first tester of
+the welcome flow.
