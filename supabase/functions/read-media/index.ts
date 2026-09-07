@@ -67,27 +67,38 @@ type Client = ReturnType<typeof createClient>;
 
 async function pending(admin: Client, treeId: string | null, limit: number): Promise<MediaRow[]> {
   // Complete image uploads without a reading. PostgREST can't express
-  // "no row in the other table" directly, so read a page of candidates
-  // and subtract the ones already read.
-  let q = admin
-    .from('media')
-    .select('id, tree_id, user_id, format, storage_path, byte_size, content_hash, title')
-    .eq('upload_status', 'complete')
-    .in('format', [...IMAGE_FORMATS])
-    .order('id')
-    .limit(limit * 6);
-  if (treeId) q = q.eq('tree_id', treeId);
-  const { data, error } = await q;
-  if (error) throw new Error(`media: ${error.message}`);
-  const rows = (data ?? []) as MediaRow[];
-  if (rows.length === 0) return [];
-  const { data: done, error: doneError } = await admin
-    .from('media_readings')
-    .select('media_id')
-    .in('media_id', rows.map((r) => r.id));
-  if (doneError) throw new Error(`readings: ${doneError.message}`);
-  const read = new Set((done ?? []).map((r: { media_id: string }) => r.media_id));
-  return rows.filter((r) => !read.has(r.id)).slice(0, limit);
+  // "no row in the other table" directly, so page through the candidates
+  // in id order, subtracting the ones already read, until the batch is
+  // full or the media runs out — the first page alone is exhausted after
+  // a few runs and would stop the queue with thousands unread.
+  const PAGE = 200;
+  const out: MediaRow[] = [];
+  for (let from = 0; out.length < limit; from += PAGE) {
+    let q = admin
+      .from('media')
+      .select('id, tree_id, user_id, format, storage_path, byte_size, content_hash, title')
+      .eq('upload_status', 'complete')
+      .in('format', [...IMAGE_FORMATS])
+      .order('id')
+      .range(from, from + PAGE - 1);
+    if (treeId) q = q.eq('tree_id', treeId);
+    const { data, error } = await q;
+    if (error) throw new Error(`media: ${error.message}`);
+    const rows = (data ?? []) as MediaRow[];
+    if (rows.length === 0) break;
+    const { data: done, error: doneError } = await admin
+      .from('media_readings')
+      .select('media_id')
+      .in('media_id', rows.map((r) => r.id));
+    if (doneError) throw new Error(`readings: ${doneError.message}`);
+    const read = new Set((done ?? []).map((r: { media_id: string }) => r.media_id));
+    for (const r of rows) {
+      if (!read.has(r.id)) out.push(r);
+      if (out.length >= limit) break;
+    }
+    if (rows.length < PAGE) break;
+  }
+  return out;
 }
 
 async function readOne(admin: Client, anthropic: Anthropic, row: MediaRow): Promise<'read' | 'failed'> {
