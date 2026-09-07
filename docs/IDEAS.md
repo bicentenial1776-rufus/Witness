@@ -367,3 +367,50 @@ onboarding is (correctly) per-install; worth a quick check that it isn't
 silently being skipped on one platform for an account that's already
 "seen" it elsewhere, which would quietly rob every iPad-first tester of
 the welcome flow.
+
+---
+
+## Digital Commons Collections as a Register Source (parked)
+
+**Added:** September 2026, from scouting theancestorhunt.com's "Digital
+Archives" page, which links out to hundreds of local historical/
+genealogical societies' collections hosted on Digital Commons (the
+bepress/Elsevier institutional-repository platform used by 600+
+universities and libraries — each institution runs its own separate site,
+no unified catalog across them).
+
+**The mechanism, worked out but not built:** every Digital Commons
+repository exposes its metadata for free via OAI-PMH (no credentials
+needed — distinct from Digital Commons's owner-only "Outbound API"). A
+harvester script would pull Dublin Core metadata (title/creator/date/
+subject/identifier) from one institution's OAI-PMH endpoint into a raw
+CSV; a human curation pass (splitting names, extracting years — Dublin
+Core has no given/surname split, so this can't be automated) turns that
+into a register's `records.csv`; from there it's the existing
+`seed-register.ts` pipeline, unchanged. Cheaper alternative for one-off
+collections: skip harvesting entirely and add a Variant C deep-link
+(`packages/core/src/registers/deeplink.ts`'s `fillDeepLink`) straight to
+the institution's own search page, if it takes query parameters.
+
+**Why parked, not built.** Ancestry/FamilySearch already own the
+standardized record types (census, vital, immigration, military) —
+Digital Commons doesn't compete there. Its real edge is hyper-local
+material those platforms never digitized (a county's WPA cemetery
+survey, an unpublished family-history vertical file) — genuinely
+exclusive, but each collection is its own institution-specific curation
+effort for a narrow, unpredictable slice of trees (only users with
+ancestors from that one county), a worse effort-to-reach ratio than the
+locked build order's broad registers (Acadian, Civil War, GLO, Loyalists),
+which each touch a large population of trees. It also cuts against
+Witness's "reader of people" positioning: most Digital Commons items are
+raw record fragments, not the narrative-rich material (a regiment's real
+campaign, a deportation's real voyage) the registers are built to surface.
+
+**Revisit trigger:** a specific collection tied to something broad (an
+ethnic group, a major migration, a widely-researched region) rather than
+a single town — evaluated opportunistically, not as a general pipeline.
+
+**Note for whoever picks this up:** a Claude Code web/remote session's
+sandbox can't reach arbitrary external domains (egress is allowlisted to
+package registries and GitHub) — testing an OAI-PMH endpoint needs a
+local machine or a session with open network access.
