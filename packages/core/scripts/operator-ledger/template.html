@@ -1,0 +1,289 @@
+<title>Witness Operator Ledger</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #F2F4F1;
+    --panel: #FBFCFA;
+    --ink: #1B2620;
+    --muted: #66746E;
+    --rule: #D3DAD5;
+    --rule-soft: #E4E9E5;
+    --accent: #1E6B5C;
+    --accent-soft: #D8EAE4;
+    --cost: #A8402F;
+    --cost-soft: #F1DCD6;
+    --warn: #8A6A1F;
+    --k-bio: #1E6B5C;
+    --k-arc: #4C8C7E;
+    --k-syn: #9BC3B7;
+    --k-brief: #C9A86A;
+    --k-stone: #7A6A9C;
+    --k-media: #A8402F;
+    --focus: #1E6B5C;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #131917; --panel: #1B2320; --ink: #E5EBE7; --muted: #94A39B; --rule: #2E3934; --rule-soft: #26302B;
+      --accent: #63B9A3; --accent-soft: #1F3A33; --cost: #E2836C; --cost-soft: #3D231E; --warn: #D5B15E;
+      --k-bio: #63B9A3; --k-arc: #3E8C7B; --k-syn: #2B5F54; --k-brief: #C9A86A; --k-stone: #9C8BC4; --k-media: #E2836C; --focus: #63B9A3;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #131917; --panel: #1B2320; --ink: #E5EBE7; --muted: #94A39B; --rule: #2E3934; --rule-soft: #26302B;
+    --accent: #63B9A3; --accent-soft: #1F3A33; --cost: #E2836C; --cost-soft: #3D231E; --warn: #D5B15E;
+    --k-bio: #63B9A3; --k-arc: #3E8C7B; --k-syn: #2B5F54; --k-brief: #C9A86A; --k-stone: #9C8BC4; --k-media: #E2836C; --focus: #63B9A3;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; font-size: 15px; line-height: 1.5; }
+  .page { max-width: 1180px; margin: 0 auto; padding: 36px 28px 64px; display: grid; gap: 28px; }
+  h1, h2, h3 { font-family: "Fraunces", Georgia, "Times New Roman", serif; font-weight: 500; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+  h1 { font-size: 40px; line-height: 1.05; font-variation-settings: "opsz" 96; }
+  h2 { font-size: 22px; }
+  .mono, .num, td.num, th.num { font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .eyebrow { font-family: "IBM Plex Mono", Menlo, monospace; font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .masthead { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; padding-bottom: 18px; border-bottom: 2px solid var(--ink); flex-wrap: wrap; }
+  .masthead p { margin: 8px 0 0; color: var(--muted); max-width: 60ch; }
+  .stamp { text-align: right; color: var(--muted); font-size: 13px; }
+  .stamp b { display: block; color: var(--ink); font-family: "IBM Plex Mono", Menlo, monospace; font-weight: 500; font-size: 14px; }
+
+  .figures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .figure { padding: 18px 20px 16px; border-right: 1px solid var(--rule-soft); display: grid; gap: 4px; align-content: start; }
+  .figure:last-child { border-right: 0; }
+  .figure .value { font-family: "Fraunces", Georgia, serif; font-size: 40px; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .figure .value small { font-size: 18px; color: var(--muted); font-family: "IBM Plex Sans", sans-serif; margin-left: 4px; }
+  .figure .sub { color: var(--muted); font-size: 13px; }
+  .figure .sub .up { color: var(--accent); }
+  .figure.cost .value { color: var(--cost); }
+
+  .row { display: grid; grid-template-columns: 3fr 2fr; gap: 28px; align-items: start; }
+  .row-3 { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+  section { display: grid; gap: 12px; }
+  .sect-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+  .sect-head .note { color: var(--muted); font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--rule); padding: 16px 18px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; }
+  svg text { font-family: "IBM Plex Mono", Menlo, monospace; font-size: 11px; fill: var(--muted); }
+  svg .grid { stroke: var(--rule-soft); stroke-width: 1; }
+  svg .axis { stroke: var(--rule); stroke-width: 1; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; font-weight: 500; color: var(--muted); font-family: "IBM Plex Mono", Menlo, monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--rule); }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  th.num, td.num { text-align: right; }
+  .scroll { overflow-x: auto; }
+  .tag { display: inline-block; font-family: "IBM Plex Mono", Menlo, monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 6px; border: 1px solid var(--rule); color: var(--muted); border-radius: 2px; margin-left: 6px; vertical-align: 1px; }
+  .tag.you { border-color: var(--accent); color: var(--accent); }
+  .tag.recent { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+  .tag.never { color: var(--muted); }
+  .muted { color: var(--muted); }
+  .dim td { color: var(--muted); }
+  .bar { height: 6px; background: var(--accent); display: inline-block; vertical-align: middle; }
+  .bar.cost { background: var(--cost); }
+  .barcell { display: flex; align-items: center; gap: 8px; }
+  .kdot { display: inline-block; width: 9px; height: 9px; margin-right: 7px; vertical-align: -1px; }
+
+  .foot { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; padding-top: 18px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 13.5px; }
+  .foot h3 { font-size: 15px; color: var(--ink); margin-bottom: 6px; }
+  .foot ul { margin: 0; padding-left: 18px; }
+  .foot li { margin: 2px 0; }
+  .foot code { font-family: "IBM Plex Mono", Menlo, monospace; font-size: 12.5px; color: var(--ink); }
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  @media (max-width: 860px) {
+    .figures { grid-template-columns: repeat(2, 1fr); }
+    .figure:nth-child(2) { border-right: 0; }
+    .figure:nth-child(-n+2) { border-bottom: 1px solid var(--rule-soft); }
+    .row, .row-3, .foot { grid-template-columns: 1fr; }
+    h1 { font-size: 32px; }
+    .page { padding: 24px 16px 48px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+  <header class="masthead">
+    <div>
+      <div class="eyebrow">Witness · first-party usage</div>
+      <h1>Operator Ledger</h1>
+      <p>Who has an account, who has signed in, what they imported, and what the AI features cost. Nothing here leaves Witness's own database.</p>
+    </div>
+    <div class="stamp">As of<b id="asof"></b><span id="window"></span></div>
+  </header>
+
+  <div class="figures" id="figures"></div>
+
+  <div class="row">
+    <section>
+      <div class="sect-head"><h2>AI calls by day</h2><span class="note">Last 30 days · one bar per day, stacked by feature</span></div>
+      <div class="panel">
+        <div class="legend" id="legend"></div>
+        <div id="chart" style="margin-top:10px"></div>
+      </div>
+    </section>
+    <section>
+      <div class="sect-head"><h2>Spend by feature</h2><span class="note">30 days · list rates</span></div>
+      <div class="panel scroll"><table id="bykind"></table></div>
+    </section>
+  </div>
+
+  <div class="row-3">
+    <section>
+      <div class="sect-head"><h2>Sign-ins</h2><span class="note" id="signin-note"></span></div>
+      <div class="panel">
+        <div id="recency" style="margin-bottom:12px"></div>
+        <div class="scroll"><table id="accounts"></table></div>
+      </div>
+    </section>
+    <section>
+      <div class="sect-head"><h2>Trees imported</h2><span class="note">Every tree on the service, newest first</span></div>
+      <div class="panel scroll"><table id="trees"></table></div>
+      <div class="sect-head" style="margin-top:10px"><h2>Spend by account</h2><span class="note">30 days</span></div>
+      <div class="panel scroll"><table id="byuser"></table></div>
+    </section>
+  </div>
+
+  <footer class="foot">
+    <div>
+      <h3>What is logged</h3>
+      <ul>
+        <li><code>login</code> — a real sign-in (password, Apple, magic link). A restored session on app open is not one.</li>
+        <li><code>gedcom_import_completed</code> / <code>_failed</code> — file bytes, people, families, places, provider.</li>
+        <li>Every AI call's model and tokens: biographies and context, story arcs, tree syntheses, research briefs, headstone reads, media readings.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>How to read it</h3>
+      <ul>
+        <li>Sign-in dates for existing accounts come from Supabase Auth's last sign-in; the <code>login</code> event adds a full history from 7 September 2026 on.</li>
+        <li>Cost is an estimate at list rates per million tokens: Sonnet 4.6 at $3 in / $15 out, Opus 5 at $15 in / $75 out. Media readings before 7 September have no token figures.</li>
+        <li>Accounts tagged <span class="tag">test</span> are Rufus's own test sign-ups and are left out of the headline counts.</li>
+        <li>This page is a snapshot. Ask Claude to refresh it.</li>
+      </ul>
+    </div>
+  </footer>
+</div>
+
+<script id="snapshot" type="application/json">__SNAPSHOT__</script>
+<script>
+(function () {
+  const S = JSON.parse(document.getElementById('snapshot').textContent);
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => (n ?? 0).toLocaleString('en-US');
+  const money = (n) => '$' + n.toFixed(n >= 100 ? 0 : 2);
+  const day = (iso) => iso ? iso.slice(0, 10) : null;
+  const daysAgo = (iso) => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 864e5) : null;
+  const RATES = { 'claude-sonnet-4-6': [3, 15], 'claude-opus-5': [15, 75] };
+  const KINDS = {
+    biography_or_context: ['Biographies & context', 'var(--k-bio)'],
+    story_arc: ['Story arcs', 'var(--k-arc)'],
+    tree_synthesis: ['Tree syntheses', 'var(--k-syn)'],
+    research_brief: ['Research briefs', 'var(--k-brief)'],
+    headstone_reading: ['Headstone reads', 'var(--k-stone)'],
+    media_reading: ['Media readings', 'var(--k-media)'],
+  };
+  const isTest = (e) => /^bicentenial(1776)?\+|signup-probe|@ail\.com$/.test(e || '');
+  const YOU = 'bicentenial1776@gmail.com';
+  const cost = (r) => { const [i, o] = RATES[r.model] || [3, 15]; return ((r.input_tokens || 0) * i + (r.output_tokens || 0) * o) / 1e6; };
+
+  // ---- stamp
+  const asOf = new Date(S.asOf);
+  $('asof').textContent = asOf.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+  const since = new Date(asOf.getTime() - 30 * 864e5);
+  $('window').textContent = 'AI window ' + since.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' – ' + asOf.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  // ---- users
+  const users = S.users.map((u) => ({ ...u, test: isTest(u.email), you: u.email === YOU, ago: daysAgo(u.lastSignIn) }));
+  const real = users.filter((u) => !u.test);
+  const signed7 = real.filter((u) => u.ago !== null && u.ago <= 7).length;
+  const signed30 = real.filter((u) => u.ago !== null && u.ago <= 30).length;
+  const newest = real.filter((u) => daysAgo(u.created) <= 30).length;
+
+  // ---- ledger
+  const ledger = S.ledger;
+  const totIn = ledger.reduce((a, r) => a + (r.input_tokens || 0), 0);
+  const totOut = ledger.reduce((a, r) => a + (r.output_tokens || 0), 0);
+  const totCost = ledger.reduce((a, r) => a + cost(r), 0);
+  const priced = ledger.filter((r) => r.input_tokens != null).length;
+
+  // ---- trees
+  const trees = S.trees.slice().sort((a, b) => (b.imported || '').localeCompare(a.imported || ''));
+  const owners = new Map(users.map((u) => [u.id, u]));
+  const memberCount = new Map();
+  for (const m of S.members || []) memberCount.set(m.tree_id, (memberCount.get(m.tree_id) || 0) + 1);
+  const realTrees = trees.filter((t) => !(owners.get(t.user) || {}).test);
+
+  // ---- figures
+  $('figures').innerHTML = [
+    ['Accounts', fmt(real.length), `<span class="up">+${newest}</span> in the last 30 days · ${users.length - real.length} test accounts aside`],
+    ['Signed in, last 7 days', fmt(signed7), `${signed30} in the last 30 days`],
+    ['Trees on the service', fmt(realTrees.length), `${fmt(realTrees.reduce((a, t) => a + (t.people || 0), 0))} people across them`],
+    ['AI spend, 30 days', money(totCost) + '<small>est.</small>', `${fmt(ledger.length)} calls · ${fmt(totIn)} in / ${fmt(totOut)} out tokens`, 'cost'],
+  ].map(([l, v, s, c]) => `<div class="figure ${c || ''}"><div class="eyebrow">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join('');
+
+  // ---- chart: calls per day stacked by kind
+  const days = [];
+  for (let i = 29; i >= 0; i--) days.push(day(new Date(asOf.getTime() - i * 864e5).toISOString()));
+  const byDay = new Map(days.map((d) => [d, {}]));
+  for (const r of ledger) { const d = day(r.created_at); if (!byDay.has(d)) continue; const o = byDay.get(d); o[r.kind] = (o[r.kind] || 0) + 1; }
+  // Media readings are a one-time backlog (1,500 in a night) that would flatten every other feature; they stay in the table.
+  const order = Object.keys(KINDS).filter((k) => k !== 'media_reading');
+  const mediaCalls = ledger.filter((r) => r.kind === 'media_reading').length;
+  const max = Math.max(1, ...days.map((d) => order.reduce((a, k) => a + (byDay.get(d)[k] || 0), 0)));
+  const W = 640, H = 220, padL = 44, padB = 26, padT = 8, padR = 8;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const bw = plotW / days.length;
+  const step = max > 1000 ? 500 : max > 400 ? 200 : max > 150 ? 50 : max > 60 ? 20 : max > 20 ? 10 : 5;
+  const top = Math.ceil(max / step) * step;
+  const y = (v) => padT + plotH - (v / top) * plotH;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="AI calls per day for the last 30 days">`;
+  for (let v = 0; v <= top; v += step) svg += `<line class="grid" x1="${padL}" x2="${W - padR}" y1="${y(v)}" y2="${y(v)}"/><text x="${padL - 6}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  days.forEach((d, i) => {
+    let acc = 0; const o = byDay.get(d);
+    for (const k of order) { const n = o[k] || 0; if (!n) continue; const y1 = y(acc + n), y0 = y(acc); svg += `<rect x="${(padL + i * bw + 2).toFixed(1)}" y="${y1.toFixed(1)}" width="${(bw - 4).toFixed(1)}" height="${Math.max(1, y0 - y1).toFixed(1)}" fill="${KINDS[k][1]}"><title>${d} · ${KINDS[k][0]}: ${n}</title></rect>`; acc += n; }
+    if (i % 5 === 0 || i === days.length - 1) svg += `<text x="${padL + i * bw + bw / 2}" y="${H - 8}" text-anchor="middle">${new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</text>`;
+  });
+  svg += `<line class="axis" x1="${padL}" x2="${W - padR}" y1="${y(0)}" y2="${y(0)}"/></svg>`;
+  $('chart').innerHTML = svg;
+  $('legend').innerHTML = order.filter((k) => ledger.some((r) => r.kind === k)).map((k) => `<span><i style="background:${KINDS[k][1]}"></i>${KINDS[k][0]}</span>`).join('') + (mediaCalls ? `<span class="muted">Media readings (${fmt(mediaCalls)}, a one-time backlog) are in the table, not the bars</span>` : '');
+
+  // ---- by kind
+  const kinds = {};
+  for (const r of ledger) { const k = kinds[r.kind] ||= { calls: 0, i: 0, o: 0, c: 0, unpriced: 0 }; k.calls++; k.i += r.input_tokens || 0; k.o += r.output_tokens || 0; k.c += cost(r); if (r.input_tokens == null) k.unpriced++; }
+  const maxC = Math.max(...Object.values(kinds).map((k) => k.c), 0.01);
+  $('bykind').innerHTML = `<tr><th>Feature</th><th class="num">Calls</th><th class="num">Tokens</th><th class="num">Est. cost</th></tr>` +
+    Object.keys(KINDS).filter((k) => kinds[k]).map((k) => { const v = kinds[k]; return `<tr><td><span class="kdot" style="background:${KINDS[k][1]}"></span>${KINDS[k][0]}${v.unpriced ? `<div class="muted" style="font-size:12px;margin-left:16px">${fmt(v.unpriced)} of these predate token logging</div>` : ''}</td><td class="num">${fmt(v.calls)}</td><td class="num">${fmt(v.i + v.o)}</td><td class="num"><div class="barcell" style="justify-content:flex-end"><span class="bar cost" style="width:${Math.max(2, 70 * v.c / maxC)}px"></span>${money(v.c)}</div></td></tr>`; }).join('') +
+    `<tr><td><b>All features</b></td><td class="num"><b>${fmt(ledger.length)}</b></td><td class="num"><b>${fmt(totIn + totOut)}</b></td><td class="num"><b>${money(totCost)}</b></td></tr>`;
+
+  // ---- sign-in recency
+  const buckets = [['Today', 0, 0], ['This week', 1, 7], ['This month', 8, 30], ['Older', 31, 1e9], ['Never', null, null]];
+  const counts = buckets.map(([l, a, b]) => [l, real.filter((u) => a === null ? u.ago === null : u.ago !== null && u.ago >= a && u.ago <= b).length]);
+  const maxB = Math.max(1, ...counts.map((c) => c[1]));
+  $('recency').innerHTML = `<table>` + counts.map(([l, n]) => `<tr><td style="width:110px" class="muted">${l}</td><td><div class="barcell"><span class="bar" style="width:${Math.max(2, 220 * n / maxB)}px;opacity:${l === 'Never' ? 0.35 : 1}"></span><span class="num">${n}</span></div></td></tr>`).join('') + `</table>`;
+  $('signin-note').textContent = `${real.length} accounts by last sign-in`;
+  const sorted = users.slice().sort((a, b) => (b.lastSignIn || '').localeCompare(a.lastSignIn || '') || (b.created || '').localeCompare(a.created || ''));
+  const treesByUser = new Map(); for (const t of trees) treesByUser.set(t.user, (treesByUser.get(t.user) || 0) + 1);
+  $('accounts').innerHTML = `<tr><th>Account</th><th>Last sign-in</th><th class="num">Trees</th><th>Joined</th></tr>` + sorted.map((u) => {
+    const tag = u.you ? '<span class="tag you">you</span>' : u.test ? '<span class="tag">test</span>' : '';
+    const when = u.lastSignIn ? `${new Date(u.lastSignIn).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${u.ago <= 7 && !u.test ? ' <span class="tag recent">' + (u.ago === 0 ? 'today' : u.ago + 'd ago') + '</span>' : ''}` : '<span class="tag never">never</span>';
+    return `<tr class="${u.test ? 'dim' : ''}"><td>${u.email}${tag}</td><td>${when}</td><td class="num">${treesByUser.get(u.id) || '—'}</td><td class="muted">${new Date(u.created).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td></tr>`;
+  }).join('');
+
+  // ---- trees
+  const mb = (b) => b ? (b / 1048576).toFixed(1) + ' MB' : '—';
+  $('trees').innerHTML = `<tr><th>Tree</th><th>Owner</th><th class="num">People</th><th class="num">File</th><th>Imported</th></tr>` + trees.map((t) => {
+    const o = owners.get(t.user) || {}; const shared = memberCount.get(t.id);
+    return `<tr class="${o.test ? 'dim' : ''}"><td>${t.name}${t.provider ? `<span class="tag">${t.provider}</span>` : ''}${shared ? `<span class="tag recent">shared · ${shared}</span>` : ''}</td><td class="muted">${(o.email || '?').replace(/@.*/, '')}</td><td class="num">${fmt(t.people)}</td><td class="num">${mb(t.bytes)}</td><td class="muted">${t.imported ? new Date(t.imported).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</td></tr>`;
+  }).join('');
+
+  // ---- by user
+  const byUser = {};
+  for (const r of ledger) { const u = byUser[r.user_id] ||= { calls: 0, c: 0 }; u.calls++; u.c += cost(r); }
+  const rowsU = Object.entries(byUser).sort((a, b) => b[1].c - a[1].c).slice(0, 8);
+  const maxU = Math.max(...rowsU.map((r) => r[1].c), 0.01);
+  $('byuser').innerHTML = `<tr><th>Account</th><th class="num">Calls</th><th class="num">Est. cost</th></tr>` + rowsU.map(([id, v]) => { const u = owners.get(id) || {}; return `<tr class="${u.test ? 'dim' : ''}"><td>${(u.email || id.slice(0, 8)).replace(/@.*/, '')}${u.you ? '<span class="tag you">you</span>' : u.test ? '<span class="tag">test</span>' : ''}</td><td class="num">${fmt(v.calls)}</td><td class="num"><div class="barcell" style="justify-content:flex-end"><span class="bar cost" style="width:${Math.max(2, 70 * v.c / maxU)}px"></span>${money(v.c)}</div></td></tr>`; }).join('');
+})();
+</script>
