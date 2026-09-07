@@ -103,11 +103,40 @@ anything there; this is genuinely infrastructure, not user activity.
   order by 1 desc;`
 - **Feature use**: nothing yet — see "not yet instrumented" above.
 
+## The Operator Ledger page (added 2026-09-07)
+
+One unlisted page, **witnesslives.com/operator** (source:
+`apps/preview-site/operator/index.html`, `noindex` like the field guide),
+renders the answers live: headline figures, AI calls per day stacked by
+feature, spend by feature and by account, sign-in recency, every account
+with its last sign-in, every tree imported.
+
+It reads through one edge function, `supabase/functions/operator-ledger`,
+which keeps the one-reader posture above intact:
+
+- The page signs in with Supabase Auth (email + password) and sends the
+  session token. The gateway's JWT check runs first (`verify_jwt` on).
+- The function resolves the token to a user and answers only if that user
+  is on the operator allowlist — the `OPERATOR_USER_IDS` secret
+  (comma-separated auth user ids) when set, otherwise Rufus's own account
+  hard-coded. Anyone else gets `403 {"error":"not the operator"}` with
+  nothing else in it; the page signs that session out and says so.
+- Only then does it build the snapshot with the service role: auth users,
+  `trees`, `tree_members`, `usage_events`, and the last 30 days of
+  `ai_usage_daily`, plus reading/media counts. Nothing is cached; every
+  load and every Refresh is a fresh query.
+
+Cost on the page is an estimate at list rates (Sonnet 4.6 $3/$15, Opus 5
+$15/$75 per million tokens), computed client-side. Accounts matching
+Rufus's `+`-suffixed test sign-ups are tagged `test` and left out of the
+headline counts. Verified 2026-09-07 against the live project: no token →
+401, a test account → 403, the operator → 200 with the full snapshot.
+
+Deploy the function with `supabase functions deploy operator-ledger`;
+the page ships with the marketing site on push to `main`.
+
 ## Deliberately not built yet
 
-- **A dashboard UI.** The four queries above, saved in Supabase Studio,
-  answer the questions that motivated this. Build a real screen only once
-  it's clear which numbers get checked often enough to be worth it.
 - **Retention/pruning.** `usage_events` has no cap. Fine at beta scale;
   revisit if it grows large enough to matter (a daily rollup table,
   keeping raw rows for ~90 days, is the standard fix).
