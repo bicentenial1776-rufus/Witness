@@ -141,6 +141,7 @@ async function readOne(admin: Client, anthropic: Anthropic, row: MediaRow): Prom
   const format = sniffed ?? (row.format ?? 'jpg').toLowerCase();
 
   let reading: Reading;
+  let usage: { input_tokens: number; output_tokens: number } | null = null;
   try {
     const response = await anthropic.messages.create({
       model: MODEL,
@@ -169,6 +170,7 @@ async function readOne(admin: Client, anthropic: Anthropic, row: MediaRow): Prom
     if (response.stop_reason === 'refusal' || !block) return fail('The reading was declined');
     if (response.stop_reason === 'max_tokens') return fail('The text ran longer than one reading holds');
     reading = JSON.parse(block.text);
+    usage = { input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens };
   } catch (error) {
     return fail(`Reading failed: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -188,6 +190,8 @@ async function readOne(admin: Client, anthropic: Anthropic, row: MediaRow): Prom
       status: 'read',
       model: MODEL,
       prompt_version: PROMPT_VERSION,
+      input_tokens: usage?.input_tokens ?? null,
+      output_tokens: usage?.output_tokens ?? null,
     },
     { onConflict: 'media_id' },
   );

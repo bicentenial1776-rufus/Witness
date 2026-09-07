@@ -48,6 +48,11 @@ alter table grave_captures add column model text;
 alter table grave_captures add column input_tokens integer;
 alter table grave_captures add column output_tokens integer;
 
+-- Reading the media (2026-09-06) recorded `model` but not tokens; the
+-- desktop text extraction writes model = 'text-extraction' at no cost.
+alter table media_readings add column input_tokens integer;
+alter table media_readings add column output_tokens integer;
+
 -- security_invoker: the view enforces each underlying table's own RLS for
 -- whoever queries it, rather than running with the view owner's rights —
 -- the current five sources are all "read your own rows" tables, so this
@@ -70,4 +75,8 @@ create view ai_usage_daily
   union all
   select user_id, 'headstone_reading', model, input_tokens, output_tokens, created_at
     from grave_captures
-    where model is not null;
+    where model is not null
+  union all
+  select user_id, 'media_reading', model, input_tokens, output_tokens, read_at as created_at
+    from media_readings
+    where model is not null and model <> 'text-extraction';

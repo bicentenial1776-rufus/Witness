@@ -4,7 +4,9 @@
 use, GEDCOM file sizes, and API calling patterns.
 
 First-party operational logging only — no third-party analytics vendor
-(PostHog, Amplitude, Mixpanel, Segment). `docs/privacy.html` publicly says
+(PostHog, Amplitude, Mixpanel, Segment). The served policy is `apps/preview-site/privacy.html`
+(witnesslives.com/privacy, the page the app links to); `docs/privacy.html`
+is a stale copy kept in step. It publicly said
 "no analytics or crash-reporting trackers"; that line has been updated to
 describe honestly what this adds — see "Usage and diagnostics" there. The
 distinction that keeps the old promise intact in spirit: nothing here is a
@@ -35,11 +37,12 @@ own errors so a logging failure can never interrupt the action it's
 attached to):
 
 - `login` — `apps/mobile/src/auth/session-provider.tsx`, on Supabase
-  Auth's `SIGNED_IN` event. Note this fires once for a session restored
-  from storage on cold start, not only a fresh credential entry — a
-  reasonable definition of "the app was opened signed-in," not literally
-  "typed a password." `SIGNED_OUT` isn't logged: by the time it fires, the
-  client's own token is already cleared, so an insert would fail RLS.
+  Auth's `SIGNED_IN` event. A session restored from storage on cold start
+  arrives as `INITIAL_SESSION` in auth-js 2.x, so this counts real
+  sign-ins (password, Apple, magic link) — not every app open. An "app
+  opened" event is the obvious next one if opens matter more than
+  sign-ins. `SIGNED_OUT` isn't logged: by the time it fires, the client's
+  own token is already cleared, so an insert would fail RLS.
 - `gedcom_import_completed` / `gedcom_import_failed` —
   `apps/mobile/src/app/(app)/import.tsx`, with `bytes` (the picked file's
   raw size), person/family/place counts, parse-warning count, whether it
@@ -61,12 +64,15 @@ wasn't surfaced. Two tables had a gap:
 
 - `research_briefs` recorded `model` but not tokens.
 - `grave_captures` (headstone reads, "At the Stone") recorded neither.
+- `media_readings` (reading the media, 2026-09-06) recorded `model` but not
+  tokens; the desktop text extraction rows (`model = 'text-extraction'`)
+  cost nothing and are left out of the ledger.
 
 Rather than open a parallel `usage_events`-shaped table for AI calls too,
 the migration adds the missing columns to those two tables
 (`supabase/functions/generate-research-brief/index.ts` and
 `supabase/functions/read-headstone/index.ts` now populate them), and adds
-one view, `ai_usage_daily`, that reads all five tables as one ledger:
+one view, `ai_usage_daily`, that reads all six tables as one ledger:
 
 ```sql
 select * from ai_usage_daily

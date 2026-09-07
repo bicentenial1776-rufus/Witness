@@ -258,7 +258,9 @@ export type Database = {
           kind: string
           media_id: string
           mentions: Json
+          input_tokens: number | null
           model: string | null
+          output_tokens: number | null
           prompt_version: string | null
           read_at: string
           status: string
@@ -277,7 +279,9 @@ export type Database = {
           kind: string
           media_id: string
           mentions?: Json
+          input_tokens?: number | null
           model?: string | null
+          output_tokens?: number | null
           prompt_version?: string | null
           read_at?: string
           status?: string
@@ -296,7 +300,9 @@ export type Database = {
           kind?: string
           media_id?: string
           mentions?: Json
+          input_tokens?: number | null
           model?: string | null
+          output_tokens?: number | null
           prompt_version?: string | null
           read_at?: string
           status?: string
