@@ -235,6 +235,9 @@ Deno.serve(async (req) => {
   if (!rescore && !images.length) return fail('No readable photos for this capture', 422);
 
   let reading: Reading;
+  // Left null on a rescore: it reuses an existing reading rather than
+  // calling the model again, so there is no new cost to record.
+  let callCost: { model: string; inputTokens: number; outputTokens: number } | null = null;
   if (rescore) {
     const d = capture.divined as Record<string, unknown>;
     reading = {
@@ -279,6 +282,11 @@ Deno.serve(async (req) => {
     const block = response.content.find((b) => b.type === 'text');
     if (response.stop_reason === 'refusal' || !block) return fail('The reading was declined.');
     reading = JSON.parse(block.text);
+    callCost = {
+      model: response.model,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+    };
   } catch (error) {
     console.error('Vision reading failed:', error);
     return fail('The stone could not be read just now. Please try again.');
@@ -567,6 +575,11 @@ Deno.serve(async (req) => {
       divined,
       candidates,
       cemetery: geo?.label ?? capture.cemetery,
+      ...(callCost && {
+        model: callCost.model,
+        input_tokens: callCost.inputTokens,
+        output_tokens: callCost.outputTokens,
+      }),
     })
     .eq('id', capture.id)
     .select()

@@ -147,6 +147,8 @@ Deno.serve(async (req) => {
       title: parsed.title,
       content,
       model: response.model,
+      input_tokens: response.usage.input_tokens,
+      output_tokens: response.usage.output_tokens,
     })
     .select('id')
     .single();
