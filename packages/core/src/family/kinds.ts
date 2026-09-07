@@ -188,3 +188,81 @@ export function ancestorGenerations(rows: KinRow[]): Generation[] {
 export function generationKnown(generation: Generation): number {
   return generation.paternal.length + generation.maternal.length + generation.unplaced.length;
 }
+
+/** The family shape the pairing needs — the tree index's families satisfy it. */
+export interface CoupleFamily {
+  id: string;
+  husband_id: string | null;
+  wife_id: string | null;
+  marriage_year: number | null;
+}
+
+export interface LaterMarriage {
+  /** The partner who married again. */
+  ofId: string;
+  /** Whom they married — usually outside the line. */
+  spouseId: string;
+  marriageYear: number | null;
+}
+
+/**
+ * One unit on a generation page: a couple who are both in the line, or
+ * one ancestor whose partner the record does not carry, each with the
+ * other marriages either partner made (Rufus, 2026-09-06: "graphically
+ * connect the couples and subsequent spouses").
+ */
+export interface CoupleUnit {
+  /** Two ids for a couple, one for an ancestor standing alone. */
+  partners: string[];
+  familyId: string | null;
+  marriageYear: number | null;
+  laterMarriages: LaterMarriage[];
+}
+
+/**
+ * Pairs the ancestors of one generation (one side) into couples using the
+ * tree's families. A family whose two spouses are both in the set is a
+ * couple; anyone left over stands alone. Every other family a partner
+ * appears in becomes a later marriage on the unit, in marriage-year order.
+ */
+export function coupleUp(ids: string[], families: CoupleFamily[]): CoupleUnit[] {
+  const inSet = new Set(ids);
+  const units: CoupleUnit[] = [];
+  const placed = new Set<string>();
+  const byPerson = new Map<string, CoupleFamily[]>();
+  for (const family of families) {
+    for (const id of [family.husband_id, family.wife_id]) {
+      if (!id) continue;
+      if (!byPerson.has(id)) byPerson.set(id, []);
+      byPerson.get(id)!.push(family);
+    }
+  }
+  const sortedFamilies = (id: string) =>
+    [...(byPerson.get(id) ?? [])].sort((a, b) => (a.marriage_year ?? 9999) - (b.marriage_year ?? 9999));
+
+  for (const family of families) {
+    const h = family.husband_id;
+    const w = family.wife_id;
+    if (!h || !w || !inSet.has(h) || !inSet.has(w)) continue;
+    units.push({ partners: [h, w], familyId: family.id, marriageYear: family.marriage_year, laterMarriages: [] });
+    placed.add(h);
+    placed.add(w);
+  }
+  for (const id of ids) {
+    if (placed.has(id)) continue;
+    placed.add(id);
+    units.push({ partners: [id], familyId: null, marriageYear: null, laterMarriages: [] });
+  }
+  for (const unit of units) {
+    for (const partner of unit.partners) {
+      for (const family of sortedFamilies(partner)) {
+        if (family.id === unit.familyId) continue;
+        const spouseId = family.husband_id === partner ? family.wife_id : family.husband_id;
+        if (!spouseId) continue;
+        unit.laterMarriages.push({ ofId: partner, spouseId, marriageYear: family.marriage_year });
+      }
+    }
+    unit.laterMarriages.sort((a, b) => (a.marriageYear ?? 9999) - (b.marriageYear ?? 9999));
+  }
+  return units;
+}

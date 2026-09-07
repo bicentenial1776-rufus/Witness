@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ancestorGenerations, classifyLabel, groupByKind, type KinRow } from '../kinds.js';
+import { ancestorGenerations, classifyLabel, coupleUp, groupByKind, type KinRow } from '../kinds.js';
 
 describe('classifyLabel', () => {
   it('reads the line of ancestors and descendants', () => {
@@ -87,5 +87,23 @@ describe('ancestorGenerations', () => {
     expect(generations[1]).toMatchObject({ expected: 4, paternal: ['pgf'], maternal: ['mgm'] });
     expect(generations[2]).toMatchObject({ title: 'Great-grandparents', expected: 8, paternal: [], maternal: [] });
     expect(generations[3]).toMatchObject({ title: '2nd great-grandparents', expected: 16, unplaced: ['x'] });
+  });
+});
+
+describe('coupleUp', () => {
+  const fam = (id: string, h: string | null, w: string | null, year: number | null) => ({ id, husband_id: h, wife_id: w, marriage_year: year });
+  it('pairs the two ancestors of a family and leaves the partnerless standing alone', () => {
+    const units = coupleUp(['pgf', 'pgm', 'x'], [fam('f1', 'pgf', 'pgm', 1850), fam('f2', 'x', 'outsider', 1870)]);
+    expect(units).toEqual([
+      { partners: ['pgf', 'pgm'], familyId: 'f1', marriageYear: 1850, laterMarriages: [] },
+      { partners: ['x'], familyId: null, marriageYear: null, laterMarriages: [{ ofId: 'x', spouseId: 'outsider', marriageYear: 1870 }] },
+    ]);
+  });
+  it('hangs every other marriage of either partner off the couple, in year order', () => {
+    const units = coupleUp(['a', 'b'], [fam('f1', 'a', 'b', 1850), fam('f2', 'a', 'second', 1880), fam('f0', 'first', 'b', 1840)]);
+    expect(units[0]?.laterMarriages).toEqual([
+      { ofId: 'b', spouseId: 'first', marriageYear: 1840 },
+      { ofId: 'a', spouseId: 'second', marriageYear: 1880 },
+    ]);
   });
 });
