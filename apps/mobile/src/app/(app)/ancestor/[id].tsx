@@ -35,6 +35,8 @@ import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { MarginCorrections } from '@/components/margin-corrections';
 import { TextField } from '@/components/text-field';
+import { warStateFromPlaces } from '@witness/core/registers';
+
 import { KinLine, KinName } from '@/components/kin-line';
 import { KinReveal } from '@/components/kin-reveal';
 import { capturesForPerson, photoUrl, type GraveCapture } from '@/lib/grave-captures';
@@ -2583,6 +2585,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                   link={link}
                   register={register}
                   personName={person.full_name}
+                  stateHint={warStateFromPlaces(events.map((e) => ({ year: e.date_year, placeParts: e.places?.parts ?? null })))}
                   readOnly={!treeOwned}
                   onResolved={(linkId, status) =>
                     setRegisterLinks((current) =>

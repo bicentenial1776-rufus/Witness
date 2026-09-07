@@ -74,7 +74,14 @@ async function main() {
       provenance_label: String(def['provenance_label']),
       coverage_caveat: (def['coverage_caveat'] as string | undefined) ?? null,
       status: (def['status'] as string | undefined) ?? 'active',
-      config: (def['config'] as never) ?? {},
+      config: {
+        ...((def['config'] as Record<string, unknown> | undefined) ?? {}),
+        // Variant B ships its unit vocabulary in the catalog row so the app
+        // can read a regiment out of the family's own papers (unitHints).
+        ...(existsSync(join(dir, 'unit-terms.json'))
+          ? { unitTerms: JSON.parse(readFileSync(join(dir, 'unit-terms.json'), 'utf8')) as unknown }
+          : {}),
+      } as never,
     },
     { onConflict: 'register_key' },
   );

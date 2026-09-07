@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import type { PersonRegisterLink, RegisterDef, RegisterRecord } from '@witness/core/registers';
+import { findUnitMentions, makeUnitParser, type UnitTerms } from '@witness/core/registers';
 
 import { Card } from '@/components/card';
 import { ExplainerDot } from '@/components/explainer-dot';
@@ -10,6 +11,7 @@ import { UnitPicker } from '@/components/unit-picker';
 import { useTheme } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/alert';
 import { openExternal } from '@/lib/open-external';
+import { supabase } from '@/lib/supabase';
 import { attachAndConfirmRegisterEntity, confirmRegisterLink, dismissRegisterLink } from '@/lib/register-links';
 
 /**
@@ -24,6 +26,7 @@ export function RegisterCandidateCard({
   link: linkProp,
   register,
   personName,
+  stateHint,
   onResolved,
   readOnly = false,
 }: {
@@ -31,6 +34,8 @@ export function RegisterCandidateCard({
   register: RegisterDef;
   /** For the regiment picker's wording; the person the card sits on. */
   personName?: string;
+  /** Where he lived in the war years, for the regiment picker's first shelf. */
+  stateHint?: string | null;
   onResolved?: (id: string, status: 'confirmed' | 'rejected') => void;
   /** Family members see the record and the verdict; only the owner rules. */
   readOnly?: boolean;
@@ -42,6 +47,64 @@ export function RegisterCandidateCard({
   // attached snapshot here so the card can show the unit at once.
   const [attached, setAttached] = useState<PersonRegisterLink | null>(null);
   const link = attached ?? linkProp;
+
+  // Unit hints: a regiment the family's own papers name — an obituary
+  // clipping, a headstone reading, a pension paper — found in the
+  // readings of this person's media and matched to a register record.
+  // Witness proposes with the words it came from; the reader attaches.
+  const [hints, setHints] = useState<{ record: RegisterRecord; company: string | null; span: string; kind: string }[]>([]);
+  useEffect(() => {
+    if (register.variant !== 'B' || link.recordId !== null || link.status !== 'candidate') return;
+    const terms = register.config.unitTerms as UnitTerms | undefined;
+    if (!terms) return;
+    let cancelled = false;
+    (async () => {
+      const { data: mediaLinks } = await supabase.from('media_links').select('media_id').eq('individual_id', link.individualId);
+      const mediaIds = (mediaLinks ?? []).map((m) => m.media_id);
+      if (mediaIds.length === 0) return;
+      const { data: readings } = await supabase
+        .from('media_readings')
+        .select('kind, transcript')
+        .in('media_id', mediaIds)
+        .in('status', ['read', 'confirmed'])
+        .not('transcript', 'is', null);
+      const parse = makeUnitParser(terms);
+      const found = new Map<string, { company: string | null; span: string; kind: string }>();
+      for (const r of readings ?? []) {
+        for (const m of findUnitMentions(r.transcript ?? '', parse)) {
+          const prior = found.get(m.unit.unitKey);
+          if (!prior || (!prior.company && m.unit.company)) found.set(m.unit.unitKey, { company: m.unit.company, span: m.span, kind: r.kind });
+        }
+      }
+      if (found.size === 0) return;
+      const { data: records } = await supabase
+        .from('register_records')
+        .select('id, register_key, record_kind, name_as_recorded, surname_normalized, given_normalized, entity_key, attributes, source_citation, finding_aid_url')
+        .eq('register_key', register.registerKey)
+        .in('entity_key', [...found.keys()]);
+      if (cancelled) return;
+      setHints(
+        (records ?? []).map((row) => ({
+          record: {
+            id: row.id,
+            registerKey: row.register_key,
+            recordKind: row.record_kind as RegisterRecord['recordKind'],
+            nameAsRecorded: row.name_as_recorded,
+            surnameNormalized: row.surname_normalized,
+            givenNormalized: row.given_normalized,
+            entityKey: row.entity_key,
+            attributes: (row.attributes ?? {}) as Record<string, unknown>,
+            sourceCitation: row.source_citation,
+            findingAidUrl: row.finding_aid_url,
+          },
+          ...found.get(row.entity_key ?? '')!,
+        })),
+      );
+    })().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [register, link.individualId, link.recordId, link.status]);
 
   async function attach(record: RegisterRecord, extra: { company: string; rank: string }) {
     const next = await attachAndConfirmRegisterEntity(link, register, record, extra);
@@ -110,6 +173,26 @@ export function RegisterCandidateCard({
         // rule him out; the regiment picker (the confirm) arrives with it.
         <View style={{ gap: 8, marginTop: 6 }}>
           <ThemedText type="small">{link.recordSummary}</ThemedText>
+          {hints.map((h) => (
+            <View key={h.record.id} style={{ gap: 4, paddingVertical: 6, borderTopWidth: 1, borderTopColor: theme.border }}>
+              <ThemedText type="small">
+                {h.kind === 'headstone' ? 'His headstone reads' : h.kind === 'clipping' ? 'A clipping in your file says' : 'A paper in your file says'}{' '}
+                <ThemedText type="smallBold">“{h.span}”</ThemedText> — that is the{' '}
+                <ThemedText type="smallBold">{h.record.nameAsRecorded}</ThemedText>
+                {h.company ? `, Company ${h.company}` : ''}.
+              </ThemedText>
+              {!readOnly && (
+                <Pressable
+                  disabled={busy}
+                  onPress={() => attach(h.record, { company: h.company ?? '', rank: '' })}
+                  accessibilityRole="button"
+                  style={{ alignSelf: 'flex-start' }}
+                >
+                  <ThemedText type="link">Attach the {h.record.nameAsRecorded} ›</ThemedText>
+                </Pressable>
+              )}
+            </View>
+          ))}
           {readOnly ? (
             <ThemedText type="small" themeColor="textSecondary">
               Awaiting the tree owner’s verdict
@@ -212,6 +295,7 @@ export function RegisterCandidateCard({
         <UnitPicker
           register={register}
           personName={personName ?? 'him'}
+          stateHint={stateHint}
           visible={picking}
           onClose={() => setPicking(false)}
           onPick={attach}

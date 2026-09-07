@@ -74,6 +74,10 @@ export interface ConfirmEventSpec {
 
 export interface RegisterConfig {
   exposure?: ExposureConfig;
+  /** Variant B: the versioned unit vocabulary (unit-terms.json), seeded into
+      the catalog row so the app can parse a regiment out of the file's own
+      words (unitHints.ts). */
+  unitTerms?: unknown;
   match?: MatchConfig;
   /** Variant C (and "view source"): a URL template — see fillDeepLink. */
   deepLinkTemplate?: string;

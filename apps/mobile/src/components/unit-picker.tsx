@@ -20,23 +20,34 @@ import { supabase } from '@/lib/supabase';
 export function UnitPicker({
   register,
   personName,
+  stateHint,
   visible,
   onClose,
   onPick,
 }: {
   register: RegisterDef;
   personName: string;
+  /** Where he lived in the war years — the picker opens on that state's units. */
+  stateHint?: string | null;
   visible: boolean;
   onClose: () => void;
   onPick: (record: RegisterRecord, extra: { company: string; rank: string }) => Promise<void>;
 }) {
   const theme = useTheme();
   const [query, setQuery] = useState('');
+  const [touched, setTouched] = useState(false);
   const [company, setCompany] = useState('');
   const [rank, setRank] = useState('');
   const [results, setResults] = useState<RegisterRecord[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Opened fresh, the picker searches the state he lived in during the war
+  // years: regiments were raised by state, so that is the honest shelf to
+  // start on. The first keystroke takes over.
+  useEffect(() => {
+    if (visible && !touched && stateHint) setQuery(stateHint);
+  }, [visible, touched, stateHint]);
 
   useEffect(() => {
     if (!visible) return;
@@ -92,8 +103,16 @@ export function UnitPicker({
           autoCorrect={false}
           returnKeyType="search"
           value={query}
-          onChangeText={setQuery}
+          onChangeText={(t) => {
+            setTouched(true);
+            setQuery(t);
+          }}
         />
+        {stateHint && !touched && (
+          <ThemedText type="small" themeColor="textSecondary">
+            Raised in {stateHint}, where {personName.split(' ')[0]} lived in the war years — the index will say which was his.
+          </ThemedText>
+        )}
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <View style={{ flex: 1 }}>
             <TextField placeholder="Company (e.g. K)" autoCapitalize="characters" value={company} onChangeText={setCompany} />
