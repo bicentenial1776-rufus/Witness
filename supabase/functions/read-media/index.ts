@@ -129,13 +129,16 @@ async function readOne(admin: Client, anthropic: Anthropic, row: MediaRow): Prom
   const bytes = new Uint8Array(await blob.arrayBuffer());
   const chunks: string[] = [];
   for (let i = 0; i < bytes.length; i += 0x8000) chunks.push(String.fromCharCode(...bytes.subarray(i, i + 0x8000)));
-  const format = (row.format ?? 'jpg').toLowerCase();
+  // The file's own bytes name its type: a JPEG saved with a .png name is
+  // refused by the model when labelled png.
+  const sniffed = bytes[0] === 0xff && bytes[1] === 0xd8 ? 'jpeg' : bytes[0] === 0x89 && bytes[1] === 0x50 ? 'png' : bytes[0] === 0x47 && bytes[1] === 0x49 ? 'gif' : null;
+  const format = sniffed ?? (row.format ?? 'jpg').toLowerCase();
 
   let reading: Reading;
   try {
     const response = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 2000,
+      max_tokens: 6000, // a dense clipping's transcript runs past 2,000 and cut JSON is a lost reading
       output_config: { format: { type: 'json_schema', schema: READING_SCHEMA } },
       system: [
         'You read the photographs and papers in a family history file for Witness, a family history app.',
@@ -158,6 +161,7 @@ async function readOne(admin: Client, anthropic: Anthropic, row: MediaRow): Prom
     });
     const block = response.content.find((b) => b.type === 'text');
     if (response.stop_reason === 'refusal' || !block) return fail('The reading was declined');
+    if (response.stop_reason === 'max_tokens') return fail('The text ran longer than one reading holds');
     reading = JSON.parse(block.text);
   } catch (error) {
     return fail(`Reading failed: ${error instanceof Error ? error.message : String(error)}`);

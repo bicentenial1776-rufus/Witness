@@ -42,6 +42,18 @@ app), so the register's door is the FamilySearch Civil War Soldiers Index
 CWSS page linked from unit records. Collection id 1910717 to be
 eye-verified in a browser during E2E, per the framework rule.
 
-**Not built yet** (next Civil War session): the Add-unit entity picker,
-NPS battle summaries + Confederate units, engagement geocoding + map
-markers, a generated narrative sample for a soldier with a unit.
+**Unit hints (2026-09-06).** Witness holds no name index and never
+guesses a regiment; but the family's own file often names it. The
+candidate card runs `findUnitMentions` (`registers/unitHints.ts`) over
+the readings of the person's media — a headstone "Co. H 25th Mass.
+Vols.", an obituary clipping — hands each span to the unit parser, and
+matches the key against these rows (a branchless key matches every
+branch of that state and number). The card shows the words it came from
+and offers "Attach the …". The picker's first shelf is the state he
+lived in during 1855–1870 (`warStateFromPlaces`). `config.unitTerms` is
+merged from `unit-terms.json` by seed-register so the app parses with
+the same vocabulary.
+
+**Not built yet** (next Civil War session): NPS battle summaries +
+Confederate units, engagement geocoding + map markers, a generated
+narrative sample for a soldier with a unit.
