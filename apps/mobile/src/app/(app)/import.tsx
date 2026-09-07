@@ -26,6 +26,7 @@ import { useActiveTree } from '@/lib/active-tree';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
 import { getRecoveryCode, isVaultAvailable, storeOriginal } from '@/lib/gedcom-vault';
 import { supabase } from '@/lib/supabase';
+import { logEvent } from '@/lib/usage-events';
 
 function count(n: number, singular: string, plural: string): string {
   return `${n.toLocaleString()} ${n === 1 ? singular : plural}`;
@@ -222,6 +223,16 @@ export default function ImportGedcom() {
       });
       invalidateGeographyCache();
 
+      void logEvent(session.user.id, 'gedcom_import_completed', {
+        bytes: original.byteLength,
+        individual_count: parsed.metadata.individualCount,
+        family_count: parsed.metadata.familyCount,
+        place_count: parsed.metadata.placeCount,
+        parse_warning_count: parsed.metadata.parseWarnings.length,
+        is_refresh: Boolean(refreshInto),
+        provider: parsed.metadata.provider ?? null,
+      });
+
       // Record matching (crossings + registers) starts immediately and
       // fire-and-forget — the compute-relationships pattern. Candidates
       // appear on Portraits as the worker lands them; the six-hourly
@@ -278,6 +289,11 @@ export default function ImportGedcom() {
 
       setStep({ name: 'done', treeId, parsed, vault });
     } catch (error) {
+      void logEvent(session.user.id, 'gedcom_import_failed', {
+        bytes: original.byteLength,
+        individual_count: parsed.metadata.individualCount,
+        error: error instanceof Error ? error.message : String(error),
+      });
       showAlert('Import failed', error instanceof Error ? error.message : String(error));
       setStep({ name: 'ready', fileName, parsed, original });
     }

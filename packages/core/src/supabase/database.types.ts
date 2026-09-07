@@ -802,9 +802,12 @@ export type Database = {
           divined: Json | null
           heading: number | null
           id: string
+          input_tokens: number | null
           latitude: number | null
           longitude: number | null
           matched_individual_id: string | null
+          model: string | null
+          output_tokens: number | null
           photo_paths: string[]
           status: string
           transcription: string | null
@@ -820,9 +823,12 @@ export type Database = {
           divined?: Json | null
           heading?: number | null
           id?: string
+          input_tokens?: number | null
           latitude?: number | null
           longitude?: number | null
           matched_individual_id?: string | null
+          model?: string | null
+          output_tokens?: number | null
           photo_paths?: string[]
           status?: string
           transcription?: string | null
@@ -838,9 +844,12 @@ export type Database = {
           divined?: Json | null
           heading?: number | null
           id?: string
+          input_tokens?: number | null
           latitude?: number | null
           longitude?: number | null
           matched_individual_id?: string | null
+          model?: string | null
+          output_tokens?: number | null
           photo_paths?: string[]
           status?: string
           transcription?: string | null
@@ -1840,7 +1849,9 @@ export type Database = {
           created_at: string
           id: string
           individual_id: string
+          input_tokens: number | null
           model: string
+          output_tokens: number | null
           status: Database["public"]["Enums"]["research_brief_status"]
           title: string
           tree_id: string
@@ -1852,7 +1863,9 @@ export type Database = {
           created_at?: string
           id?: string
           individual_id: string
+          input_tokens?: number | null
           model: string
+          output_tokens?: number | null
           status?: Database["public"]["Enums"]["research_brief_status"]
           title: string
           tree_id: string
@@ -1864,7 +1877,9 @@ export type Database = {
           created_at?: string
           id?: string
           individual_id?: string
+          input_tokens?: number | null
           model?: string
+          output_tokens?: number | null
           status?: Database["public"]["Enums"]["research_brief_status"]
           title?: string
           tree_id?: string
@@ -2314,9 +2329,46 @@ export type Database = {
           },
         ]
       }
+      usage_events: {
+        Row: {
+          created_at: string
+          event_name: string
+          id: string
+          properties: Json
+          source: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_name: string
+          id?: string
+          properties?: Json
+          source: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_name?: string
+          id?: string
+          properties?: Json
+          source?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      ai_usage_daily: {
+        Row: {
+          created_at: string | null
+          input_tokens: number | null
+          kind: string | null
+          model: string | null
+          output_tokens: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       bump_nara_calls: {
