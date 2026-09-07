@@ -347,13 +347,18 @@ async function fetchAudio(year: number): Promise<ArcAudio | null> {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  let body: { treeId?: string; founderId?: string; warm?: boolean; dayOffset?: number };
+  // preview: the owner asks for an arc written fresh, optionally by another
+  // model, without reading or writing the cache — the side-by-side used
+  // to judge a cheaper model before switching (2026-09-07).
+  let body: { treeId?: string; founderId?: string; warm?: boolean; dayOffset?: number; preview?: boolean; model?: 'sonnet' | 'opus' };
   try {
     body = await req.json();
   } catch {
     return json(400, { error: 'Invalid JSON body' });
   }
   if (!body.treeId) return json(400, { error: 'treeId is required' });
+  const preview = !body.warm && body.preview === true;
+  const model = preview && body.model === 'sonnet' ? 'claude-sonnet-4-6' : MODEL;
 
   let ctx: EnrichContext;
   let dayOffset = 0;
@@ -464,6 +469,7 @@ Deno.serve(async (req) => {
     .eq('prompt_version', PROMPT_VERSION)
     .maybeSingle();
   if (
+    !preview &&
     cached &&
     cached.home_person_id === tree.home_person_id &&
     cached.individual_count === tree.individual_count &&
@@ -782,7 +788,7 @@ Deno.serve(async (req) => {
   let response;
   try {
     response = await anthropic.messages.create({
-      model: MODEL,
+      model,
       max_tokens: 9000,
       output_config: { effort: 'medium', format: { type: 'json_schema', schema: ARC_SCHEMA } },
       system: [
@@ -881,6 +887,9 @@ Deno.serve(async (req) => {
     })),
   };
 
+  if (preview) {
+    return json(200, { arc: content, founderId, cached: false, preview: true, model: response.model, usage: response.usage });
+  }
   const { error: upsertError } = await ctx.admin.from('story_arcs').upsert(
     {
       tree_id: tree.id,

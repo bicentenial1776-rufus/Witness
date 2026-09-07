@@ -139,9 +139,34 @@ Deno.serve(async (req) => {
   let arcsSkipped = 0;
   const arcErrors: string[] = [];
 
-  const arcJobs = (trees ?? []).flatMap((tree) =>
-    [0, 1].map((dayOffset) => ({ treeId: tree.id, dayOffset })),
-  );
+  // Only trees someone is actually reading get an arc written for them.
+  // The ledger showed ~40% of arc spend going to accounts that had not
+  // signed in for weeks (2026-09-07). A tree is active when its owner or
+  // any family member signed in within ACTIVE_DAYS; a dormant reader who
+  // returns still gets today's arc on demand through the same function.
+  const ACTIVE_DAYS = 14;
+  const activeSince = Date.now() - ACTIVE_DAYS * 86_400_000;
+  const activeUsers = new Set<string>();
+  for (let page = 1; ; page++) {
+    const { data: batch, error: usersError } = await supabase.auth.admin.listUsers({ page, perPage: 200 });
+    if (usersError) {
+      errors.push(`listUsers: ${usersError.message}`);
+      break;
+    }
+    for (const u of batch.users) {
+      if (u.last_sign_in_at && new Date(u.last_sign_in_at).getTime() >= activeSince) activeUsers.add(u.id);
+    }
+    if (batch.users.length < 200) break;
+  }
+  const { data: members } = await supabase.from('tree_members').select('tree_id, user_id');
+  const activeTrees = new Set<string>();
+  for (const tree of trees ?? []) if (activeUsers.has(tree.user_id)) activeTrees.add(tree.id);
+  for (const m of members ?? []) if (activeUsers.has(m.user_id)) activeTrees.add(m.tree_id);
+  const arcsDormant = (trees ?? []).filter((tree) => !activeTrees.has(tree.id)).length;
+
+  const arcJobs = (trees ?? [])
+    .filter((tree) => activeTrees.has(tree.id))
+    .flatMap((tree) => [0, 1].map((dayOffset) => ({ treeId: tree.id, dayOffset })));
   // Each call returns fast — a cache hit, a skip, or 202 with the actual
   // generation running on in the arc worker via waitUntil; overlapping
   // generations live in their own workers, not on this one's wall clock.
@@ -184,6 +209,7 @@ Deno.serve(async (req) => {
     arcsWarmed,
     arcsCached,
     arcsSkipped,
+    arcsDormant,
     arcErrors,
   });
 });
