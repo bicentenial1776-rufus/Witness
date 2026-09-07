@@ -326,7 +326,7 @@ Built during Phase 4–5 in response to what the real 5,495-person tree and fiel
 Witness 1.5.2 (build 12) is **live on the App Store** as of August 24, 2026, after working through a review rejection cycle. The App Store build carries everything below through the Large Print work; At the Stone and the newest story-arc layers ride the next binary.
 
 ### Story Arcs — "Today's Line" (the Home lead)
-- Every day, Home leads with one **founder-to-reader descent narrative**: a deep line-founder is chosen by daily rotation, and the arc walks the bloodline down from them to *you*, generation by generation — record facts assembled server-side, connective prose written by **claude-opus-5**, living family members never named in prompts
+- Every day, Home leads with one **founder-to-reader descent narrative**: a deep line-founder is chosen by daily rotation, and the arc walks the bloodline down from them to *you*, generation by generation — record facts assembled server-side, connective prose written by **claude-sonnet-4-6** (moved from Opus 2026-09-07 after a side-by-side: same grounding at a seventh of the price; the nightly warmer writes arcs only for trees read in the last 14 days), living family members never named in prompts
 - Each generation carries lifespan bars (the reader in amber), a DETAILS fold with the record and relation, and a **"Their world, further"** layer: era facts grounded strictly in fetched Wikipedia year articles, a period newspaper page from the person's own town and state (Chronicling America), a period photograph of their town from their own years (DPLA), and a public-domain era recording where the years allow (1900–1925 Victor digitizations)
 - Arcs are cached per founder and **retold when the record moves** — the cache remembers the home person, tree size, and ancestor count, and drift in any of the three regenerates the line. Reads are drained and the descent is checked: a chain that doesn't reach the reader is refused, never told short (v6, 2026-08-26)
 - Nightly cron pre-warms today's and tomorrow's arcs so the first reader never waits
@@ -515,7 +515,7 @@ pass before the map integration), the Add-unit picker, NPS battles.
 ### Stack
 - **Frontend:** React Native / Expo (universal — iPhone, iPad, and web, all shipped)
 - **Backend:** Supabase (Postgres + Storage + Auth + Real-time), pg_cron workers for geocoding, NARA matching, and digest generation
-- **AI:** Anthropic Claude API — claude-sonnet-4-6 for enrichment/biographies, **claude-opus-5** for story arcs and whole-ancestry synthesis, vision models for At the Stone headstone reading
+- **AI:** Anthropic Claude API — claude-sonnet-4-6 for enrichment, biographies, story arcs, and vision (headstones, media readings); **claude-opus-5** only for the whole-ancestry synthesis. First-party usage ledger (`ai_usage_daily`) tracks model and tokens per call; target is about $3 of AI per active tree per month
 - **Subscriptions:** RevenueCat (native IAP) + RevenueCat Web Billing via Stripe (web). Superwall retired 2026-08-14 in favor of a native narrative pre-auth flow + Apple Sign-In
 - **Maps:** Apple Maps (native, via `react-native-maps` default provider) / MapLibre GL over CARTO basemaps (web)
 - **Web hosting:** Vercel, deployed from `docs/preview-site` at witnesslives.com root; email digest fallback via Resend
