@@ -362,6 +362,49 @@ Deno.serve(async (req) => {
       ].join('\n')
     : '';
 
+  // The family file's own documents (docs/media-reading-design-brief.md):
+  // readings of letters, clippings, and record pages linked to this
+  // person — confirmed first, then high- and medium-confidence machine
+  // readings. Evidence to draw on, never facts to assert; the prompt says
+  // how far to trust them.
+  const { data: readingLinks } = await admin
+    .from('media_links')
+    .select('media_id')
+    .eq('individual_id', individualId);
+  const mediaIds = (readingLinks ?? []).map((l: { media_id: string }) => l.media_id);
+  let documentsSection = '';
+  if (mediaIds.length > 0) {
+    const { data: readings } = await admin
+      .from('media_readings')
+      .select('kind, description, transcript, summary, confidence, status')
+      .in('media_id', mediaIds)
+      .in('status', ['read', 'confirmed'])
+      .in('kind', ['document', 'letter', 'clipping', 'record'])
+      .not('transcript', 'is', null);
+    const usable = (readings ?? [])
+      .filter((r: { status: string; confidence: string }) => r.status === 'confirmed' || r.confidence !== 'low')
+      .sort((a: { status: string }, b: { status: string }) => (a.status === 'confirmed' ? -1 : 0) - (b.status === 'confirmed' ? -1 : 0))
+      .slice(0, 6);
+    if (usable.length > 0) {
+      const lines = usable.map((r: { kind: string; description: string | null; transcript: string | null; summary: string | null; confidence: string; status: string }) => {
+        const trust = r.status === 'confirmed' ? 'confirmed by the family' : `machine-read, ${r.confidence} confidence`;
+        const body = (r.transcript ?? '').slice(0, 1800);
+        return `— ${r.kind}${r.description ? ` (${r.description})` : ''} · ${trust}\n${r.summary ? `Summary: ${r.summary}\n` : ''}Text: ${body}`;
+      });
+      documentsSection =
+        `\n\nDOCUMENTS IN THE FAMILY FILE:\n${lines.join('\n\n')}\n\n` +
+        [
+          'These are letters, clippings, and record pages kept in the family\'s own file and read from the page — evidence, not the record.',
+          '- Draw on them where they add something the facts alone do not: what a clipping reports, what a letter was about, what a record certifies.',
+          '- Say where it comes from, in plain words: "a clipping in the family file reports…", "a letter of 1911 says…". Never present a document\'s claim as an established fact of the record.',
+          '- Quote sparingly — a phrase, not a paragraph — and only words that appear in the text.',
+          '- Where a document contradicts the documented facts, keep the facts and note the document\'s version as the document\'s.',
+          '- A machine-read document may be misread: prefer confirmed ones, and do not build a claim on a low-confidence word.',
+          '- Never name a person from a document who is not in the documented facts or relatives; refer to them by role ("a cousin", "the writer") if at all.',
+        ].join('\n');
+    }
+  }
+
   const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
 
   let response;
@@ -386,7 +429,7 @@ Deno.serve(async (req) => {
       messages: [
         {
           role: 'user',
-          content: `Write the biography of this ancestor.\n\nDocumented facts:\n${facts.join('\n')}${relativesSection}`,
+          content: `Write the biography of this ancestor.\n\nDocumented facts:\n${facts.join('\n')}${relativesSection}${documentsSection}`,
         },
       ],
     });

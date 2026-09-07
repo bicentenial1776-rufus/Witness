@@ -29,7 +29,8 @@
     "create-beta-user": "tsx scripts/create-beta-user.ts",
     "live-import": "tsx scripts/live-import.ts",
     "ingest:ftm": "tsx scripts/ingest-ftm-media.ts",
-    "overlay:ftm": "tsx scripts/overlay-ftm-media.ts"
+    "overlay:ftm": "tsx scripts/overlay-ftm-media.ts",
+    "read:media-text": "tsx scripts/read-media-text.ts"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

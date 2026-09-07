@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Image, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
+
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/hooks/use-theme';
 import { BrandFonts } from '@/constants/theme';
@@ -132,8 +133,56 @@ export function GedcomMediaStrip({
  * Tap the scrim or the close control to leave; the ScrollView gives
  * pinch-to-zoom on iOS and Android for free (no-op on web).
  */
+interface Reading {
+  id: string;
+  kind: string;
+  description: string | null;
+  transcript: string | null;
+  summary: string | null;
+  confidence: string;
+  status: string;
+}
+
+/**
+ * "What it says" — the reading beneath the photograph (docs/media-reading-
+ * design-brief.md, phase 4): a machine's transcript with its confidence,
+ * and the owner's verdict on it. Evidence, never fact; the record above
+ * is untouched either way.
+ */
+function useReading(mediaId: string | null): [Reading | null, (status: 'confirmed' | 'rejected') => Promise<void>] {
+  const [reading, setReading] = useState<Reading | null>(null);
+  useEffect(() => {
+    setReading(null);
+    if (!mediaId) return;
+    let cancelled = false;
+    supabase
+      .from('media_readings')
+      .select('id, kind, description, transcript, summary, confidence, status')
+      .eq('media_id', mediaId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data) setReading(data as Reading);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mediaId]);
+  const judge = async (status: 'confirmed' | 'rejected') => {
+    if (!reading) return;
+    const { error } = await supabase
+      .from('media_readings')
+      .update({ status, confirmed_at: status === 'confirmed' ? new Date().toISOString() : null })
+      .eq('id', reading.id);
+    if (!error) setReading({ ...reading, status });
+  };
+  return [reading, judge];
+}
+
 function PhotoViewer({ item, onClose }: { item: MediaItem | null; onClose: () => void }) {
   const { width, height } = useWindowDimensions();
+  const [reading, judge] = useReading(item?.id ?? null);
+  const hasText = Boolean(reading?.transcript);
+  const imageHeight = hasText ? height * 0.5 : height * 0.82;
   return (
     <Modal visible={item !== null} transparent animationType="fade" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#000000' }}>
@@ -147,16 +196,57 @@ function PhotoViewer({ item, onClose }: { item: MediaItem | null; onClose: () =>
           showsHorizontalScrollIndicator={false}
           showsVerticalScrollIndicator={false}
         >
-          <Pressable onPress={onClose} style={{ width, height, justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel="Close photo">
+          <Pressable onPress={onClose} style={{ width, height: hasText ? undefined : height, justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel="Close photo">
             {item && (
               <Image
                 source={{ uri: item.url }}
-                style={{ width, height: height * 0.82 }}
+                style={{ width, height: imageHeight, marginTop: hasText ? 90 : 0 }}
                 resizeMode="contain"
                 accessibilityLabel={item.title ?? 'Photo from your tree file'}
               />
             )}
           </Pressable>
+          {reading && (hasText || reading.description) && (
+            <View style={{ paddingHorizontal: 20, paddingBottom: 110, gap: 8 }}>
+              <Text style={{ fontFamily: BrandFonts.mono.regular, fontSize: 12, letterSpacing: 1, color: '#B0A69A' }}>
+                {hasText ? 'WHAT IT SAYS' : 'WHAT IT IS'}
+                {' · '}
+                {reading.status === 'confirmed'
+                  ? 'CONFIRMED'
+                  : reading.status === 'rejected'
+                    ? 'MARKED NOT QUITE'
+                    : `READ BY MACHINE · ${reading.confidence.toUpperCase()} CONFIDENCE`}
+              </Text>
+              {reading.description && (
+                <Text style={{ fontFamily: BrandFonts.serif.italic, fontSize: 15, color: '#E9E2D6' }}>{reading.description}</Text>
+              )}
+              {reading.summary && hasText && (
+                <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14, color: '#E9E2D6' }}>{reading.summary}</Text>
+              )}
+              {hasText && (
+                <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15, lineHeight: 22, color: '#F3EEE4' }}>{reading.transcript}</Text>
+              )}
+              {hasText && reading.status === 'read' && (
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
+                  {(
+                    [
+                      { label: 'That’s right', status: 'confirmed' },
+                      { label: 'Not quite', status: 'rejected' },
+                    ] as const
+                  ).map(({ label, status }) => (
+                    <Pressable
+                      key={status}
+                      onPress={() => judge(status)}
+                      accessibilityRole="button"
+                      style={{ borderWidth: 1, borderColor: '#B0A69A', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 7 }}
+                    >
+                      <Text style={{ fontFamily: BrandFonts.sans.semiBold, fontSize: 14, color: '#F3EEE4' }}>{label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
         </ScrollView>
         {item?.title ? (
           <Text

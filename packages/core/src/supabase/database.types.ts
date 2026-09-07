@@ -247,6 +247,81 @@ export type Database = {
           },
         ]
       }
+      media_readings: {
+        Row: {
+          confidence: string
+          confirmed_at: string | null
+          content_hash: string | null
+          description: string | null
+          failure: string | null
+          id: string
+          kind: string
+          media_id: string
+          mentions: Json
+          model: string | null
+          prompt_version: string | null
+          read_at: string
+          status: string
+          summary: string | null
+          transcript: string | null
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          confidence?: string
+          confirmed_at?: string | null
+          content_hash?: string | null
+          description?: string | null
+          failure?: string | null
+          id?: string
+          kind: string
+          media_id: string
+          mentions?: Json
+          model?: string | null
+          prompt_version?: string | null
+          read_at?: string
+          status?: string
+          summary?: string | null
+          transcript?: string | null
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          confidence?: string
+          confirmed_at?: string | null
+          content_hash?: string | null
+          description?: string | null
+          failure?: string | null
+          id?: string
+          kind?: string
+          media_id?: string
+          mentions?: Json
+          model?: string | null
+          prompt_version?: string | null
+          read_at?: string
+          status?: string
+          summary?: string | null
+          transcript?: string | null
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_readings_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: true
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_readings_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       media_links: {
         Row: {
           citation_id: string | null
