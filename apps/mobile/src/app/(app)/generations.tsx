@@ -1,17 +1,16 @@
 import { Stack, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
-import { ancestorGenerations, coupleUp, generationKnown, type CoupleUnit, type Generation } from '@witness/core/family';
+import { ancestorGenerations, coupleUp, generationKnown, type Generation } from '@witness/core/family';
 import type { TreeFamily, TreeIndividual } from '@witness/core/query';
 
-import { Card } from '@/components/card';
 import { Chip } from '@/components/chip';
-import { KinLine, KinName } from '@/components/kin-line';
+import { CoupleCard } from '@/components/couple-card';
 import { SeenFromBand, useSeenFrom } from '@/components/seen-from';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BrandFonts, WideContent } from '@/constants/theme';
+import { WideContent } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { getRowsSeenFrom, type PerspectiveRow } from '@/lib/perspective-rows';
@@ -75,67 +74,7 @@ export default function GenerationsScreen() {
     );
   }
 
-  const years = (p: TreeIndividual) => `${p.birth_year ?? '?'}–${p.living ? '' : (p.death_year ?? '?')}`;
   const open = (id: string) => router.push({ pathname: '/ancestor/[id]', params: { id } });
-
-  const personRow = (p: TreeIndividual) => (
-    <Pressable key={p.id} onPress={() => open(p.id)} accessibilityRole="button" style={{ gap: 2 }}>
-      <KinName kin={kin.get(p.id)}>
-        <ThemedText>{p.full_name}</ThemedText>
-      </KinName>
-      <KinLine kin={kin.get(p.id)} />
-      <ThemedText type="small">{years(p)}</ThemedText>
-    </Pressable>
-  );
-
-  // A couple is one card: the two people joined by a hairline down the
-  // left, the marriage year at the join; later marriages of either
-  // partner hang beneath, dashed, so the line's spouse and the others
-  // read as different things (Rufus, 2026-09-06).
-  const unitCard = (unit: CoupleUnit) => {
-    const partners = unit.partners.map((id) => people.get(id)).filter((p): p is TreeIndividual => Boolean(p));
-    if (partners.length === 0) return null;
-    return (
-      <Card key={unit.partners.join('+')} style={{ paddingVertical: 12 }}>
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          {partners.length > 1 && (
-            <View style={{ width: 14, alignItems: 'center' }}>
-              <View style={{ width: 1, flex: 1, backgroundColor: theme.accent }} />
-              <Text style={{ color: theme.accent, fontSize: 13, lineHeight: 16 }}>⚭</Text>
-              <View style={{ width: 1, flex: 1, backgroundColor: theme.accent }} />
-            </View>
-          )}
-          <View style={{ flex: 1, gap: 10 }}>
-            {partners[0] && personRow(partners[0])}
-            {partners.length > 1 && (
-              <Text style={{ fontFamily: BrandFonts.mono.regular, fontSize: 12, letterSpacing: 0.5, color: theme.textSecondary }}>
-                {unit.marriageYear ? `MARRIED ${unit.marriageYear}` : 'MARRIED, YEAR UNRECORDED'}
-              </Text>
-            )}
-            {partners[1] && personRow(partners[1])}
-          </View>
-        </View>
-        {unit.laterMarriages.length > 0 && (
-          <View style={{ marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderStyle: 'dashed', borderTopColor: theme.border, gap: 6 }}>
-            {unit.laterMarriages.map((m) => {
-              const of = people.get(m.ofId);
-              const spouse = people.get(m.spouseId);
-              if (!spouse) return null;
-              return (
-                <Pressable key={`${m.ofId}-${m.spouseId}`} onPress={() => open(spouse.id)} accessibilityRole="button">
-                  <ThemedText type="small">
-                    {of ? `${of.full_name.split(' ')[0]} also married ` : 'Also married '}
-                    <ThemedText type="smallBold">{spouse.full_name}</ThemedText>
-                    {m.marriageYear ? ` · ${m.marriageYear}` : ''} · {years(spouse)} ›
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
-      </Card>
-    );
-  };
 
   const side = (title: string, ids: string[]) => {
     if (ids.length === 0) return null;
@@ -149,7 +88,9 @@ export default function GenerationsScreen() {
         <ThemedText type="smallBold" themeColor="textSecondary">
           {title.toUpperCase()}
         </ThemedText>
-        {units.map(unitCard)}
+        {units.map((unit) => (
+          <CoupleCard key={unit.partners.join('+')} unit={unit} people={people} kin={kin} onOpen={open} />
+        ))}
       </View>
     );
   };
