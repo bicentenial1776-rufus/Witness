@@ -478,7 +478,10 @@ The first real register (Variant A), per
    birthplace, destination-colony consistency against later events, and
    household-role age plausibility — each an explicit, plain-words reason.
 
-### Civil War Enrichment (register `cw-regiments` — Phase 0 locked; foundation built)
+### Civil War Enrichment (register `cw-regiments` — candidates flowing, confirm built 2026-09-06)
+
+**Status 2026-09-06.** Variant B candidates now flow: exposure is the candidate (one link per exposed man, no record attached), boosted by a **citation signal** — a source the tree itself cites whose title says "Civil War" (pension index, soldier records, draft registration) carries a man over the threshold on its own and the card names the source. The Howe/Field tree: 115 candidates, 27 with such a citation. The confirm is the **regiment picker** ("Add his regiment"): search the 1,578 Dyer units by any words, optional company and rank, attach — which writes a military event "Served in the … — from regimental records (Dyer's Compendium, 1908)". The Dyer seed got an OCR-repair pass (years inside the war's decade, month misreads, shredded branch words; 26 garbled duplicates retired). Still to do: engagement extraction (the map layer), NPS battles and Confederate units, the narrative sample for a confirmed soldier.
+
 
 Variant B, per `docs/witness-civil-war-prompt.md` on the framework:
 **regiment-first** — 1,593 Union units from Dyer's *Compendium* (1908, PD)
