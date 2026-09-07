@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
-import type { PersonRegisterLink, RegisterDef } from '@witness/core/registers';
+import type { PersonRegisterLink, RegisterDef, RegisterRecord } from '@witness/core/registers';
 
 import { Card } from '@/components/card';
 import { ExplainerDot } from '@/components/explainer-dot';
 import { ThemedText } from '@/components/themed-text';
+import { UnitPicker } from '@/components/unit-picker';
 import { useTheme } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/alert';
 import { openExternal } from '@/lib/open-external';
-import { confirmRegisterLink, dismissRegisterLink } from '@/lib/register-links';
+import { attachAndConfirmRegisterEntity, confirmRegisterLink, dismissRegisterLink } from '@/lib/register-links';
 
 /**
  * One historical-record candidate for this ancestor — the generic card
@@ -20,19 +21,34 @@ import { confirmRegisterLink, dismissRegisterLink } from '@/lib/register-links';
  * save-back arrive with the registers that prove them.
  */
 export function RegisterCandidateCard({
-  link,
+  link: linkProp,
   register,
+  personName,
   onResolved,
   readOnly = false,
 }: {
   link: PersonRegisterLink;
   register: RegisterDef;
+  /** For the regiment picker's wording; the person the card sits on. */
+  personName?: string;
   onResolved?: (id: string, status: 'confirmed' | 'rejected') => void;
   /** Family members see the record and the verdict; only the owner rules. */
   readOnly?: boolean;
 }) {
   const theme = useTheme();
   const [busy, setBusy] = useState(false);
+  const [picking, setPicking] = useState(false);
+  // Variant B attaches a record the parent never fetched — keep the
+  // attached snapshot here so the card can show the unit at once.
+  const [attached, setAttached] = useState<PersonRegisterLink | null>(null);
+  const link = attached ?? linkProp;
+
+  async function attach(record: RegisterRecord, extra: { company: string; rank: string }) {
+    const next = await attachAndConfirmRegisterEntity(link, register, record, extra);
+    setAttached(next);
+    setPicking(false);
+    onResolved?.(link.id, 'confirmed');
+  }
 
   async function resolve(status: 'confirmed' | 'rejected') {
     setBusy(true);
@@ -76,11 +92,18 @@ export function RegisterCandidateCard({
         </ThemedText>
       )}
       {link.status === 'confirmed' || link.status === 'parsed_from_gedcom' ? (
-        <ThemedText type="small" themeColor="accent" style={{ fontWeight: 600 }}>
-          {link.status === 'confirmed'
-            ? `Confirmed — ${register.provenanceLabel.toLowerCase()}`
-            : 'From your own tree’s record'}
-        </ThemedText>
+        <View style={{ gap: 4 }}>
+          <ThemedText type="small" themeColor="accent" style={{ fontWeight: 600 }}>
+            {link.status === 'confirmed'
+              ? `Confirmed — ${register.provenanceLabel.toLowerCase()}`
+              : 'From your own tree’s record'}
+          </ThemedText>
+          {register.variant === 'B' && link.recordSummary && (
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={6}>
+              {link.recordSummary}
+            </ThemedText>
+          )}
+        </View>
       ) : link.recordId === null && register.variant === 'B' ? (
         // Variant B: exposure is the candidate — there is no record to say
         // "this is them" to. The verdicts are search the outside index, or
@@ -93,20 +116,37 @@ export function RegisterCandidateCard({
             </ThemedText>
           ) : (
             <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              <Pressable
+                disabled={busy}
+                onPress={() => setPicking(true)}
+                accessibilityRole="button"
+                style={{
+                  backgroundColor: theme.accent,
+                  borderWidth: 1,
+                  borderColor: theme.accent,
+                  borderRadius: 16,
+                  paddingHorizontal: 14,
+                  paddingVertical: 7,
+                }}
+              >
+                <ThemedText type="small" style={{ color: theme.onAccent, fontWeight: 600 }}>
+                  Add his regiment
+                </ThemedText>
+              </Pressable>
               {link.findingAidUrl && (
                 <Pressable
                   onPress={() => openExternal(link.findingAidUrl!)}
                   accessibilityRole="button"
                   style={{
-                    backgroundColor: theme.accent,
+                    backgroundColor: theme.backgroundElement,
                     borderWidth: 1,
-                    borderColor: theme.accent,
+                    borderColor: theme.border,
                     borderRadius: 16,
                     paddingHorizontal: 14,
                     paddingVertical: 7,
                   }}
                 >
-                  <ThemedText type="small" style={{ color: theme.onAccent, fontWeight: 600 }}>
+                  <ThemedText type="small" style={{ fontWeight: 600 }}>
                     Search the index ›
                   </ThemedText>
                 </Pressable>
@@ -167,6 +207,15 @@ export function RegisterCandidateCard({
             </Pressable>
           ))}
         </View>
+      )}
+      {register.variant === 'B' && (
+        <UnitPicker
+          register={register}
+          personName={personName ?? 'him'}
+          visible={picking}
+          onClose={() => setPicking(false)}
+          onPick={attach}
+        />
       )}
     </Card>
   );

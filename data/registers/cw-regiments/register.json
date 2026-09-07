@@ -22,6 +22,10 @@
       ],
       "threshold": 4
     },
+    "confirmEvent": {
+      "eventType": "military",
+      "detailTemplate": "Served in the {record_name} — {register_label}"
+    },
     "deepLinkTemplate": "https://www.familysearch.org/search/record/results?q.givenName={given}&q.surname={surname}&f.collectionId=1910717",
     "markerStyle": "regiment",
     "explainer": "Between 1861 and 1865 some 2.7 million men served in the Union armies, organized into roughly 3,500 state regiments and batteries whose movements and battles were compiled by the veteran Frederick H. Dyer in his Compendium of 1908. Witness holds Dyer's unit histories, not the 6.3-million-name soldier index — a soldier is attached to his regiment only when you confirm him, and the regiment's recorded movements then tell you where he probably was. Unit-level facts mean the regiment was there; the individual usually, not certainly, with it."

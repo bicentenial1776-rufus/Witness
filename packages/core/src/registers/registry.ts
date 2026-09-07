@@ -211,3 +211,64 @@ export async function saveRegisterRecordLink(
   });
   if (error) throw new Error(`Saving the record failed: ${error.message}`);
 }
+
+/**
+ * Variant B's search: entity records of one register whose name carries
+ * every word the reader typed ("15 mass" finds the 15th Massachusetts
+ * Infantry). Reference data is readable to any signed-in user.
+ */
+export async function searchRegisterEntities(
+  client: WitnessSupabaseClient,
+  registerKey: string,
+  query: string,
+  limit = 30,
+): Promise<RegisterRecord[]> {
+  let q = client
+    .from('register_records')
+    .select('id, register_key, record_kind, name_as_recorded, surname_normalized, given_normalized, entity_key, attributes, source_citation, finding_aid_url')
+    .eq('register_key', registerKey)
+    .eq('record_kind', 'entity')
+    .order('name_as_recorded')
+    .limit(limit);
+  for (const word of query.trim().split(/\s+/).filter(Boolean)) q = q.ilike('name_as_recorded', `%${word}%`);
+  const { data, error } = await q;
+  if (error) throw new Error(`Searching the register failed: ${error.message}`);
+  return ((data ?? []) as unknown as RecordRow[]).map(toRecord);
+}
+
+/**
+ * Variant B's confirm: the reader attaches the entity (the regiment) to
+ * a person's link. The link keeps a snapshot of the record so the card
+ * stays whole if the reference row is ever retired; company and rank
+ * are the reader's own words and live in saved_payload.
+ */
+export async function attachRegisterEntity(
+  client: WitnessSupabaseClient,
+  linkId: string,
+  record: RegisterRecord,
+  extra: { company?: string | null; rank?: string | null } = {},
+): Promise<void> {
+  const excerpt = typeof record.attributes['history_excerpt'] === 'string' ? (record.attributes['history_excerpt'] as string) : null;
+  const { data, error } = await client
+    .from('person_register_links')
+    .update({
+      record_id: record.id,
+      record_name: record.nameAsRecorded,
+      record_summary: excerpt ? excerpt.slice(0, 600) : null,
+      source_citation: record.sourceCitation,
+      finding_aid_url: record.findingAidUrl,
+      saved_payload: {
+        entity_key: record.entityKey,
+        company: extra.company?.trim() || null,
+        rank: extra.rank?.trim() || null,
+        organized: record.attributes['organized'] ?? null,
+        mustered_out: record.attributes['mustered_out'] ?? null,
+      } as never,
+      status: 'confirmed',
+      confirmed_at: new Date().toISOString(),
+    })
+    .eq('id', linkId)
+    .select('id');
+  if (error) throw new Error(`Attaching the record failed: ${error.message}`);
+  if (!data || data.length === 0) throw new Error('Only the tree owner can attach a record.');
+}

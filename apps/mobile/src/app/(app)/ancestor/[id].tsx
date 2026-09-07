@@ -2582,6 +2582,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                   key={link.id}
                   link={link}
                   register={register}
+                  personName={person.full_name}
                   readOnly={!treeOwned}
                   onResolved={(linkId, status) =>
                     setRegisterLinks((current) =>

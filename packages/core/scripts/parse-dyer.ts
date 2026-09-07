@@ -151,7 +151,9 @@ function main() {
 
   for (const unit of byKey.values()) {
     const text = repairOcr(unit.text.join(' ').replace(/\s+/g, ' '));
-    const organized = /Organi[sz]ed (?:at |in )?([^.]{3,80})\./i.exec(text)?.[1]?.trim() ?? '';
+    // Dyer writes "Org. at Worcester and mustered in June 12, 1861" far
+    // more often than "Organized at".
+    const organized = /(?:Organi[sz]ed|Org\.)\s+(?:at |in )?([^.]{3,80})\./i.exec(text)?.[1]?.trim() ?? '';
     const mustered = /Mustered out ([^.]{3,60})\./i.exec(text)?.[1]?.trim() ?? '';
     const id = `cw-regiments:${unit.key.toLowerCase()}`;
     records.push(

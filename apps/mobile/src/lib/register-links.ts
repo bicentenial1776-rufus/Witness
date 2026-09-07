@@ -1,5 +1,5 @@
-import type { PersonRegisterLink, RegisterDef } from '@witness/core/registers';
-import { setRegisterLinkStatus } from '@witness/core/registers';
+import type { PersonRegisterLink, RegisterDef, RegisterRecord } from '@witness/core/registers';
+import { attachRegisterEntity, setRegisterLinkStatus } from '@witness/core/registers';
 
 import { supabase } from '@/lib/supabase';
 
@@ -61,4 +61,28 @@ export async function confirmRegisterLink(
 
 export async function dismissRegisterLink(linkId: string): Promise<void> {
   await setRegisterLinkStatus(supabase, linkId, 'rejected');
+}
+
+/**
+ * Variant B: attach the entity the reader found (the regiment), then
+ * confirm exactly as a record match would — the event write from the
+ * register's confirmEvent spec runs with the unit's name in the detail.
+ */
+export async function attachAndConfirmRegisterEntity(
+  link: PersonRegisterLink,
+  register: RegisterDef,
+  record: RegisterRecord,
+  extra: { company?: string | null; rank?: string | null },
+): Promise<PersonRegisterLink> {
+  await attachRegisterEntity(supabase, link.id, record, extra);
+  const attached: PersonRegisterLink = {
+    ...link,
+    recordId: record.id,
+    recordName: record.nameAsRecorded,
+    sourceCitation: record.sourceCitation,
+    findingAidUrl: record.findingAidUrl,
+    recordSummary: typeof record.attributes['history_excerpt'] === 'string' ? (record.attributes['history_excerpt'] as string).slice(0, 600) : null,
+  };
+  await confirmRegisterLink(attached, register);
+  return { ...attached, status: 'confirmed' };
 }

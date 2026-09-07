@@ -8,7 +8,19 @@ narrative. Not ingested, ever: the 6.3M-name CWSS soldier index, state
 rosters, or any commercial dataset (decision 1 of
 docs/witness-civil-war-prompt.md).
 
-**Parser state (honest).** `scripts/parse-dyer.ts` off the Google-scan
+**2026-09-06 pass.** OCR repair on the narratives (years inside the war's
+decade, unambiguous month misreads, shredded branch words) took the odd
+year tokens from 2,720 to 147 and the unknown-branch units from 87 to 61;
+26 garbled duplicates ("5th Iowa Cavatjay") retired into their real units,
+1,578 now. "Org. at" is read as organized. Variant B candidates now flow:
+exposure IS the candidate (one link per exposed man, no record), boosted
+by a citation signal — a source the tree itself cites whose title says
+"Civil War" — and confirmed by attaching the regiment in the app's picker
+(confirmEvent writes a military event "Served in the …"). Engagement
+events are still the 17-row sample: the extractor over all units yields
+541 rows of which too many read "Captured" — its own pass, still.
+
+**Parser state (honest, 2026-09-02).** `scripts/parse-dyer.ts` off the Google-scan
 OCR: 1,593 unique units from 2,235 heading hits, 47 headings unparsed
 (shredded-caps sample kept in the parser run log). Dyer names ~3,500
 units — the gap is Part-3 sections whose headings the OCR shredded past
