@@ -122,10 +122,16 @@ async function readOne(admin: Client, anthropic: Anthropic, row: MediaRow): Prom
   };
 
   if (!row.storage_path) return fail('No file behind this row');
-  if ((row.byte_size ?? 0) > MAX_BYTES) return fail(`Too large to read as one image (${Math.round((row.byte_size ?? 0) / 1e6)} MB)`);
 
-  const { data: blob, error } = await admin.storage.from('tree-media').download(row.storage_path);
+  // A scan past the model's ceiling is read from a smaller rendition —
+  // storage resizes on the way out (2,400 px on the long side is more
+  // than a page of print needs). The original is untouched.
+  const oversized = (row.byte_size ?? 0) > MAX_BYTES;
+  const { data: blob, error } = await admin.storage
+    .from('tree-media')
+    .download(row.storage_path, oversized ? { transform: { width: 2400, height: 2400, resize: 'contain', quality: 80 } } : undefined);
   if (error || !blob) return fail(`Download failed: ${error?.message ?? 'no data'}`);
+  if (blob.size > MAX_BYTES) return fail(`Too large to read even reduced (${Math.round(blob.size / 1e6)} MB)`);
   const bytes = new Uint8Array(await blob.arrayBuffer());
   const chunks: string[] = [];
   for (let i = 0; i < bytes.length; i += 0x8000) chunks.push(String.fromCharCode(...bytes.subarray(i, i + 0x8000)));
