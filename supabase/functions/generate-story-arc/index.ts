@@ -38,7 +38,10 @@ import {
   type EnrichContext,
 } from '../_shared/enrich.ts';
 
-const MODEL = 'claude-opus-5';
+// Sonnet since 2026-09-07 (Rufus's call after a side-by-side): the arc is
+// grounded narrative from supplied facts, and Sonnet writes it at a
+// seventh of the price. Arcs already written by Opus stay cached as they are.
+const MODEL = 'claude-sonnet-4-6';
 // v6: reads drained and the descent checked (a truncated chain can no
 // longer cache as a finished line) — retold because every earlier arc
 // was written from reads that could silently stop at one page.
