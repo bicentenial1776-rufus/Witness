@@ -45,3 +45,14 @@ describe('warStateFromPlaces', () => {
     expect(warStateFromPlaces([{ year: 1900, placeParts: ['Boston', 'Massachusetts'] }])).toBeNull();
   });
 });
+
+describe('findUnitMentions on worn stones', () => {
+  it('reads the model\'s "M.S.S." and a bare "Vols." as Massachusetts, branch unknown', () => {
+    const found = findUnitMentions('EDWIN S. PARKER · Died April 14, 1899 · Co. H 25th M.S.S. Vols. · Farewell', parse);
+    expect(found.map((m) => [m.unit.unitKey, m.unit.company])).toEqual([['US-MA-UNK-25', 'H']]);
+    expect(found[0]!.span).toBe('Co. H 25th Mass. Vols.');
+  });
+  it('reads M.V.M. as Massachusetts', () => {
+    expect(findUnitMentions('Co. B, 42d Regt. M.V.M.', parse).map((m) => m.unit.unitKey)).toEqual(['US-MA-UNK-42']);
+  });
+});

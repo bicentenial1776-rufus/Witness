@@ -18,6 +18,12 @@ export interface UnitMention {
   unit: ParsedUnit;
 }
 
+// Headstone and OCR spellings that the vocabulary does not carry:
+// "M.S.S." / "M. S. S." is how the model reads a worn "Mass.", and
+// "M.V.M." is Massachusetts Volunteer Militia on the stones of the
+// nine-month men. They are rewritten to "Mass." before the parse.
+const MASS_MISREAD = /\bm\.? ?s\.? ?s\.?(?=\s|$)/gi;
+const MASS_MILITIA = /\bm\.? ?v\.? ?m\.?(?=\s|$)/gi;
 const STATE_WORDS =
   'maine|me\\.?|massachusetts|mass\\.?|new hampshire|n\\.? ?h\\.?|vermont|vt\\.?|connecticut|conn\\.?|rhode island|r\\.? ?i\\.?|new york|n\\.? ?y\\.?|new jersey|n\\.? ?j\\.?|pennsylvania|penn\\.?|pa\\.?|ohio|indiana|ind\\.?|illinois|ill\\.?|michigan|mich\\.?|wisconsin|wis\\.?|minnesota|minn\\.?|iowa|missouri|mo\\.?|kansas|kentucky|ky\\.?|tennessee|tenn\\.?|maryland|md\\.?|delaware|del\\.?|west virginia|virginia|va\\.?|california|cal\\.?|oregon|colorado|nebraska|nevada|dakota|new mexico|louisiana|alabama|ala\\.?|arkansas|ark\\.?|mississippi|miss\\.?|florida|fla\\.?|georgia|north carolina|texas|u\\.? ?s\\.? ?c\\.? ?t\\.?';
 const BRANCH_WORDS = 'infantry|inf\\.?|cavalry|cav\\.?|heavy artillery|light artillery|artillery|art\\.?|sharpshooters|engineers|volunteers|vols\\.?';
@@ -37,7 +43,8 @@ export function findUnitMentions(text: string, parse: (designation: string) => P
   // One hint per regiment: a later mention that adds the company fills it in.
   const out: UnitMention[] = [];
   const byKey = new Map<string, UnitMention>();
-  for (const match of text.replace(/\s+/g, ' ').matchAll(SPAN)) {
+  const flat = text.replace(/\s+/g, ' ').replace(MASS_MISREAD, 'Mass.').replace(MASS_MILITIA, 'Mass. Vols.');
+  for (const match of flat.matchAll(SPAN)) {
     const span = match[0].trim();
     const unit = parse(span);
     if (!unit) continue;

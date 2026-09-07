@@ -77,14 +77,26 @@ export function RegisterCandidateCard({
         }
       }
       if (found.size === 0) return;
+      // A stone that says "Co. H 25th Mass. Vols." names no branch: its
+      // key is US-MA-UNK-25, and every branch of that state and number is
+      // a possible match. One record and the hint stands; several and the
+      // reader sees each.
+      const keys = [...found.keys()];
+      const exact = keys.filter((k) => !k.includes('-UNK-'));
+      const orClauses = [
+        ...(exact.length > 0 ? [`entity_key.in.(${exact.join(',')})`] : []),
+        ...keys.filter((k) => k.includes('-UNK-')).map((k) => `entity_key.like.${k.replace('-UNK-', '-*-')}`),
+      ];
       const { data: records } = await supabase
         .from('register_records')
         .select('id, register_key, record_kind, name_as_recorded, surname_normalized, given_normalized, entity_key, attributes, source_citation, finding_aid_url')
         .eq('register_key', register.registerKey)
-        .in('entity_key', [...found.keys()]);
+        .or(orClauses.join(','));
       if (cancelled) return;
+      const hintFor = (entityKey: string | null) =>
+        found.get(entityKey ?? '') ?? found.get((entityKey ?? '').replace(/-[A-Z]+-(\d+)$/, '-UNK-$1'));
       setHints(
-        (records ?? []).map((row) => ({
+        (records ?? []).filter((row) => hintFor(row.entity_key)).map((row) => ({
           record: {
             id: row.id,
             registerKey: row.register_key,
@@ -97,7 +109,7 @@ export function RegisterCandidateCard({
             sourceCitation: row.source_citation,
             findingAidUrl: row.finding_aid_url,
           },
-          ...found.get(row.entity_key ?? '')!,
+          ...hintFor(row.entity_key)!,
         })),
       );
     })().catch(() => {});
