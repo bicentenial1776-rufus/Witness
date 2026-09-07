@@ -97,6 +97,26 @@ async function loadPeople(client: Client, treeId: string): Promise<RegisterPerso
     }
     if (!data || data.length < PAGE) break;
   }
+  // The sources the tree cites per person — a register's strongest
+  // signal from the file itself ("U.S., Civil War Pension Index").
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await client
+      .from('citations')
+      .select('individual_id, sources (title)')
+      .eq('tree_id', treeId)
+      .not('individual_id', 'is', null)
+      .order('id')
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(`citations: ${error.message}`);
+    for (const row of data ?? []) {
+      const person = people.get(row.individual_id);
+      const title = row.sources?.title as string | null | undefined;
+      if (!person || !title) continue;
+      const titles = (person.citationTitles ?? []) as string[];
+      if (!titles.includes(title)) (person as { citationTitles?: string[] }).citationTitles = [...titles, title];
+    }
+    if (!data || data.length < PAGE) break;
+  }
   return [...people.values()];
 }
 
@@ -219,13 +239,26 @@ async function matchTree(client: Client, treeId: string, userId: string): Promis
       if (exposed.length === 0) continue;
       const { data: held, error: heldError } = await client
         .from('person_register_links')
-        .select('individual_id')
+        .select('id, individual_id, status')
         .eq('tree_id', treeId)
         .eq('register_key', register.register_key);
       if (heldError) throw new Error(`held links: ${heldError.message}`);
-      const heldIds = new Set((held ?? []).map((r: { individual_id: string }) => r.individual_id));
+      const heldById = new Map(
+        (held ?? []).map((r: { id: string; individual_id: string; status: string }) => [r.individual_id, r]),
+      );
+      // A candidate still open takes the fresh score and reasons — a
+      // newly noticed citation should reach the card; a verdict stands.
+      for (const c of exposed) {
+        const prior = heldById.get(c.person.id);
+        if (!prior || prior.status !== 'candidate') continue;
+        const { error } = await client
+          .from('person_register_links')
+          .update({ match_score: c.score, match_reasons: c.reasons, finding_aid_url: c.deepLink })
+          .eq('id', prior.id);
+        if (error) throw new Error(`exposure link update: ${error.message}`);
+      }
       const rows = exposed
-        .filter((c) => !heldIds.has(c.person.id))
+        .filter((c) => !heldById.has(c.person.id))
         .map((c) => ({
           tree_id: treeId,
           user_id: userId,

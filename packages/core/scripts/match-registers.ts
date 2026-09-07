@@ -121,6 +121,29 @@ async function loadPeople(
     }
     if (!data || data.length < PAGE) break;
   }
+  // The sources the tree cites per person — a register's strongest
+  // signal from the file itself ("U.S., Civil War Pension Index").
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await client
+      .from('citations')
+      .select('individual_id, sources (title)')
+      .eq('tree_id', treeId!)
+      .not('individual_id', 'is', null)
+      .order('id')
+      .range(from, from + PAGE - 1);
+    if (error) {
+      console.error('Loading citations failed:', error.message);
+      process.exit(1);
+    }
+    for (const row of data ?? []) {
+      const person = people.get(row.individual_id as string);
+      const title = (row.sources as { title: string | null } | null)?.title;
+      if (!person || !title) continue;
+      const titles = (person.citationTitles ?? []) as string[];
+      if (!titles.includes(title)) (person as { citationTitles?: string[] }).citationTitles = [...titles, title];
+    }
+    if (!data || data.length < PAGE) break;
+  }
   return [...people.values()];
 }
 
@@ -160,11 +183,22 @@ async function main() {
       const exposed = exposureCandidates(register.config, people);
       const { data: held } = await client
         .from('person_register_links')
-        .select('individual_id')
+        .select('id, individual_id, status')
         .eq('tree_id', treeId!)
         .eq('register_key', register.registerKey);
-      const heldIds = new Set((held ?? []).map((r) => r.individual_id as string));
-      const fresh = exposed.filter((c) => !heldIds.has(c.person.id));
+      const heldById = new Map((held ?? []).map((r) => [r.individual_id as string, r]));
+      const fresh = exposed.filter((c) => !heldById.has(c.person.id));
+      if (write) {
+        // Open candidates take the fresh score and reasons; verdicts stand.
+        for (const c of exposed) {
+          const prior = heldById.get(c.person.id);
+          if (!prior || prior.status !== 'candidate') continue;
+          await client
+            .from('person_register_links')
+            .update({ match_score: c.score, match_reasons: c.reasons as never, finding_aid_url: c.deepLink })
+            .eq('id', prior.id as string);
+        }
+      }
       console.log(
         `── ${register.displayName} (${register.registerKey}, Variant B)\n` +
           `   exposed: ${exposed.length} of ${people.length} · already held: ${exposed.length - fresh.length} · new: ${fresh.length}\n`,

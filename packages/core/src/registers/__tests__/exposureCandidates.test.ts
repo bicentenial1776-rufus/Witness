@@ -39,3 +39,19 @@ describe('exposureCandidates', () => {
     expect(exposureCandidates({}, [person('a', 'Ezekiel Howe', 'M', 1840, 1860)])).toEqual([]);
   });
 });
+
+describe('citation signals', () => {
+  it('names the cited source in the reason and can carry a person over the threshold alone', () => {
+    const cfg: RegisterConfig = {
+      exposure: {
+        sex: 'M',
+        citationSignals: [{ pattern: 'civil war', weight: 4, reason: 'your own tree cites a Civil War record' }],
+        threshold: 4,
+      },
+    };
+    const cited = { ...person('a', 'Edwin Parker', 'M', 1843, null), citationTitles: ['U.S., Civil War Pension Index, 1861-1934'] };
+    const out = exposureCandidates(cfg, [cited, person('b', 'Quiet Man', 'M', 1843, null)]);
+    expect(out.map((c) => c.person.id)).toEqual(['a']);
+    expect(out[0]!.reasons[0]).toBe('your own tree cites a Civil War record — “U.S., Civil War Pension Index, 1861-1934”');
+  });
+});

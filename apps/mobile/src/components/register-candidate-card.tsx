@@ -57,7 +57,7 @@ export function RegisterCandidateCard({
       </View>
       {link.recordName && <ThemedText>{link.recordName}</ThemedText>}
       {link.matchReasons.length > 0 && (
-        <ThemedText type="small">{link.matchReasons.join(' · ')}</ThemedText>
+        <ThemedText type="small">{[...new Set(link.matchReasons)].join(' · ')}</ThemedText>
       )}
       {link.sourceCitation && <ThemedText type="small">Source: {link.sourceCitation}</ThemedText>}
       {register.coverageCaveat && (

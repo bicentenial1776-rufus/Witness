@@ -67,6 +67,13 @@ export function scoreExposure(
     reasons.push(range.reason);
   }
 
+  for (const signal of config.citationSignals ?? []) {
+    const hit = (person.citationTitles ?? []).find((t) => t.toLowerCase().includes(signal.pattern.toLowerCase()));
+    if (!hit) continue;
+    score += signal.weight;
+    reasons.push(`${signal.reason} — “${hit}”`);
+  }
+
   const roster = config.surnames;
   if (roster) {
     const surname = person.fullName.trim().split(/\s+/).pop()?.toLowerCase() ?? '';
@@ -76,5 +83,7 @@ export function scoreExposure(
     }
   }
 
-  return { score, exposed: score >= config.threshold, reasons };
+  // Two signals may share a wording ("a recorded United States place" for
+  // both spellings); the reader should see each reason once.
+  return { score, exposed: score >= config.threshold, reasons: [...new Set(reasons)] };
 }

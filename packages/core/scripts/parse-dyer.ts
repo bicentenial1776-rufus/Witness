@@ -41,7 +41,9 @@ function csvField(f: string): string {
 function main() {
   const [input, outDir] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
   const eventsArg = process.argv.find((a) => a.startsWith('--events-for'));
-  const eventKeys = new Set((eventsArg?.split('=')[1] ?? '').split(',').filter(Boolean));
+  const eventsList = eventsArg?.split('=')[1] ?? '';
+  const eventsForAll = eventsList === 'all';
+  const eventKeys = new Set(eventsList.split(',').filter(Boolean));
   if (!input || !outDir) {
     console.error('usage: parse-dyer.ts <dyer.txt> <outDir> [--events-for=key,...]');
     process.exit(1);
@@ -91,7 +93,10 @@ function main() {
 
     const heading = HEADING.exec(line);
     if (heading && state) {
-      const branchText = repairBranch((heading[3] ?? '').split(/[—.]/)[0] ?? '');
+      let branchText = repairBranch((heading[3] ?? '').split(/[—.]/)[0] ?? '');
+      // Under the Colored Troops a bare "Nth REGIMENT" is infantry —
+      // Dyer names the USCT cavalry and artillery units as such.
+      if (!branchText.trim() && state === 'UNITED STATES COLORED TROOPS' && heading[2] === 'REGIMENT') branchText = 'INFANTRY';
       const designation = `${heading[1]} ${state} ${heading[2]} ${branchText}`;
       const parsed = parseUnit(designation);
       staleLines = 0;
@@ -145,7 +150,7 @@ function main() {
   let eventCount = 0;
 
   for (const unit of byKey.values()) {
-    const text = unit.text.join(' ').replace(/\s+/g, ' ');
+    const text = repairOcr(unit.text.join(' ').replace(/\s+/g, ' '));
     const organized = /Organi[sz]ed (?:at |in )?([^.]{3,80})\./i.exec(text)?.[1]?.trim() ?? '';
     const mustered = /Mustered out ([^.]{3,60})\./i.exec(text)?.[1]?.trim() ?? '';
     const id = `cw-regiments:${unit.key.toLowerCase()}`;
@@ -165,7 +170,7 @@ function main() {
         .join(','),
     );
 
-    if (eventKeys.has(unit.key)) {
+    if (eventsForAll || eventKeys.has(unit.key)) {
       // Engagement extraction, defensively: sentences whose tail is an
       // unambiguous "Month D(-D)(, YYYY)" — year tracked forward through
       // the narrative; anything murkier stays prose.
@@ -214,12 +219,37 @@ function main() {
   if (skippedSample.length) console.log('\nUnparsed heading sample:\n  ' + skippedSample.slice(0, 12).join('\n  '));
 }
 
+/**
+ * The scan's habitual misreads of a war that ran 1861–1866: "1802" for
+ * 1862, "1R63", "18*4", "Mav", "Julv", "Oet", "Doc". Years are repaired
+ * only inside the war's decade — a genuine 1802 never appears in a
+ * regimental service narrative — and month words only when the misread
+ * is unambiguous. Dyer's own abbreviations ("Jany", "Feby") stay.
+ */
+function repairOcr(text: string): string {
+  return text
+    .replace(/\b1[8R][0*?8]([1-6])\b/g, '186$1')
+    .replace(/\b1R6([0-6])\b/g, '186$1')
+    .replace(/\b18[*?]([0-6])\b/g, '186$1')
+    .replace(/\b18[0-6][lI]\b/g, (m) => m.replace(/[lI]$/, '1'))
+    .replace(/\bMav\b/g, 'May')
+    .replace(/\bJulv\b/g, 'July')
+    .replace(/\bOet\b/g, 'Oct')
+    .replace(/\bMareh\b/g, 'March')
+    .replace(/\bAnril\b/g, 'April')
+    .replace(/\bXov\b/g, 'Nov')
+    .replace(/\bDoc\.(?=\s+\d)/g, 'Dec.')
+    .replace(/\bREGIMENT\s+(?:IN\s*FANTR\s*Y|TN PANTRY|DSFANTRY|I N FA NT It Y|IN KAN Tit V)/g, 'REGIMENT INFANTRY');
+}
+
 /** The scan shreds caps words ("IN FAN TRY", "1 X FAXTR V") — collapse
     and pattern-repair the branch word before the parser sees it. */
 function repairBranch(text: string): string {
   const collapsed = text.toUpperCase().replace(/[^A-Z]/g, '');
-  if (/N?F[A-Z]?[NK]TR|FANTRY|KANTRY|PANTRY|FAXTR/.test(collapsed)) return 'INFANTRY';
-  if (/CAV[AN]LR|AVALRY|CAVLY|CAV$/.test(collapsed)) return 'CAVALRY';
+  if (/N?F[A-Z]?[NK]TR|FANTRY|KANTRY|PANTRY|FAXTR|FANRRY|PASTRY|INFANTKY|DSFANTRY|^INF$|^I$|^INY$/.test(collapsed)) return 'INFANTRY';
+  if (/CAV[AN]LR|AVALRY|CAVLY|CAV$|CAYALHY|CAVATJAY|CAVAIRV|CAVAIJTY|DRAOOONS|DRAGOONS|^COT$|^OO$/.test(collapsed)) return 'CAVALRY';
+  if (/AKTILLERY/.test(collapsed)) return 'HEAVY ARTILLERY';
+  if (/EXGIVEERS|ENGIVEERS/.test(collapsed)) return 'ENGINEERS';
   if (/HEAVYART|HVYART/.test(collapsed)) return 'HEAVY ARTILLERY';
   if (/LI?[GT]HTART|LTART/.test(collapsed)) return 'LIGHT ARTILLERY';
   if (/RTILLER|ARTY/.test(collapsed)) return 'ARTILLERY';

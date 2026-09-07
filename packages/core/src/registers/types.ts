@@ -48,6 +48,10 @@ export interface ExposureConfig {
   coincidenceBonus?: number;
   birthYearRange?: { from: number; to: number; weight: number; reason: string };
   surnames?: { list: string[]; weight: number; reason: string };
+  /** A source the tree itself cites whose title matches (case-blind) —
+      "U.S., Civil War Pension Index" on a person is the strongest signal
+      a register can get from the file. The reason names the source. */
+  citationSignals?: { pattern: string; weight: number; reason: string }[];
   /** Minimum score to count as exposed. */
   threshold: number;
 }
@@ -93,6 +97,8 @@ export interface RegisterPersonFacts {
     year: number | null;
     placeParts: readonly string[] | null;
   }[];
+  /** Titles of the sources the tree cites for this person, when loaded. */
+  citationTitles?: readonly string[];
 }
 
 /** A reference row (Variant A person or Variant B entity). */

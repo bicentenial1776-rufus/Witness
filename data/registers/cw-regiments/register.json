@@ -17,6 +17,9 @@
         { "pattern": "usa", "weight": 1, "reason": "a recorded United States place" }
       ],
       "coincidenceBonus": 1,
+      "citationSignals": [
+        { "pattern": "civil war", "weight": 4, "reason": "your own tree cites a Civil War record" }
+      ],
       "threshold": 4
     },
     "deepLinkTemplate": "https://www.familysearch.org/search/record/results?q.givenName={given}&q.surname={surname}&f.collectionId=1910717",
