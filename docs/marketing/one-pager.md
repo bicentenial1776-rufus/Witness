@@ -51,7 +51,7 @@ Who was alive for the Mayflower landing or the 1918 flu. Near Me: whose history
 is within a mile of where you stand.
 
 **Notice** — matches and checks that arrive as questions, never verdicts. You
-judge every one. Twenty-two data-integrity checks, the FTAnalyzer catalog.
+judge every one. Tree Health: twenty-two data-integrity checks over every person, family, and date.
 Colonial passenger lists: 105 voyages, 6,296 passengers. The Acadian rolls; the
 Union regiments of the Civil War. At the Stone: the camera reads a headstone
 against your tree.
