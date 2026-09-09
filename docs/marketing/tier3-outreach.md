@@ -93,7 +93,7 @@ Subject: A reading companion for the trees your Genealogy 101 students bring hom
 
 Aimee,
 
-I'm Rufus Howe, a physician in Red Hook, NY, and the developer of WitnessLives, an iPhone, iPad, and web app that reads a GEDCOM and works out what the tree can tell you. I noticed the Research Center's Genealogy 101 on October 17 and the Germanic Lancaster class, and I think the app sits naturally at the end of both: the student leaves with a file, and Witness turns that file into a daily story of one line, with the record as the authority and nothing changed in the tree itself.
+I'm Rufus Howe, a long-time healthcare executive and builder of expert systems in Red Hook, NY, and the developer of WitnessLives, an iPhone, iPad, and web app that reads a GEDCOM and works out what the tree can tell you. I noticed the Research Center's Genealogy 101 on October 17 and the Germanic Lancaster class, and I think the app sits naturally at the end of both: the student leaves with a file, and Witness turns that file into a daily story of one line, with the record as the authority and nothing changed in the tree itself.
 
 It also carries registers a reader judges match by match — colonial passenger lists, the Acadian rolls, the Union regiments of the Civil War — and reads a headstone with the camera. It is free on the App Store with a one-month trial.
 
