@@ -7,20 +7,20 @@ Owner tags: **[Rufus]** = requires you personally (relationships, judgment calls
 
 ## Week 1 — Close the loop on what's already warm
 
-- [ ] **[Rufus]** Personal follow-up to the three warm society replies: Kharisma (Clark County NV), Katie (Olde Meck NC — post your Aug 26 review meeting), Colorado Council forward. Ask directly: "Would your members find this useful enough to mention in your newsletter?"
-- [ ] **[Claude]** Draft a short "member spotlight" pitch template these societies could drop into their newsletters — makes it a 30-second yes for them, not a project.
-- [ ] **[Claude]** Verify which Tier 3 contacts (Ohio chapters, El Paso, Fort Worth, Louisiana parishes, Western PA, LancasterHistory, Utah UGA, Quebec SGQ/SGGTR) are still active organizations before drafting anything.
-- [ ] **[Claude]** Draft Tier 3 outreach emails, reusing the Tier 1/2 template with updates from the campaign tracker.
-- [ ] **[Rufus]** Review and send Tier 3 drafts (or delegate to me if you want them scheduled).
+- [x] **[Rufus]** Personal follow-up to the three warm society replies: Kharisma (Clark County NV), Katie (Olde Meck NC — post your Aug 26 review meeting), Colorado Council forward. Ask directly: "Would your members find this useful enough to mention in your newsletter?"
+- [x] **[Claude]** Draft a short "member spotlight" pitch template these societies could drop into their newsletters — makes it a 30-second yes for them, not a project.
+- [x] **[Claude]** Verify which Tier 3 contacts (Ohio chapters, El Paso, Fort Worth, Louisiana parishes, Western PA, LancasterHistory, Utah UGA, Quebec SGQ/SGGTR) are still active organizations before drafting anything.
+- [x] **[Claude]** Draft Tier 3 outreach emails, reusing the Tier 1/2 template with updates from the campaign tracker.
+- [x] **[Rufus]** Review and send Tier 3 drafts (or delegate to me if you want them scheduled).
 - [ ] **[Claude]** Update App Store screenshots plan: identify 3–5 "story reveal" moments from your own Howe/Field data to use as screenshot narratives instead of pure UI shots.
 
 ## Week 2 — Seed the communities
 
-- [ ] **[Claude]** Draft 2–3 value-first posts for r/genealogy and r/AncestryDNA (a specific Acadian or Civil War enrichment story, not "check out my app").
+- [x] **[Claude]** Draft 2–3 value-first posts for r/genealogy and r/AncestryDNA (a specific Acadian or Civil War enrichment story, not "check out my app").
 - [ ] **[Rufus]** Post them personally under your own account — community mods flag anything that smells like a marketing account.
-- [ ] **[Claude]** Identify 5–8 active Facebook genealogy groups (by region/surname/society affiliation) and check each one's self-promotion rules before drafting anything.
-- [ ] **[Rufus]** Join those groups (takes a few days for approval in most cases — start this early).
-- [ ] **[Claude]** Research 8–10 genealogy podcasters/YouTubers by audience size and pitch fit; rank by likely response rate.
+- [x] **[Claude]** Identify 5–8 active Facebook genealogy groups (by region/surname/society affiliation) and check each one's self-promotion rules before drafting anything.
+- [x] **[Rufus]** Join those groups (takes a few days for approval in most cases — start this early). — requested 2026-09-09, all 8
+- [x] **[Claude]** Research 8–10 genealogy podcasters/YouTubers by audience size and pitch fit; rank by likely response rate.
 
 ## Week 3 — Pitch the media
 
@@ -52,4 +52,6 @@ Owner tags: **[Rufus]** = requires you personally (relationships, judgment calls
 
 ---
 
-**Note:** This assumes Weeks 1–2 tasks can run in parallel with your existing Software MacKiev outreach — that pitch doesn't need to wait for this sequence.
+**Note:** This assumes Weeks 1–2 tasks can run in parallel with your existing Software MacKiev outreach — that pitch doesn't need to wait for this sequence. (MacKiev letter delivered 2026-09-09 via familytreemaker@mackiev.com.)
+
+**Status log:** Week 1 complete 2026-09-09 except the screenshot plan. Week 2 Claude items done 2026-09-09; Rufus joined all 8 Facebook groups 2026-09-09 (approvals pending); Reddit posts scheduled 09-14 / 09-17 / 09-21. Week 2 podcaster research done early; pitches drafted 2026-09-09 (week3-podcast-pitches.md).
