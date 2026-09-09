@@ -124,4 +124,4 @@ WitnessLives — witnesslives.com
 ---
 Essayez Witness, un compagnon de lecture pour votre arbre généalogique. Witness lit le fichier GEDCOM que vous possédez déjà et s'ouvre chaque matin sur une lignée de votre famille, racontée à partir des sources. Il ne modifie jamais votre arbre. Gratuit sur l'App Store et à witnesslives.com, avec un mois d'essai ; 19,99 $ US par année ensuite. Interface en anglais. Quelques membres peuvent recevoir un abonnement gratuit en échange de leurs commentaires — écrivez à rufus@witnesslives.com.
 
-**MacKiev letter (09-09):** Rufus sent the rebuilt Jack letter to Jack@familytreemaker.com at 14:51 ET → hard bounce (550 user unknown at mail.mackiev.com). A real address for Jack Minsky is still needed.
+**MacKiev letter (09-09):** Rufus sent the rebuilt Jack letter to Jack@familytreemaker.com at 14:51 ET → hard bounce (550 user unknown at mail.mackiev.com). jack.minsky@familytreemaker.com also bounced. RESENT 15:01 ET to familytreemaker@mackiev.com (the product inbox) with the intro reworded to ask for routing to Jack; delivered, no bounce. Follow-up 09-23.
