@@ -29,14 +29,14 @@ Not sent (could not verify): Cuyahoga West OGS (RootsWeb only, no activity since
 
 Send from the personal address as before, ten a day, and log send dates in the Drive tracker (add these as Tier 3 rows).
 
-## Gmail drafts created 2026-09-09 (unsent; Rufus reviews and sends)
+## Gmail drafts created 2026-09-09 — ALL SENT by Rufus 2026-09-09 13:50–14:52 ET (all 14 in one day; the 10/day cap was not kept)
 
 | # | Organization | Draft id | Note |
 |---|---|---|---|
 | 1 | Hamilton County GS | r1746344628904027897 | cc Tracer editor |
 | 2 | Franklin County G&HS | r602284924153423675 | |
 | 3 | Summit County OGS | r-2510621849993816418 | |
-| 4 | Greene County OGS | r5541059543613201104 | **no recipient** — paste body into greenecountyogs.com/contact.html, then delete the draft |
+| 4 | Greene County OGS | r5541059543613201104 | Rufus SENT it to president@ogs.org (Ohio Genealogical Society, state level) as "Hi Dorothea" — body still says Greene County / Leaves of Greene and the subject kept the paste-into-form note. Greene County chapter itself NOT contacted |
 | 5 | Fort Worth GS | r2500362013132395826 | cc newsletter editor |
 | 6 | El Paso GS | r-5770808184184527537 | low confidence; send last |
 | 7 | Le Comité des Archives | r7336543385555218890 | cc president |
@@ -123,3 +123,5 @@ WitnessLives — witnesslives.com
 
 ---
 Essayez Witness, un compagnon de lecture pour votre arbre généalogique. Witness lit le fichier GEDCOM que vous possédez déjà et s'ouvre chaque matin sur une lignée de votre famille, racontée à partir des sources. Il ne modifie jamais votre arbre. Gratuit sur l'App Store et à witnesslives.com, avec un mois d'essai ; 19,99 $ US par année ensuite. Interface en anglais. Quelques membres peuvent recevoir un abonnement gratuit en échange de leurs commentaires — écrivez à rufus@witnesslives.com.
+
+**MacKiev letter (09-09):** Rufus sent the rebuilt Jack letter to Jack@familytreemaker.com at 14:51 ET → hard bounce (550 user unknown at mail.mackiev.com). A real address for Jack Minsky is still needed.
