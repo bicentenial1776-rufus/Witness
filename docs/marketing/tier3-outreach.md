@@ -27,7 +27,28 @@ name or address was not published, the general inbox is used.
 
 Not sent (could not verify): Cuyahoga West OGS (RootsWeb only, no activity since 2022), St. Bernard GS (site gone), Société de généalogie des Cantons-de-l'Est (site 404; last activity Sep 2025 — info@sgce.qc.ca if we want to try anyway).
 
-Send from the personal address as before, ten a day, and log Gmail draft IDs and dates in the Drive tracker (add these as Tier 3 rows).
+Send from the personal address as before, ten a day, and log send dates in the Drive tracker (add these as Tier 3 rows).
+
+## Gmail drafts created 2026-09-09 (unsent; Rufus reviews and sends)
+
+| # | Organization | Draft id | Note |
+|---|---|---|---|
+| 1 | Hamilton County GS | r1746344628904027897 | cc Tracer editor |
+| 2 | Franklin County G&HS | r602284924153423675 | |
+| 3 | Summit County OGS | r-2510621849993816418 | |
+| 4 | Greene County OGS | r5541059543613201104 | **no recipient** — paste body into greenecountyogs.com/contact.html, then delete the draft |
+| 5 | Fort Worth GS | r2500362013132395826 | cc newsletter editor |
+| 6 | El Paso GS | r-5770808184184527537 | low confidence; send last |
+| 7 | Le Comité des Archives | r7336543385555218890 | cc president |
+| 8 | Terrebonne GS | r403049624100166460 | |
+| 9 | Jefferson GS | r9117565727987639067 | |
+| 10 | Western Pennsylvania GS | r1373555224716994507 | cc Jots editor; opens "Hello," |
+| 11 | LancasterHistory | r6313005950239688333 | separate pitch |
+| 12 | Utah GA (Crossroads editor) | r-4098554253290253710 | |
+| 13 | SGQ | r7268770812385893159 | French |
+| 14 | SGGTR | r-2752153825997096112 | French |
+
+Template change on creation: "the next release is with Apple for review now" became "a new release went live this week" (1.8.0 approved 09-08). Ten today, four tomorrow keeps the daily cap.
 
 ## English template
 
@@ -37,7 +58,7 @@ Hi {{first name}},
 
 I'm Rufus Howe. I spent decades building expert systems for healthcare, where incomplete and conflicting records were the daily job, and I built WitnessLives to do something with the family tree I'd already assembled. {{hook}}
 
-Witness reads a GEDCOM export and never edits the tree where it lives. Each morning it opens on one line of your family, told as a story with the record as the authority. It holds your people against colonial passenger lists, the Acadian deportation rolls, and the Union regiments of the Civil War, runs twenty-two data-integrity checks, and in a cemetery reads a headstone with the camera. It is a free download on the App Store and runs on the web; the next release is with Apple for review now.
+Witness reads a GEDCOM export and never edits the tree where it lives. Each morning it opens on one line of your family, told as a story with the record as the authority. It holds your people against colonial passenger lists, the Acadian deportation rolls, and the Union regiments of the Civil War, runs twenty-two data-integrity checks, and in a cemetery reads a headstone with the camera. It is a free download on the App Store and runs on the web; a new release went live this week.
 
 I'd be grateful if two or three {{society short name}} members would try it on their own trees and tell me what they think. Each would have a complimentary subscription. If a short notice in {{newsletter}} is the easiest way to find them, I've put one below that can run as-is.
 
@@ -90,7 +111,7 @@ Bonjour {{Monsieur Auclair / Monsieur Poulin}},
 
 Je m'appelle Rufus Howe. J'ai passé des décennies à concevoir des systèmes experts en santé, où les dossiers incomplets et contradictoires étaient le travail quotidien, et j'ai créé WitnessLives pour faire quelque chose de l'arbre généalogique que j'avais déjà constitué.
 
-Witness lit un fichier GEDCOM et ne modifie jamais l'arbre d'origine. Chaque matin, il s'ouvre sur une lignée de votre famille, racontée comme une histoire dont la source demeure l'autorité. Il confronte vos ancêtres aux listes de passagers coloniales, aux rôles de la déportation acadienne (Grand-Pré 1755 et le recensement de 1752) et aux régiments de l'Union de la guerre de Sécession, effectue vingt-deux vérifications d'intégrité des données, et, au cimetière, lit une pierre tombale avec l'appareil photo. L'application est gratuite sur l'App Store et fonctionne aussi sur le web ; la prochaine version est actuellement en révision chez Apple.
+Witness lit un fichier GEDCOM et ne modifie jamais l'arbre d'origine. Chaque matin, il s'ouvre sur une lignée de votre famille, racontée comme une histoire dont la source demeure l'autorité. Il confronte vos ancêtres aux listes de passagers coloniales, aux rôles de la déportation acadienne (Grand-Pré 1755 et le recensement de 1752) et aux régiments de l'Union de la guerre de Sécession, effectue vingt-deux vérifications d'intégrité des données, et, au cimetière, lit une pierre tombale avec l'appareil photo. L'application est gratuite sur l'App Store et fonctionne aussi sur le web ; une nouvelle version est parue cette semaine.
 
 Je vous préviens honnêtement : l'interface est en anglais pour l'instant. C'est justement pour cela que le regard de vos membres m'intéresse — les registres acadiens en particulier ont été bâtis pour des familles comme les vôtres, et je préfère apprendre leurs erreurs de {{Québec / Trois-Rivières}} que d'ailleurs.
 
