@@ -14,43 +14,49 @@ Two-week non-responder follow-up, same as the society campaign.
 ## 1. Research Like a Pro — Diana Elder & Nicole Dyer
 Route: familylocket.com/contact-us, choose "podcast guest requests"
 Slug: podcast-rlp
+HISTORY: Rufus wrote via their form 2026-07-03 (pre-launch, "intelligence layer",
+asked for a 20-minute call + beta feedback). Laurie Tossy replied 07-13 for Diana
+and Nicole: too many beta requests, no time, "attend RootsTech as an exhibitor."
+Rufus's reply was two lines. This is therefore a SECOND approach and must be
+visibly different: shipped product, no ask for their time, a precedent from their
+own show, and the RootsTech advice acknowledged honestly (only say we're exhibiting
+if that is decided).
 
-Subject: Guest idea: the reading room beside the research log
+Subject: Not a beta request this time
 
 Diana and Nicole,
 
-I've listened since the early episodes, and RLP 406 with Richard Miller is why I'm
-writing: you give a solo developer a fair hearing when the tool serves the method.
+In July I wrote asking for beta feedback, and you were right to pass; you get
+that request constantly. I'm writing once more because the situation is different
+and I'll keep it short.
 
-I'm Rufus Howe, a long-time healthcare executive and builder of expert systems in
-Red Hook, NY. I built WitnessLives for the part of the process your show rarely
-gets to: what happens after the research log closes and the family wants to read
-what was proven. It opens a GEDCOM export, never edits the tree, and each morning
-tells one line of the family as a story with the record as the authority and the
-AI's contribution labeled plainly.
+Witness shipped on the App Store in August and is on its fourth release. It opens
+a GEDCOM export, never edits the tree, and each morning tells one line of the
+family as a story with the record as the authority and the AI's contribution
+labeled plainly. I'm Rufus Howe, a long-time healthcare executive and builder of
+expert systems in Red Hook, NY.
 
-The parts your listeners would test hardest:
+Why your show specifically: RLP 406 with Richard Miller is the shape I'd propose,
+a solo developer whose tool serves the method. Three things your listeners would
+test hardest:
 
 - Twenty-two data-integrity checks over every person, family, and date, surfaced
   as questions to judge, never as corrections.
-- Registers held against the tree: 105 colonial voyages, the Acadian rolls
-  (Grand-Pré 1755 and the 1752 census), and the Union regiments from Dyer. On my
-  own file the Acadian roll returned zero matches, and that turned out to be
-  right: the family was at Pisiquid, not Minas. RLP 412 with Judy Muhn covered
-  exactly that geography.
-- In a cemetery, the camera reads a headstone against the tree. A stone in Rumford,
-  Maine reading "Jemima wife of Asa Haskell" resolved to a tree entry spelled
-  Jemenice, and corrected a death year the tree had copied from her.
+- Registers held against the tree: 105 colonial voyages, the Acadian rolls, and
+  the Union regiments from Dyer. On my own file the Grand-Pré roll returned zero
+  matches, which was correct: the family was at Pisiquid, the geography Judy Muhn
+  covered in RLP 412.
+- In a cemetery the camera reads a headstone against the tree. A Rumford, Maine
+  stone reading "Jemima wife of Asa Haskell" resolved to a tree entry spelled
+  Jemenice and corrected a death year copied from her.
 
-I'd be glad to set up complimentary accounts for both of you and walk through it on
-one of your own trees before you decide whether it's an episode. Free on the App
-Store, one-month trial, $19.99 a year after.
+No call needed. If either of you wants a complimentary account, reply with one
+word and it will be waiting; look when you have an hour, or never. On RootsTech:
+noted, and under consideration for 2027.
 
-Thank you for considering it,
+Thank you for the straight answer in July,
 Rufus Howe
 WitnessLives — witnesslives.com
-
----
 
 ## 2. Genealogy Gems — Lisa Louise Cooke
 Route: lisalouisecooke.com/contact
