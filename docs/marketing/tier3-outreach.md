@@ -36,7 +36,7 @@ Send from the personal address as before, ten a day, and log send dates in the D
 | 1 | Hamilton County GS | r1746344628904027897 | cc Tracer editor |
 | 2 | Franklin County G&HS | r602284924153423675 | |
 | 3 | Summit County OGS | r-2510621849993816418 | |
-| 4 | Greene County OGS | r5541059543613201104 | Rufus SENT it to president@ogs.org (Ohio Genealogical Society, state level) as "Hi Dorothea" — body still says Greene County / Leaves of Greene and the subject kept the paste-into-form note. Greene County chapter itself NOT contacted |
+| 4 | Greene County OGS | r5541059543613201104 | Rufus SENT it to president@ogs.org (Ohio Genealogical Society, state level) as "Hi Dorothea" — body still says Greene County / Leaves of Greene and the subject kept the paste-into-form note. Greene County chapter itself NOT contacted. NOTE: Dorothea Martin already received the Tier 1 email on 2026-07-27 (no reply), so today's was her second contact |
 | 5 | Fort Worth GS | r2500362013132395826 | cc newsletter editor |
 | 6 | El Paso GS | r-5770808184184527537 | low confidence; send last |
 | 7 | Le Comité des Archives | r7336543385555218890 | cc president |
