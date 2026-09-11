@@ -30,8 +30,19 @@ Agent-runnable since 2026-08-18: Rufus added `Bash(npx vercel *)` to
 `.claude/settings.local.json` (personal, gitignored — on other machines the
 classifier still blocks, and Rufus runs step 4 by hand). The recipe:
 
-1. `npx expo export --platform web`
-2. Copy into a directory **outside the repo** (`~/witness-web-deploy-staging` is the established one): `dist/*`, `public/maplibre-gl-*.mjs`, `public/og-share.png`, `web-deploy/*` (vercel.json + api/)
-3. `sed` the favicon link to `/favicon.ico?v=2`
+1. `npx expo export --platform web`. The HTML shell comes from `public/index.html`
+   (Expo CLI prefers it over its built-in template for `output: "single"`); that
+   file is the built-in template plus the **Vercel Web Analytics tag**, so every
+   export carries analytics for the GTM dashboard. Keep its `%PLACEHOLDERS%`.
+2. Copy into a directory **outside the repo** (`~/witness-web-deploy-staging` is
+   the established one; `~/witness-app-deploy` is an older twin that was
+   refreshed to the 2026-09-11 live build): `dist/*` (already includes
+   `public/*`), `web-deploy/*` (vercel.json + api/ + .well-known)
+3. `sed` the favicon link to `/favicon.ico?v=2` (the CLI writes the href itself;
+   the template can't change it)
 4. From the staging dir: `npx vercel link --project witness-app --scope notata --yes && npx vercel deploy --prod --yes`
-5. Verify: live `entry-*.js` hash matches local `dist/index.html`.
+5. Verify: live `entry-*.js` hash matches local `dist/index.html`, and the live
+   `<head>` contains `/_vercel/insights/script.js`.
+
+Never deploy a staging dir without re-checking step 5's hash against the *current*
+production first — a stale staging copy silently rolls the app back.
