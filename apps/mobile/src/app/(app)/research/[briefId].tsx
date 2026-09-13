@@ -7,6 +7,7 @@ import { Button } from '@/components/button';
 import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { formatDate } from '@/lib/format-date';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
 
@@ -73,7 +74,7 @@ export default function BriefScreen() {
       <ScrollView contentContainerStyle={{ ...WideContent, padding: 24, paddingBottom: 48, gap: 8 }}>
         <ThemedText type="title">{brief.title}</ThemedText>
         <RecordText>
-          {brief.status.replace('_', ' ')} · {new Date(brief.created_at).toLocaleDateString()}
+          {brief.status.replace('_', ' ')} · {formatDate(brief.created_at)}
         </RecordText>
 
         {/* One primary action; status changes are a small control group,

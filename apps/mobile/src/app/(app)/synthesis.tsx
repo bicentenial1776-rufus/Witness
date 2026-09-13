@@ -5,6 +5,7 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { BrandFonts, Letterpress, mono } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
+import { formatDate } from '@/lib/format-date';
 import { getSynthesis, type TreeSynthesis } from '@/lib/story-arc';
 
 
@@ -139,7 +140,7 @@ export default function SynthesisScreen() {
             <Text style={{ ...mono(12.5, L.muted), marginTop: 26, lineHeight: 15 }}>
               EVERY NUMBER ABOVE IS COUNTED FROM YOUR TREE'S RECORD, NEVER WRITTEN BY THE MODEL. THE
               ESSAY REGENERATES AS YOUR TREE GROWS — LAST READ{' '}
-              {new Date(synthesis.generatedAt).toLocaleDateString().toUpperCase()}.
+              {formatDate(synthesis.generatedAt)}.
             </Text>
           </>
         )}

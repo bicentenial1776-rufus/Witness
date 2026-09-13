@@ -40,6 +40,7 @@ import { warStateFromPlaces } from '@witness/core/registers';
 import { KinLine, KinName } from '@/components/kin-line';
 import { KinReveal } from '@/components/kin-reveal';
 import { capturesForPerson, photoUrl, type GraveCapture } from '@/lib/grave-captures';
+import { formatDate } from '@/lib/format-date';
 import { LineageMark } from '@/components/lineage-mark';
 import { LineagePanel } from '@/components/lineage-panel';
 import { PlaceMap } from '@/components/place-map';
@@ -2699,7 +2700,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               <>
                 <ThemedText type="small">
                   Memorial confirmed by you on{' '}
-                  {new Date(graveConf.confirmed_at).toLocaleDateString()}.
+                  {formatDate(graveConf.confirmed_at)}.
                 </ThemedText>
                 <ThemedText type="link" onPress={() => openExternal(graveConf.url)}>
                   View the memorial on Find A Grave ›

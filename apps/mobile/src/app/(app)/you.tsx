@@ -15,6 +15,7 @@ import { useSession } from '@/auth/session-provider';
 import { useTheme } from '@/hooks/use-theme';
 import { showAlert, showDestructiveConfirm } from '@/lib/alert';
 import { useActiveTree, type TreeRow } from '@/lib/active-tree';
+import { formatDate } from '@/lib/format-date';
 import { clearResumePoint } from '@/lib/resume';
 import {
   armDigestNotification,
@@ -384,7 +385,7 @@ export default function YouTab() {
   // that promise resolves to a real status and a real link, and where the
   // Day-5 trial reminder lands when tapped.
   const expiresOn = subscription?.expiresAt
-    ? new Date(subscription.expiresAt).toLocaleDateString()
+    ? formatDate(subscription.expiresAt)
     : null;
   const subscriptionLine = !subscription
     ? null
@@ -448,7 +449,7 @@ export default function YouTab() {
               {tree.family_count.toLocaleString()} families ·{' '}
               {tree.place_count.toLocaleString()} places ·{' '}
               {tree.owned
-                ? `imported ${new Date(tree.imported_at).toLocaleDateString()}`
+                ? `imported ${formatDate(tree.imported_at)}`
                 : 'shared with you'}
             </ThemedText>
             {(trees?.length ?? 0) > 1 &&
@@ -568,7 +569,7 @@ export default function YouTab() {
                   <View style={{ flexShrink: 1 }}>
                     <ThemedText>{member.display_name ?? 'A family member'}</ThemedText>
                     <ThemedText type="small">
-                      reading since {new Date(member.joined_at).toLocaleDateString()}
+                      reading since {formatDate(member.joined_at)}
                     </ThemedText>
                   </View>
                   <ThemedText
@@ -595,7 +596,7 @@ export default function YouTab() {
                       {invite.invited_name ? `Waiting for ${invite.invited_name}` : 'Invitation waiting'}
                     </ThemedText>
                     <ThemedText type="small">
-                      works once · expires {new Date(invite.expires_at).toLocaleDateString()}
+                      works once · expires {formatDate(invite.expires_at)}
                     </ThemedText>
                   </View>
                   <ThemedText
@@ -771,7 +772,7 @@ export default function YouTab() {
                   <View style={{ flexShrink: 1 }}>
                     <ThemedText>{link.payload.fullName ?? 'A family story'}</ThemedText>
                     <ThemedText type="small">
-                      until {new Date(link.expires_at).toLocaleDateString()}
+                      until {formatDate(link.expires_at)}
                     </ThemedText>
                   </View>
                   <ThemedText type="smallBold" themeColor="accent" onPress={() => revokeLink(link.token)}>
