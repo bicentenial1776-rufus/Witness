@@ -162,13 +162,16 @@ export default function AncestorMapTab() {
               }
             />
           ))}
-          {recordPoints.map((point) => (
+          {recordPoints.map((point, i) => (
             <Marker
-              key={point.linkId ?? `${point.registerKey}:${point.latitude},${point.longitude}`}
+              key={`${point.linkId ?? point.registerKey}:${i}`}
               coordinate={{ latitude: point.latitude, longitude: point.longitude }}
-              pinColor={theme.accent}
-              title={point.personName}
-              description={`${point.label} · From the record books ›`}
+              // A person's own record (a grave, a parcel) in amber; a
+              // regiment's engagement — the unit was here, he probably was —
+              // in ink, so the two never read as the same claim.
+              pinColor={point.kind === 'entity' ? theme.text : theme.accent}
+              title={point.kind === 'entity' && point.recordName ? `${point.personName} — ${point.recordName}` : point.personName}
+              description={`${point.label} · ${point.kind === 'entity' ? 'His regiment was here' : 'From the record books'} ›`}
               tracksViewChanges={false}
               onCalloutPress={() => {
                 if (point.individualId) router.push({ pathname: '/ancestor/[id]', params: { id: point.individualId } });

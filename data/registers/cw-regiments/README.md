@@ -54,6 +54,35 @@ lived in during 1855–1870 (`warStateFromPlaces`). `config.unitTerms` is
 merged from `unit-terms.json` by seed-register so the app parses with
 the same vocabulary.
 
-**Not built yet** (next Civil War session): NPS battle summaries +
-Confederate units, engagement geocoding + map markers, a generated
-narrative sample for a soldier with a unit.
+**Engagements from the NPS, placed (2026-09-13).** `events.csv` is no
+longer the 17-row Dyer-OCR sample: `scripts/parse-cwss-battles.ts` reads
+the National Park Service's CWSS unit and battle tables (the 2011
+civilwar150th OData feeds, US government work, mirrored in the public
+bucket `s3://jrnold-nps-cwss/old/` — battle.xml, battleunitlink.xml,
+units.xml; the 6.3M-name soldier index is untouched), parses each CWSS
+Union unit name through the register's own parser to its
+`US-{STATE}-{BRANCH}-{NUMBER}` key, and joins it to Dyer's rows: 3,207
+Union units in CWSS, 2,078 parsed, 1,423 joined to the 1,578 Dyer
+records. The 17,887 battle–unit links (NPS's own, sourced from Dyer)
+become **10,069 engagement events across 955 units**, each with the
+CWSAC battlefield code in `linked_event_ref`, the battle's dates, type
+and state in `place_text`, and coordinates for 9,901 of them: 336 of the
+382 CWSAC battles placed from Wikidata (battles of the American Civil
+War with P625), 31 more from OpenStreetMap on "name, state" with the
+answer required to sit in the battle's own state, 15 unplaced (forts,
+farms, and creeks no gazetteer names). `battles.csv` is the reference
+list with the NPS short summaries; `battles-coords.json` caches every
+coordinate with its source so re-runs are free. Re-seed with
+`seed-register.ts` — events replace wholesale.
+
+**Where the events go.** A confirmed regiment's placed engagements reach
+the Ancestor Map as ink-ringed markers ("His regiment was here", never
+the amber of a person's own record — `lib/register-points.ts`), and the
+"Their World" prompt as a UNIT-LEVEL block that tells the writer to say
+"his regiment", not "he".
+
+**Not built yet** (next Civil War session): Confederate units (CWSS
+names 3,737 of them, but Dyer has no rows to hang them on — a
+Confederate entity table is the prerequisite), a generated narrative
+sample for a soldier with a unit, and a state-scale cluster for the
+engagement markers.

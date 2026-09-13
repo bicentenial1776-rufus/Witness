@@ -1,0 +1,1837 @@
+{
+  "AL001": {
+    "lng": -87.011,
+    "lat": 34.3096,
+    "source": "Wikidata Q3821512"
+  },
+  "AL002": {
+    "lng": -86.9722,
+    "lat": 34.8033,
+    "source": "Wikidata Q3327478"
+  },
+  "AL003": {
+    "lng": -88.053055555,
+    "lat": 30.240833333,
+    "source": "Wikidata Q1519203"
+  },
+  "AL004": {
+    "lng": -86.986,
+    "lat": 34.614,
+    "source": "Wikidata Q3775715"
+  },
+  "AL005": {
+    "lng": -87.720277777,
+    "lat": 30.733055555,
+    "source": "Wikidata Q2184295"
+  },
+  "AL007": {
+    "lng": -87.01415,
+    "lat": 32.426833333,
+    "source": "Wikidata Q2313310"
+  },
+  "AR001": {
+    "lng": -94.034694444,
+    "lat": 36.454388888,
+    "source": "Wikidata Q193993"
+  },
+  "AR002": {
+    "lng": -91.126111111,
+    "lat": 34.378055555,
+    "source": "Wikidata Q2307727"
+  },
+  "AR003": {
+    "lng": -91.293,
+    "lat": 35.0365,
+    "source": "Wikidata Q1834971"
+  },
+  "AR005": {
+    "lng": -94.310555555,
+    "lat": 35.983055555,
+    "source": "Wikidata Q2789421"
+  },
+  "AR006": {
+    "lng": -91.345277777,
+    "lat": 34.016666666,
+    "source": "Wikidata Q761031"
+  },
+  "AR007": {
+    "lng": -90.15883,
+    "lat": 36.47726,
+    "source": "Wikidata Q2384888"
+  },
+  "AR008": {
+    "lng": -90.596944444,
+    "lat": 34.526111111,
+    "source": "Wikidata Q2282207"
+  },
+  "AR010": {
+    "lng": -92.2015,
+    "lat": 34.721972222,
+    "source": "Wikidata Q2233920"
+  },
+  "AR011": {
+    "lng": -92.003333333,
+    "lat": 34.229722222,
+    "source": "Wikidata Q2647386"
+  },
+  "AR012": {
+    "lng": -93.35722222,
+    "lat": 33.93055556,
+    "source": "Wikidata Q2840763"
+  },
+  "AR013": {
+    "lng": -93.30083333,
+    "lat": 33.66111111,
+    "source": "Wikidata Q4872098"
+  },
+  "AR014": {
+    "lng": -93.006,
+    "lat": 33.637611111,
+    "source": "Wikidata Q3007076"
+  },
+  "AR015": {
+    "lng": -92.256944444,
+    "lat": 33.781111111,
+    "source": "Wikidata Q2804685"
+  },
+  "AR016": {
+    "lng": -92.5475,
+    "lat": 34.2125,
+    "source": "Wikidata Q3291913"
+  },
+  "AR017": {
+    "lng": -91.19270278,
+    "lat": 33.26854722,
+    "source": "Wikidata Q2943315"
+  },
+  "DC001": {
+    "lng": -77.0288,
+    "lat": 38.9641,
+    "source": "Wikidata Q1626369"
+  },
+  "FL001": {
+    "lng": -87.2817,
+    "lat": 30.3242,
+    "source": "Wikidata Q2355732"
+  },
+  "FL002": {
+    "lng": -82.4559,
+    "lat": 27.9415,
+    "source": "Wikidata Q2067472"
+  },
+  "FL003": {
+    "lng": -81.4998,
+    "lat": 30.3852,
+    "source": "Wikidata Q2134266"
+  },
+  "FL004": {
+    "lng": -82.464423,
+    "lat": 28.015468,
+    "source": "Wikidata Q2098132"
+  },
+  "FL005": {
+    "lng": -82.388588888,
+    "lat": 30.214233333,
+    "source": "Wikidata Q2512802"
+  },
+  "FL006": {
+    "lng": -84.151944444,
+    "lat": 30.283888888,
+    "source": "Wikidata Q2611018"
+  },
+  "GA001": {
+    "lng": -80.89096,
+    "lat": 32.02729,
+    "source": "Wikidata Q2284279"
+  },
+  "GA002": {
+    "lng": -81.1941,
+    "lat": 31.8888,
+    "source": "Wikidata Q3477165"
+  },
+  "GA004": {
+    "lng": -85.260555555,
+    "lat": 34.917777777,
+    "source": "Wikidata Q1327790"
+  },
+  "GA005": {
+    "lng": -85.1015,
+    "lat": 34.9112,
+    "source": "Wikidata Q2889788"
+  },
+  "GA006": {
+    "lng": -84.9807,
+    "lat": 34.7889,
+    "source": "Wikidata Q3477162"
+  },
+  "GA007": {
+    "lng": -85.01568,
+    "lat": 34.74105,
+    "source": "Wikidata Q3072453"
+  },
+  "GA008": {
+    "lng": -84.9385,
+    "lat": 34.5815,
+    "source": "Wikidata Q2615826"
+  },
+  "GA009": {
+    "lng": -84.9389,
+    "lat": 34.4083,
+    "source": "Wikidata Q2615801"
+  },
+  "GA010": {
+    "lng": -84.7875,
+    "lat": 33.961,
+    "source": "Wikidata Q2889502"
+  },
+  "GA011": {
+    "lng": -84.87,
+    "lat": 33.92,
+    "source": "Wikidata Q2888382"
+  },
+  "GA012": {
+    "lng": -84.759,
+    "lat": 33.975,
+    "source": "Wikidata Q4872040"
+  },
+  "GA013": {
+    "lng": -84.58,
+    "lat": 33.94,
+    "source": "Wikidata Q4871906"
+  },
+  "GA014": {
+    "lng": -84.58,
+    "lat": 33.94,
+    "source": "Wikidata Q4871474"
+  },
+  "GA015": {
+    "lng": -84.58134,
+    "lat": 33.96899,
+    "source": "Wikidata Q2570177"
+  },
+  "GA016": {
+    "lng": -84.4038,
+    "lat": 33.8109,
+    "source": "Wikidata Q636670"
+  },
+  "GA017": {
+    "lng": -84.3488,
+    "lat": 33.7459,
+    "source": "Wikidata Q2374330"
+  },
+  "GA018": {
+    "lng": -84.439166666,
+    "lat": 33.752777777,
+    "source": "Wikidata Q4870993"
+  },
+  "GA019": {
+    "lng": -84.4704,
+    "lat": 33.7209,
+    "source": "Wikidata Q12336018"
+  },
+  "GA020": {
+    "lng": -84.9807,
+    "lat": 34.7889,
+    "source": "Wikidata Q3477162"
+  },
+  "GA021": {
+    "lng": -84.3084,
+    "lat": 33.4441,
+    "source": "Wikidata Q4871607"
+  },
+  "GA022": {
+    "lng": -84.3621,
+    "lat": 33.5307,
+    "source": "Wikidata Q2333674"
+  },
+  "GA023": {
+    "lng": -84.716,
+    "lat": 34.116,
+    "source": "Wikidata Q2887827"
+  },
+  "GA024": {
+    "lng": -84.9807,
+    "lat": 34.7889,
+    "source": "Wikidata Q3477162"
+  },
+  "GA025": {
+    "lng": -83.459880822,
+    "lat": 32.869306739,
+    "source": "Wikidata Q2888696"
+  },
+  "GA026": {
+    "lng": -82.0255,
+    "lat": 32.8991,
+    "source": "Wikidata Q4870583"
+  },
+  "GA028": {
+    "lng": -81.1941,
+    "lat": 31.8888,
+    "source": "Wikidata Q3477165"
+  },
+  "IN001": {
+    "lng": -86.13,
+    "lat": 38.2,
+    "source": "Wikidata Q2392704"
+  },
+  "KS001": {
+    "lng": -95.2359,
+    "lat": 38.96427,
+    "source": "Wikidata Q460143"
+  },
+  "KS003": {
+    "lng": -94.723333333,
+    "lat": 38.145,
+    "source": "Wikidata Q4871740"
+  },
+  "KS004": {
+    "lng": -94.6783,
+    "lat": 38.2552,
+    "source": "Wikidata Q3854317"
+  },
+  "KY001": {
+    "lng": -83.87944444,
+    "lat": 36.86111111,
+    "source": "Wikidata Q2640011"
+  },
+  "KY002": {
+    "lng": -84.1996,
+    "lat": 37.2634,
+    "source": "Wikidata Q2143840"
+  },
+  "KY004": {
+    "lng": -85.8935,
+    "lat": 37.2498,
+    "source": "Wikidata Q2430417"
+  },
+  "KY005": {
+    "lng": -82.8147,
+    "lat": 37.6507,
+    "source": "Wikidata Q2555905"
+  },
+  "KY006": {
+    "lng": -84.7383,
+    "lat": 37.0562,
+    "source": "Wikidata Q2018804"
+  },
+  "KY007": {
+    "lng": -91.208,
+    "lat": 32.386,
+    "source": "Wikidata Q2404660"
+  },
+  "KY008": {
+    "lng": -85.8901,
+    "lat": 37.2622,
+    "source": "Wikidata Q2904764"
+  },
+  "KY009": {
+    "lng": -84.9711,
+    "lat": 37.6752,
+    "source": "Wikidata Q1631029"
+  },
+  "KY010": {
+    "lng": -88.6058,
+    "lat": 37.0931,
+    "source": "Wikidata Q2195153"
+  },
+  "KY011": {
+    "lng": -84.3056,
+    "lat": 38.407,
+    "source": "Wikidata Q4870819"
+  },
+  "LA002": {
+    "lng": -90.06305556,
+    "lat": 29.9575,
+    "source": "Wikidata Q2700708"
+  },
+  "LA003": {
+    "lng": -91.1676,
+    "lat": 30.451,
+    "source": "Wikidata Q3506821"
+  },
+  "LA004": {
+    "lng": -90.99138889,
+    "lat": 30.10833333,
+    "source": "Wikidata Q1867306"
+  },
+  "LA005": {
+    "lng": -90.9811,
+    "lat": 29.8604,
+    "source": "Wikidata Q2395918"
+  },
+  "LA006": {
+    "lng": -91.351,
+    "lat": 29.7101,
+    "source": "Wikidata Q2483596"
+  },
+  "LA007": {
+    "lng": -91.4615,
+    "lat": 29.8116,
+    "source": "Wikidata Q2365622"
+  },
+  "LA008": {
+    "lng": -92.0143,
+    "lat": 30.1955,
+    "source": "Wikidata Q2440681"
+  },
+  "LA009": {
+    "lng": -91.206,
+    "lat": 30.69,
+    "source": "Wikidata Q3150348"
+  },
+  "LA010": {
+    "lng": -91.05,
+    "lat": 30.85,
+    "source": "Wikidata Q860295"
+  },
+  "LA011": {
+    "lng": -91.1,
+    "lat": 32.44,
+    "source": "Wikidata Q2649895"
+  },
+  "LA012": {
+    "lng": -90.7646,
+    "lat": 29.7668,
+    "source": "Wikidata Q2395990"
+  },
+  "LA013": {
+    "lng": -90.99138889,
+    "lat": 30.10833333,
+    "source": "Wikidata Q1867306"
+  },
+  "LA014": {
+    "lng": -91.193392,
+    "lat": 32.809844,
+    "source": "Wikidata Q4871528"
+  },
+  "LA015": {
+    "lng": -91.0295,
+    "lat": 30.0865,
+    "source": "Wikidata Q2421798"
+  },
+  "LA016": {
+    "lng": -91.6596,
+    "lat": 30.6834,
+    "source": "Wikidata Q4872441"
+  },
+  "LA017": {
+    "lng": -92.05436,
+    "lat": 31.1838,
+    "source": "Wikidata Q2766079"
+  },
+  "LA018": {
+    "lng": -93.6652,
+    "lat": 32.0121,
+    "source": "Wikidata Q676148"
+  },
+  "LA019": {
+    "lng": -93.513888888,
+    "lat": 31.853333333,
+    "source": "Wikidata Q572095"
+  },
+  "LA020": {
+    "lng": -93.289,
+    "lat": 31.941,
+    "source": "Wikidata Q2794549"
+  },
+  "LA021": {
+    "lng": -92.857,
+    "lat": 31.498,
+    "source": "Wikidata Q2284930"
+  },
+  "LA022": {
+    "lng": -92.04777778,
+    "lat": 31.055,
+    "source": "Wikidata Q2067243"
+  },
+  "LA023": {
+    "lng": -91.8668,
+    "lat": 30.9985,
+    "source": "Wikidata Q2000388"
+  },
+  "MD001": {
+    "lng": -78.177,
+    "lat": 39.6957,
+    "source": "Wikidata Q2003883"
+  },
+  "MD002": {
+    "lng": -77.62161,
+    "lat": 39.48501,
+    "source": "Wikidata Q1542829"
+  },
+  "MD003": {
+    "lng": -77.744722222,
+    "lat": 39.473333333,
+    "source": "Wikidata Q719252"
+  },
+  "MD004": {
+    "lng": -77.71666667,
+    "lat": 39.63333333,
+    "source": "Wikidata Q841297"
+  },
+  "MD006": {
+    "lng": -77.6632,
+    "lat": 39.5254,
+    "source": "Wikidata Q841150"
+  },
+  "MD007": {
+    "lng": -77.392,
+    "lat": 39.3711,
+    "source": "Wikidata Q2667265"
+  },
+  "MD008": {
+    "lng": -78.753,
+    "lat": 39.6639,
+    "source": "Wikidata Q4871028"
+  },
+  "MO001": {
+    "lng": -92.659816666,
+    "lat": 38.9591,
+    "source": "Wikidata Q2451867"
+  },
+  "MO005": {
+    "lng": -94.4862,
+    "lat": 37.8197,
+    "source": "Wikidata Q2540993"
+  },
+  "MO006": {
+    "lng": -93.875,
+    "lat": 39.18305556,
+    "source": "Wikidata Q3808722"
+  },
+  "MO008": {
+    "lng": -93.3021,
+    "lat": 37.195,
+    "source": "Wikidata Q2941587"
+  },
+  "MO011": {
+    "lng": -92.5584,
+    "lat": 39.3246,
+    "source": "Wikidata Q2426213"
+  },
+  "MO013": {
+    "lng": -92.6,
+    "lat": 40.19,
+    "source": "Wikidata Q2551448"
+  },
+  "MO014": {
+    "lng": -94.4412,
+    "lat": 39.0856,
+    "source": "Wikidata Q3808756"
+  },
+  "MO015": {
+    "lng": -94.18805556,
+    "lat": 38.87055556,
+    "source": "Wikidata Q2889158"
+  },
+  "MO016": {
+    "lng": -94.1903,
+    "lat": 36.8739,
+    "source": "Wikidata Q3853836"
+  },
+  "MO017": {
+    "lng": -92.4888,
+    "lat": 36.9207,
+    "source": "Wikidata Q1819989"
+  },
+  "MO018": {
+    "lng": -93.3021,
+    "lat": 37.195,
+    "source": "Wikidata Q2941587"
+  },
+  "MO019": {
+    "lng": -92.5111,
+    "lat": 37.2511,
+    "source": "Wikidata Q2198831"
+  },
+  "MO021": {
+    "lng": -90.6415,
+    "lat": 37.6194,
+    "source": "Wikidata Q2579523"
+  },
+  "MO023": {
+    "lng": -93.875,
+    "lat": 39.18305556,
+    "source": "Wikidata Q3808722"
+  },
+  "MO024": {
+    "lng": -94.3139,
+    "lat": 39.1369,
+    "source": "Wikidata Q4871572"
+  },
+  "MO025": {
+    "lng": -94.4412,
+    "lat": 39.0856,
+    "source": "Wikidata Q3808756"
+  },
+  "MO026": {
+    "lng": -94.5307,
+    "lat": 39.0228,
+    "source": "Wikidata Q4870600"
+  },
+  "MO027": {
+    "lng": -94.59444444,
+    "lat": 39.03,
+    "source": "Wikidata Q1149869"
+  },
+  "MO028": {
+    "lng": -94.6153,
+    "lat": 37.8717,
+    "source": "Wikidata Q2889268"
+  },
+  "MO029": {
+    "lng": -94.1903,
+    "lat": 36.8739,
+    "source": "Wikidata Q3853836"
+  },
+  "MS001": {
+    "lng": -88.2101,
+    "lat": 34.7936,
+    "source": "Wikidata Q2103752"
+  },
+  "MS002": {
+    "lng": -88.5299,
+    "lat": 34.937569444,
+    "source": "Wikidata Q1362021"
+  },
+  "MS003": {
+    "lng": -90.847777777,
+    "lat": 32.405555555,
+    "source": "Wikidata Q2632927"
+  },
+  "MS004": {
+    "lng": -91.05611111,
+    "lat": 32.02916667,
+    "source": "Wikidata Q2482906"
+  },
+  "MS005": {
+    "lng": -90.8,
+    "lat": 32.4964,
+    "source": "Wikidata Q2263606"
+  },
+  "MS006": {
+    "lng": -91.0228,
+    "lat": 31.9557,
+    "source": "Wikidata Q2865994"
+  },
+  "MS007": {
+    "lng": -90.448611111,
+    "lat": 32.239166666,
+    "source": "Wikidata Q2344929"
+  },
+  "MS008": {
+    "lng": -90.2,
+    "lat": 32.2875,
+    "source": "Wikidata Q2043320"
+  },
+  "MS009": {
+    "lng": -90.53027778,
+    "lat": 32.32972222,
+    "source": "Wikidata Q793922"
+  },
+  "MS010": {
+    "lng": -90.704166666,
+    "lat": 32.346944444,
+    "source": "Wikidata Q2161150"
+  },
+  "MS011": {
+    "lng": -90.851111111,
+    "lat": 32.343611111,
+    "source": "Wikidata Q1066253"
+  },
+  "MS013": {
+    "lng": -88.7556,
+    "lat": 34.0021,
+    "source": "Wikidata Q2076671"
+  },
+  "MS014": {
+    "lng": -88.728888888,
+    "lat": 34.506111111,
+    "source": "Wikidata Q4870552"
+  },
+  "MS015": {
+    "lng": -88.737,
+    "lat": 34.255666666,
+    "source": "Wikidata Q4872606"
+  },
+  "MS016": {
+    "lng": -88.5299,
+    "lat": 34.937569444,
+    "source": "Wikidata Q1362021"
+  },
+  "NC001": {
+    "lng": -75.7645,
+    "lat": 35.1864,
+    "source": "Wikidata Q2185405"
+  },
+  "NC002": {
+    "lng": -75.6678,
+    "lat": 35.8783,
+    "source": "Wikidata Q2889807"
+  },
+  "NC004": {
+    "lng": -76.678888888,
+    "lat": 34.696111111,
+    "source": "Wikidata Q2888543"
+  },
+  "NC005": {
+    "lng": -76.3033,
+    "lat": 36.4304,
+    "source": "Wikidata Q2010256"
+  },
+  "NC006": {
+    "lng": -77.1431,
+    "lat": 35.6186,
+    "source": "Wikidata Q2334874"
+  },
+  "NC008": {
+    "lng": -77.8464,
+    "lat": 35.2272,
+    "source": "Wikidata Q2013252"
+  },
+  "NC010": {
+    "lng": -77.0358,
+    "lat": 35.1383,
+    "source": "Wikidata Q4871036"
+  },
+  "NC011": {
+    "lng": -77.0601,
+    "lat": 35.5443,
+    "source": "Wikidata Q2776461"
+  },
+  "NC012": {
+    "lng": -76.7519,
+    "lat": 35.86648,
+    "source": "Wikidata Q5037048"
+  },
+  "NC013": {
+    "lng": -75.785,
+    "lat": 36.008888888,
+    "source": "Wikidata Q2890896"
+  },
+  "NC014": {
+    "lng": -77.918,
+    "lat": 33.9715,
+    "source": "Wikidata Q5452517"
+  },
+  "NC015": {
+    "lng": -77.918,
+    "lat": 33.9715,
+    "source": "Wikidata Q5452517"
+  },
+  "NC016": {
+    "lng": -77.954,
+    "lat": 34.1795,
+    "source": "Wikidata Q4872738"
+  },
+  "NC017": {
+    "lng": -77.5297,
+    "lat": 35.224,
+    "source": "Wikidata Q586945"
+  },
+  "NC018": {
+    "lng": -79.2032,
+    "lat": 35.1259,
+    "source": "Wikidata Q994665"
+  },
+  "NC019": {
+    "lng": -78.6721,
+    "lat": 35.2661,
+    "source": "Wikidata Q2887919"
+  },
+  "NC020": {
+    "lng": -78.3231,
+    "lat": 35.3059,
+    "source": "Wikidata Q620244"
+  },
+  "NM001": {
+    "lng": -107.011388888,
+    "lat": 33.633333333,
+    "source": "Wikidata Q531346"
+  },
+  "NM002": {
+    "lng": -105.755,
+    "lat": 35.571666666,
+    "source": "Wikidata Q580651"
+  },
+  "OH001": {
+    "lng": -81.775,
+    "lat": 39.0025,
+    "source": "Wikidata Q2245714"
+  },
+  "OH002": {
+    "lng": -80.90166667,
+    "lat": 40.62055556,
+    "source": "Wikidata Q2688934"
+  },
+  "OK001": {
+    "lng": -96.2869,
+    "lat": 36.13,
+    "source": "Wikidata Q1387925"
+  },
+  "OK002": {
+    "lng": -95.9502,
+    "lat": 36.2823,
+    "source": "Wikidata Q1870843"
+  },
+  "OK003": {
+    "lng": -96.0752,
+    "lat": 36.3878,
+    "source": "Wikidata Q4522192"
+  },
+  "OK004": {
+    "lng": -94.6478,
+    "lat": 36.368,
+    "source": "Wikidata Q4871939"
+  },
+  "OK006": {
+    "lng": -95.121603,
+    "lat": 36.48899,
+    "source": "Wikidata Q2127666"
+  },
+  "OK007": {
+    "lng": -95.4858,
+    "lat": 35.5313,
+    "source": "Wikidata Q592752"
+  },
+  "PA001": {
+    "lng": -76.98247,
+    "lat": 39.80099,
+    "source": "Wikidata Q770565"
+  },
+  "PA002": {
+    "lng": -77.225833333,
+    "lat": 39.811388888,
+    "source": "Wikidata Q33132"
+  },
+  "SC001": {
+    "lng": -79.87496,
+    "lat": 32.75241,
+    "source": "Wikidata Q543165"
+  },
+  "SC002": {
+    "lng": -79.94805556,
+    "lat": 32.70388889,
+    "source": "Wikidata Q2965192"
+  },
+  "SC003": {
+    "lng": -80.22805556,
+    "lat": 32.69527778,
+    "source": "Wikidata Q2160111"
+  },
+  "SC004": {
+    "lng": -79.8749,
+    "lat": 32.7524,
+    "source": "Wikidata Q3910850"
+  },
+  "SC005": {
+    "lng": -79.871,
+    "lat": 32.73,
+    "source": "Wikidata Q1954336"
+  },
+  "SC006": {
+    "lng": -79.94805556,
+    "lat": 32.70388889,
+    "source": "Wikidata Q2965192"
+  },
+  "SC008": {
+    "lng": -79.87496,
+    "lat": 32.75241,
+    "source": "Wikidata Q543165"
+  },
+  "SC009": {
+    "lng": -79.8749,
+    "lat": 32.7524,
+    "source": "Wikidata Q3910850"
+  },
+  "SC010": {
+    "lng": -80.9343,
+    "lat": 32.486,
+    "source": "Wikidata Q2236699"
+  },
+  "SC011": {
+    "lng": -81.09972222,
+    "lat": 33.05277778,
+    "source": "Wikidata Q2036970"
+  },
+  "TN001": {
+    "lng": -88.0391,
+    "lat": 36.5186,
+    "source": "Wikidata Q1366089"
+  },
+  "TN002": {
+    "lng": -87.856111111,
+    "lat": 36.493055555,
+    "source": "Wikidata Q601359"
+  },
+  "TN004": {
+    "lng": -90.1558,
+    "lat": 35.1291,
+    "source": "Wikidata Q1387983"
+  },
+  "TN005": {
+    "lng": -85.3088,
+    "lat": 35.0651,
+    "source": "Wikidata Q2443807"
+  },
+  "TN006": {
+    "lng": -86.393,
+    "lat": 35.847,
+    "source": "Wikidata Q2897821"
+  },
+  "TN008": {
+    "lng": -86.1743,
+    "lat": 36.3777,
+    "source": "Wikidata Q2454284"
+  },
+  "TN009": {
+    "lng": -90.2,
+    "lat": 32.2875,
+    "source": "Wikidata Q2043320"
+  },
+  "TN010": {
+    "lng": -86.430555555,
+    "lat": 35.868472222,
+    "source": "Wikidata Q1272132"
+  },
+  "TN011": {
+    "lng": -88.393,
+    "lat": 35.793,
+    "source": "Wikidata Q2556972"
+  },
+  "TN012": {
+    "lng": -87.85747,
+    "lat": 36.48485,
+    "source": "Wikidata Q2352722"
+  },
+  "TN013": {
+    "lng": -86.9063,
+    "lat": 35.798,
+    "source": "Wikidata Q2608018"
+  },
+  "TN014": {
+    "lng": -86.2047,
+    "lat": 35.92523,
+    "source": "Wikidata Q2095199"
+  },
+  "TN015": {
+    "lng": -86.7855,
+    "lat": 36.0363,
+    "source": "Wikidata Q2213542"
+  },
+  "TN016": {
+    "lng": -86.8733,
+    "lat": 35.9174,
+    "source": "Wikidata Q370671"
+  },
+  "TN017": {
+    "lng": -86.2454,
+    "lat": 35.6305,
+    "source": "Wikidata Q860502"
+  },
+  "TN018": {
+    "lng": -85.3088,
+    "lat": 35.0651,
+    "source": "Wikidata Q2443807"
+  },
+  "TN020": {
+    "lng": -82.9373,
+    "lat": 36.1934,
+    "source": "Wikidata Q2411860"
+  },
+  "TN021": {
+    "lng": -85.374444444,
+    "lat": 35.009722222,
+    "source": "Wikidata Q2501125"
+  },
+  "TN023": {
+    "lng": -84.1539,
+    "lat": 35.8846,
+    "source": "Wikidata Q1853552"
+  },
+  "TN024": {
+    "lng": -85.3088,
+    "lat": 35.0651,
+    "source": "Wikidata Q2443807"
+  },
+  "TN025": {
+    "lng": -83.9338,
+    "lat": 35.9589,
+    "source": "Wikidata Q2672202"
+  },
+  "TN026": {
+    "lng": -83.369,
+    "lat": 36.3248,
+    "source": "Wikidata Q962434"
+  },
+  "TN027": {
+    "lng": -83.4423,
+    "lat": 36.1444,
+    "source": "Wikidata Q4787087"
+  },
+  "TN028": {
+    "lng": -83.3493,
+    "lat": 36.0472,
+    "source": "Wikidata Q2111889"
+  },
+  "TN029": {
+    "lng": -83.5096,
+    "lat": 35.8645,
+    "source": "Wikidata Q2466734"
+  },
+  "TN030": {
+    "lng": -89.8487,
+    "lat": 35.6324,
+    "source": "Wikidata Q1821843"
+  },
+  "TN031": {
+    "lng": -90.1558,
+    "lat": 35.1291,
+    "source": "Wikidata Q1387983"
+  },
+  "TN032": {
+    "lng": -87.9757,
+    "lat": 36.0708,
+    "source": "Wikidata Q4871346"
+  },
+  "TN033": {
+    "lng": -83.081,
+    "lat": 36.252,
+    "source": "Wikidata Q4870590"
+  },
+  "TN034": {
+    "lng": -87.0488,
+    "lat": 35.6163,
+    "source": "Wikidata Q4870777"
+  },
+  "TN035": {
+    "lng": -86.9323,
+    "lat": 35.7374,
+    "source": "Wikidata Q4872423"
+  },
+  "TN036": {
+    "lng": -86.8733,
+    "lat": 35.9174,
+    "source": "Wikidata Q370671"
+  },
+  "TN037": {
+    "lng": -86.393,
+    "lat": 35.847,
+    "source": "Wikidata Q2897821"
+  },
+  "TN038": {
+    "lng": -86.8098,
+    "lat": 36.0881,
+    "source": "Wikidata Q1752689"
+  },
+  "TX001": {
+    "lng": -93.870747222,
+    "lat": 29.720513888,
+    "source": "Wikidata Q243640"
+  },
+  "TX002": {
+    "lng": -94.767036,
+    "lat": 29.339536,
+    "source": "Wikidata Q609495"
+  },
+  "TX003": {
+    "lng": -94.767036,
+    "lat": 29.339536,
+    "source": "Wikidata Q609495"
+  },
+  "TX005": {
+    "lng": -97.28528,
+    "lat": 25.94667,
+    "source": "Wikidata Q48776"
+  },
+  "TX006": {
+    "lng": -93.870747222,
+    "lat": 29.720513888,
+    "source": "Wikidata Q243640"
+  },
+  "VA001": {
+    "lng": -76.326666666,
+    "lat": 36.954722222,
+    "source": "Wikidata Q840254"
+  },
+  "VA002": {
+    "lng": -77.3157,
+    "lat": 38.3893,
+    "source": "Wikidata Q774532"
+  },
+  "VA003": {
+    "lng": -76.425,
+    "lat": 37.0937,
+    "source": "Wikidata Q794695"
+  },
+  "VA004": {
+    "lng": -77.449166666,
+    "lat": 38.804166666,
+    "source": "Wikidata Q1497902"
+  },
+  "VA006": {
+    "lng": -77.527428,
+    "lat": 39.131525,
+    "source": "Wikidata Q1497909"
+  },
+  "VA007": {
+    "lng": -77.337194444,
+    "lat": 38.995472222,
+    "source": "Wikidata Q2781626"
+  },
+  "VA008": {
+    "lng": -76.319722222,
+    "lat": 36.983333333,
+    "source": "Wikidata Q868481"
+  },
+  "VA010": {
+    "lng": -76.6659,
+    "lat": 37.2642,
+    "source": "Wikidata Q2140288"
+  },
+  "VA011": {
+    "lng": -76.8423,
+    "lat": 37.5002,
+    "source": "Wikidata Q1639975"
+  },
+  "VA012": {
+    "lng": -77.4229,
+    "lat": 37.4211,
+    "source": "Wikidata Q1362294"
+  },
+  "VA013": {
+    "lng": -77.3763,
+    "lat": 37.7222,
+    "source": "Wikidata Q2096968"
+  },
+  "VA014": {
+    "lng": -77.301944444,
+    "lat": 37.520555555,
+    "source": "Wikidata Q1550466"
+  },
+  "VA015": {
+    "lng": -77.3292,
+    "lat": 37.5154,
+    "source": "Wikidata Q377681"
+  },
+  "VA016": {
+    "lng": -77.3599,
+    "lat": 37.5985,
+    "source": "Wikidata Q2168647"
+  },
+  "VA019": {
+    "lng": -77.27097,
+    "lat": 37.52219,
+    "source": "Wikidata Q3052708"
+  },
+  "VA020a": {
+    "lng": -77.21025,
+    "lat": 37.4708,
+    "source": "Wikidata Q4872730"
+  },
+  "VA020b": {
+    "lng": -77.23812,
+    "lat": 37.43791,
+    "source": "Wikidata Q2000189"
+  },
+  "VA021": {
+    "lng": -77.25,
+    "lat": 37.4125,
+    "source": "Wikidata Q1934345"
+  },
+  "VA022": {
+    "lng": -78.0658,
+    "lat": 38.40137778,
+    "source": "Wikidata Q429655"
+  },
+  "VA023": {
+    "lng": -77.8136,
+    "lat": 38.533,
+    "source": "Wikidata Q526697"
+  },
+  "VA024": {
+    "lng": -77.5453,
+    "lat": 38.7322,
+    "source": "Wikidata Q967287"
+  },
+  "VA025": {
+    "lng": -77.7148,
+    "lat": 38.8243,
+    "source": "Wikidata Q2205730"
+  },
+  "VA026": {
+    "lng": -82.32506667,
+    "lat": 29.65199444,
+    "source": "Wikidata Q2469718"
+  },
+  "VA027": {
+    "lng": -77.37,
+    "lat": 38.865,
+    "source": "Wikidata Q2420736"
+  },
+  "VA028": {
+    "lng": -77.47,
+    "lat": 38.295,
+    "source": "Wikidata Q751186"
+  },
+  "VA029": {
+    "lng": -77.77988,
+    "lat": 38.47692,
+    "source": "Wikidata Q2595291"
+  },
+  "VA030": {
+    "lng": -76.5829,
+    "lat": 36.7149,
+    "source": "Wikidata Q4843853"
+  },
+  "VA031": {
+    "lng": -76.5829,
+    "lat": 36.7149,
+    "source": "Wikidata Q4843853"
+  },
+  "VA032": {
+    "lng": -77.6484,
+    "lat": 38.3105,
+    "source": "Wikidata Q745979"
+  },
+  "VA033": {
+    "lng": -77.530944444,
+    "lat": 38.288861111,
+    "source": "Wikidata Q2772670"
+  },
+  "VA034": {
+    "lng": -77.47,
+    "lat": 38.295,
+    "source": "Wikidata Q751186"
+  },
+  "VA035": {
+    "lng": -77.88,
+    "lat": 38.5075,
+    "source": "Wikidata Q748219"
+  },
+  "VA036": {
+    "lng": -77.6588,
+    "lat": 38.9826,
+    "source": "Wikidata Q766479"
+  },
+  "VA037": {
+    "lng": -77.75973,
+    "lat": 38.96785,
+    "source": "Wikidata Q767157"
+  },
+  "VA038": {
+    "lng": -77.8343,
+    "lat": 38.9851,
+    "source": "Wikidata Q767520"
+  },
+  "VA039": {
+    "lng": -77.7,
+    "lat": 38.7,
+    "source": "Wikidata Q304655"
+  },
+  "VA040": {
+    "lng": -77.5418,
+    "lat": 38.7234,
+    "source": "Wikidata Q2170921"
+  },
+  "VA041": {
+    "lng": -77.7,
+    "lat": 38.7,
+    "source": "Wikidata Q304655"
+  },
+  "VA042": {
+    "lng": -77.81,
+    "lat": 38.74,
+    "source": "Wikidata Q2292185"
+  },
+  "VA043": {
+    "lng": -77.8136,
+    "lat": 38.533,
+    "source": "Wikidata Q526697"
+  },
+  "VA044": {
+    "lng": -77.8187,
+    "lat": 38.3379,
+    "source": "Wikidata Q305409"
+  },
+  "VA045": {
+    "lng": -77.904,
+    "lat": 38.3746,
+    "source": "Wikidata Q2600151"
+  },
+  "VA047": {
+    "lng": -77.4028,
+    "lat": 37.3116,
+    "source": "Wikidata Q855628"
+  },
+  "VA048": {
+    "lng": -77.598055555,
+    "lat": 38.224166666,
+    "source": "Wikidata Q1538874"
+  },
+  "VA049": {
+    "lng": -80.709,
+    "lat": 37.17458333,
+    "source": "Wikidata Q4870766"
+  },
+  "VA050": {
+    "lng": -77.4118,
+    "lat": 37.2861,
+    "source": "Wikidata Q2402094"
+  },
+  "VA051": {
+    "lng": -77.41225,
+    "lat": 37.35286111,
+    "source": "Wikidata Q1972073"
+  },
+  "VA052": {
+    "lng": -77.4552,
+    "lat": 37.6599,
+    "source": "Wikidata Q176216"
+  },
+  "VA053": {
+    "lng": -77.4277,
+    "lat": 37.3935,
+    "source": "Wikidata Q2566024"
+  },
+  "VA054": {
+    "lng": -77.39138889,
+    "lat": 37.34444444,
+    "source": "Wikidata Q3542881"
+  },
+  "VA055": {
+    "lng": -77.4943,
+    "lat": 37.8862,
+    "source": "Wikidata Q601317"
+  },
+  "VA056": {
+    "lng": -76.9967,
+    "lat": 37.3067,
+    "source": "Wikidata Q1886301"
+  },
+  "VA057": {
+    "lng": -77.2987,
+    "lat": 37.634,
+    "source": "Wikidata Q152158"
+  },
+  "VA058": {
+    "lng": -77.3118,
+    "lat": 37.676,
+    "source": "Wikidata Q135468"
+  },
+  "VA059": {
+    "lng": -77.2209,
+    "lat": 37.6444,
+    "source": "Wikidata Q195118"
+  },
+  "VA062": {
+    "lng": -77.285,
+    "lat": 37.59,
+    "source": "Wikidata Q497797"
+  },
+  "VA063": {
+    "lng": -77.4774,
+    "lat": 37.1776,
+    "source": "Wikidata Q4462586"
+  },
+  "VA064": {
+    "lng": -79.1832,
+    "lat": 37.3845,
+    "source": "Wikidata Q4871619"
+  },
+  "VA065": {
+    "lng": -77.3767,
+    "lat": 37.1844,
+    "source": "Wikidata Q4871326"
+  },
+  "VA066": {
+    "lng": -77.1506,
+    "lat": 37.4322,
+    "source": "Wikidata Q2470074"
+  },
+  "VA067": {
+    "lng": -77.45305556,
+    "lat": 36.94588889,
+    "source": "Wikidata Q4872312"
+  },
+  "VA068": {
+    "lng": -77.4226,
+    "lat": 37.0959,
+    "source": "Wikidata Q5452530"
+  },
+  "VA069": {
+    "lng": -77.2609,
+    "lat": 37.4359,
+    "source": "Wikidata Q5452508"
+  },
+  "VA071": {
+    "lng": -77.2609,
+    "lat": 37.4359,
+    "source": "Wikidata Q5452508"
+  },
+  "VA072": {
+    "lng": -77.4203,
+    "lat": 37.1747,
+    "source": "Wikidata Q4871114"
+  },
+  "VA073": {
+    "lng": -77.4226,
+    "lat": 37.0959,
+    "source": "Wikidata Q5452530"
+  },
+  "VA074": {
+    "lng": -77.4537,
+    "lat": 37.1705,
+    "source": "Wikidata Q4872004"
+  },
+  "VA076": {
+    "lng": -81.7592,
+    "lat": 36.8857,
+    "source": "Wikidata Q3401918"
+  },
+  "VA078": {
+    "lng": -77.3574,
+    "lat": 37.483,
+    "source": "Wikidata Q4870845"
+  },
+  "VA079": {
+    "lng": -77.5116,
+    "lat": 37.1431,
+    "source": "Wikidata Q4870539"
+  },
+  "VA080": {
+    "lng": -77.334,
+    "lat": 37.494,
+    "source": "Wikidata Q4870994"
+  },
+  "VA081": {
+    "lng": -81.4873,
+    "lat": 36.852,
+    "source": "Wikidata Q4871678"
+  },
+  "VA082": {
+    "lng": -81.7592,
+    "lat": 36.8857,
+    "source": "Wikidata Q3401918"
+  },
+  "VA083": {
+    "lng": -77.4853,
+    "lat": 37.1305,
+    "source": "Wikidata Q4871195"
+  },
+  "VA084": {
+    "lng": -77.371,
+    "lat": 37.226,
+    "source": "Wikidata Q543094"
+  },
+  "VA085": {
+    "lng": -77.527777777,
+    "lat": 37.128333333,
+    "source": "Wikidata Q1129674"
+  },
+  "VA086": {
+    "lng": -77.58711,
+    "lat": 37.07725,
+    "source": "Wikidata Q688807"
+  },
+  "VA087": {
+    "lng": -77.51966667,
+    "lat": 37.14844444,
+    "source": "Wikidata Q1872466"
+  },
+  "VA088": {
+    "lng": -77.622777777,
+    "lat": 37.139444444,
+    "source": "Wikidata Q194329"
+  },
+  "VA089": {
+    "lng": -77.4774,
+    "lat": 37.1776,
+    "source": "Wikidata Q4462586"
+  },
+  "VA090": {
+    "lng": -77.5625,
+    "lat": 37.1975,
+    "source": "Wikidata Q2162088"
+  },
+  "VA091": {
+    "lng": -78.079,
+    "lat": 37.3344,
+    "source": "Wikidata Q4870292"
+  },
+  "VA092": {
+    "lng": -78.2947,
+    "lat": 37.2691,
+    "source": "Wikidata Q2233254"
+  },
+  "VA093": {
+    "lng": -78.22797,
+    "lat": 37.30551,
+    "source": "Wikidata Q1497969"
+  },
+  "VA094": {
+    "lng": -78.3866,
+    "lat": 37.3464,
+    "source": "Wikidata Q4438390"
+  },
+  "VA095": {
+    "lng": -78.3177,
+    "lat": 37.3122,
+    "source": "Wikidata Q1935037"
+  },
+  "VA096": {
+    "lng": -78.82730556,
+    "lat": 37.35347222,
+    "source": "Wikidata Q2438253"
+  },
+  "VA097": {
+    "lng": -78.796111111,
+    "lat": 37.3775,
+    "source": "Wikidata Q1355391"
+  },
+  "VA098": {
+    "lng": -77.4774,
+    "lat": 37.1776,
+    "source": "Wikidata Q4462586"
+  },
+  "VA099": {
+    "lng": -78.0745,
+    "lat": 38.05094444,
+    "source": "Wikidata Q1781894"
+  },
+  "VA100": {
+    "lng": -77.73152778,
+    "lat": 38.59125,
+    "source": "Wikidata Q848741"
+  },
+  "VA101": {
+    "lng": -78.1953,
+    "lat": 39.13951,
+    "source": "Wikidata Q4128034"
+  },
+  "VA102": {
+    "lng": -79.4754,
+    "lat": 38.3247,
+    "source": "Wikidata Q855913"
+  },
+  "VA103": {
+    "lng": -78.1923,
+    "lat": 38.936,
+    "source": "Wikidata Q2125491"
+  },
+  "VA104": {
+    "lng": -78.16708,
+    "lat": 39.18473,
+    "source": "Wikidata Q765215"
+  },
+  "VA105": {
+    "lng": -78.8438,
+    "lat": 38.3579,
+    "source": "Wikidata Q1970207"
+  },
+  "VA106": {
+    "lng": -78.7933,
+    "lat": 38.3002,
+    "source": "Wikidata Q2602211"
+  },
+  "VA107": {
+    "lng": -78.16708,
+    "lat": 39.18473,
+    "source": "Wikidata Q765215"
+  },
+  "VA108": {
+    "lng": -78.114,
+    "lat": 38.914,
+    "source": "Wikidata Q841131"
+  },
+  "VA109": {
+    "lng": -81.122,
+    "lat": 37.043,
+    "source": "Wikidata Q2888357"
+  },
+  "VA110": {
+    "lng": -78.670555555,
+    "lat": 38.661944444,
+    "source": "Wikidata Q2237043"
+  },
+  "VA111": {
+    "lng": -78.8994,
+    "lat": 38.2142,
+    "source": "Wikidata Q4872035"
+  },
+  "VA113": {
+    "lng": -78.7044,
+    "lat": 36.8857,
+    "source": "Wikidata Q4872435"
+  },
+  "VA115": {
+    "lng": -78.13333333,
+    "lat": 39.21933333,
+    "source": "Wikidata Q4872220"
+  },
+  "VA116": {
+    "lng": -78.1953,
+    "lat": 39.13951,
+    "source": "Wikidata Q4128034"
+  },
+  "VA117": {
+    "lng": -78.20013889,
+    "lat": 38.95305556,
+    "source": "Wikidata Q4871157"
+  },
+  "VA118": {
+    "lng": -77.99755556,
+    "lat": 39.16208333,
+    "source": "Wikidata Q4870473"
+  },
+  "VA119": {
+    "lng": -78.1325,
+    "lat": 39.1956,
+    "source": "Wikidata Q1626179"
+  },
+  "VA120": {
+    "lng": -78.395911537,
+    "lat": 38.981872512,
+    "source": "Wikidata Q766944"
+  },
+  "VA121": {
+    "lng": -78.4458,
+    "lat": 38.9429,
+    "source": "Wikidata Q4872566"
+  },
+  "VA122": {
+    "lng": -78.3043,
+    "lat": 39.0193,
+    "source": "Wikidata Q1710916"
+  },
+  "VA124": {
+    "lng": -77.72555556,
+    "lat": 37.24888889,
+    "source": "Wikidata Q1840768"
+  },
+  "VA125": {
+    "lng": -76.92472222,
+    "lat": 37.70916667,
+    "source": "Wikidata Q2410965"
+  },
+  "WV001": {
+    "lng": -80.039687,
+    "lat": 39.151827,
+    "source": "Wikidata Q1061090"
+  },
+  "WV002": {
+    "lng": -77.913365,
+    "lat": 39.521423,
+    "source": "Wikidata Q1497885"
+  },
+  "WV003": {
+    "lng": -79.933888888,
+    "lat": 38.866111111,
+    "source": "Wikidata Q1061267"
+  },
+  "WV005": {
+    "lng": -79.880555555,
+    "lat": 38.621388888,
+    "source": "Wikidata Q1426037"
+  },
+  "WV006": {
+    "lng": -80.938611111,
+    "lat": 38.208888888,
+    "source": "Wikidata Q451711"
+  },
+  "WV007": {
+    "lng": -79.767777777,
+    "lat": 38.534166666,
+    "source": "Wikidata Q1425892"
+  },
+  "WV008": {
+    "lng": -79.724444444,
+    "lat": 38.473888888,
+    "source": "Wikidata Q1422914"
+  },
+  "WV010": {
+    "lng": -77.7302,
+    "lat": 39.3228,
+    "source": "Wikidata Q1565693"
+  },
+  "WV012": {
+    "lng": -80.274,
+    "lat": 38.1128,
+    "source": "Wikidata Q4870922"
+  },
+  "WV013": {
+    "lng": -78.9645,
+    "lat": 39.0941,
+    "source": "Wikidata Q4871787"
+  },
+  "WV014": {
+    "lng": -77.9586,
+    "lat": 39.2499,
+    "source": "Wikidata Q4872460"
+  },
+  "WV015": {
+    "lng": -77.9824,
+    "lat": 39.308,
+    "source": "Wikidata Q4872399"
+  },
+  "WV016": {
+    "lng": -77.7786,
+    "lat": 39.4279,
+    "source": "Wikidata Q781694"
+  },
+  "AL008": {
+    "lat": 34.5620379,
+    "lng": -87.7300318,
+    "source": "OpenStreetMap: Ebeneezer Church, County Road 58, Fairview, Franklin County, Alabama, 35654, United States"
+  },
+  "AR004": {
+    "lat": 33.3095652,
+    "lng": -92.3043088,
+    "source": "OpenStreetMap: Cane Hill, Bradley County, Arkansas, 71651, United States"
+  },
+  "AR009": {
+    "lat": 35.8952199,
+    "lng": -92.6154756,
+    "source": "OpenStreetMap: Devil’s Backbone Road Cut—Geology, US 65, Marshall, Searcy County, Arkansas, 72650, United States"
+  },
+  "CO001": {
+    "lat": 39.7846689,
+    "lng": -104.9033536,
+    "source": "OpenStreetMap: Sand Creek, Commerce City, Adams County, Colorado, United States"
+  },
+  "GA027": {
+    "lat": 33.9878663,
+    "lng": -84.4342836,
+    "source": "OpenStreetMap: Waynesborough Court Northeast, Cobb County, Georgia, 30068, United States"
+  },
+  "ID001": {
+    "lat": 42.2416734,
+    "lng": -111.2741134,
+    "source": "OpenStreetMap: Bear River, Bear Lake County, Idaho, 83233, United States"
+  },
+  "KS002": {
+    "lat": 37.0235753,
+    "lng": -94.7352387,
+    "source": "OpenStreetMap: Baxter Springs, Cherokee County, Kansas, 66713, United States"
+  },
+  "MN001": {
+    "lat": 43.7474553,
+    "lng": -91.540267,
+    "source": "OpenStreetMap: Fort Ridgley Road, Houston Township, Houston County, Minnesota, 55943, United States"
+  },
+  "MN002": {
+    "lat": 44.6527349,
+    "lng": -95.5383495,
+    "source": "OpenStreetMap: Wood Lake, Yellow Medicine County, Minnesota, United States"
+  },
+  "MO002": {
+    "lat": 37.1765141,
+    "lng": -94.3103412,
+    "source": "OpenStreetMap: Carthage, Jasper County, Missouri, 64836, United States"
+  },
+  "MO003": {
+    "lat": 39.246479,
+    "lng": -94.419079,
+    "source": "OpenStreetMap: Liberty, Clay County, Missouri, United States"
+  },
+  "MO004": {
+    "lat": 37.1663822,
+    "lng": -93.3732811,
+    "source": "OpenStreetMap: Wilson's Creek, Springfield, Greene County, Missouri, United States"
+  },
+  "MO007": {
+    "lat": 37.5597754,
+    "lng": -90.294007,
+    "source": "OpenStreetMap: Fredericktown, Madison County, Missouri, United States"
+  },
+  "MO009": {
+    "lat": 36.7664457,
+    "lng": -89.1217338,
+    "source": "OpenStreetMap: Belmont Landing, Mississippi County, Missouri, 42032, United States"
+  },
+  "MO020": {
+    "lat": 37.304731,
+    "lng": -89.5176418,
+    "source": "OpenStreetMap: Cape Girardeau, Cape Girardeau County, Missouri, United States"
+  },
+  "MS012": {
+    "lat": 32.3643098,
+    "lng": -88.703656,
+    "source": "OpenStreetMap: Meridian, Lauderdale County, Mississippi, United States"
+  },
+  "NC007": {
+    "lat": 35.2626635,
+    "lng": -77.5816353,
+    "source": "OpenStreetMap: Kinston, Lenoir County, North Carolina, United States"
+  },
+  "NC009": {
+    "lat": 35.3391588,
+    "lng": -78.0283372,
+    "source": "OpenStreetMap: Battle of Goldsborough Bridge, Old Mount Olive Highway, Mar-Mac Village, Wayne County, North Carolina, 28333, United States"
+  },
+  "ND003": {
+    "lat": 47.285171,
+    "lng": -97.9080747,
+    "source": "OpenStreetMap: Stony Lake, Willow Lake Township, Steele County, North Dakota, United States"
+  },
+  "ND004": {
+    "lat": 46.2608543,
+    "lng": -97.6908711,
+    "source": "OpenStreetMap: Whitestone Hill, Gwinner, Whitestone Hill Township, Sargent County, North Dakota, United States"
+  },
+  "ND005": {
+    "lat": 47.5089027,
+    "lng": -102.877132,
+    "source": "OpenStreetMap: North Killdeer Mountain, Dunn County, North Dakota, United States"
+  },
+  "TN003": {
+    "lat": 35.1153617,
+    "lng": -88.3617085,
+    "source": "OpenStreetMap: Shiloh, Hardin County, West Tennessee, Tennessee, 38376, United States"
+  },
+  "TN022": {
+    "lat": 35.042036,
+    "lng": -89.6645266,
+    "source": "OpenStreetMap: Collierville, Shelby County, West Tennessee, Tennessee, 38017, United States"
+  },
+  "VA005": {
+    "lat": 38.7509488,
+    "lng": -77.4752667,
+    "source": "OpenStreetMap: Manassas, Virginia, United States"
+  },
+  "VA009": {
+    "lat": 37.2356655,
+    "lng": -76.5136495,
+    "source": "OpenStreetMap: Yorktown, York County, Virginia, United States"
+  },
+  "VA017": {
+    "lat": 37.587645,
+    "lng": -77.301367,
+    "source": "OpenStreetMap: Gaines Mill, New Cold Harbor, Hanover County, Virginia, 23111, United States"
+  },
+  "VA046": {
+    "lat": 38.3256854,
+    "lng": -77.7258248,
+    "source": "OpenStreetMap: Wilderness, Spotsylvania County, Virginia, 22508, United States"
+  },
+  "VA070": {
+    "lat": 37.1805571,
+    "lng": -77.371993,
+    "source": "OpenStreetMap: Addison Crater Woods, Petersburg, Virginia, United States"
+  },
+  "VA114": {
+    "lat": 36.8340367,
+    "lng": -77.8258275,
+    "source": "OpenStreetMap: Cool Spring, Brunswick County, Virginia, 23843, United States"
+  },
+  "VA123": {
+    "lat": 38.0686668,
+    "lng": -78.8893999,
+    "source": "OpenStreetMap: Waynesboro, Virginia, 22980, United States"
+  },
+  "VA126": {
+    "lat": 36.6040421,
+    "lng": -83.6736394,
+    "source": "OpenStreetMap: Cumberland Gap, Lee County, Virginia, 37752, United States"
+  }
+}

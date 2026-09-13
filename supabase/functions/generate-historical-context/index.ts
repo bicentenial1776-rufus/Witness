@@ -163,6 +163,39 @@ Deno.serve(async (req) => {
           .join('\n'),
     );
   }
+
+  // A confirmed entity (a regiment) brings its dated, placed events —
+  // the NPS/CWSAC engagements seeded on the cw-regiments register. These
+  // are UNIT-level facts: the regiment was there; the man probably was,
+  // never certainly, and the prompt says so (docs/witness-civil-war-prompt.md).
+  const { data: linkRows } = await ctx.db
+    .from('person_register_links')
+    .select('record_id, record_name')
+    .eq('individual_id', individualId)
+    .in('status', ['confirmed', 'parsed_from_gedcom'])
+    .not('record_id', 'is', null);
+  const recordIds = [...new Set((linkRows ?? []).map((r) => r.record_id as string))];
+  if (recordIds.length) {
+    const { data: unitEvents } = await ctx.db
+      .from('register_record_events')
+      .select('record_id, event_type, event_year, place_text')
+      .in('record_id', recordIds)
+      .order('event_year', { ascending: true })
+      .limit(60);
+    const nameByRecord = new Map((linkRows ?? []).map((r) => [r.record_id as string, r.record_name as string | null]));
+    const byRecord = new Map<string, string[]>();
+    for (const e of unitEvents ?? []) {
+      const list = byRecord.get(e.record_id) ?? [];
+      if (list.length < 25) list.push(`  - ${e.event_year ?? '?'}: ${e.place_text ?? e.event_type}`);
+      byRecord.set(e.record_id, list);
+    }
+    for (const [recordId, lines] of byRecord) {
+      sources.push(
+        `Recorded engagements of the ${nameByRecord.get(recordId) ?? 'unit'} (UNIT-LEVEL facts from NPS battle–unit records: the regiment was present; this man probably was, never certainly — say "his regiment", not "he", unless the tree itself places him there):\n` +
+          lines.join('\n'),
+      );
+    }
+  }
   if (wikidataEvents.length) {
     sources.push(
       'Historical events in their country during their lifetime (from Wikidata):\n' +

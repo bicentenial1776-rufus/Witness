@@ -189,22 +189,28 @@ function useAncestorMap(
       // placed a person here (a veterans' cemetery, a parcel), distinct
       // from the tree's own event pins. Click opens the person.
       map.addSource('records', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      // Amber ring: a person's own record placed them here. Ink ring,
+      // smaller: a confirmed regiment's engagement — the unit was here,
+      // he probably was — never drawn as the same claim.
       map.addLayer({
         id: 'records-marks',
         type: 'circle',
         source: 'records',
         paint: {
           'circle-color': '#FCFAF6',
-          'circle-radius': 6,
-          'circle-stroke-width': 2.5,
-          'circle-stroke-color': C.accent,
+          'circle-radius': ['case', ['==', ['get', 'kind'], 'entity'], 4.5, 6],
+          'circle-stroke-width': ['case', ['==', ['get', 'kind'], 'entity'], 1.5, 2.5],
+          'circle-stroke-color': ['case', ['==', ['get', 'kind'], 'entity'], '#4A443B', C.accent],
         },
       });
       map.addLayer({
         id: 'records-labels',
         type: 'symbol',
         source: 'records',
+        // Engagements label only when zoomed well in — a regiment fought
+        // at forty places, and forty names at state scale is noise.
         minzoom: 7,
+        filter: ['any', ['!=', ['get', 'kind'], 'entity'], ['>=', ['zoom'], 9]],
         layout: {
           'text-field': ['get', 'name'],
           'text-size': 11,
@@ -277,8 +283,9 @@ function useAncestorMap(
         geometry: { type: 'Point', coordinates: [point.longitude, point.latitude] },
         properties: {
           individualId: point.individualId ?? null,
-          name: point.personName,
+          name: point.kind === 'entity' && point.recordName ? `${point.personName} — ${point.recordName}` : point.personName,
           label: point.label,
+          kind: point.kind,
         },
       })),
     });
