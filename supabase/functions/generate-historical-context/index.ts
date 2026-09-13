@@ -24,8 +24,11 @@ const MODEL = 'claude-sonnet-4-6';
 // writer is told the life is already told — but it still opened with the
 // birth. v3 (same day): the opening is constrained structurally — first
 // sentence may not carry the name or the birth; open with the place or
-// the era. v1 texts opened as a second biography.
-const PROMPT_VERSION = 3;
+// the era. v1 texts opened as a second biography. v4 (2026-09-13): the
+// Chronicling America source is reachable again (the legacy API it called
+// had been retired since 2025-08), so v3 texts — written without a single
+// newspaper snippet — expire and regenerate with the local paper in them.
+const PROMPT_VERSION = 4;
 
 /**
  * Cache rows carry either legacy plain prose (pre-2026-08-18) or a v2 JSON
