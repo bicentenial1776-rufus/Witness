@@ -293,6 +293,15 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
   // A citation pointing at a source record the file never defines is a
   // dangling FK, not evidence; skip it like an unparseable child pointer.
   const citations: CitationInsert[] = [];
+  // Family Tree Maker writes the literal word "(null)" where a citation
+  // has no transcribed text — 25,062 of the Howe/Field export's 29,186
+  // citations carry it — and the Sources tab printed it in quotation
+  // marks as if the record said so. Absent is absent.
+  const withoutFtmNull = (value: string | null | undefined): string | null => {
+    const trimmed = value?.trim() ?? '';
+    return trimmed === '' || /^\(null\)$/i.test(trimmed) ? null : value!;
+  };
+
   const pushCitations = (
     list: SourceCitation[],
     subject: { individual_id: string } | { family_id: string },
@@ -307,9 +316,9 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
         user_id: userId,
         source_id: sourceId,
         fact: citation.fact,
-        page: citation.page ?? null,
-        text_excerpt: citation.text ?? null,
-        url: citation.url ?? null,
+        page: withoutFtmNull(citation.page),
+        text_excerpt: withoutFtmNull(citation.text),
+        url: withoutFtmNull(citation.url),
         ancestry_apid: citation.apid ?? null,
         ...subject,
       });

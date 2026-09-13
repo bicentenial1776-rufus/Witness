@@ -126,6 +126,43 @@ describe('buildImportPayload', () => {
     });
   });
 
+  it('drops Family Tree Maker’s literal "(null)" from citation text, page, and url', () => {
+    const ftmText = [
+      '0 HEAD',
+      '1 SOUR FTM',
+      '1 GEDC',
+      '2 VERS 5.5.1',
+      '0 @I1@ INDI',
+      '1 NAME Shirley /Howe/',
+      '1 BIRT',
+      '2 DATE 1917',
+      '2 SOUR @S1@',
+      '3 PAGE (null)',
+      '3 DATA',
+      '4 TEXT (null)',
+      '2 SOUR @S2@',
+      '3 PAGE Year: 1950; Sheet 4',
+      '3 DATA',
+      '4 TEXT Birth date: 1917',
+      '0 @S1@ SOUR',
+      '1 TITL Ancestry Family Trees',
+      '0 @S2@ SOUR',
+      '1 TITL 1950 United States Federal Census',
+      '0 TRLR',
+    ].join('\n');
+    const payload = buildImportPayload(parseGedcom(ftmText, 'ftm.ged'), {
+      userId: USER_ID,
+      generateId: sequentialIdGenerator(),
+    });
+    const byTitle = (title: string) =>
+      payload.citations.find((c) => payload.sources.find((s) => s.id === c.source_id)?.title === title)!;
+    expect(byTitle('Ancestry Family Trees')).toMatchObject({ text_excerpt: null, page: null });
+    expect(byTitle('1950 United States Federal Census')).toMatchObject({
+      text_excerpt: 'Birth date: 1917',
+      page: 'Year: 1950; Sheet 4',
+    });
+  });
+
   it('deduplicates shared media and links people, events, families, and citations', () => {
     const mediaText = [
       '0 HEAD',
