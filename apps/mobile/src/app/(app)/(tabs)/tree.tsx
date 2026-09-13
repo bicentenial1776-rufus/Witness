@@ -208,7 +208,7 @@ export default function TreeTab() {
         onPress={() => router.push('/getting-to-work' as never)}
       />
       <Row
-        title="FTAnalyzer Tree Check"
+        title="Tree Health Check"
         detail="Twenty-two data-integrity checks across your whole tree — impossible dates, merged generations, duplicate children, and more"
         onPress={() => router.push('/tree-health' as never)}
       />

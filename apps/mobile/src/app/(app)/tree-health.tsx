@@ -27,9 +27,6 @@ import { CHECK_TITLES } from '@/lib/check-titles';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
 
-const ATTRIBUTION =
-  'Data-integrity checks adapted from FTAnalyzer (© Alexander Bisset, Apache License 2.0). GPL-related functionality not included.';
-
 const UPLOAD_NOTE = 'Corrected records will fall off this list on the next GEDCOM upload.';
 
 interface CheckSection {
@@ -41,7 +38,7 @@ interface CheckSection {
 }
 
 /**
- * The FTAnalyzer Tree Check. Phone: the grouped list, each record
+ * The Tree Health Check. Phone: the grouped list, each record
  * opening the ancestor's page. Broadsheet: a workbench — records on the
  * left, the selected person's full detail on the right, so a fix in
  * Ancestry is one glance away. "Fixed" marks persist per tree and die
@@ -235,7 +232,7 @@ export default function TreeHealthScreen() {
           gap: 8,
         }}
       >
-        <ThemedText type="title">FTAnalyzer Tree Check</ThemedText>
+        <ThemedText type="title">Tree Health Check</ThemedText>
         <ThemedText
           type="small"
           style={broadsheet ? { maxWidth: 260, textAlign: 'right', opacity: 0.8 } : { opacity: 0.8 }}
@@ -243,9 +240,6 @@ export default function TreeHealthScreen() {
           {UPLOAD_NOTE}
         </ThemedText>
       </View>
-      <ThemedText type="small" style={{ opacity: 0.7 }}>
-        {ATTRIBUTION}
-      </ThemedText>
       {report ? (
         <>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 6 }}>

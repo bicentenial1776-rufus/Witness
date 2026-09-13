@@ -143,7 +143,7 @@ export default function AppLayout() {
       <Stack.Screen
         name="tree-health"
         options={{
-          title: 'Tree Health',
+          title: 'Tree Health Check',
           headerRight: () => <GuideHelpButton page="tree-health.html" color={theme.accent} />,
         }}
       />
