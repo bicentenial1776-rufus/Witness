@@ -25,8 +25,14 @@ export function providerPersonLink(args: {
   ancestryTreeId: string | null;
   xref: string;
   familySearchId: string | null;
+  /** Ancestry's own person id, overlaid onto a tree whose xrefs are not
+      Ancestry's (a Family Tree Maker export) — wins over the xref. */
+  ancestryPersonId?: string | null;
 }): ProviderLink | null {
-  const ancestry = ancestryPersonUrl(args.ancestryTreeId, args.xref);
+  const ancestry = ancestryPersonUrl(
+    args.ancestryTreeId,
+    args.ancestryPersonId ? `I${args.ancestryPersonId}` : args.xref,
+  );
   if (ancestry) return { label: 'Ancestry', url: ancestry };
   if (args.familySearchId) {
     return {
@@ -35,6 +41,17 @@ export function providerPersonLink(args: {
     };
   }
   return null;
+}
+
+/**
+ * An Ancestry record page from a citation's _APID ("1,7602::12345" →
+ * database 7602, record 12345). The only link many citations have once
+ * the tree comes through Family Tree Maker, which drops the WWW links.
+ */
+export function ancestryRecordUrl(apid: string | null | undefined): string | null {
+  const match = /^\s*\d+,(\d+)::(\d+)\s*$/.exec(apid ?? '');
+  if (!match) return null;
+  return `https://www.ancestry.com/discoveryui-content/view/${match[2]}:${match[1]}`;
 }
 
 // Valid person-page tab paths, verified 2026-07-24: /facts and /gallery

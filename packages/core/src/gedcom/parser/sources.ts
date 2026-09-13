@@ -64,7 +64,9 @@ function parseCitation(node: GedcomNode, fact: string, shared: SharedRecords): S
     fact,
     page: value(node, 'PAGE'),
     text: value(data, 'TEXT'),
-    url: value(data, 'WWW'),
+    // Ancestry writes the record link as DATA.WWW; Family Tree Maker writes
+    // the same link as a _LINK on the citation itself.
+    url: value(data, 'WWW') ?? value(node, '_LINK'),
     apid: value(node, '_APID'),
     ...(media.length > 0 ? { media } : {}),
   };

@@ -1055,6 +1055,7 @@ export type Database = {
       individuals: {
         Row: {
           ancestry_apid: string | null
+          ancestry_person_id: string | null
           ancestry_uid: string | null
           birth_year: number | null
           death_year: number | null
@@ -1074,6 +1075,7 @@ export type Database = {
         }
         Insert: {
           ancestry_apid?: string | null
+          ancestry_person_id?: string | null
           ancestry_uid?: string | null
           birth_year?: number | null
           death_year?: number | null
@@ -1093,6 +1095,7 @@ export type Database = {
         }
         Update: {
           ancestry_apid?: string | null
+          ancestry_person_id?: string | null
           ancestry_uid?: string | null
           birth_year?: number | null
           death_year?: number | null
@@ -2377,9 +2380,17 @@ export type Database = {
       }
     }
     Functions: {
+      apply_ancestry_identity: {
+        Args: { p_tree_id: string; p_ancestry_tree_id: string | null; p_people: Json; p_citations: Json }
+        Returns: Json
+      }
       bump_nara_calls: {
         Args: { p_calls: number; p_month: string }
         Returns: number
+      }
+      carry_ancestry_identity: {
+        Args: { p_old_tree_id: string; p_new_tree_id: string }
+        Returns: Json
       }
       delete_tree_batch: { Args: { p_tree_id: string }; Returns: Json }
       get_invite: { Args: { p_token: string }; Returns: Json }

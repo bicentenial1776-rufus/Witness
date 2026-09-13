@@ -55,7 +55,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
 
 import { showAlert } from '@/lib/alert';
-import { providerPersonLink, type ProviderLink } from '@/lib/ancestry';
+import { ancestryRecordUrl, providerPersonLink, type ProviderLink } from '@/lib/ancestry';
 import {
   ancestryImmigrationSearchUrl,
   familySearchArrivalsUrl,
@@ -105,6 +105,8 @@ interface Person {
   living: boolean;
   gedcom_xref: string;
   familysearch_id: string | null;
+  /** Ancestry's own person id, overlaid onto an FTM-imported tree. */
+  ancestry_person_id: string | null;
 }
 
 interface EventRow {
@@ -151,6 +153,7 @@ interface CitationRow {
   page: string | null;
   text_excerpt: string | null;
   url: string | null;
+  ancestry_apid: string | null;
   sources: { title: string | null } | null;
 }
 
@@ -194,9 +197,11 @@ function groupCitations(rows: CitationRow[]): SourceGroup[] {
     if (row.text_excerpt && !group.excerpts.includes(row.text_excerpt)) {
       group.excerpts.push(row.text_excerpt);
     }
-    // A memorial URL beats any other link the same source happens to carry.
-    if (row.url && (!group.url || (isFindAGraveUrl(row.url) && !isFindAGraveUrl(group.url)))) {
-      group.url = row.url;
+    // A memorial URL beats any other link the same source happens to carry;
+    // a citation with no link but an Ancestry record id still gets one.
+    const url = row.url ?? ancestryRecordUrl(row.ancestry_apid);
+    if (url && (!group.url || (isFindAGraveUrl(url) && !isFindAGraveUrl(group.url)))) {
+      group.url = url;
     }
   }
   return [...groups.values()].sort(
@@ -798,7 +803,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
       const [{ data: personRow, error: personError }, { data: eventRows }] = await Promise.all([
         supabase
           .from('individuals')
-          .select('id, tree_id, full_name, sex, birth_year, death_year, living, gedcom_xref, familysearch_id')
+          .select('id, tree_id, full_name, sex, birth_year, death_year, living, gedcom_xref, familysearch_id, ancestry_person_id')
           .eq('id', id)
           .maybeSingle(),
         supabase
@@ -821,7 +826,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
             if (cancelled) return;
             if (portrait) {
               setFromFieldCopy(true);
-              setPerson({ ...portrait.person, tree_id: treeId, gedcom_xref: '', familysearch_id: null });
+              setPerson({ ...portrait.person, tree_id: treeId, gedcom_xref: '', familysearch_id: null, ancestry_person_id: null });
               setEvents(
                 portrait.events.map((e) => ({
                   event_type: e.event_type,
@@ -867,6 +872,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                   ancestryTreeId: data.ancestry_tree_id,
                   xref: personRow.gedcom_xref,
                   familySearchId: personRow.familysearch_id,
+                  ancestryPersonId: personRow.ancestry_person_id,
                 }),
               );
             }
@@ -888,7 +894,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
       // a database that predates the table errors and the section hides.
       supabase
         .from('citations')
-        .select('fact, page, text_excerpt, url, sources(title)')
+        .select('fact, page, text_excerpt, url, ancestry_apid, sources(title)')
         .eq('individual_id', id)
         .returns<CitationRow[]>()
         .then(({ data }) => {

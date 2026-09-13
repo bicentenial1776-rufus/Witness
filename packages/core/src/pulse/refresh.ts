@@ -609,6 +609,16 @@ export async function applyRefresh(
     }
   }
 
+  // Ancestry identity overlaid onto an FTM tree (ancestry_person_id, record
+  // links) moves by xref and by unique name — the Ancestry export is taken
+  // once, never again. A missing function (migration not applied) just
+  // means nothing carries, said in the log, never a failed refresh.
+  const { error: identityError } = await supabase.rpc('carry_ancestry_identity', {
+    p_old_tree_id: oldTreeId,
+    p_new_tree_id: newTreeId,
+  });
+  if (identityError) console.warn('Ancestry identity did not carry:', identityError.message);
+
   const { error: pulseError } = await supabase
     .from('trees')
     .update({
