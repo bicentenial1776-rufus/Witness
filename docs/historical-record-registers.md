@@ -90,7 +90,10 @@ narrative + map + research queue.
    then `--write`.
 5. **Verify the deep-link template against the live target before the
    register ships.** FamilySearch's parameters verified; the Ellis Island
-   Foundation's did not exist; GLO and LAC are unverified until proven.
+   Foundation's did not exist; GLO's did not survive BLM's July 2026
+   re-platform (a Salesforce shell at `/s/` with no query parameters — see
+   the package doc §2.3, rewritten 2026-09-13); LAC is unverified until
+   proven.
 
 If a config-only register needs framework code, that is a framework defect
 to fix, not a one-off patch.

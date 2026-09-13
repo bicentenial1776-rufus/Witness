@@ -106,6 +106,7 @@ side effect of this one.
 | **A — Curated person table** | Small seed table of named individuals from primary records; candidate matching by normalized name + place + date; user confirms | Acadian Deportation, Loyalists, Filles du Roi (already proven by the Crossing Library) |
 | **B — Entity table, person attaches** | Ingest an entity set (regiments) with dated, placed events; person links to an entity, and the entity's events become unit-level facts for that person | Civil War (genuinely new — nothing shipped is entity-shaped) |
 | **C — Deep-link + structured save-back** | No seed table; exposure heuristic → prefilled external search → user confirms and Witness saves a structured record (URL + key fields), optionally geocoded | BLM GLO patents, CEF WWI, Home Children, Grosse-Île, CWSS person lookup (pattern proven by grave-link + record-search) |
+| **C, worker-fed** (added 2026-09-13) | No seed table; a server worker queries a source too large to seed, scores rows in core, and inserts candidate links with the record snapshot in `saved_payload`; the reader confirms as for any candidate | Veterans' gravesites (`va-burials`, shipped); the AAD WWII enlistment file and Chronicling America obituaries are the same shape |
 
 ### Where compute runs (decided, was unstated)
 
@@ -284,29 +285,59 @@ CWSS deep-link for person lookup (verify the CWSS URL scheme accepts prefilled
 parameters before shipping); Confederate coverage caveat on cards. Acceptance:
 ≥80% parse rate on real GEDCOM unit strings; one generated narrative.
 
-### 2.3 BLM GLO land patents (Variant C)
-- Exposure: any US event 1800–1935 outside the original thirteen colonies'
-  settled regions; stronger for public-land states and for events in a county
-  with active land offices in the person's adult years (a small config table
-  of public-land states suffices for v1).
-- Deep-link: glorecords.blm.gov patent search prefilled with surname, given
-  name, state. **Caution: the GLO search is a hash-fragment application;
-  verify a prefilled URL actually lands on filled-in results before
-  promising it** (the FamilySearch-vs-SOLEIF lesson). In-app browser.
-- Save-back payload: accession number, patent date, land office, authority
-  (Homestead Act 1862, cash sale, etc.), acreage, and the legal land
-  description (state, meridian, township, range, section, aliquot parts).
-- Geocoding: PLSS description → centroid. **v1 is township/range/section
-  centroid**; aliquot-part precision is real additional work against BLM's
-  CadNSDI (a large dataset — document the chosen lookup and its accuracy).
-  Store lat/lng in `saved_payload`; map point labelled "Land patent, {year},
-  {acres} acres" with a distinct marker.
+### 2.3 BLM GLO land patents (Variant C) — rewritten 2026-09-13
+
+**The target moved under the plan.** On 2026-07-13 BLM re-platformed
+glorecords.blm.gov onto Salesforce Experience Cloud at `/s/`. Verified by
+curl on 2026-09-13: every legacy URL (`/search/default.aspx`,
+`/details/patent/default.aspx?accession=…`) answers 301 to the bare shell,
+and the legacy XML Web Services (`/WebServices/`, once "direct access to
+all of the data behind the website") answer 401 behind a login. The new
+site documents no API, no CSV export, no bulk download; a July 2026
+practitioner review found its map search non-functional. The "prefilled
+hash-fragment URL" caution above is therefore moot — there is nothing to
+prefill. Everything below supersedes the original section.
+
+- Exposure: unchanged — any US event 1800–1935 outside the original
+  thirteen colonies' settled regions; stronger for public-land states and
+  for events in a county with active land offices in the person's adult
+  years (a small config table of public-land states suffices for v1).
+- Deep-link: `https://glorecords.blm.gov/s/` in the in-app browser, with
+  the card printing the search the reader should type beside the button
+  ("Search for HOWE, Josiah · Ohio") — the site's search is a form the URL
+  cannot fill. **Before building, ask BLM** (Eastern States Office / the
+  GLO records contact on the site) whether the web services survive behind
+  a developer account. A Salesforce SPA is not to be scraped; if no
+  developer access exists, the manual save-back below is the product.
+- Save-back payload: unchanged — accession number, patent date, land
+  office, authority (Homestead Act 1862, cash sale, military warrant…),
+  acreage, and the legal land description (state, meridian, township,
+  range, section, aliquot parts). The save-back form is the Variant C UI
+  the framework still lacks; it arrives with this register (or with the
+  AAD enlistment register, whichever ships first).
+- Geocoding: **verified live** — BLM's PLSS CadNSDI ArcGIS REST service,
+  `https://gis.blm.gov/arcgis/rest/services/Cadastral/BLM_Natl_PLSS_CadNSDI/MapServer`
+  (layers: Township; First Division = section; Intersected = aliquot
+  parts), queried by PLSSID or township/range/section with `f=geojson`
+  returns the polygon. v1 stores the section centroid as `latitude` /
+  `longitude` in `saved_payload` (that is what `pointsFromSavedPayloads`
+  reads and the Ancestor Map now draws, since the va-burials register)
+  and keeps the polygon GeoJSON in the payload for a later parcel outline.
+  Aliquot-part precision uses the Intersected layer, later.
 - Narrative label: "From BLM land patents." Prompt block: patent date,
   authority, acreage, place — enough for "In 1871 he proved up 160 acres
   under the Homestead Act near…"
-- Acceptance: at least one Howe/Field ancestor with a plausible patent; the
-  confirm flow completes; the parcel appears on the proximity map at the
-  right place (verified against the GLO map by Rufus).
+- Lines, a cheap bonus once patents accumulate: "who else patented this
+  section" — same township/range/section across a tree's confirmed
+  patents is a neighbours-were-kin research lead, never a link.
+- Prerequisites the framework lacks (both deferred to this register):
+  `match-records` writes no Variant C candidates (exposure → candidate,
+  the Variant B shape), and `RegisterCandidateCard` has no save-back
+  branch for a Variant C candidate without a payload.
+- Acceptance: unchanged — at least one Howe/Field ancestor with a plausible
+  patent; the confirm flow completes; the parcel appears on the Ancestor
+  Map at the right place (verified against the GLO map by Rufus) — plus
+  the CadNSDI polygon for that section drawn where the GLO map shows it.
 
 ### 2.4 United Empire Loyalists (Variant A)
 - Seed from PD primary sources only: the 1904 Ontario Bureau of Archives
