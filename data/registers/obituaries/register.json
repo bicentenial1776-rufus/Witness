@@ -1,0 +1,19 @@
+{
+  "register_key": "obituaries",
+  "display_name": "Obituaries and death notices (Chronicling America)",
+  "variant": "C",
+  "provenance_label": "From a newspaper notice (Chronicling America, Library of Congress)",
+  "coverage_caveat": "Chronicling America holds American newspapers of 1756–1963, thickest from the 1830s to the 1920s and uneven by state — many towns had no digitized paper. The text is machine-read from scans and often garbled; the excerpt is the record, and the reading beneath it is Witness’s, not the paper’s. A relative the notice names and your tree lacks is a lead, not a fact.",
+  "status": "active",
+  "config": {
+    "worker": {
+      "source": "https://www.loc.gov/collections/chronicling-america/",
+      "minDeathYear": 1836,
+      "maxDeathYear": 1963,
+      "note": "Fed by the obituary-leads edge function: a name search in the person's state around the death year, the page OCR, a passage where the surname sits beside the words of a notice, and a model reading of that passage (claude-sonnet-4-6, strictly from the text). Scored in packages/core/src/registers/obituaries.ts."
+    },
+    "deepLinkTemplate": "https://www.loc.gov/collections/chronicling-america/?q={given}+{surname}&dl=page",
+    "markerStyle": "notice",
+    "explainer": "Chronicling America is the Library of Congress’s free archive of American newspapers, 1756–1963, with every page’s text read by machine. A death or funeral notice is the one public record that names a family in its own words — the widow, the sons and daughters, the town, the church. Witness searches the person’s name in their state around the year of death, reads the pages where the name sits beside the words of a notice, and shows you the passage with what it seems to say. You decide whether it is them; a relative it names that your tree does not hold is a lead to research, never something Witness writes for you."
+  }
+}

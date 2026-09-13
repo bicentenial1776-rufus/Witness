@@ -10,3 +10,4 @@ export * from './exposureCandidates.js';
 export * from './unitHints.js';
 export * from './vaBurials.js';
 export * from './saveBack.js';
+export * from './obituaries.js';

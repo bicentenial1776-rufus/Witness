@@ -36,7 +36,15 @@ narrative + map + research queue.
   → `lib/register-points.ts`). Two generic tables serve every worker-fed
   register: `register_enrichment_state` (who has been examined, per
   register) and `register_ticks` (per-register mutual exclusion), with
-  `register_enrichment_queue()` as the service-role queue.
+  `register_enrichment_queue()` as the service-role queue. The second
+  worker-fed register, `obituaries` (same day), reads Chronicling America
+  page OCR through `obituary-leads`: a name search in the person's state
+  around the death year, the passage where the surname sits beside the
+  words of a notice (`registers/obituaries.ts`), a model reading of that
+  passage strictly from the text, and each named relative held up against
+  the tree — a match corroborates, a miss is a lead in
+  `saved_payload.leads`. The only route in the free federal sources to a
+  parent–child clue, and it stays a lead, never a link.
 
 ## Invariants (enforced, not aspirational)
 

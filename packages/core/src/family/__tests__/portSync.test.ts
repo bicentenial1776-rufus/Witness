@@ -74,6 +74,12 @@ const PAIRS: Array<{ core: string; port: string; rewrites: Array<[string, string
     port: 'supabase/functions/_shared/records/vaBurials.ts',
     rewrites: [["'./passengers.ts'", "'../history/passengers.js'"]],
   },
+  // The obituary reader (obituary-leads worker).
+  {
+    core: 'packages/core/src/registers/obituaries.ts',
+    port: 'supabase/functions/_shared/records/obituaries.ts',
+    rewrites: [["'./passengers.ts'", "'../history/passengers.js'"]],
+  },
 ];
 
 function stripHeader(text: string): string {
