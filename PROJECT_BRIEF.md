@@ -500,6 +500,60 @@ pass before the map integration), the Add-unit picker, NPS battles.
 
 ---
 
+## September 13, 2026 — Seven Free Archives (built, awaiting deploy)
+
+A review of seven free US-government genealogy sources against the codebase
+(the "Seven Free Archives and Witness" memo) became a day's build. Commits
+7aca318…849ed05 + the Sanborn commit; **nothing below is deployed yet** —
+each commit message names its `supabase db push` / `functions deploy` /
+seed step, and the web and iOS builds carry the map and card changes.
+
+1. **Life & Times newspaper feed repaired.** The "Their World" helper had
+   been calling the Chronicling America API retired in August 2025 and
+   silently getting nothing; it now uses the loc.gov API the Story Arc
+   already used. PROMPT_VERSION 3 → 4 regenerates the v3 texts.
+2. **Veterans' gravesites register (`va-burials`)** — the first *worker-fed*
+   Variant C register: the `va-enrich` cron worker queries the National
+   Cemetery Administration's open dataset (data.va.gov, CC0, 8.4M burials,
+   cemetery coordinates, branch/rank/war, relationship to the veteran) per
+   person and offers candidates; confirm writes a burial event and the
+   cemetery lands on the Ancestor Map. Dry run on the Howe/Field tree's 80
+   most recent deaths: 8 offered, 7 strong (Shirley Scott Howe at the
+   Massachusetts National Cemetery among them). Generic tables
+   `register_enrichment_state` / `register_ticks` and the
+   `register_enrichment_queue()` function serve every worker-fed register.
+3. **GLO plan rewritten** for BLM's July 2026 re-platform (Salesforce
+   shell, dead deep links, web services behind a login; the PLSS CadNSDI
+   ArcGIS service verified as the geocoder). Package doc §2.3.
+4. **WWII Army enlistments register (`aad-wwii-enlistment`)** and the
+   framework's Variant C UI: exposure candidates for deep-link registers in
+   both matchers, a verified prefilled AAD search (`SURNAME#GIVEN` + a
+   two-digit birth year), and the config-driven save-back form
+   (`config.saveBack`, `registers/saveBack.ts`).
+5. **Obituaries register (`obituaries`)** — the `obituary-leads` worker
+   reads Chronicling America page OCR around a person's death year, keeps
+   the passage where the surname sits beside the words of a notice, has
+   Claude extract whom it names strictly from the text, and holds each
+   named relative up against the tree: a match corroborates, a miss is a
+   lead (`saved_payload.leads`). The only route in these sources to a
+   parent–child clue, and it stays a lead.
+6. **Civil War engagements placed**: 10,069 NPS battle–unit engagements
+   across 955 Dyer regiments, 9,901 with coordinates (Wikidata, then
+   state-checked OpenStreetMap); a confirmed regiment's engagements reach
+   the Ancestor Map as ink-ringed "his regiment was here" markers and the
+   "Their World" prompt as a unit-level block.
+7. **Sanborn overlay** where OldInsuranceMaps.net has georeferenced an
+   edition (tile layer on Apple Maps, raster source on the web, with the
+   site's own accuracy caveat). Coverage is thin: none of 36 Massachusetts
+   editions probed had a mosaic.
+
+Also learned: the Howe/Field import carries null `given_name`/`surname`
+for every person — every worker splits `full_name` — and the NARA worker's
+`person.surname` gate may be skipping this tree for the same reason
+(unverified; worth a look).
+
+---
+
 ## Features Explicitly Deferred
 
 - **Tree editing** — Witness never modifies a GEDCOM. Read-only always. *(Amended 2026-08-25 by At the Stone: the user may now make supervised, walk-backable additions — ADD person, RECORD marriage — from field evidence they verify themselves. The user is the editor; Witness is the scribe. The GEDCOM source file itself is still never touched.)*
