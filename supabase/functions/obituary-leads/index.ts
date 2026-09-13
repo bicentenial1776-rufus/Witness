@@ -235,11 +235,41 @@ async function relativesFor(supabase: Client, personId: string): Promise<TreeRel
   return out;
 }
 
+interface RunOptions {
+  force?: boolean;
+  treeId?: string;
+  /** Diagnostics: cap the searches this run makes. */
+  maxSearches?: number;
+  /** Diagnostics: wait for the pass and return its counts (may exceed the gateway's 150 s). */
+  sync?: boolean;
+}
+
+// A pass spends minutes waiting on loc.gov (8–45 s a search) and the
+// model, far past the gateway's 150 s idle limit and pg_net's 55 s — so,
+// the match-records sweep's shape, the request answers 202 at once and
+// the pass finishes in the background under EdgeRuntime.waitUntil.
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('POST only', { status: 405 });
   const denied = requireCronSecret(req);
   if (denied) return denied;
 
+  let options: RunOptions = {};
+  try {
+    options = ((await req.json()) as RunOptions) ?? {};
+  } catch {
+    // empty body — the normal cron case
+  }
+  const work = runPass(options);
+  if (options.sync === true) return await work;
+  const job = work
+    .then(async (res) => console.log('obituary-leads pass done:', res.status, await res.text()))
+    .catch((err) => console.error('obituary-leads pass failed:', err));
+  // deno-lint-ignore no-explicit-any
+  (globalThis as any).EdgeRuntime?.waitUntil?.(job);
+  return Response.json({ accepted: true, note: 'running in the background; pass sync:true to wait for counts' }, { status: 202 });
+});
+
+async function runPass(options: RunOptions): Promise<Response> {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) return Response.json({ error: 'ANTHROPIC_API_KEY not set' }, { status: 500 });
 
@@ -248,15 +278,12 @@ Deno.serve(async (req) => {
     if (error) errors.push(`${label}: ${error.message ?? JSON.stringify(error)}`);
   };
 
-  let force = false;
-  let onlyTree: string | null = null;
-  try {
-    const body = (await req.json()) as { force?: boolean; treeId?: string };
-    force = body?.force === true;
-    onlyTree = typeof body?.treeId === 'string' ? body.treeId : null;
-  } catch {
-    // empty body — the normal cron case
-  }
+  const force = options.force === true;
+  const onlyTree = typeof options.treeId === 'string' ? options.treeId : null;
+  const maxSearches =
+    typeof options.maxSearches === 'number' && options.maxSearches > 0
+      ? Math.min(options.maxSearches, MAX_SEARCHES_PER_RUN)
+      : MAX_SEARCHES_PER_RUN;
 
   const supabase: Client = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -314,7 +341,7 @@ Deno.serve(async (req) => {
   let rateLimited = false;
 
   for (const person of batch) {
-    if (searches >= MAX_SEARCHES_PER_RUN || rateLimited) break;
+    if (searches >= maxSearches || rateLimited) break;
     if (person.death_year === null) continue;
     examined++;
 
@@ -467,4 +494,4 @@ Deno.serve(async (req) => {
 
   if (errors.length > 0) console.error('obituary-leads errors:', errors);
   return Response.json({ examined, searches, pagesRead, candidates, strong, tokensIn, tokensOut, rateLimited, errors });
-});
+}
