@@ -1,5 +1,3 @@
-// Mirrored from packages/core/src/registers/types.ts — keep in sync
-// (portSync.test.ts enforces byte equality outside this header).
 /**
  * Historical Record Registers — shared types
  * (docs/witness-historical-record-registers-package.md).
@@ -74,8 +72,41 @@ export interface ConfirmEventSpec {
   detailTemplate: string;
 }
 
+/** One field of a Variant C save-back form. */
+export interface SaveBackField {
+  key: string;
+  label: string;
+  placeholder?: string;
+  required?: boolean;
+  /** The field the confirm event's year is read from (`event_year`). */
+  isYear?: boolean;
+  multiline?: boolean;
+}
+
+/**
+ * Variant C's structured save-back: the fields the reader copies off the
+ * outside record, and how the card and the confirm event read them back.
+ * Templates carry `{key}` placeholders; a ` · `-separated segment whose
+ * placeholders all resolve empty is dropped whole.
+ */
+export interface SaveBackConfig {
+  title: string;
+  intro?: string;
+  fields: SaveBackField[];
+  recordNameTemplate: string;
+  summaryTemplate: string;
+  /** A source citation stamped on every saved record. */
+  sourceCitation: string;
+  /** Optional field whose value is a URL the card can open as the source. */
+  urlKey?: string;
+}
+
 export interface RegisterConfig {
   exposure?: ExposureConfig;
+  /** Variant C: what the exposure candidate's card says before a record is found. */
+  candidateSummary?: string;
+  /** Variant C: the save-back form. */
+  saveBack?: SaveBackConfig;
   /** Variant B: the versioned unit vocabulary (unit-terms.json), seeded into
       the catalog row so the app can parse a regiment out of the file's own
       words (unitHints.ts). */

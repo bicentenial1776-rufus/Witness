@@ -142,11 +142,14 @@ side effect of this one.
 6. CEF WWI, Home Children, Grosse-Île, Filles du Roi — config-only additions;
    if any needs new code, that's a framework defect to fix, not a one-off patch
 
-Deferred, decide later: WWII Army enlistments (NARA AAD; bulk-downloadable
-person table — Variant A at 9M rows, which the framework must not assume:
-anything past ~50k rows is server-side data, per the Famine Irish finding),
-Chinese Head Tax, Dawes Rolls (sensitivity review first), WWI draft cards
-(deep-link only; the index is closed to us).
+Deferred, decide later: WWII Army enlistments as offered candidates (NARA
+AAD; bulk-downloadable person table — 9M rows, which the framework must not
+assume: anything past ~50k rows is server-side data, per the Famine Irish
+finding; the worker-fed shape `va-burials` proved on 2026-09-13 is the way
+in — meanwhile `aad-wwii-enlistment` shipped the same day as a deep-link
+Variant C register with a verified prefilled search and the save-back
+form), Chinese Head Tax, Dawes Rolls (sensitivity review first), WWI draft
+cards (deep-link only; the index is closed to us).
 
 ---
 

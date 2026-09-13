@@ -1,5 +1,5 @@
-import type { PersonRegisterLink, RegisterDef, RegisterRecord } from '@witness/core/registers';
-import { attachRegisterEntity, setRegisterLinkStatus } from '@witness/core/registers';
+import type { PersonRegisterLink, RegisterDef, RegisterRecord, RenderedSaveBack } from '@witness/core/registers';
+import { attachRegisterEntity, attachRegisterSaveBack, setRegisterLinkStatus } from '@witness/core/registers';
 
 import { supabase } from '@/lib/supabase';
 
@@ -83,6 +83,30 @@ export async function attachAndConfirmRegisterEntity(
     sourceCitation: record.sourceCitation,
     findingAidUrl: record.findingAidUrl,
     recordSummary: typeof record.attributes['history_excerpt'] === 'string' ? (record.attributes['history_excerpt'] as string).slice(0, 600) : null,
+  };
+  await confirmRegisterLink(attached, register);
+  return { ...attached, status: 'confirmed' };
+}
+
+/**
+ * Variant C's confirm: the reader found the record in the outside file
+ * and typed its key fields (renderSaveBack); the link takes the rendered
+ * snapshot and is confirmed, and the register's confirmEvent writes the
+ * event with the record's own summary in its detail.
+ */
+export async function saveBackAndConfirm(
+  link: PersonRegisterLink,
+  register: RegisterDef,
+  rendered: RenderedSaveBack,
+): Promise<PersonRegisterLink> {
+  await attachRegisterSaveBack(supabase, link.id, rendered);
+  const attached: PersonRegisterLink = {
+    ...link,
+    recordName: rendered.recordName,
+    recordSummary: rendered.recordSummary || null,
+    sourceCitation: rendered.sourceCitation,
+    findingAidUrl: rendered.findingAidUrl ?? link.findingAidUrl,
+    savedPayload: rendered.savedPayload,
   };
   await confirmRegisterLink(attached, register);
   return { ...attached, status: 'confirmed' };

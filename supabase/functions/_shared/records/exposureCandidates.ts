@@ -1,5 +1,3 @@
-// Mirrored from packages/core/src/registers/exposureCandidates.ts — keep in sync
-// (portSync.test.ts enforces byte equality outside this header).
 import { fillDeepLink } from './deeplink.ts';
 import { scoreExposure } from './exposure.ts';
 import { splitName } from './passengers.ts';
@@ -33,8 +31,20 @@ export function exposureCandidates(
     const result = scoreExposure(person, exposure);
     if (!result.exposed) continue;
     const { givenNames, surname } = splitName(person.fullName);
+    const given = givenNames.split(/\s+/)[0] ?? '';
+    // Tokens a template may use: the plain names (FamilySearch), their
+    // upper-cased forms and a two-digit birth year (AAD stores "26" for
+    // 1926), and the full years for anything else.
     const deepLink = config.deepLinkTemplate
-      ? fillDeepLink(config.deepLinkTemplate, { given: givenNames.split(/\s+/)[0] ?? '', surname })
+      ? fillDeepLink(config.deepLinkTemplate, {
+          given,
+          surname,
+          given_upper: given.toUpperCase(),
+          surname_upper: surname.toUpperCase(),
+          birth_year: person.birthYear,
+          birth_yy: person.birthYear === null ? null : String(person.birthYear % 100).padStart(2, '0'),
+          death_year: person.deathYear,
+        })
       : null;
     out.push({ person, score: result.score, reasons: result.reasons, deepLink });
   }

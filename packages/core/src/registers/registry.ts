@@ -213,6 +213,41 @@ export async function saveRegisterRecordLink(
 }
 
 /**
+ * Variant C's save-back onto an existing exposure candidate: the reader
+ * found the record outside and typed its key fields; the link takes the
+ * rendered name, summary, citation and payload and is confirmed in the
+ * same write. The event write (confirmEvent) is the caller's job, as
+ * for every confirm.
+ */
+export async function attachRegisterSaveBack(
+  client: WitnessSupabaseClient,
+  linkId: string,
+  rendered: {
+    recordName: string;
+    recordSummary: string | null;
+    sourceCitation: string | null;
+    findingAidUrl: string | null;
+    savedPayload: Record<string, unknown>;
+  },
+): Promise<void> {
+  const { data, error } = await client
+    .from('person_register_links')
+    .update({
+      record_name: rendered.recordName,
+      record_summary: rendered.recordSummary,
+      source_citation: rendered.sourceCitation,
+      finding_aid_url: rendered.findingAidUrl,
+      saved_payload: rendered.savedPayload as never,
+      status: 'confirmed',
+      confirmed_at: new Date().toISOString(),
+    })
+    .eq('id', linkId)
+    .select('id');
+  if (error) throw new Error(`Saving the record failed: ${error.message}`);
+  if (!data || data.length === 0) throw new Error('Only the tree owner can save a record.');
+}
+
+/**
  * Variant B's search: entity records of one register whose name carries
  * every word the reader typed ("15 mass" finds the 15th Massachusetts
  * Infantry). Reference data is readable to any signed-in user.

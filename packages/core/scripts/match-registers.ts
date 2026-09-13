@@ -176,10 +176,16 @@ async function main() {
       : people;
 
     let candidates: RegisterMatchCandidate[] = [];
-    // Variant B: exposure is the candidate (no roll to match). One row per
-    // exposed person with no link of any status yet; no findings — a
-    // plausibility, not a record, does not belong on the ledger.
-    if (register.variant === 'B') {
+    // Variant B, and Variant C with an exposure config (a deep-link
+    // register — AAD, GLO): exposure is the candidate (no roll to match).
+    // One row per exposed person with no link of any status yet; no
+    // findings — a plausibility, not a record, does not belong on the
+    // ledger. A worker-fed Variant C (va-burials) has no exposure config
+    // and is left to its worker.
+    if (register.variant === 'B' || (register.variant === 'C' && register.config.exposure)) {
+      const candidateSummary =
+        register.config.candidateSummary ??
+        'Of the generation that fought; whether he served is for the index to say. Search it, and add his regiment if you find him.';
       const exposed = exposureCandidates(register.config, people);
       const { data: held } = await client
         .from('person_register_links')
@@ -195,12 +201,12 @@ async function main() {
           if (!prior || prior.status !== 'candidate') continue;
           await client
             .from('person_register_links')
-            .update({ match_score: c.score, match_reasons: c.reasons as never, finding_aid_url: c.deepLink, record_summary: 'Of the generation that fought; whether he served is for the index to say. Search it, and add his regiment if you find him.' })
+            .update({ match_score: c.score, match_reasons: c.reasons as never, finding_aid_url: c.deepLink, record_summary: candidateSummary })
             .eq('id', prior.id as string);
         }
       }
       console.log(
-        `── ${register.displayName} (${register.registerKey}, Variant B)\n` +
+        `── ${register.displayName} (${register.registerKey}, Variant ${register.variant}, exposure)\n` +
           `   exposed: ${exposed.length} of ${people.length} · already held: ${exposed.length - fresh.length} · new: ${fresh.length}\n`,
       );
       if (!report) {
@@ -217,7 +223,7 @@ async function main() {
           match_score: c.score,
           match_reasons: c.reasons as never,
           record_name: null,
-          record_summary: 'Of the generation that fought; whether he served is for the index to say. Search it, and add his regiment if you find him.',
+          record_summary: candidateSummary,
           source_citation: null,
           finding_aid_url: c.deepLink,
         }));

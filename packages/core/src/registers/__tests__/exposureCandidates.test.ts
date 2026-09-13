@@ -38,6 +38,20 @@ describe('exposureCandidates', () => {
   it('is empty for a register without exposure config', () => {
     expect(exposureCandidates({}, [person('a', 'Ezekiel Howe', 'M', 1840, 1860)])).toEqual([]);
   });
+
+  it('fills the upper-cased and two-digit-year tokens AAD wants', () => {
+    const cfg: RegisterConfig = {
+      ...config,
+      deepLinkTemplate: 'https://aad.example/?txt_name={surname_upper}%23{given_upper}&txt_yob={birth_yy}&b={birth_year}',
+    };
+    const out = exposureCandidates(cfg, [person('a', 'Ezekiel Howe', 'M', 1840, 1860)]);
+    expect(out[0]!.deepLink).toBe('https://aad.example/?txt_name=HOWE%23EZEKIEL&txt_yob=40&b=1840');
+    const unborn = exposureCandidates(
+      { ...cfg, exposure: { dateWindows: [{ from: 1850, to: 1870, weight: 4, reason: 'r' }], threshold: 4 } },
+      [{ ...person('b', 'Nameless Howe', 'M', 1840, 1860), birthYear: null }],
+    );
+    expect(unborn[0]!.deepLink).toBe('https://aad.example/?txt_name=HOWE%23NAMELESS&txt_yob=&b=');
+  });
 });
 
 describe('citation signals', () => {

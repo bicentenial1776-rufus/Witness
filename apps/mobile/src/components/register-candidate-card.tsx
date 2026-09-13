@@ -6,13 +6,19 @@ import { findUnitMentions, makeUnitParser, type UnitTerms } from '@witness/core/
 
 import { Card } from '@/components/card';
 import { ExplainerDot } from '@/components/explainer-dot';
+import { SaveBackForm } from '@/components/save-back-form';
 import { ThemedText } from '@/components/themed-text';
 import { UnitPicker } from '@/components/unit-picker';
 import { useTheme } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/alert';
 import { openExternal } from '@/lib/open-external';
 import { supabase } from '@/lib/supabase';
-import { attachAndConfirmRegisterEntity, confirmRegisterLink, dismissRegisterLink } from '@/lib/register-links';
+import {
+  attachAndConfirmRegisterEntity,
+  confirmRegisterLink,
+  dismissRegisterLink,
+  saveBackAndConfirm,
+} from '@/lib/register-links';
 
 /**
  * One historical-record candidate for this ancestor — the generic card
@@ -43,10 +49,14 @@ export function RegisterCandidateCard({
   const theme = useTheme();
   const [busy, setBusy] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [saving, setSaving] = useState(false);
   // Variant B attaches a record the parent never fetched — keep the
   // attached snapshot here so the card can show the unit at once.
   const [attached, setAttached] = useState<PersonRegisterLink | null>(null);
   const link = attached ?? linkProp;
+  // Variant C: an exposure candidate has no record yet; a worker-fed one
+  // (veterans' gravesites) arrives with the record in its snapshot.
+  const isExposureC = register.variant === 'C' && link.recordId === null && !link.savedPayload;
 
   // Unit hints: a regiment the family's own papers name — an obituary
   // clipping, a headstone reading, a pension paper — found in the
@@ -125,6 +135,13 @@ export function RegisterCandidateCard({
     onResolved?.(link.id, 'confirmed');
   }
 
+  async function saveBack(rendered: Parameters<typeof saveBackAndConfirm>[2]) {
+    const next = await saveBackAndConfirm(link, register, rendered);
+    setAttached(next);
+    setSaving(false);
+    onResolved?.(link.id, 'confirmed');
+  }
+
   async function resolve(status: 'confirmed' | 'rejected') {
     setBusy(true);
     try {
@@ -150,7 +167,7 @@ export function RegisterCandidateCard({
       {/* A worker-fed Variant C link (veterans' gravesites) carries the
           record itself in its snapshot — the service line and the
           cemetery are the record, so they show on the candidate too. */}
-      {register.variant === 'C' && link.recordSummary && link.status !== 'confirmed' && (
+      {register.variant === 'C' && !isExposureC && link.recordSummary && link.status !== 'confirmed' && (
         <ThemedText type="small">{link.recordSummary}</ThemedText>
       )}
       {link.matchReasons.length > 0 && (
@@ -273,6 +290,76 @@ export function RegisterCandidateCard({
             </View>
           )}
         </View>
+      ) : isExposureC ? (
+        // Variant C, deep-link: exposure is the candidate and the record is
+        // out there — search it, come back with the fields, or rule them
+        // out. The save-back form is the confirm.
+        <View style={{ gap: 8, marginTop: 6 }}>
+          {link.recordSummary && <ThemedText type="small">{link.recordSummary}</ThemedText>}
+          {readOnly ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              Awaiting the tree owner’s verdict
+            </ThemedText>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              {link.findingAidUrl && (
+                <Pressable
+                  onPress={() => openExternal(link.findingAidUrl!)}
+                  accessibilityRole="button"
+                  style={{
+                    backgroundColor: theme.accent,
+                    borderWidth: 1,
+                    borderColor: theme.accent,
+                    borderRadius: 16,
+                    paddingHorizontal: 14,
+                    paddingVertical: 7,
+                  }}
+                >
+                  <ThemedText type="small" style={{ color: theme.onAccent, fontWeight: 600 }}>
+                    Search the file ›
+                  </ThemedText>
+                </Pressable>
+              )}
+              {register.config.saveBack && (
+                <Pressable
+                  disabled={busy}
+                  onPress={() => setSaving(true)}
+                  accessibilityRole="button"
+                  style={{
+                    backgroundColor: theme.backgroundElement,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 16,
+                    paddingHorizontal: 14,
+                    paddingVertical: 7,
+                  }}
+                >
+                  <ThemedText type="small" style={{ fontWeight: 600 }}>
+                    I found them
+                  </ThemedText>
+                </Pressable>
+              )}
+              <Pressable
+                disabled={busy}
+                onPress={() => resolve('rejected')}
+                accessibilityRole="button"
+                style={{
+                  backgroundColor: theme.backgroundElement,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  borderRadius: 16,
+                  paddingHorizontal: 14,
+                  paddingVertical: 7,
+                  opacity: busy ? 0.5 : 1,
+                }}
+              >
+                <ThemedText type="small" style={{ fontWeight: 600 }}>
+                  Not them
+                </ThemedText>
+              </Pressable>
+            </View>
+          )}
+        </View>
       ) : readOnly ? (
         <ThemedText type="small" themeColor="textSecondary">
           Awaiting the tree owner’s verdict
@@ -308,6 +395,15 @@ export function RegisterCandidateCard({
             </Pressable>
           ))}
         </View>
+      )}
+      {register.variant === 'C' && register.config.saveBack && (
+        <SaveBackForm
+          register={register}
+          personName={personName ?? 'them'}
+          visible={saving}
+          onClose={() => setSaving(false)}
+          onSave={saveBack}
+        />
       )}
       {register.variant === 'B' && (
         <UnitPicker

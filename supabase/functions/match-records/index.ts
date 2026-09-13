@@ -231,10 +231,16 @@ async function matchTree(client: Client, treeId: string, userId: string): Promis
 
   for (const register of registers ?? []) {
     const config = (register.config ?? {}) as RegisterConfig;
-    // Variant B: exposure is the candidate — one row per exposed person
-    // with no link of any status yet, no finding (a plausibility is not a
-    // record). Mirrors the CLI in packages/core/scripts/match-registers.ts.
-    if (register.variant === 'B') {
+    // Variant B, and Variant C with an exposure config (a deep-link
+    // register — AAD, GLO): exposure is the candidate — one row per
+    // exposed person with no link of any status yet, no finding (a
+    // plausibility is not a record). A worker-fed Variant C (va-burials)
+    // has no exposure config and is its worker's business. Mirrors the
+    // CLI in packages/core/scripts/match-registers.ts.
+    if (register.variant === 'B' || (register.variant === 'C' && config.exposure)) {
+      const candidateSummary =
+        config.candidateSummary ??
+        'Of the generation that fought; whether he served is for the index to say. Search it, and add his regiment if you find him.';
       const exposed = exposureCandidates(config, people);
       if (exposed.length === 0) continue;
       const { data: held, error: heldError } = await client
@@ -253,7 +259,7 @@ async function matchTree(client: Client, treeId: string, userId: string): Promis
         if (!prior || prior.status !== 'candidate') continue;
         const { error } = await client
           .from('person_register_links')
-          .update({ match_score: c.score, match_reasons: c.reasons, finding_aid_url: c.deepLink, record_summary: 'Of the generation that fought; whether he served is for the index to say. Search it, and add his regiment if you find him.' })
+          .update({ match_score: c.score, match_reasons: c.reasons, finding_aid_url: c.deepLink, record_summary: candidateSummary })
           .eq('id', prior.id);
         if (error) throw new Error(`exposure link update: ${error.message}`);
       }
@@ -269,7 +275,7 @@ async function matchTree(client: Client, treeId: string, userId: string): Promis
           match_score: c.score,
           match_reasons: c.reasons,
           record_name: null,
-          record_summary: 'Of the generation that fought; whether he served is for the index to say. Search it, and add his regiment if you find him.',
+          record_summary: candidateSummary,
           source_citation: null,
           finding_aid_url: c.deepLink,
         }));

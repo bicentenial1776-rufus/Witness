@@ -17,8 +17,14 @@ narrative + map + research queue.
   facts. (The entity picker arrives with the Civil War register.)
 - **C — deep-link + save-back.** No seed: an exposure heuristic opens a
   prefilled external search; the user confirms and Witness saves a
-  structured payload (URL + key fields + optional geocode). (The save-back
-  form arrives with the GLO register.)
+  structured payload (URL + key fields + optional geocode). Shipped
+  2026-09-13 with `aad-wwii-enlistment`: exposure is the candidate (the
+  Variant B shape, in both matchers), the card offers *Search the file ›*
+  / *I found them* / *Not them*, and *I found them* opens the config-driven
+  save-back form (`config.saveBack`, rendered by `registers/saveBack.ts`,
+  written by `attachRegisterSaveBack` + the confirm event). Deep-link
+  templates may use `{given}` `{surname}` `{given_upper}` `{surname_upper}`
+  `{birth_year}` `{birth_yy}` `{death_year}`.
 - **C, worker-fed** (`va-burials`, 2026-09-13). The same link shape, but
   a server worker fills the payload: the source is too large to seed
   (8.4M rows on data.va.gov) so the `va-enrich` edge function queries it
@@ -102,21 +108,22 @@ to fix, not a one-off patch.
 
 - The harness runs against a live tree; a `--gedcom` mode lands with the
   Acadian acceptance run if the thread needs it.
-- Variant B (entity picker, unit facts) and Variant C (in-app save-back
-  form) have schema + core support but no UI yet — they arrive with Civil
-  War and GLO respectively, which exist to prove them.
 - Seeded registers are matched by the `match-records` worker (cron every
-  six hours, plus the post-import hook). Worker-fed registers have their
-  own worker (`va-enrich`); `match-records` skips Variant C entirely, so
-  a deep-link-only Variant C register (GLO, AAD) still needs an exposure
-  pass added there before its candidates appear.
+  six hours, plus the post-import hook), which also writes exposure
+  candidates for Variant B and for Variant C registers that carry an
+  exposure config. Worker-fed registers (no exposure config) have their
+  own worker (`va-enrich`).
+- Variant B (entity picker, unit facts) and Variant C (save-back form)
+  both have UI now; GLO is config + a PLSS geocoder away.
 - Confirm-event years read `saved_payload.event_year`; Variant A registers
   that want dated confirm events define that mapping when they arrive.
 
 ## Deferred registers, and why
 
-WWII Army enlistments (9M rows — needs server-side data, not repo CSVs;
-the worker-fed shape `va-burials` proved is the way in, but AAD has no
-API and blocks non-browser clients — the data file via the NARA Catalog
-is the route), Chinese Head Tax (source review), Dawes Rolls (sensitivity
-review first), WWI draft cards (index closed to us — deep-link only).
+WWII Army enlistments as offered candidates (9M rows — needs server-side
+data, not repo CSVs; the worker-fed shape `va-burials` proved is the way
+in, but AAD has no API and blocks non-browser clients, so the data file
+via the NARA Catalog is the route — meanwhile `aad-wwii-enlistment` ships
+as a deep-link register), Chinese Head Tax (source review), Dawes Rolls
+(sensitivity review first), WWI draft cards (index closed to us —
+deep-link only).
