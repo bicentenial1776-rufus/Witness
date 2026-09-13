@@ -36,8 +36,8 @@ Witness. Both names refer to the same app.
   each awaiting your judgment.
 - **Map with Near me** — every place your ancestors' events were recorded, and
   which ancestors or events are close to where you are standing.
-- **Tree Health** — 22 data-integrity checks, adapted from the FTAnalyzer
-  catalog used by desktop researchers, run over every person, family and date.
+- **Tree Health Check** — 22 data-integrity checks, the standard tests serious
+  researchers run, over every person, family and date.
   They catch the impossible rather than the merely unlikely: a person dying
   before they were born, a marriage after a death, siblings born impossibly
   close together, a date in the future.
