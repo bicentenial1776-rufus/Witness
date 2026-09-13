@@ -14,8 +14,8 @@ const aad: SaveBackConfig = {
     { key: 'marital_status', label: 'Marital status' },
     { key: 'record_url', label: 'Record link' },
   ],
-  recordNameTemplate: 'Army serial number {serial_number}',
-  summaryTemplate: 'Enlisted {enlistment_date} at {enlistment_place} · of {residence} · {civilian_occupation} · {marital_status}',
+  recordNameTemplate: 'Enlisted {enlistment_date} at {enlistment_place} · Army serial number {serial_number}',
+  summaryTemplate: 'of {residence} · {civilian_occupation} · {marital_status}',
   sourceCitation: 'NARA, WWII Army Enlistment Records (AAD)',
   urlKey: 'record_url',
 };
@@ -31,10 +31,8 @@ describe('renderSaveBack', () => {
       marital_status: 'Single, without dependents',
       record_url: 'https://aad.archives.gov/aad/record-detail.jsp?dt=893&rid=8383951',
     });
-    expect(out.recordName).toBe('Army serial number 11128325');
-    expect(out.recordSummary).toBe(
-      'Enlisted 1944-03-02 at Ft McPherson, Atlanta, Georgia · of Pinellas, Florida · Single, without dependents',
-    );
+    expect(out.recordName).toBe('Enlisted 1944-03-02 at Ft McPherson, Atlanta, Georgia · Army serial number 11128325');
+    expect(out.recordSummary).toBe('of Pinellas, Florida · Single, without dependents');
     expect(out.savedPayload).toMatchObject({ serial_number: '11128325', event_year: 1944 });
     expect(out.savedPayload).not.toHaveProperty('civilian_occupation');
     expect(out.findingAidUrl).toBe('https://aad.archives.gov/aad/record-detail.jsp?dt=893&rid=8383951');
@@ -52,7 +50,7 @@ describe('renderSaveBack', () => {
 
   it('drops a whole segment only when every placeholder in it is empty', () => {
     const out = renderSaveBack(aad, { serial_number: '1', enlistment_date: '', enlistment_place: 'Boston' });
-    expect(out.recordSummary).toBe('Enlisted at Boston');
+    expect(out.recordName).toBe('Enlisted at Boston · Army serial number 1');
     expect(out.savedPayload).not.toHaveProperty('event_year');
   });
 });

@@ -260,11 +260,14 @@ export function scoreVaRow(personIn: VaPersonFacts, row: VaGraveRow): VaMatchCan
   const branch = dedupeList(row.branch);
   const rank = dedupeList(row.rank);
   const service = [branch, rank, warLabel(row.war)].filter(Boolean);
-  const recordSummary = [service.join(' · '), `${cemetery}${where ? `, ${where}` : ''}`]
-    .filter(Boolean)
-    .join(' — ');
+  // The cemetery rides in the record NAME, not the summary: the confirm
+  // event's detail is built from {record_name} by every client, including
+  // App Store builds that predate the {record_summary} placeholder — so
+  // the burial event reads "…, Lakeside Cemetery, Bryant Pond, ME" on all
+  // of them, and the service line stays the summary.
+  const recordSummary = service.join(' · ');
   const years = [recordBirth, recordDeath].filter((y) => y !== null).join('–');
-  const recordName = `${unshout(decedentName(row))}${years ? ` (${years})` : ''}`;
+  const recordName = `${unshout(decedentName(row))}${years ? ` (${years})` : ''} — ${cemetery}${where ? `, ${where}` : ''}`;
   const point = row.location_point?.coordinates;
 
   return {

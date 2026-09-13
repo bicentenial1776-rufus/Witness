@@ -63,14 +63,14 @@
         { "key": "marital_status", "label": "Marital status", "placeholder": "e.g. Single, without dependents" },
         { "key": "record_url", "label": "Record link (optional)", "placeholder": "Paste the record-detail page address" }
       ],
-      "recordNameTemplate": "Army serial number {serial_number}",
-      "summaryTemplate": "Enlisted {enlistment_date} at {enlistment_place} · {grade} — {branch} · of {residence} · born {birthplace} · {education} · {civilian_occupation} · {marital_status}",
+      "recordNameTemplate": "Enlisted {enlistment_date} at {enlistment_place} · Army serial number {serial_number}",
+      "summaryTemplate": "{grade} — {branch} · of {residence} · born {birthplace} · {education} · {civilian_occupation} · {marital_status}",
       "sourceCitation": "National Archives, Records of the National Archives and Records Administration (RG 64), World War II Army Enlistment Records — Electronic Army Serial Number Merged File, ca. 1938–1946 (AAD series 893)",
       "urlKey": "record_url"
     },
     "confirmEvent": {
       "eventType": "military",
-      "detailTemplate": "{record_summary} — {register_label}"
+      "detailTemplate": "{record_name} — {register_label}"
     },
     "explainer": "When a man or woman enlisted in the United States Army between 1938 and 1946 a punch card was cut with their serial number, name, home county and state, place and date of enlistment, grade and branch, birthplace and birth year, education, civilian occupation, and marital status. The National Archives rebuilt about 8.7 million of those cards from a damaged microfilm copy and publishes them free in its Access to Archival Databases. Witness does not hold the file; it opens the search with the name and birth year filled in, and what you copy back becomes a record on this person. Navy, Marine, and Coast Guard enlistments are not in it, and roughly one card in ten could not be recovered."
   }

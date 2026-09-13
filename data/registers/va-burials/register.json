@@ -13,7 +13,7 @@
     },
     "confirmEvent": {
       "eventType": "burial",
-      "detailTemplate": "{record_summary} — {register_label}"
+      "detailTemplate": "{record_name} — {register_label}"
     },
     "deepLinkTemplate": "https://gravelocator.cem.va.gov/",
     "markerStyle": "gravesite",

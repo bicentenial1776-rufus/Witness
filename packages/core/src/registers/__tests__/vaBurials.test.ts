@@ -65,8 +65,8 @@ describe('scoreVaRow', () => {
     expect(c!.reasons).toContain('died in 2021, the year your tree records');
     expect(c!.reasons).toContain('born in 1923, the year your tree records');
     expect(c!.reasons.some((r) => r.startsWith('middle initial R'))).toBe(true);
-    expect(c!.recordName).toBe('Charles R Howe (1923–2021)');
-    expect(c!.recordSummary).toBe('US Army · Tec 5 · World War II — Lakeside Cemetery, Bryant Pond, ME');
+    expect(c!.recordName).toBe('Charles R Howe (1923–2021) — Lakeside Cemetery, Bryant Pond, ME');
+    expect(c!.recordSummary).toBe('US Army · Tec 5 · World War II');
     expect(c!.savedPayload['latitude']).toBe(44.4);
     expect(c!.savedPayload['longitude']).toBe(-70.6);
     expect(c!.savedPayload['event_year']).toBe(2021);
@@ -104,7 +104,7 @@ describe('scoreVaRow', () => {
       rank: 'T SGT, T SGT',
       war: 'WORLD WAR II, KOREA',
     });
-    expect(c!.recordSummary).toBe('US Air Force · T Sgt · World War II, Korea — Lakeside Cemetery, Bryant Pond, ME');
+    expect(c!.recordSummary).toBe('US Air Force · T Sgt · World War II, Korea');
     expect(c!.savedPayload['branch']).toBe('US Air Force');
   });
 

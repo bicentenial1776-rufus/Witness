@@ -217,7 +217,8 @@ export function renderObituaryCandidate(
       ? `printed ${hit.date.slice(0, 4)}, the year your tree records the death`
       : `printed ${hit.date.slice(0, 4)}`,
   );
-  reasons.push(`the page reads “${window.nameForm}” beside the words of a ${notice ? extracted.kind : extracted.kind}`);
+  const article = /^[aeiou]/i.test(extracted.kind) ? 'an' : 'a';
+  reasons.push(`the page reads “${window.nameForm}” beside the words of ${article} ${extracted.kind}`);
   reasons.push(...relatives.reasons);
 
   const strong = notice && extracted.confidence === 'strong' && (yearAgrees || relatives.agreements > 0);
