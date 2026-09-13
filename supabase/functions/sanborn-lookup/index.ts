@@ -35,6 +35,24 @@ const STATE_NAMES: Record<string, string> = {
   wa: 'washington', wv: 'west virginia', wi: 'wisconsin', wy: 'wyoming',
 };
 
+/**
+ * A georeferenced mosaic of the edition, laid over today's streets by
+ * OldInsuranceMaps.net (volunteer georeferencing of the LOC scans; the
+ * site says plainly it guarantees no accuracy). LOC publishes no
+ * georeferencing of its own, so this is the only way a sheet reaches a
+ * map. Tiles are an XYZ template the app's map layers can draw directly.
+ */
+interface Overlay {
+  /** XYZ tile template with {z}/{x}/{y}. */
+  tiles: string;
+  /** [west, south, east, north] */
+  bounds: [number, number, number, number];
+  minzoom: number;
+  maxzoom: number;
+  attribution: string;
+  page_url: string;
+}
+
 interface Edition {
   item_id: string | null;
   item_url: string;
@@ -46,6 +64,71 @@ interface Edition {
   /** Digitized sheet count; null when LOC lists no files (the 1923–30 copyright gap). */
   sheets: number | null;
   thumb: string | null;
+  /** Present once OldInsuranceMaps has been asked; null when it has no mosaic. */
+  overlay?: Overlay | null;
+}
+
+const OIM_URL = 'https://oldinsurancemaps.net/map/';
+const OIM_UA = 'Mozilla/5.0 (Macintosh) WitnessLives/1.0 (hello@witnesslives.com)';
+const OIM_CHECKS_PER_CALL = 6;
+
+/**
+ * OldInsuranceMaps has no public listing API; its map page for a LOC
+ * item answers 404 when it holds nothing and otherwise embeds the
+ * mosaic's TileJSON ("main-content") in the page. One fetch per
+ * edition, remembered in the place cache for the same 180 days.
+ */
+async function oimOverlay(itemId: string): Promise<Overlay | null> {
+  try {
+    const res = await fetch(`${OIM_URL}${itemId}`, {
+      headers: { 'User-Agent': OIM_UA, Accept: 'text/html' },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const at = html.indexOf('"id": "main-content"');
+    if (at < 0) return null;
+    const tail = html.slice(at, at + 4000);
+    const tiles = /"tiles":\s*\["([^"]+)"\]/.exec(tail)?.[1];
+    const bounds = /"bounds":\s*\[([^\]]+)\]/.exec(tail)?.[1];
+    const minzoom = /"minzoom":\s*(\d+)/.exec(tail)?.[1];
+    const maxzoom = /"maxzoom":\s*(\d+)/.exec(tail)?.[1];
+    if (!tiles || !bounds) return null;
+    const box = bounds.split(',').map((n) => Number(n.trim()));
+    if (box.length !== 4 || box.some((n) => !Number.isFinite(n))) return null;
+    return {
+      tiles: tiles.replace(/\\u0026/g, '&').replace(/\/\/cog/, '/cog'),
+      bounds: box as [number, number, number, number],
+      minzoom: Number(minzoom ?? 10),
+      maxzoom: Number(maxzoom ?? 20),
+      attribution: 'OldInsuranceMaps.net; Library of Congress',
+      page_url: `${OIM_URL}${itemId}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Ask OldInsuranceMaps about the editions nearest the wanted year that
+ * have not been asked about yet, a bounded few per call, and say whether
+ * anything changed (so the cache is rewritten only when it must be).
+ */
+async function checkOverlays(editions: Edition[], year: number | undefined): Promise<boolean> {
+  const unasked = editions
+    .filter((e) => e.item_id && e.overlay === undefined)
+    .sort((a, b) => {
+      if (!year) return (b.year ?? 0) - (a.year ?? 0);
+      return Math.abs((a.year ?? 9999) - year) - Math.abs((b.year ?? 9999) - year);
+    })
+    .slice(0, OIM_CHECKS_PER_CALL);
+  if (unasked.length === 0) return false;
+  await Promise.all(
+    unasked.map(async (e) => {
+      e.overlay = await oimOverlay(e.item_id!);
+    }),
+  );
+  return true;
 }
 
 function normalizeState(raw: string): string {
@@ -170,20 +253,29 @@ Deno.serve(async (req) => {
     cacheHit = true;
   }
 
+  let fetchedAt = cacheHit ? (cached!.fetched_at as string) : new Date().toISOString();
+  let dirty = false;
   if (!editions) {
     const fetched = await fetchFromLoc(city, state);
     if (fetched instanceof Response) return fetched;
     editions = fetched;
-    if (cacheOk) {
-      await ctx.admin.from('sanborn_place_cache').upsert({
-        place_key: placeKey,
-        city,
-        state,
-        editions,
-        edition_count: editions.length,
-        fetched_at: new Date().toISOString(),
-      });
-    }
+    fetchedAt = new Date().toISOString();
+    dirty = true;
+  }
+
+  // The georeferenced overlays, asked about a few editions at a time
+  // (nearest the wanted year first) and remembered with the editions.
+  if (await checkOverlays(editions, body.year)) dirty = true;
+
+  if (dirty && cacheOk) {
+    await ctx.admin.from('sanborn_place_cache').upsert({
+      place_key: placeKey,
+      city,
+      state,
+      editions,
+      edition_count: editions.length,
+      fetched_at: fetchedAt,
+    });
   }
 
   // The edition nearest the asked-for year; earlier wins a tie — the town
@@ -199,10 +291,19 @@ Deno.serve(async (req) => {
     }, null as Edition | null);
   }
 
+  // The edition to lay over the map: the closest one if it has a mosaic,
+  // else the mosaicked edition nearest the wanted year.
+  const overlayEdition =
+    closest?.overlay ? closest : editions.filter((e) => e.overlay).sort((a, b) => {
+      if (!body.year) return (b.year ?? 0) - (a.year ?? 0);
+      return Math.abs((a.year ?? 9999) - body.year!) - Math.abs((b.year ?? 9999) - body.year!);
+    })[0] ?? null;
+
   return json(200, {
     place: { city, state },
     editions,
     closest,
+    overlay: overlayEdition,
     cached: cacheHit,
     attribution: 'Library of Congress, Geography and Map Division, Sanborn Maps Collection',
   });

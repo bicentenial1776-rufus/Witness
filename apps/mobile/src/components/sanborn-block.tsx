@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
+import { SanbornOverlayMap, type SanbornOverlay } from '@/components/sanborn-overlay-map';
 import { ThemedText } from '@/components/themed-text';
 import { mono } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
@@ -43,12 +44,15 @@ interface Edition {
   year: number | null;
   sheets: number | null;
   thumb: string | null;
+  /** A georeferenced mosaic (OldInsuranceMaps.net), where one exists. */
+  overlay?: SanbornOverlay | null;
 }
 
 export function SanbornBlock({ parts, aroundYear }: { parts: string[]; aroundYear: number | null }) {
   const L = useLetterpress();
   const [editions, setEditions] = useState<Edition[]>([]);
   const [closest, setClosest] = useState<Edition | null>(null);
+  const [overlayEdition, setOverlayEdition] = useState<Edition | null>(null);
   const [thumb, setThumb] = useState<{ uri: string; ratio: number } | null>(null);
 
   const stateIdx = parts.findIndex((p) => STATE_WORDS.has(p.trim().toLowerCase()));
@@ -67,6 +71,7 @@ export function SanbornBlock({ parts, aroundYear }: { parts: string[]; aroundYea
         setEditions(data.editions as Edition[]);
         const lead = (data.closest as Edition | null) ?? (data.editions[0] as Edition);
         setClosest(lead);
+        setOverlayEdition((data.overlay as Edition | null) ?? null);
         if (lead?.thumb) {
           const uri = lead.thumb;
           Image.getSize(
@@ -131,6 +136,28 @@ export function SanbornBlock({ parts, aroundYear }: { parts: string[]; aroundYea
       <Text style={mono(10, L.muted)} maxFontSizeMultiplier={1.3}>
         LIBRARY OF CONGRESS · SANBORN MAPS COLLECTION
       </Text>
+      {/* The survey on today's streets — only where a volunteer has
+          georeferenced this edition (OldInsuranceMaps.net); LOC itself
+          publishes no georeferencing, and most towns have none. The
+          caption says who drew it and that accuracy is not guaranteed. */}
+      {overlayEdition?.overlay && (
+        <View style={{ marginTop: 12, gap: 8 }}>
+          <ThemedText type="small">
+            The {overlayEdition.year ?? ''} survey laid over today&rsquo;s streets.
+          </ThemedText>
+          <SanbornOverlayMap overlay={overlayEdition.overlay} />
+          <Pressable
+            onPress={() => WebBrowser.openBrowserAsync(overlayEdition.overlay!.page_url)}
+            hitSlop={6}
+            accessibilityRole="link"
+            accessibilityLabel="Open this georeferenced map on OldInsuranceMaps.net"
+          >
+            <Text style={mono(10, L.muted)} maxFontSizeMultiplier={1.3}>
+              GEOREFERENCED BY VOLUNTEERS AT OLDINSURANCEMAPS.NET · ACCURACY NOT GUARANTEED ›
+            </Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
