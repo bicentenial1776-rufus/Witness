@@ -9,6 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
 import { useActiveTree } from '@/lib/active-tree';
+import { formatDate } from '@/lib/format-date';
 import { ledgerEntries, ledgerHeading, useResearchLedger } from '@/lib/research-ledger';
 import { supabase } from '@/lib/supabase';
 
@@ -108,7 +109,7 @@ export default function ResearchTab() {
                 color: C.accent,
               }}
             >
-              Tree Pulse · {new Date(ledger.pulse.at).toLocaleDateString()}
+              Tree Pulse · {formatDate(ledger.pulse.at)}
             </Text>
             <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 21, color: C.ink }}>
               {ledger.pulse.summary}
@@ -239,7 +240,7 @@ export default function ResearchTab() {
                   {brief.title}
                 </Text>
                 <RecordText accent={brief.status === 'open'} muted={brief.status !== 'open'}>
-                  {STATUS_LABELS[brief.status]} · {new Date(brief.created_at).toLocaleDateString()}
+                  {STATUS_LABELS[brief.status]} · {formatDate(brief.created_at)}
                 </RecordText>
               </Pressable>
             ))}
@@ -257,7 +258,7 @@ export default function ResearchTab() {
       {ledger?.pulse && (
         <Card style={{ marginTop: 12 }}>
           <ThemedText type="smallBold" themeColor="accent">
-            TREE PULSE · {new Date(ledger.pulse.at).toLocaleDateString()}
+            TREE PULSE · {formatDate(ledger.pulse.at)}
           </ThemedText>
           <ThemedText>{ledger.pulse.summary}</ThemedText>
           <ThemedText type="small">What your last upload changed.</ThemedText>
@@ -305,7 +306,7 @@ export default function ResearchTab() {
             >
               <ThemedText>{item.title}</ThemedText>
               <ThemedText type="small">
-                {STATUS_LABELS[item.status]} · {new Date(item.created_at).toLocaleDateString()}
+                {STATUS_LABELS[item.status]} · {formatDate(item.created_at)}
               </ThemedText>
             </Card>
           )}
