@@ -68,7 +68,7 @@ export interface MatchConfig {
 /** Optional event written when the user confirms a Variant A/B link. */
 export interface ConfirmEventSpec {
   eventType: string;
-  /** `{record_name}` / `{register_label}` / `{source}` placeholders. */
+  /** `{record_name}` / `{record_summary}` / `{register_label}` / `{source}` placeholders. */
   detailTemplate: string;
 }
 

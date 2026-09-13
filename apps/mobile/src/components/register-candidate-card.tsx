@@ -147,6 +147,12 @@ export function RegisterCandidateCard({
         )}
       </View>
       {link.recordName && <ThemedText>{link.recordName}</ThemedText>}
+      {/* A worker-fed Variant C link (veterans' gravesites) carries the
+          record itself in its snapshot — the service line and the
+          cemetery are the record, so they show on the candidate too. */}
+      {register.variant === 'C' && link.recordSummary && link.status !== 'confirmed' && (
+        <ThemedText type="small">{link.recordSummary}</ThemedText>
+      )}
       {link.matchReasons.length > 0 && (
         <ThemedText type="small">{[...new Set(link.matchReasons)].join(' · ')}</ThemedText>
       )}
@@ -173,7 +179,7 @@ export function RegisterCandidateCard({
               ? `Confirmed — ${register.provenanceLabel.toLowerCase()}`
               : 'From your own tree’s record'}
           </ThemedText>
-          {register.variant === 'B' && link.recordSummary && (
+          {(register.variant === 'B' || register.variant === 'C') && link.recordSummary && (
             <ThemedText type="small" themeColor="textSecondary" numberOfLines={6}>
               {link.recordSummary}
             </ThemedText>

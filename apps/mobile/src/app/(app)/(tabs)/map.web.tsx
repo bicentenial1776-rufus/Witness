@@ -22,6 +22,7 @@ import { useKinMap } from '@/hooks/use-kin-map';
 import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { getGeographyIndex, invalidateGeographyCache } from '@/lib/geography-cache';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
+import { fetchRecordMapPoints, type RecordMapPoint } from '@/lib/register-points';
 import { supabase } from '@/lib/supabase';
 
 // MapLibre v6 spawns its tile worker from import.meta.url, which Metro's
@@ -50,6 +51,10 @@ const WARM_FILTER = 'sepia(.32) saturate(.72) contrast(.94) brightness(1.04)';
 function useGeography(treeId: string | undefined) {
   const [index, setIndex] = useState<GeographyIndex | null>(null);
   const [progress, setProgress] = useState<{ placed: number; total: number; pending: number } | null>(null);
+  // The record books' points — confirmed register links with a geocode
+  // (a veterans' cemetery, a land parcel); refreshed on every focus since
+  // a confirm on the Portrait is what creates them.
+  const [recordPoints, setRecordPoints] = useState<RecordMapPoint[]>([]);
   const lastPlaced = useRef<number | null>(null);
 
   useEffect(() => {
@@ -67,6 +72,9 @@ function useGeography(treeId: string | undefined) {
     useCallback(() => {
       if (!treeId) return;
       let cancelled = false;
+      fetchRecordMapPoints(treeId).then((points) => {
+        if (!cancelled) setRecordPoints(points);
+      });
       (async () => {
         const [{ count: total }, { count: placed }, { count: pending }] = await Promise.all([
           supabase.from('places').select('id', { count: 'exact', head: true }).eq('tree_id', treeId),
@@ -96,7 +104,7 @@ function useGeography(treeId: string | undefined) {
     }, [treeId]),
   );
 
-  return { index, progress };
+  return { index, progress, recordPoints };
 }
 
 /** One MapLibre map bound to a marker set, selection-aware. */
@@ -104,6 +112,7 @@ function useAncestorMap(
   containerRef: React.RefObject<View | null>,
   ready: boolean,
   markers: PlaceActivity[],
+  recordPoints: RecordMapPoint[],
   treeId: string | undefined,
   onSelect: (placeId: string) => void,
 ) {
@@ -176,6 +185,41 @@ function useAncestorMap(
         const feature = e.features?.[0];
         if (feature) onSelectRef.current((feature.properties as { id: string }).id);
       });
+      // The record books: a small ringed mark, paper inside — a record
+      // placed a person here (a veterans' cemetery, a parcel), distinct
+      // from the tree's own event pins. Click opens the person.
+      map.addSource('records', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addLayer({
+        id: 'records-marks',
+        type: 'circle',
+        source: 'records',
+        paint: {
+          'circle-color': '#FCFAF6',
+          'circle-radius': 6,
+          'circle-stroke-width': 2.5,
+          'circle-stroke-color': C.accent,
+        },
+      });
+      map.addLayer({
+        id: 'records-labels',
+        type: 'symbol',
+        source: 'records',
+        minzoom: 7,
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-size': 11,
+          'text-font': ['Montserrat Regular', 'Open Sans Regular'],
+          'text-offset': [0, 1.4],
+          'text-anchor': 'top',
+        },
+        paint: { 'text-color': '#4A443B', 'text-halo-color': '#FCFAF6', 'text-halo-width': 1.2 },
+      });
+      map.on('mouseenter', 'records-marks', () => (map.getCanvas().style.cursor = 'pointer'));
+      map.on('mouseleave', 'records-marks', () => (map.getCanvas().style.cursor = ''));
+      map.on('click', 'records-marks', (e: MapLayerMouseEvent) => {
+        const id = (e.features?.[0]?.properties as { individualId?: string } | undefined)?.individualId;
+        if (id) router.push({ pathname: '/ancestor/[id]', params: { id } });
+      });
       setMapReady(true);
     });
 
@@ -221,6 +265,25 @@ function useAncestorMap(
     }
   }, [markers, mapReady, treeId]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    const source = map.getSource('records') as GeoJSONSource | undefined;
+    if (!source) return;
+    source.setData({
+      type: 'FeatureCollection',
+      features: recordPoints.map((point) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [point.longitude, point.latitude] },
+        properties: {
+          individualId: point.individualId ?? null,
+          name: point.personName,
+          label: point.label,
+        },
+      })),
+    });
+  }, [recordPoints, mapReady]);
+
   return mapRef;
 }
 
@@ -229,7 +292,7 @@ export default function AncestorMapTab() {
   const { activeTree, loadFailed } = useActiveTree();
   const treeId = activeTree?.id;
   const kin = useKinMap(treeId);
-  const { index, progress } = useGeography(treeId);
+  const { index, progress, recordPoints } = useGeography(treeId);
   const [eraIndex, setEraIndex] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -251,7 +314,7 @@ export default function AncestorMapTab() {
     );
   }, [index]);
 
-  const mapRef = useAncestorMap(containerRef, Boolean(index), markers, treeId, setSelectedId);
+  const mapRef = useAncestorMap(containerRef, Boolean(index), markers, recordPoints, treeId, setSelectedId);
 
   const selected = useMemo(() => {
     if (!index || !selectedId) return null;

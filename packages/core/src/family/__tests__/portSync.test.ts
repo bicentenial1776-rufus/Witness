@@ -68,6 +68,12 @@ const PAIRS: Array<{ core: string; port: string; rewrites: Array<[string, string
     port: 'supabase/functions/_shared/records/acadianNames.ts',
     rewrites: [["'./mod.ts'", "'../index.js'"]],
   },
+  // The veterans' gravesites scorer (va-enrich worker).
+  {
+    core: 'packages/core/src/registers/vaBurials.ts',
+    port: 'supabase/functions/_shared/records/vaBurials.ts',
+    rewrites: [["'./passengers.ts'", "'../history/passengers.js'"]],
+  },
 ];
 
 function stripHeader(text: string): string {

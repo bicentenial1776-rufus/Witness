@@ -12,6 +12,7 @@ import { ThemedView } from '@/components/themed-view';
 import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { getGeographyIndex, invalidateGeographyCache } from '@/lib/geography-cache';
 import { useTheme } from '@/hooks/use-theme';
+import { fetchRecordMapPoints, type RecordMapPoint } from '@/lib/register-points';
 import { supabase } from '@/lib/supabase';
 
 const MAX_MARKERS = 300;
@@ -29,6 +30,11 @@ export default function AncestorMapTab() {
   const { activeTree, loadFailed } = useActiveTree();
   const treeId = activeTree?.id;
   const [index, setIndex] = useState<GeographyIndex | null>(null);
+  // The record books' points — confirmed register links with a geocode
+  // (a veterans' cemetery, a land parcel). A second, quieter marker set
+  // beside the tree's own places; refreshed on every focus since a
+  // confirm on the Portrait is what creates them.
+  const [recordPoints, setRecordPoints] = useState<RecordMapPoint[]>([]);
   const [eraIndex, setEraIndex] = useState(0);
   // Apple Maps: full color styling isn't customizable, but mutedStandard
   // is the desaturated cartography that suits the brand; hybrid = satellite
@@ -60,6 +66,9 @@ export default function AncestorMapTab() {
     useCallback(() => {
       if (!treeId) return;
       let cancelled = false;
+      fetchRecordMapPoints(treeId).then((points) => {
+        if (!cancelled) setRecordPoints(points);
+      });
       (async () => {
         const [{ count: total }, { count: placed }] = await Promise.all([
           supabase.from('places').select('id', { count: 'exact', head: true }).eq('tree_id', treeId),
@@ -151,6 +160,19 @@ export default function AncestorMapTab() {
               onCalloutPress={() =>
                 router.push({ pathname: '/place/[placeId]', params: { placeId: place.id, treeId } })
               }
+            />
+          ))}
+          {recordPoints.map((point) => (
+            <Marker
+              key={point.linkId ?? `${point.registerKey}:${point.latitude},${point.longitude}`}
+              coordinate={{ latitude: point.latitude, longitude: point.longitude }}
+              pinColor={theme.accent}
+              title={point.personName}
+              description={`${point.label} · From the record books ›`}
+              tracksViewChanges={false}
+              onCalloutPress={() => {
+                if (point.individualId) router.push({ pathname: '/ancestor/[id]', params: { id: point.individualId } });
+              }}
             />
           ))}
         </MapView>

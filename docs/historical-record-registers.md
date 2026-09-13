@@ -19,6 +19,18 @@ narrative + map + research queue.
   prefilled external search; the user confirms and Witness saves a
   structured payload (URL + key fields + optional geocode). (The save-back
   form arrives with the GLO register.)
+- **C, worker-fed** (`va-burials`, 2026-09-13). The same link shape, but
+  a server worker fills the payload: the source is too large to seed
+  (8.4M rows on data.va.gov) so the `va-enrich` edge function queries it
+  live per person on a pg_cron cadence, scores the rows in core
+  (`registers/vaBurials.ts`), and inserts candidate links with the record
+  snapshot — cemetery, service, coordinates — in `saved_payload`. The
+  reader's "This is them" writes the confirm event from the snapshot and
+  the geocode puts the cemetery on the Ancestor Map (`pointsFromSavedPayloads`
+  → `lib/register-points.ts`). Two generic tables serve every worker-fed
+  register: `register_enrichment_state` (who has been examined, per
+  register) and `register_ticks` (per-register mutual exclusion), with
+  `register_enrichment_queue()` as the service-role queue.
 
 ## Invariants (enforced, not aspirational)
 
@@ -90,13 +102,18 @@ to fix, not a one-off patch.
 - Variant B (entity picker, unit facts) and Variant C (in-app save-back
   form) have schema + core support but no UI yet — they arrive with Civil
   War and GLO respectively, which exist to prove them.
-- No server worker: matching is a manual CLI run after imports. The edge
-  worker (nara-enrich conventions) is due before the third register.
+- Seeded registers are matched by the `match-records` worker (cron every
+  six hours, plus the post-import hook). Worker-fed registers have their
+  own worker (`va-enrich`); `match-records` skips Variant C entirely, so
+  a deep-link-only Variant C register (GLO, AAD) still needs an exposure
+  pass added there before its candidates appear.
 - Confirm-event years read `saved_payload.event_year`; Variant A registers
   that want dated confirm events define that mapping when they arrive.
 
 ## Deferred registers, and why
 
-WWII Army enlistments (9M rows — needs server-side data, not repo CSVs),
-Chinese Head Tax (source review), Dawes Rolls (sensitivity review first),
-WWI draft cards (index closed to us — deep-link only).
+WWII Army enlistments (9M rows — needs server-side data, not repo CSVs;
+the worker-fed shape `va-burials` proved is the way in, but AAD has no
+API and blocks non-browser clients — the data file via the NARA Catalog
+is the route), Chinese Head Tax (source review), Dawes Rolls (sensitivity
+review first), WWI draft cards (index closed to us — deep-link only).

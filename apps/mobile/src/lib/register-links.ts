@@ -22,6 +22,7 @@ export async function confirmRegisterLink(
   if (spec) {
     const detail = spec.detailTemplate
       .replace('{record_name}', link.recordName ?? '')
+      .replace('{record_summary}', link.recordSummary ?? link.recordName ?? '')
       .replace('{register_label}', register.provenanceLabel)
       .replace('{source}', link.sourceCitation ?? '');
     const year = link.savedPayload?.['event_year'];

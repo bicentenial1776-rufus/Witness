@@ -1,0 +1,22 @@
+{
+  "register_key": "va-burials",
+  "display_name": "Veterans’ gravesites (National Cemetery Administration)",
+  "variant": "C",
+  "provenance_label": "From the Nationwide Gravesite Locator (National Cemetery Administration)",
+  "coverage_caveat": "The locator holds burials in national and state veterans cemeteries, and private-cemetery graves only where the government furnished the marker — mostly after 1997. Most of its people died after 1940. The open copy Witness reads was last refreshed in November 2022. An ancestor missing here may simply lie elsewhere.",
+  "status": "active",
+  "config": {
+    "worker": {
+      "source": "https://www.data.va.gov/resource/3u66-fxug.json",
+      "minDeathYear": 1860,
+      "note": "Fed by the va-enrich edge function, not by match-records: the dataset is 8.4 million rows and is queried live per person (surname + first given name, upper-cased), then scored in packages/core/src/registers/vaBurials.ts. Death year must agree within a year or the row is never offered."
+    },
+    "confirmEvent": {
+      "eventType": "burial",
+      "detailTemplate": "{record_summary} — {register_label}"
+    },
+    "deepLinkTemplate": "https://gravelocator.cem.va.gov/",
+    "markerStyle": "gravesite",
+    "explainer": "The National Cemetery Administration keeps a public locator of veterans and their family members buried in national cemeteries, in state and tribal veterans cemeteries, and in private cemeteries where the government furnished a headstone or marker. Its records run from the Civil War era to the present, most of them for people who died after 1940, and each carries the branch, rank, war, and the cemetery’s location. Witness reads the open copy published on data.va.gov and offers a match only when the name and the death year agree; you decide whether it is them. A spouse or child buried beside a veteran appears under their own name, with the veteran named on the record."
+  }
+}

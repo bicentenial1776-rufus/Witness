@@ -14,6 +14,9 @@ export interface RegisterMapPoint {
   longitude: number;
   label: string;
   kind: 'person' | 'entity';
+  /** The person the point belongs to (Variant C save-backs), for routing. */
+  individualId?: string;
+  linkId?: string;
 }
 
 interface RecordEventRow {
@@ -42,6 +45,8 @@ export function pointsFromSavedPayloads(
       longitude: lng,
       label: link.recordSummary ?? link.recordName ?? register?.displayName ?? link.registerKey,
       kind: 'person',
+      individualId: link.individualId,
+      linkId: link.id,
     });
   }
   return points;

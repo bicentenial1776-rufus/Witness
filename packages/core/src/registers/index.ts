@@ -8,3 +8,4 @@ export * from './registry.js';
 export * from './normalizers/index.js';
 export * from './exposureCandidates.js';
 export * from './unitHints.js';
+export * from './vaBurials.js';
