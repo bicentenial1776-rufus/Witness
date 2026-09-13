@@ -46,7 +46,7 @@
       "threshold": 4
     },
     "candidateSummary": "Of age to serve in the Second World War; whether they enlisted in the Army is for the file to say. Search it, and copy the record here if you find them.",
-    "deepLinkTemplate": "https://aad.archives.gov/aad/display-partial-records.jsp?dt=893&sc=24994,24995,24996,24998,24997,24993,24981,24983&cat=all&tf=F&bc=sl,fd&q=&nfo_24995=V,24,1900&op_24995=0&txt_24995={surname_upper}%23{given_upper}&nfo_24983=V,2,1900&op_24983=0&txt_24983={birth_yy}&rpp=50&pg=1",
+    "deepLinkTemplate": "https://aad.archives.gov/aad/display-partial-records.jsp?dt=893&sc=24994,24995,24996,24998,24997,24993,24981,24983&cat=all&tf=F&bc=sl,fd&q=&nfo_24995=V,24,1900&op_24995=0&txt_24995={surname_upper}%23{given_upper}&rpp=50&pg=1",
     "saveBack": {
       "title": "The enlistment record",
       "intro": "Copy the record as the file has it — the punch cards wrote in capitals and cut long words short; keep their spelling. Leave blank what the record does not say.",
