@@ -22,6 +22,7 @@ export const CHECK_TITLES: Record<HealthCheckId, string> = {
   living_but_has_death: 'Living, but with a death recorded',
   duplicate_fact: 'The same fact recorded twice',
   conflicting_fact: 'Conflicting dates for one fact',
+  possible_duplicate_person: 'Possibly the same person, entered twice',
   husband_recorded_female: 'Husband recorded as female',
   wife_recorded_male: 'Wife recorded as male',
   same_surname_couple: 'Couples sharing a surname',
