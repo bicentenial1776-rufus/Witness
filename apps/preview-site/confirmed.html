@@ -82,20 +82,52 @@
 <header class="masthead">
   <div class="wordmark">Witness</div>
   <div class="rule" aria-hidden="true"></div>
-  <h1>You're confirmed.</h1>
+  <h1 id="headline">You're confirmed.</h1>
 </header>
 
 <main>
-  <div class="promise">
+  <div class="promise" id="success-panel">
     <p><strong>Your email is verified — this page's job is done.</strong></p>
     <p>Head back to the Witness app on your phone and sign in with the email and password you used to create your account. That's it, you're in.</p>
   </div>
 
+  <div class="promise" id="error-panel" hidden>
+    <p><strong>That confirmation link didn't go through.</strong></p>
+    <p id="error-detail">It may have expired or already been used.</p>
+    <p>Open the Witness app, go back to the sign-up screen, and request a new confirmation email — then try the link again as soon as it arrives.</p>
+  </div>
+
   <a class="cta" id="open-cta" href="mobile://">Open Witness</a>
-  <p class="fine">If tapping that doesn't do anything, just find Witness on your Home Screen and open it yourself — then sign in from there.</p>
+  <p class="fine" id="fine-print">If tapping that doesn't do anything, just find Witness on your Home Screen and open it yourself — then sign in from there.</p>
 </main>
 
 <script>
+  // Supabase's /auth/v1/verify redirects here on success, but also redirects
+  // here with ?error=...&error_code=...&error_description=... when the link
+  // is expired, already used, or otherwise invalid — it does NOT skip the
+  // redirect on failure. Without checking for that, this page told users
+  // they were confirmed even when the confirmation had actually failed.
+  (function () {
+    var params = new URLSearchParams(location.search);
+    if (!params.get('error') && location.hash) {
+      params = new URLSearchParams(location.hash.slice(1));
+    }
+    var error = params.get('error') || params.get('error_code');
+    if (error) {
+      document.getElementById('headline').textContent = "Link didn't work.";
+      document.getElementById('success-panel').hidden = true;
+      document.getElementById('error-panel').hidden = false;
+      document.getElementById('fine-print').hidden = true;
+      document.getElementById('open-cta').textContent = 'Open Witness to try again';
+      var description = params.get('error_description');
+      if (description) {
+        document.getElementById('error-detail').textContent =
+          decodeURIComponent(description.replace(/\+/g, ' '));
+      }
+      document.title = "Confirmation failed — Witness";
+    }
+  })();
+
   // Sign-up carries a waiting invitation here as ?next=/join/<token> — point
   // the button at the app domain so the universal link reopens the app (or
   // the web app without it) exactly where the invitation left off, instead
