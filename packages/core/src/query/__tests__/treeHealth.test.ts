@@ -111,6 +111,30 @@ describe('individual checks', () => {
     const r = audit({ individuals: [person({ id: 'a', birth_year: YEAR + 4 })] });
     expect(checksIn(r)).toContain('date_in_future');
   });
+
+  it('flags likely duplicate people by name and near-identical birth year', () => {
+    const r = audit({
+      individuals: [
+        person({ id: 'a', full_name: 'Johanna Fuller', birth_year: 1593 }),
+        person({ id: 'b', full_name: 'Johanna Fuller', birth_year: 1593 }),
+        person({ id: 'c', full_name: 'Johanna Fuller', birth_year: 1650 }),
+        person({ id: 'd', full_name: 'Mary Field', birth_year: 1593 }),
+      ],
+    });
+    const flagged = r.findings.filter((f) => f.check === 'possible_duplicate_person');
+    expect(flagged).toHaveLength(1);
+    expect(flagged[0]?.individualIds).toEqual(['a', 'b']);
+  });
+
+  it('does not flag same name across a plausible generational gap', () => {
+    const r = audit({
+      individuals: [
+        person({ id: 'a', full_name: 'John Howe', birth_year: 1700 }),
+        person({ id: 'b', full_name: 'John Howe', birth_year: 1730 }),
+      ],
+    });
+    expect(checksIn(r)).not.toContain('possible_duplicate_person');
+  });
 });
 
 describe('family checks', () => {

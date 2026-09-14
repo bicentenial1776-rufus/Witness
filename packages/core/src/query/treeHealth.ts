@@ -36,6 +36,7 @@ export type HealthCheckId =
   | 'living_but_has_death'
   | 'duplicate_fact'
   | 'conflicting_fact'
+  | 'possible_duplicate_person'
   | 'husband_recorded_female'
   | 'wife_recorded_male'
   | 'same_surname_couple'
@@ -245,6 +246,9 @@ const MARRIAGE_MIN_AGE = 12;
 const TWIN_WINDOW_DAYS = 2;
 const IMPOSSIBLE_SIBLING_GAP_DAYS = 210; // < 7 months
 const SUSPECT_SIBLING_GAP_DAYS = 266; // < 38 weeks
+// Matches query/structure.ts's duplicateCandidates default — same name, birth
+// years this close, and it's worth a human look rather than treating it as fact.
+const DUPLICATE_NAME_BIRTH_YEAR_TOLERANCE = 2;
 
 export function runTreeHealth(data: TreeHealthData, options: { currentYear: number }): TreeHealthReport {
   const { currentYear } = options;
@@ -589,6 +593,41 @@ export function runTreeHealth(data: TreeHealthData, options: { currentYear: numb
           individualIds: pair,
           familyId: family.id,
           detail: `${name(pair[1])} was born ${gap} days after sibling ${name(pair[0])} — possible but worth confirming.`,
+        });
+      }
+    }
+  }
+
+  // Cross-individual check: same normalized name, birth years close enough
+  // to suspect one person entered twice — a caution for the user to rule
+  // on, never a fail (a shared name and close birth year is suspicion,
+  // not proof; the classic cause is a GEDCOM compiled from overlapping
+  // source trees that each contributed their own copy of the same person).
+  const byNameSlug = new Map<string, HealthIndividual[]>();
+  for (const person of data.individuals) {
+    if (person.birth_year === null) continue;
+    const slug = nameSlug(person.full_name);
+    if (!slug) continue;
+    if (!byNameSlug.has(slug)) byNameSlug.set(slug, []);
+    byNameSlug.get(slug)!.push(person);
+  }
+  for (const group of byNameSlug.values()) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => a.birth_year! - b.birth_year!);
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        const gap = group[j]!.birth_year! - group[i]!.birth_year!;
+        if (gap > DUPLICATE_NAME_BIRTH_YEAR_TOLERANCE) break;
+        const a = group[i]!;
+        const b = group[j]!;
+        findings.push({
+          check: 'possible_duplicate_person',
+          severity: 'caution',
+          individualIds: [a.id, b.id],
+          detail:
+            gap === 0
+              ? `${a.full_name} and ${b.full_name} share a name and are both recorded born in ${a.birth_year} — worth checking whether this is the same person entered twice.`
+              : `${a.full_name} and ${b.full_name} share a name and were born ${gap} year(s) apart (${a.birth_year} and ${b.birth_year}) — worth checking whether this is the same person entered twice.`,
         });
       }
     }
