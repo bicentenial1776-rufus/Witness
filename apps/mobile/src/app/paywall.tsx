@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
-import { AppState, ScrollView, StyleSheet, View } from 'react-native';
+import { AppState, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { PurchasesError } from 'react-native-purchases';
 
+import { useSession } from '@/auth/session-provider';
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -14,6 +15,7 @@ import { showAlert } from '@/lib/alert';
 import { getWaitingSeat, type WaitingSeat } from '@/lib/family-sharing';
 import { usePurchases } from '@/lib/purchases';
 import { supabase } from '@/lib/supabase';
+import { logEvent } from '@/lib/usage-events';
 
 const UNLOCKED = [
   'Ask any temporal query — who was alive during any war, epidemic, or era',
@@ -38,10 +40,19 @@ const TIMELINE = [
 
 export default function Paywall() {
   const theme = useTheme();
+  const { session } = useSession();
   const { offering, purchasePackage, restore, recheck } = usePurchases();
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [waitingSeat, setWaitingSeat] = useState<WaitingSeat | null>(null);
+  const userId = session?.user.id;
+
+  // Funnel: paywall_viewed → purchase_started → purchase_completed /
+  // purchase_failed, each tagged with the platform so iOS and web convert
+  // (or fail) separately in the operator queries.
+  useEffect(() => {
+    if (userId) void logEvent(userId, 'paywall_viewed', { platform: Platform.OS });
+  }, [userId]);
 
   // The strongest way past this screen isn't a purchase: when a family
   // owner addressed an invitation to this account's email, find the seat
@@ -82,14 +93,33 @@ export default function Paywall() {
       return;
     }
     setIsPurchasing(true);
+    const funnel = {
+      platform: Platform.OS,
+      package: pkg.identifier,
+      price: pkg.product.priceString,
+    };
+    if (userId) void logEvent(userId, 'purchase_started', funnel);
     try {
       const unlocked = await purchasePackage(pkg);
+      if (userId) {
+        void logEvent(userId, unlocked ? 'purchase_completed' : 'purchase_failed', {
+          ...funnel,
+          ...(unlocked ? {} : { reason: 'not_entitled_after_purchase' }),
+        });
+      }
       if (!unlocked) {
         showAlert('Purchase incomplete', 'That didn’t unlock full access. Please try again.');
       }
       // On success the router guard reacts to isEntitled and swaps to (app) itself.
     } catch (error) {
       const purchasesError = error as PurchasesError;
+      if (userId) {
+        void logEvent(userId, 'purchase_failed', {
+          ...funnel,
+          reason: purchasesError.userCancelled ? 'cancelled' : 'error',
+          message: purchasesError.userCancelled ? undefined : purchasesError.message,
+        });
+      }
       if (!purchasesError.userCancelled) {
         showAlert('Purchase failed', purchasesError.message ?? 'Something went wrong.');
       }
