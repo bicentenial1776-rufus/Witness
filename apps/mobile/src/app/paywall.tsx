@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { PurchasesError } from 'react-native-purchases';
@@ -46,12 +46,16 @@ export default function Paywall() {
   const [isRestoring, setIsRestoring] = useState(false);
   const [waitingSeat, setWaitingSeat] = useState<WaitingSeat | null>(null);
   const userId = session?.user.id;
+  const viewLoggedFor = useRef<string | null>(null);
 
   // Funnel: paywall_viewed → purchase_started → purchase_completed /
   // purchase_failed, each tagged with the platform so iOS and web convert
-  // (or fail) separately in the operator queries.
+  // (or fail) separately in the operator queries. The ref guards against
+  // the double mount that logged two views per visit.
   useEffect(() => {
-    if (userId) void logEvent(userId, 'paywall_viewed', { platform: Platform.OS });
+    if (!userId || viewLoggedFor.current === userId) return;
+    viewLoggedFor.current = userId;
+    void logEvent(userId, 'paywall_viewed', { platform: Platform.OS });
   }, [userId]);
 
   // The strongest way past this screen isn't a purchase: when a family

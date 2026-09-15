@@ -1,0 +1,52 @@
+name: Deploy marketing site
+
+# Manual deploy of witnesslives.com (Vercel project "witnesslives", team
+# "notata"). The project's Root Directory is apps/preview-site, so the deploy
+# runs from the repo root exactly as docs/tech-stack.md describes:
+# --archive=tgz because the repo exceeds Vercel's file limit, with
+# .vercelignore keeping the tarball to the site. Requires the VERCEL_TOKEN
+# repository secret.
+
+on:
+  workflow_dispatch:
+    inputs:
+      production:
+        description: 'Deploy to production (unchecked = preview deploy)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx vercel@latest link --project witnesslives --scope notata --yes --token "$VERCEL_TOKEN"
+          if [ "${{ inputs.production }}" = "true" ]; then
+            URL=$(npx vercel@latest deploy --prod --yes --archive=tgz --token "$VERCEL_TOKEN")
+          else
+            URL=$(npx vercel@latest deploy --yes --archive=tgz --token "$VERCEL_TOKEN")
+          fi
+          echo "Deployed: $URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify live confirmation page
+        if: ${{ inputs.production }}
+        run: |
+          set -euo pipefail
+          sleep 15
+          curl -fsSL https://witnesslives.com/confirmed | grep -q 'id="error-panel"'
+          echo "witnesslives.com/confirmed is serving the current confirmed.html" >> "$GITHUB_STEP_SUMMARY"
