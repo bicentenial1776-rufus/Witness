@@ -90,6 +90,8 @@
   .tag.you { border-color: var(--accent); color: var(--accent); }
   .tag.recent { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
   .tag.never { color: var(--muted); }
+  .tag.failed { border-color: var(--cost); color: var(--cost); }
+  .err { color: var(--muted); font-size: 12px; margin-top: 2px; max-width: 60ch; }
   .muted { color: var(--muted); }
   .dim td { color: var(--muted); }
   .bar { height: 6px; background: var(--accent); display: inline-block; vertical-align: middle; }
@@ -195,12 +197,17 @@
         </section>
       </div>
 
+      <section>
+        <div class="sect-head"><h2>Import attempts</h2><span class="note" id="imports-note"></span></div>
+        <div class="panel scroll"><table id="imports"></table></div>
+      </section>
+
       <footer class="foot">
         <div>
           <h3>What is logged</h3>
           <ul>
             <li><code>login</code> — a real sign-in (password, Apple, magic link). A restored session on app open is not one.</li>
-            <li><code>gedcom_import_completed</code> / <code>_failed</code> — file bytes, people, families, places, provider.</li>
+            <li><code>gedcom_import_completed</code> / <code>_failed</code> — file bytes, people, families, places, provider. A failure also carries the error and how far the import got; the tree it left behind is tagged <span class="tag failed">unfinished</span> above.</li>
             <li>Every AI call's model and tokens: biographies and context, story arcs, tree syntheses, research briefs, headstone reads, media readings.</li>
           </ul>
         </div>
@@ -273,7 +280,11 @@
     const owners = new Map(users.map((u) => [u.id, u]));
     const memberCount = new Map();
     for (const m of S.members || []) memberCount.set(m.tree_id, (memberCount.get(m.tree_id) || 0) + 1);
-    const realTrees = trees.filter((t) => !(owners.get(t.user) || {}).test);
+    // A tree whose import stopped part-way (status from the column added
+    // 2026-09-15; a function deployed before it sends none, so no status
+    // reads as finished).
+    const unfinished = (t) => Boolean(t.status) && t.status !== 'complete';
+    const realTrees = trees.filter((t) => !(owners.get(t.user) || {}).test && !unfinished(t));
 
     // ---- figures
     $('figures').innerHTML = [
@@ -335,7 +346,27 @@
     const mb = (b) => b ? (b / 1048576).toFixed(1) + ' MB' : '—';
     $('trees').innerHTML = `<tr><th>Tree</th><th>Owner</th><th class="num">People</th><th class="num">File</th><th>Imported</th></tr>` + trees.map((t) => {
       const o = owners.get(t.user) || {}; const shared = memberCount.get(t.id);
-      return `<tr class="${o.test ? 'dim' : ''}"><td>${esc(t.name)}${t.provider ? `<span class="tag">${esc(t.provider)}</span>` : ''}${shared ? `<span class="tag recent">shared · ${shared}</span>` : ''}</td><td class="muted">${esc((o.email || '?').replace(/@.*/, ''))}</td><td class="num">${fmt(t.people)}</td><td class="num">${mb(t.bytes)}</td><td class="muted">${t.imported ? new Date(t.imported).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</td></tr>`;
+      return `<tr class="${o.test ? 'dim' : ''}"><td>${esc(t.name)}${t.provider ? `<span class="tag">${esc(t.provider)}</span>` : ''}${shared ? `<span class="tag recent">shared · ${shared}</span>` : ''}${unfinished(t) ? '<span class="tag failed">unfinished</span>' : ''}</td><td class="muted">${esc((o.email || '?').replace(/@.*/, ''))}</td><td class="num">${fmt(t.people)}</td><td class="num">${mb(t.bytes)}</td><td class="muted">${t.imported ? new Date(t.imported).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</td></tr>`;
+    }).join('');
+
+    // ---- import attempts: every completed or failed GEDCOM import, newest first
+    const imports = (S.events || [])
+      .filter((e) => e.event_name === 'gedcom_import_completed' || e.event_name === 'gedcom_import_failed')
+      .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+    const failedImports = imports.filter((e) => e.event_name === 'gedcom_import_failed').length;
+    $('imports-note').textContent = `${fmt(imports.length)} attempts · ${fmt(failedImports)} failed · newest first`;
+    $('imports').innerHTML = `<tr><th>When</th><th>Account</th><th class="num">People</th><th class="num">File</th><th>Outcome</th></tr>` + imports.slice(0, 80).map((e) => {
+      const p = e.properties || {}; const o = owners.get(e.user_id) || {};
+      const when = new Date(e.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      let outcome;
+      if (e.event_name === 'gedcom_import_completed') {
+        outcome = `<span class="tag recent">${p.is_refresh ? 'updated' : 'imported'}</span>${p.provider ? `<span class="tag">${esc(p.provider)}</span>` : ''}`;
+      } else {
+        // Where it stopped is only known for failures logged after 2026-09-15.
+        const at = p.total_rows ? ` at ${Math.round(100 * (p.inserted_rows || 0) / p.total_rows)}%${p.table ? `, writing ${esc(p.table)}` : ''}` : '';
+        outcome = `<span class="tag failed">failed</span>${at}<div class="err">${esc(p.error || '')}</div>`;
+      }
+      return `<tr class="${o.test ? 'dim' : ''}"><td class="muted" style="white-space:nowrap">${when}</td><td>${esc((o.email || '?').replace(/@.*/, ''))}</td><td class="num">${fmt(p.individual_count)}</td><td class="num">${mb(p.bytes)}</td><td>${outcome}</td></tr>`;
     }).join('');
 
     // ---- by user

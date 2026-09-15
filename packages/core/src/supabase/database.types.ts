@@ -2270,6 +2270,7 @@ export type Database = {
           gedcom_version: string | null
           home_person_id: string | null
           id: string
+          import_status: string
           imported_at: string
           individual_count: number
           last_pulse: Json | null
@@ -2293,6 +2294,7 @@ export type Database = {
           gedcom_version?: string | null
           home_person_id?: string | null
           id?: string
+          import_status?: string
           imported_at?: string
           individual_count?: number
           last_pulse?: Json | null
@@ -2316,6 +2318,7 @@ export type Database = {
           gedcom_version?: string | null
           home_person_id?: string | null
           id?: string
+          import_status?: string
           imported_at?: string
           individual_count?: number
           last_pulse?: Json | null

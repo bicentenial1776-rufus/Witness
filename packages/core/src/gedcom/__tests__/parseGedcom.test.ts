@@ -142,6 +142,11 @@ describe('provider detection (2026-08-18: dynamic external links)', () => {
     expect(parsed.individuals.get('I1')?.familySearchId).toBe('KWZQ-8Q1');
   });
 
+  it('recognizes Personal Ancestral File', () => {
+    expect(parseGedcom(headOf('1 SOUR PAF\n2 NAME Personal Ancestral File\n2 VERS 4.0')).metadata.provider).toBe('paf');
+    expect(parseGedcom(headOf('1 SOUR PAF')).metadata.provider).toBe('paf');
+  });
+
   it('recognizes MyHeritage, Findmypast, FamilySearch, and FTM-over-Ancestry', () => {
     expect(parseGedcom(headOf('1 SOUR MYHERITAGE')).metadata.provider).toBe('myheritage');
     expect(parseGedcom(headOf('1 SOUR FMP\n2 NAME Findmypast')).metadata.provider).toBe('findmypast');

@@ -195,7 +195,8 @@ export type TreeProvider =
   | 'rootsmagic'
   | 'familytreemaker'
   | 'gramps'
-  | 'legacy';
+  | 'legacy'
+  | 'paf';
 
 export interface GedcomMetadata {
   sourceFile?: string;

@@ -31,6 +31,9 @@ const PROVIDER_PATTERNS: [RegExp, TreeProvider][] = [
   [/rootsmagic/i, 'rootsmagic'],
   [/gramps/i, 'gramps'],
   [/legacy/i, 'legacy'],
+  // Personal Ancestral File: long discontinued, still the home of some of
+  // the largest trees that arrive (61,773 people, 2026-09-15).
+  [/^PAF\b|personal\s*ancestral\s*file/i, 'paf'],
 ];
 
 /**

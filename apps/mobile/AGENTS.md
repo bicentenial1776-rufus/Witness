@@ -14,8 +14,8 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before 
 
 # Data-model facts
 
-- GEDCOM import (`src/app/(app)/import.tsx` → `packages/core/src/supabase/import.ts`) is **not idempotent** — every import creates a new tree; there is no merge/update path yet.
-- The active tree is the user's **largest** by `individual_count` (`src/lib/active-tree.tsx`); there is no switcher UI yet.
+- GEDCOM import (`src/app/(app)/import.tsx` → `packages/core/src/supabase/import.ts`) is **not idempotent** — every import creates a new tree row first, stamped `import_status: 'importing'`, then writes rows client-side in retried, duplicate-ignoring batches (a statement timeout splits the batch), and stamps `'complete'` last. Anything not `'complete'` is a partial import (`'failed'` once the client caught the stop): never the active-tree fallback, never a refresh target, shown under You as unfinished with only a delete. "Update from a newer file" is the refresh path in `packages/core/src/pulse/refresh.ts`.
+- The active tree is the remembered choice, else the user's **largest complete** owned tree by `individual_count` (`src/lib/active-tree.tsx`); the You tab is the switcher.
 - Tree deletion loops the `delete_tree_batch` RPC until done, then invalidates the geography, relationship, curiosities, and tree-index client caches (see `you.tsx`).
 - `reuse_geocodes` copies coordinates from any tree sharing the same raw place string; the pg_cron worker geocodes the rest.
 
