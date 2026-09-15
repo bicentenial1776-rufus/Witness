@@ -13,6 +13,7 @@ import {
   findRefreshTarget,
   previewRefresh,
   pulseSummary,
+  type MoveProgress,
   type RefreshPreview,
   type RefreshTarget,
 } from '@witness/core/pulse';
@@ -55,6 +56,8 @@ type Step =
       vault: VaultOutcome;
       preview: RefreshPreview | null;
       applying: boolean;
+      /** Set while the photo objects move — the one slow step, worth a live count. */
+      photoProgress?: MoveProgress | null;
     }
   | { name: 'done'; treeId: string; parsed: ParsedGedcom; vault: VaultOutcome }
   | { name: 'error'; fileName: string; kind: 'not-gedcom' | 'unreadable' };
@@ -304,15 +307,31 @@ export default function ImportGedcom() {
     step: Extract<Step, { name: 'reviewing' }>,
     preview: RefreshPreview,
   ) {
-    setStep({ ...step, applying: true });
+    setStep({ ...step, applying: true, photoProgress: null });
     try {
-      const result = await applyRefresh(supabase, step.oldTreeId, step.treeId, preview);
+      const result = await applyRefresh(supabase, step.oldTreeId, step.treeId, preview, {
+        onPhotoProgress: (photoProgress) =>
+          setStep((current) =>
+            current.name === 'reviewing' ? { ...current, photoProgress } : current,
+          ),
+      });
       await refresh();
       if (!result.oldTreeDeleted) {
         // Everything worth keeping already moved; only the tidy-up failed.
         showAlert(
           'Updated, with one leftover',
           'Your work moved across, but the old copy could not be removed. You can delete it from the You tab.',
+        );
+      } else if (result.photosLeftBehind > 0) {
+        // The rows carried; some objects stayed in the old folder. The owner
+        // still sees them; family members will not until they are moved.
+        showAlert(
+          'Updated, with one leftover',
+          `Your work and photos moved across, but ${count(
+            result.photosLeftBehind,
+            'photo',
+            'photos',
+          )} could not be filed under the new copy. You can still see them; family members sharing this tree may not until the next update.`,
         );
       }
       setStep({ name: 'done', treeId: step.treeId, parsed: step.parsed, vault: step.vault });
@@ -401,6 +420,12 @@ export default function ImportGedcom() {
             </ThemedText>
           )}
 
+          {step.preview.photosNote && (
+            <ThemedText type="small" style={{ marginTop: 8 }}>
+              {step.preview.photosNote}
+            </ThemedText>
+          )}
+
           {step.preview.costWarning && (
             <ThemedText type="small" style={{ marginTop: 8, fontWeight: '600' }}>
               {step.preview.costWarning}
@@ -408,12 +433,18 @@ export default function ImportGedcom() {
           )}
 
           <ThemedText type="small" style={{ marginTop: 8 }}>
-            Updating keeps your research briefs, archive verdicts, and margin corrections, and
-            replaces the saved copy with this file. Your own GEDCOM is never changed.
+            Updating keeps your research briefs, archive verdicts, margin corrections, and photos,
+            and replaces the saved copy with this file. Your own GEDCOM is never changed.
           </ThemedText>
 
           <Button
-            title={step.applying ? 'Updating…' : 'Update this tree'}
+            title={
+              step.applying
+                ? step.photoProgress && step.photoProgress.total > 0
+                  ? `Filing photos ${step.photoProgress.done} of ${step.photoProgress.total}…`
+                  : 'Updating…'
+                : 'Update this tree'
+            }
             disabled={step.applying}
             onPress={() => commitRefresh(step, step.preview!)}
           />

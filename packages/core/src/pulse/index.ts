@@ -23,7 +23,29 @@ export {
   previewRefresh,
   applyRefresh,
   findRefreshTarget,
+  type ApplyRefreshOptions,
   type RefreshPreview,
   type RefreshResult,
   type RefreshTarget,
 } from './refresh.js';
+export {
+  planMediaCarry,
+  carriedStoragePath,
+  photosNote,
+  type MediaCarryPlan,
+  type MediaAdoption,
+  type MediaRecreation,
+  type OldMediaRow,
+  type NewMediaRow,
+  type OldMediaLink,
+} from './mediaCarry.js';
+export {
+  fetchMediaCarryables,
+  planMediaRefresh,
+  applyMediaCarry,
+  moveCarriedObjects,
+  type MediaCarryables,
+  type MediaCarryResult,
+  type MoveProgress,
+  type MoveResult,
+} from './mediaRefresh.js';

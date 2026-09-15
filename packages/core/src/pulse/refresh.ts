@@ -7,6 +7,14 @@ import { findOrphanRecords } from '../query/orphanRecords.js';
 import { fetchTreeHealthData, findingKey, runTreeHealth, type TreeHealthData } from '../query/treeHealth.js';
 import type { WitnessSupabaseClient } from '../supabase/client.js';
 import type { Json } from '../supabase/database.types.js';
+import { photosNote, type MediaCarryPlan } from './mediaCarry.js';
+import {
+  applyMediaCarry,
+  fetchMediaCarryables,
+  moveCarriedObjects,
+  planMediaRefresh,
+  type MoveProgress,
+} from './mediaRefresh.js';
 import {
   carryCostWarning,
   diffTrees,
@@ -47,6 +55,12 @@ import {
  *   never auto-resolved.
  * - "Not an error" rulings need no help: they are user-scoped and keyed by
  *   xref, so they already survive any number of uploads.
+ * - Photos move (2026-09-15). The bytes came from one desktop overlay of a
+ *   Family Tree Maker export and no refreshed file brings them back, so the
+ *   old rows' uploads adopt the new tree's own media rows for the same
+ *   files (mediaCarry.ts), readings follow, and the objects are moved into
+ *   the new tree's folder once the old tree is gone — the bucket's sharing
+ *   policy gates on the tree id in the path.
  */
 
 export interface RefreshPreview {
@@ -74,6 +88,14 @@ export interface RefreshPreview {
   correctionsChanged: number;
   /** "Your N margin corrections come along." Null without corrections. */
   correctionsNote: string | null;
+  /** Uploaded photos that land on the new tree, by any tier. */
+  photosMoving: number;
+  /** Uploaded photos with nowhere to land — lost with the old tree. */
+  photosStranded: number;
+  /** "Your N photos come along." Null without photos. */
+  photosNote: string | null;
+  /** Kept so apply writes exactly what the preview promised. */
+  mediaPlan: MediaCarryPlan;
 }
 
 interface BriefRow {
@@ -272,15 +294,17 @@ export async function previewRefresh(
   oldTreeId: string,
   newTreeId: string,
 ): Promise<RefreshPreview> {
-  const [before, after, carryables, oldTree] = await Promise.all([
+  const [before, after, carryables, oldTree, mediaCarryables] = await Promise.all([
     fetchTreeHealthData(supabase, oldTreeId),
     fetchTreeHealthData(supabase, newTreeId),
     fetchCarryables(supabase, oldTreeId),
     supabase.from('trees').select('home_person_id').eq('id', oldTreeId).maybeSingle(),
+    fetchMediaCarryables(supabase, oldTreeId, newTreeId),
   ]);
 
   const pulse = diffTrees(before, after);
   const remap = remapIndividuals(before.individuals, after.individuals);
+  const mediaPlan = planMediaRefresh(mediaCarryables, remap);
 
   const briefPlan = planCarryForward(carryables.briefs, remap);
   const candidatePlan = planCarryForward(carryables.candidates, remap);
@@ -345,6 +369,7 @@ export async function previewRefresh(
       strandedShareLinks: shareLinksStranded,
       strandedCorrections: correctionsPlan.stranded.length,
       strandedNotes: notesPlan.stranded.length,
+      strandedPhotos: mediaPlan.stranded.length,
       homePersonLost,
     }),
     remap,
@@ -364,6 +389,10 @@ export async function previewRefresh(
     correctionsStranded: correctionsPlan.stranded.length,
     correctionsChanged,
     correctionsNote,
+    photosMoving: mediaPlan.adopting.length + mediaPlan.recreating.length + mediaPlan.alreadyComplete,
+    photosStranded: mediaPlan.stranded.length,
+    photosNote: photosNote(mediaPlan),
+    mediaPlan,
   };
 }
 
@@ -378,7 +407,20 @@ export interface RefreshResult {
   shareLinksMoved: number;
   correctionsMoved: number;
   homePersonMoved: boolean;
+  /** Uploaded photos now on the new tree: adopted plus recreated. */
+  photosMoved: number;
+  /**
+   * Photos whose object could not be moved into the new tree's folder. The
+   * rows still point at the old folder, readable by the owner; family
+   * members will not see these until a later refresh or overlay moves them.
+   */
+  photosLeftBehind: number;
   oldTreeDeleted: boolean;
+}
+
+export interface ApplyRefreshOptions {
+  /** Moving the photo objects is the slow part; the screen can say so. */
+  onPhotoProgress?: (progress: MoveProgress) => void;
 }
 
 /**
@@ -396,6 +438,7 @@ export async function applyRefresh(
   oldTreeId: string,
   newTreeId: string,
   preview: RefreshPreview,
+  options: ApplyRefreshOptions = {},
 ): Promise<RefreshResult> {
   const carryables = await fetchCarryables(supabase, oldTreeId);
   const briefPlan = planCarryForward(carryables.briefs, preview.remap);
@@ -609,6 +652,23 @@ export async function applyRefresh(
     }
   }
 
+  // Photos: the old rows' uploads adopt the new tree's rows for the same
+  // files, readings follow, recreated rows land where their people did.
+  // Objects stay in the old folder until the old tree is gone (below).
+  const { data: ownerData } = await supabase.auth.getUser();
+  const ownerId = ownerData.user?.id;
+  let photosMoved = 0;
+  if (ownerId) {
+    const mediaResult = await applyMediaCarry(
+      supabase,
+      preview.mediaPlan,
+      ownerId,
+      oldTreeId,
+      newTreeId,
+    );
+    photosMoved = mediaResult.adopted + mediaResult.recreated + preview.mediaPlan.alreadyComplete;
+  }
+
   // Ancestry identity overlaid onto an FTM tree (ancestry_person_id, record
   // links) moves by xref and by unique name — the Ancestry export is taken
   // once, never again. A missing function (migration not applied) just
@@ -632,6 +692,31 @@ export async function applyRefresh(
   if (pulseError) throw new Error(`Could not record the Tree Pulse: ${pulseError.message}`);
 
   // Last, and only now that everything worth keeping has moved.
+  const oldTreeDeleted = await retireTree(supabase, oldTreeId);
+
+  // The photo objects follow once the old tree no longer reads them. A
+  // move that fails leaves the row on its old path — readable by the
+  // owner, invisible to family members — and is counted, never thrown:
+  // the refresh has already succeeded by this point.
+  let photosLeftBehind = 0;
+  if (ownerId && oldTreeDeleted) {
+    try {
+      const moved = await moveCarriedObjects(
+        supabase,
+        ownerId,
+        oldTreeId,
+        newTreeId,
+        options.onPhotoProgress,
+      );
+      photosLeftBehind = moved.leftBehind;
+    } catch (error) {
+      console.warn('Photos left in the old folder:', error);
+      photosLeftBehind = photosMoved;
+    }
+  } else if (ownerId) {
+    photosLeftBehind = photosMoved;
+  }
+
   return {
     briefsMoved: briefPlan.moving.length,
     verdictsMoved: candidatePlan.moving.length,
@@ -643,7 +728,9 @@ export async function applyRefresh(
     shareLinksMoved,
     correctionsMoved: correctionsPlan.moving.length,
     homePersonMoved: movedHome,
-    oldTreeDeleted: await retireTree(supabase, oldTreeId),
+    photosMoved,
+    photosLeftBehind,
+    oldTreeDeleted,
   };
 }
 
