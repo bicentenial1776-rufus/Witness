@@ -28,7 +28,15 @@ import { ENTITLEMENT_ID, PurchasesContext, type SubscriptionStatus } from './con
  * everything fails closed, the same posture as native with a missing key.
  */
 
-const apiKey = process.env.EXPO_PUBLIC_REVENUECAT_WEB_API_KEY;
+const rawApiKey = process.env.EXPO_PUBLIC_REVENUECAT_WEB_API_KEY;
+
+// RevenueCat's Web Billing sandbox keys are prefixed "rcb_sb_" and route
+// checkout through Stripe test mode, which rejects every real card — a
+// sandbox key deployed to production silently strands every paying
+// customer (2026-09-14). Fail closed outside dev, mirroring the native
+// provider's test-key guard (provider.tsx).
+const apiKey =
+  rawApiKey && (__DEV__ || !rawApiKey.startsWith('rcb_sb_')) ? rawApiKey : undefined;
 
 let configuredUserId: string | null = null;
 
@@ -75,6 +83,12 @@ export function PurchasesProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     if (!apiKey || !session) {
+      if (!apiKey && rawApiKey) {
+        console.warn(
+          'RevenueCat web API key is a sandbox key (rcb_sb_...) — checkout would run in ' +
+            'Stripe test mode. Set a production key in EXPO_PUBLIC_REVENUECAT_WEB_API_KEY.',
+        );
+      }
       setIsEntitled(false);
       setSubscription(null);
       setOffering(null);

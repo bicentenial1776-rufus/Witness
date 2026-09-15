@@ -1,0 +1,84 @@
+name: Deploy web app
+
+# Manual deploy of app.witnesslives.com: builds the Expo web export from the
+# selected ref and pushes it to the witness-app Vercel project. Mirrors the
+# recipe in apps/mobile/AGENTS.md ("Deploying the web app") so it can run
+# from any machine — or none. Requires a VERCEL_TOKEN repository secret with
+# access to the "notata" Vercel scope.
+
+on:
+  workflow_dispatch:
+    inputs:
+      production:
+        description: 'Deploy to production (unchecked = preview deploy)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build shared core package
+        run: npm run build --workspace packages/core
+
+      - name: Export web bundle
+        working-directory: apps/mobile
+        env:
+          EXPO_NO_TELEMETRY: '1'
+          CI: '1'
+        run: npx expo export --platform web
+
+      - name: Assemble Vercel staging directory
+        working-directory: apps/mobile
+        run: |
+          set -euo pipefail
+          STAGE="$RUNNER_TEMP/witness-web-deploy-staging"
+          rm -rf "$STAGE" && mkdir -p "$STAGE"
+          cp -R dist/. "$STAGE"/
+          cp -R web-deploy/. "$STAGE"/
+          sed -i 's#href="/favicon.ico"#href="/favicon.ico?v=2"#' "$STAGE/index.html"
+          grep -q '/_vercel/insights/script.js' "$STAGE/index.html"
+          ENTRY=$(grep -oE 'entry-[a-f0-9]+\.js' "$STAGE/index.html" | head -1)
+          echo "STAGE=$STAGE" >> "$GITHUB_ENV"
+          echo "ENTRY=$ENTRY" >> "$GITHUB_ENV"
+          echo "Built bundle: $ENTRY" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Deploy to Vercel
+        working-directory: ${{ env.STAGE }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx vercel@latest link --project witness-app --scope notata --yes --token "$VERCEL_TOKEN"
+          if [ "${{ inputs.production }}" = "true" ]; then
+            URL=$(npx vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN")
+          else
+            URL=$(npx vercel@latest deploy --yes --token "$VERCEL_TOKEN")
+          fi
+          echo "DEPLOY_URL=$URL" >> "$GITHUB_ENV"
+          echo "Deployed: $URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify live bundle hash
+        if: ${{ inputs.production }}
+        run: |
+          set -euo pipefail
+          sleep 15
+          LIVE=$(curl -fsSL https://app.witnesslives.com/ | grep -oE 'entry-[a-f0-9]+\.js' | head -1)
+          echo "Live bundle: $LIVE (expected $ENTRY)" >> "$GITHUB_STEP_SUMMARY"
+          test "$LIVE" = "$ENTRY"
+          curl -fsSL https://app.witnesslives.com/ | grep -q '/_vercel/insights/script.js'
