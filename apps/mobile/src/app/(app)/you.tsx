@@ -301,7 +301,14 @@ export default function YouTab() {
         let done = false;
         let removed = 0;
         setDeleting({ treeId: tree.id, removed: 0, stage: 'starting' });
-        for (let i = 0; i < 400; i++) {
+        // Sized to the tree, with room to spare: a flat cap of 400 calls
+        // stopped short of the ~420 a 61,773-person tree needs.
+        const maxCalls =
+          Math.ceil(tree.individual_count / 400) +
+          Math.ceil(tree.family_count / 500) +
+          Math.ceil(tree.place_count / 200) +
+          60;
+        for (let i = 0; i < maxCalls; i++) {
           const { data, error: rpcError } = await supabase.rpc('delete_tree_batch', {
             p_tree_id: tree.id,
           });
@@ -441,17 +448,31 @@ export default function YouTab() {
             Explore, the Register and the Archives all read the tree in use. Pick which one.
           </ThemedText>
         )}
-        {(trees ?? []).map((tree) => (
+        {(trees ?? []).map((tree) => {
+          // Rows that landed before an import stopped. Nothing here should
+          // read as a tree to use — only as something to clear away.
+          const unfinished = tree.import_status !== 'complete';
+          return (
           <Card key={tree.id}>
             <ThemedText type="subtitle">{tree.name}</ThemedText>
-            <ThemedText type="small">
-              {tree.individual_count.toLocaleString()} people ·{' '}
-              {tree.family_count.toLocaleString()} families ·{' '}
-              {tree.place_count.toLocaleString()} places ·{' '}
-              {tree.owned
-                ? `imported ${formatDate(tree.imported_at)}`
-                : 'shared with you'}
-            </ThemedText>
+            {unfinished ? (
+              <ThemedText type="small">
+                This import didn’t finish — {tree.individual_count.toLocaleString()} people landed
+                before it stopped, {formatDate(tree.imported_at)}. Delete it, then bring the file
+                in again.
+              </ThemedText>
+            ) : (
+              <ThemedText type="small">
+                {tree.individual_count.toLocaleString()} people ·{' '}
+                {tree.family_count.toLocaleString()} families ·{' '}
+                {tree.place_count.toLocaleString()} places ·{' '}
+                {tree.owned
+                  ? `imported ${formatDate(tree.imported_at)}`
+                  : 'shared with you'}
+              </ThemedText>
+            )}
+            {!unfinished && (
+              <>
             {(trees?.length ?? 0) > 1 &&
               (tree.id === activeTree?.id ? (
                 <ThemedText type="small" style={{ marginTop: 4, fontWeight: '600' }}>
@@ -497,6 +518,8 @@ export default function YouTab() {
                 </ThemedText>
               )}
             </View>
+              </>
+            )}
             {/* Set apart from the row above, and muted rather than accented.
                 Delete used to sit among the safe actions looking exactly like
                 them; adding "Update from a newer file" beside it made a
@@ -512,7 +535,7 @@ export default function YouTab() {
                   deleting ? { opacity: 0.3 } : null,
                 ]}
               >
-                Delete this tree
+                {unfinished ? 'Delete this unfinished import' : 'Delete this tree'}
               </ThemedText>
             ) : (
               <ThemedText
@@ -540,7 +563,8 @@ export default function YouTab() {
               </ThemedText>
             )}
           </Card>
-        ))}
+          );
+        })}
         <ThemedText type="link" onPress={() => router.push('/import')}>
           Import another tree ›
         </ThemedText>

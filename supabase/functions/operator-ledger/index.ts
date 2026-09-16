@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
         admin
           .from('trees')
           .select(
-            'id, user_id, name, individual_count, family_count, place_count, gedcom_bytes, provider, imported_at',
+            'id, user_id, name, individual_count, family_count, place_count, gedcom_bytes, provider, imported_at, import_status',
           )
           .order('imported_at')
       ),
@@ -139,6 +139,7 @@ Deno.serve(async (req) => {
         bytes: t.gedcom_bytes,
         provider: t.provider,
         imported: t.imported_at,
+        status: t.import_status,
       })),
       members,
       events,

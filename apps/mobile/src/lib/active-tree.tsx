@@ -44,6 +44,10 @@ export interface TreeRow {
   home_person: { full_name: string } | null;
   /** Set when this tree arrived via GEDCOM Refresh — it inherits its history. */
   refreshed_from: string | null;
+  /** Anything but 'complete' is a partial import: rows that landed before
+      the import stopped. Never the fallback active tree; You offers only
+      a delete. A pre-column saved list defaults to complete. */
+  import_status: 'importing' | 'complete' | 'failed';
   /** False for a tree shared with this account (family sharing): readable,
       never writable — every destructive loop must check this. Derived at
       fetch time; a pre-sharing saved list defaults to owned. */
@@ -97,11 +101,12 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
     const { data: rawData, error } = await supabase
       .from('trees')
       .select(
-        'id, name, user_id, individual_count, family_count, place_count, imported_at, gedcom_path, gedcom_bytes, home_person_id, refreshed_from, home_person:individuals!trees_home_person_id_fkey(full_name)',
+        'id, name, user_id, individual_count, family_count, place_count, imported_at, gedcom_path, gedcom_bytes, home_person_id, refreshed_from, import_status, home_person:individuals!trees_home_person_id_fkey(full_name)',
       )
       .order('imported_at', { ascending: false });
     const data: TreeRow[] = ((rawData ?? []) as unknown as Omit<TreeRow, 'owned'>[]).map((row) => ({
       ...row,
+      import_status: row.import_status ?? 'complete',
       owned: !row.user_id || row.user_id === userId,
     }));
     if (error) {
@@ -123,6 +128,7 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
             // trees are all the account's own.
             const parsed = (JSON.parse(stored) as TreeRow[]).map((tree) => ({
               ...tree,
+              import_status: tree.import_status ?? 'complete',
               owned: tree.owned ?? true,
             }));
             setTrees((current) => current ?? parsed);
@@ -186,13 +192,21 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
   // device or another — so it only counts if it is still in the list.
   // Absent a choice, the richest OWNED tree wins over any shared one (a
   // subscriber's own import stays their default); a companion with no
-  // trees of their own falls through to the family tree naturally.
-  const chosen = selectedId ? trees?.find((tree) => tree.id === selectedId) : undefined;
+  // trees of their own falls through to the family tree naturally. A
+  // partial import never wins: its counts are real rows, but half a tree —
+  // 61,773 people with no parent-child links, in the case that taught this.
+  const finished = (tree: TreeRow) => tree.import_status === 'complete';
+  const chosen = selectedId
+    ? trees?.find((tree) => tree.id === selectedId && finished(tree))
+    : undefined;
   const activeTree =
     chosen ??
     (trees?.length
       ? [...trees].sort(
-          (a, b) => Number(b.owned) - Number(a.owned) || b.individual_count - a.individual_count,
+          (a, b) =>
+            Number(finished(b)) - Number(finished(a)) ||
+            Number(b.owned) - Number(a.owned) ||
+            b.individual_count - a.individual_count,
         )[0]
       : undefined);
 

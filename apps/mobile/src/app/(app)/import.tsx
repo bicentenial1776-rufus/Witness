@@ -7,7 +7,11 @@ import { ActivityIndicator, Platform, View } from 'react-native';
 
 import type { ParsedGedcom } from '@witness/core/gedcom';
 import { extractGedcomText, parseGedcom } from '@witness/core/gedcom';
-import { importParsedGedcom, type ImportProgress } from '@witness/core/supabase';
+import {
+  GedcomImportError,
+  importParsedGedcom,
+  type ImportProgress,
+} from '@witness/core/supabase';
 import {
   applyRefresh,
   findRefreshTarget,
@@ -202,6 +206,41 @@ export default function ImportGedcom() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileUri]);
 
+  // A browser tab that closes or sleeps mid-import strands the tree part-way
+  // — there is no server-side resume. Warn before unload and hold the screen
+  // awake while the writes are running; both are no-ops off the web.
+  const importing = step.name === 'importing';
+  useEffect(() => {
+    if (!importing || Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+
+    type Sentinel = { release(): Promise<void> };
+    const wakeLock = (navigator as Navigator & { wakeLock?: { request(type: 'screen'): Promise<Sentinel> } })
+      .wakeLock;
+    let held: Sentinel | null = null;
+    // The browser drops the lock whenever the tab is hidden; take it again on return.
+    const hold = () => {
+      if (document.visibilityState !== 'visible') return;
+      wakeLock
+        ?.request('screen')
+        .then((sentinel) => {
+          held = sentinel;
+        })
+        .catch(() => {});
+    };
+    hold();
+    document.addEventListener('visibilitychange', hold);
+    return () => {
+      window.removeEventListener('beforeunload', warn);
+      document.removeEventListener('visibilitychange', hold);
+      held?.release().catch(() => {});
+    };
+  }, [importing]);
+
   async function runImport(
     fileName: string,
     parsed: ParsedGedcom,
@@ -289,12 +328,29 @@ export default function ImportGedcom() {
 
       setStep({ name: 'done', treeId, parsed, vault });
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const stopped = error instanceof GedcomImportError ? error : null;
       void logEvent(session.user.id, 'gedcom_import_failed', {
         bytes: original.byteLength,
         individual_count: parsed.metadata.individualCount,
-        error: error instanceof Error ? error.message : String(error),
+        error: message,
+        tree_id: stopped?.treeId ?? null,
+        table: stopped?.table ?? null,
+        inserted_rows: stopped?.insertedRows ?? null,
+        total_rows: stopped?.totalRows ?? null,
       });
-      showAlert('Import failed', error instanceof Error ? error.message : String(error));
+      if (stopped) {
+        // The rows that landed stay put, marked so nothing treats them as a
+        // tree: You names the copy as unfinished and offers the delete.
+        await supabase.from('trees').update({ import_status: 'failed' }).eq('id', stopped.treeId);
+        await refresh();
+      }
+      showAlert(
+        'Import failed',
+        stopped
+          ? `${message}\n\nWhat landed before it stopped is set aside under You as an unfinished import. Delete it there, then try again.`
+          : message,
+      );
       setStep({ name: 'ready', fileName, parsed, original });
     }
   }
@@ -479,10 +535,13 @@ export default function ImportGedcom() {
           <ActivityIndicator />
           <ThemedText>
             {step.progress
-              ? `Importing… ${Math.round((step.progress.insertedRows / step.progress.totalRows) * 100)}%`
+              ? `Importing… ${Math.round((step.progress.insertedRows / step.progress.totalRows) * 100)}% — ${step.progress.insertedRows.toLocaleString()} of ${step.progress.totalRows.toLocaleString()} records`
               : 'Starting import…'}
           </ThemedText>
-          <ThemedText>Keep the app open — large trees can take a minute.</ThemedText>
+          <ThemedText>
+            Keep this open and in front. A small tree takes a minute; a very large one can take
+            half an hour.
+          </ThemedText>
         </>
       )}
 

@@ -204,4 +204,18 @@ describe('buildImportPayload', () => {
     expect(payload.mediaLinks.some((link) => link.family_id)).toBe(true);
     expect(payload.mediaLinks.some((link) => link.citation_id)).toBe(true);
   });
+
+  it('keeps one family_children row when a family lists the same child twice', () => {
+    // PAF writes this; the (family_id, individual_id) primary key refuses it.
+    const text = [
+      '0 HEAD', '1 GEDC', '2 VERS 5.5.1',
+      '0 @I1@ INDI', '1 NAME Ann /Doe/',
+      '0 @I2@ INDI', '1 NAME Bob /Doe/',
+      '0 @F1@ FAM', '1 HUSB @I2@', '1 CHIL @I1@', '1 CHIL @I1@',
+      '0 TRLR',
+    ].join('\n');
+    const payload = buildImportPayload(parseGedcom(text, 'twice.ged'), { userId: USER_ID });
+    expect(payload.familyChildren).toHaveLength(1);
+    expect(payload.familyChildren[0]).toMatchObject({ birth_order: 0 });
+  });
 });

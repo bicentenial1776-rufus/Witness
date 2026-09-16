@@ -116,6 +116,7 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
     individual_count: 0,
     family_count: 0,
     place_count: 0,
+    import_status: 'importing',
     parse_warnings: parsed.metadata.parseWarnings,
   };
 
@@ -251,9 +252,14 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
     // INDI record is a real (if rare) possibility in messy exports; skip
     // rather than insert a dangling FK.
     const relationByChild = new Map(family.childRelationships.map((r) => [r.childId, r]));
+    // PAF exports can list the same child twice under one family; the
+    // (family_id, individual_id) primary key rejects the second copy and
+    // took a 61,773-person import down with it.
+    const seenChildren = new Set<string>();
     family.childIds.forEach((childXref, index) => {
       const childId = individualIdMap.get(childXref);
-      if (!childId) return;
+      if (!childId || seenChildren.has(childXref)) return;
+      seenChildren.add(childXref);
       const relation = relationByChild.get(childXref);
       const parentage = parentageByLink.get(`${childXref}|${family.id}`);
       // An ADOP event can name one adopting parent; the other side keeps
@@ -364,7 +370,10 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
         upload_status: 'pending',
       });
     }
+    // An id of our own, like every other row: a batch resent after a lost
+    // reply must collide on its key rather than link the same photo twice.
     mediaLinks.push({
+      id: generateId(),
       tree_id: treeId,
       user_id: userId,
       media_id: mediaId,
@@ -386,7 +395,7 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
       message: curiosity.message,
       family_id: curiosity.familyId ? (familyIdMap.get(curiosity.familyId) ?? null) : null,
     });
-    for (const xref of curiosity.individualIds) {
+    for (const xref of new Set(curiosity.individualIds)) {
       const individualId = individualIdMap.get(xref);
       if (!individualId) continue;
       curiosityIndividuals.push({ curiosity_id: curiosityId, individual_id: individualId, user_id: userId });
