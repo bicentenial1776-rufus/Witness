@@ -1,6 +1,7 @@
 import type { WitnessSupabaseClient } from '../supabase/client.js';
 import type { Database } from '../supabase/database.types.js';
 import type { MatchConfidence } from '../history/passengers.js';
+import { splitName } from '../history/passengers.js';
 
 /**
  * The Crossing card: ship-passenger candidates from matchPassengers(),
@@ -127,4 +128,54 @@ export async function setPassengerCandidateStatus(
   // RLS filters a row you can't write into a 0-row "success" — a family
   // member's tap must fail loudly, not half-complete the confirm flow.
   if (!data || data.length === 0) throw new Error('Only the tree owner can decide this record.');
+}
+
+export interface VerificationLink {
+  label: string;
+  url: string;
+}
+
+const WIKIDATA_QID = /\bQ\d+\b/;
+
+/**
+ * Where a human can go check a candidate before ruling on it — search
+ * links, not citations. The matcher never claims a passenger fact is
+ * true, so the card cannot link to "the" source; it links to the places
+ * a researcher would actually look, built from what the row already
+ * carries (name, ship, year, and — when the transcription named one — a
+ * Wikidata item that resolves straight to its Wikipedia article).
+ */
+export function passengerVerificationLinks(candidate: PassengerCandidate): VerificationLink[] {
+  const links: VerificationLink[] = [];
+
+  const qid = candidate.source.match(WIKIDATA_QID)?.[0];
+  if (qid) {
+    links.push({ label: 'Wikidata record', url: `https://www.wikidata.org/wiki/${qid}` });
+  }
+
+  const query = `${candidate.passengerName} ${candidate.ship} ${candidate.arrivalYear}`;
+  links.push({
+    label: 'Search Wikipedia',
+    url: `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(query)}`,
+  });
+
+  const { givenNames, surname } = splitName(candidate.passengerName);
+  const familySearchParams: string[] = [];
+  if (givenNames) familySearchParams.push(`q.givenName=${encodeURIComponent(givenNames)}`);
+  if (surname) familySearchParams.push(`q.surname=${encodeURIComponent(surname)}`);
+  if (candidate.passengerBirthYear) {
+    familySearchParams.push(`q.birthLikeDate.from=${candidate.passengerBirthYear - 2}`);
+    familySearchParams.push(`q.birthLikeDate.to=${candidate.passengerBirthYear + 2}`);
+  }
+  links.push({
+    label: 'Search FamilySearch',
+    url: `https://www.familysearch.org/search/record/results?${familySearchParams.join('&')}`,
+  });
+
+  links.push({
+    label: 'Search Great Migration / American Ancestors',
+    url: `https://www.google.com/search?q=${encodeURIComponent(`${query} site:americanancestors.org`)}`,
+  });
+
+  return links;
 }

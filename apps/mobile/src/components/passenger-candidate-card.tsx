@@ -3,13 +3,14 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { voyageExplainer } from '@witness/core/history';
-import type { PassengerCandidate } from '@witness/core/query';
+import { passengerVerificationLinks, type PassengerCandidate } from '@witness/core/query';
 
 import { Card } from '@/components/card';
 import { ExplainerDot } from '@/components/explainer-dot';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 import { confirmPassengerCandidate, dismissPassengerCandidate } from '@/lib/passenger-candidates';
+import { openExternal } from '@/lib/open-external';
 import { showAlert } from '@/lib/alert';
 
 const CONFIDENCE_LABEL: Record<PassengerCandidate['confidence'], string> = {
@@ -99,6 +100,13 @@ export function PassengerCandidateCard({
       <ThemedText type="small">
         Source: {candidate.source}
       </ThemedText>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 14, rowGap: 2, marginTop: 2 }}>
+        {passengerVerificationLinks(candidate).map((link) => (
+          <ThemedText key={link.url} type="link" onPress={() => openExternal(link.url)}>
+            {link.label} ›
+          </ThemedText>
+        ))}
+      </View>
       {candidate.status === 'confirmed' ? (
         <ThemedText type="small" themeColor="accent" style={{ fontWeight: 600 }}>
           Confirmed — an immigration event now carries this crossing
