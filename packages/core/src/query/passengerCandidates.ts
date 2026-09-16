@@ -194,11 +194,14 @@ export function passengerVerificationLinks(candidate: PassengerCandidate): Verif
     });
   }
 
+  // Wikipedia's Go jumps to the article titled exactly this — or, for a
+  // common name, the disambiguation page listing everyone who bears it —
+  // and only falls back to a results page when neither exists. Ship and
+  // year would defeat the title match, so the name goes alone.
   if (links.length === 0) {
-    const query = `${candidate.passengerName} ${candidate.ship} ${candidate.arrivalYear}`;
     links.push({
-      label: 'Search Wikipedia',
-      url: `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(query)}`,
+      label: 'Find on Wikipedia',
+      url: `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(candidate.passengerName)}&go=Go`,
     });
   }
 

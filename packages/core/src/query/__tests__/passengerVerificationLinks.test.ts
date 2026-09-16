@@ -36,7 +36,7 @@ describe('passengerVerificationLinks', () => {
       label: 'Wikipedia: List of Mayflower passengers',
       url: 'https://en.wikipedia.org/wiki/List_of_Mayflower_passengers',
     });
-    expect(labels(links)).not.toContain('Search Wikipedia');
+    expect(labels(links)).not.toContain('Find on Wikipedia');
   });
 
   it('links every Wikipedia page the source names, encoding the title', () => {
@@ -68,7 +68,7 @@ describe('passengerVerificationLinks', () => {
       label: 'Banks, Planters of the Commonwealth (archive.org)',
       url: 'https://archive.org/details/plantersofcommon00bank?q=Winslow',
     });
-    expect(labels(links)).not.toContain('Search Wikipedia');
+    expect(labels(links)).not.toContain('Find on Wikipedia');
   });
 
   it('opens a Hotten row in the port register scan', () => {
@@ -93,10 +93,8 @@ describe('passengerVerificationLinks', () => {
         source: 'Maryland land patents (Skordas 1968), compiled in Newman (1968)',
       }),
     );
-    expect(labels(links)).toEqual(['Search Wikipedia', 'FamilySearch (free account needed)']);
-    expect(links[0]?.url).toBe(
-      'https://en.wikipedia.org/w/index.php?search=Thomas%20Greene%20Ark%20and%20Dove%201634',
-    );
+    expect(labels(links)).toEqual(['Find on Wikipedia', 'FamilySearch (free account needed)']);
+    expect(links[0]?.url).toBe('https://en.wikipedia.org/w/index.php?search=Thomas%20Greene&go=Go');
   });
 
   it('always ends with a FamilySearch query, windowed on the birth year when known', () => {
