@@ -3,53 +3,65 @@
 
 export const PAGE_SIZE = 1000;
 
-/** Default number of page requests kept in flight for large tables. */
-export const PAGE_CONCURRENCY = 8;
-
 type PageResult<T> = { data: T[] | null; error: { message: string } | null };
 
+interface SeekableQuery {
+  gt(column: string, value: unknown): this;
+  or(filters: string): this;
+}
+
 /**
- * Drains a Supabase range-paginated query. Every tree-scale fetch in the
- * query engine goes through this one loop so the pagination contract
- * (page size, error wrapping, end-of-data detection) lives in one place.
+ * Filters a query to rows sorting strictly after `after`'s values on
+ * `columns`, in the same order the caller's `.order(...)` chain uses.
+ * PostgREST has no operator for a tuple comparison, so two or more columns
+ * compose the equivalent lexicographic OR-of-ANDs:
+ *   c1 > v1  OR  (c1 = v1 AND c2 > v2)  OR  (c1 = v1 AND c2 = v2 AND c3 > v3) ...
+ */
+export function seekAfter<Q extends SeekableQuery>(query: Q, columns: string[], after: unknown[]): Q {
+  if (columns.length === 1) return query.gt(columns[0]!, after[0]);
+  const clauses = columns.map((column, i) => {
+    const equalities = columns.slice(0, i).map((c, j) => `${c}.eq.${after[j]}`);
+    const parts = [...equalities, `${column}.gt.${after[i]}`];
+    return parts.length === 1 ? parts[0] : `and(${parts.join(',')})`;
+  });
+  return query.or(clauses.join(','));
+}
+
+/**
+ * Drains a Supabase query in keyset ("seek") pages: each page asks for rows
+ * after the last one the previous page returned, rather than an OFFSET.
  *
- * The first page is fetched alone: a tree that fits in one page — the common
- * case — costs exactly one round-trip, as before. Only once a full page comes
- * back (a large tree) do we fan out, requesting `concurrency` pages at a time
- * in parallel. A big tree's events table is ~30k rows / 30+ pages; fetching
- * those sequentially is dominated by round-trip latency (painful on cellular),
- * so parallelising collapses the wall-clock without changing the result:
- * pages are appended in range order, exactly as the sequential loop produced.
+ * OFFSET pagination (the old `.range(from, to)` approach) makes Postgres
+ * walk and discard every row before the offset on every single page, so
+ * total cost grows with the *square* of the table size. That was invisible
+ * at ordinary tree sizes but reliably blew the API role's 8s statement
+ * timeout on Rich Douglass's 61,773-person tree (158k individual_events
+ * rows): page ~150 alone took 2-3s of scan-and-discard before returning a
+ * single row, and "Tree Tools" (which load a whole tree at once) failed or
+ * hung as a result (2026-09-16). A keyset page costs the same regardless of
+ * how deep into the table it is, because it seeks by index instead of
+ * counting past rows.
+ *
+ * `buildQuery` receives the last row of the previous page (`null` for the
+ * first) and must return the query for rows strictly after it, in the same
+ * order as always -- ascending on whichever column(s) the caller filters by
+ * (a plain `.gt(column, after.column)` for one column; `seekAfter` for
+ * more), with `.limit(PAGE_SIZE)` instead of `.range(...)`. The ordered
+ * column(s) must be present in the selected row shape so the next page can
+ * read them back off.
  */
 export async function fetchAllPages<T>(
-  buildQuery: (from: number, to: number) => PromiseLike<PageResult<T>>,
+  buildQuery: (after: T | null) => PromiseLike<PageResult<T>>,
   errorPrefix: string,
-  options: { concurrency?: number } = {},
 ): Promise<T[]> {
-  const concurrency = Math.max(1, options.concurrency ?? PAGE_CONCURRENCY);
-  const page = (index: number) =>
-    Promise.resolve(buildQuery(index * PAGE_SIZE, index * PAGE_SIZE + PAGE_SIZE - 1));
-  const take = ({ data, error }: PageResult<T>): T[] => {
+  const rows: T[] = [];
+  let after: T | null = null;
+  for (;;) {
+    const { data, error } = await buildQuery(after);
     if (error) throw new Error(`${errorPrefix}: ${error.message}`);
-    return data ?? [];
-  };
-
-  // First page alone — one round-trip for the common single-page tree.
-  const first = take(await page(0));
-  const rows: T[] = [...first];
-  if (first.length < PAGE_SIZE) return rows;
-
-  // Full first page: a large tree. Fan out the rest in ordered parallel batches.
-  for (let base = 1; ; base += concurrency) {
-    const batch = await Promise.all(
-      Array.from({ length: concurrency }, (_, i) => page(base + i)),
-    );
-    let last = false;
-    for (const result of batch) {
-      const data = take(result);
-      rows.push(...data);
-      if (data.length < PAGE_SIZE) last = true; // short page → no rows beyond it exist
-    }
-    if (last) return rows;
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) return rows;
+    after = page[page.length - 1]!;
   }
 }

@@ -1,6 +1,6 @@
 import type { WitnessSupabaseClient } from '../supabase/client.js';
 import type { Database } from '../supabase/database.types.js';
-import { fetchAllPages } from '../supabase/paginate.js';
+import { fetchAllPages, PAGE_SIZE } from '../supabase/paginate.js';
 import { classifyPlace, regionOf } from './regions.js';
 
 /**
@@ -60,61 +60,76 @@ export async function fetchGeographyIndex(
 ): Promise<GeographyIndex> {
   const [placeRows, eventRows, individualRows, graveRows, confirmedRows] = await Promise.all([
     fetchAllPages<Omit<GeoPlace, 'region' | 'country'>>(
-      (from, to) =>
-        client
+      (after) => {
+        let q = client
           .from('places')
           .select('id, raw, parts, latitude, longitude')
           .eq('tree_id', treeId)
           .order('id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       'Fetching places failed',
     ),
-    fetchAllPages<{ individual_id: string; event_type: GeoEvent['eventType']; date_year: number | null; place_id: string | null }>(
-      (from, to) =>
-        client
+    fetchAllPages<{ id: string; individual_id: string; event_type: GeoEvent['eventType']; date_year: number | null; place_id: string | null }>(
+      (after) => {
+        let q = client
           .from('individual_events')
-          .select('individual_id, event_type, date_year, place_id')
+          .select('id, individual_id, event_type, date_year, place_id')
           .eq('tree_id', treeId)
           .order('id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       'Fetching events failed',
     ),
     fetchAllPages<GeoIndividual>(
-      (from, to) =>
-        client
+      (after) => {
+        let q = client
           .from('individuals')
           .select('id, full_name, surname, birth_year, death_year, living')
           .eq('tree_id', treeId)
           .order('id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       'Fetching individuals failed',
     ),
     // Filtered server-side: a tree's citations run to the tens of thousands,
     // but only the Find A Grave ones matter here. A failure yields an index
     // without links, never a broken map.
-    fetchAllPages<{ individual_id: string | null; url: string | null }>(
-      (from, to) =>
-        client
+    fetchAllPages<{ id: string; individual_id: string | null; url: string | null }>(
+      (after) => {
+        let q = client
           .from('citations')
-          .select('individual_id, url')
+          .select('id, individual_id, url')
           .eq('tree_id', treeId)
           .not('individual_id', 'is', null)
           .ilike('url', '%findagrave.com%')
           .order('id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       'Fetching grave links failed',
-    ).catch(() => [] as { individual_id: string | null; url: string | null }[]),
+    ).catch(() => [] as { id: string; individual_id: string | null; url: string | null }[]),
     // The user's own confirmed memorials — they override imported citations.
-    fetchAllPages<{ individual_id: string; url: string }>(
-      (from, to) =>
-        client
+    fetchAllPages<{ id: string; individual_id: string; url: string }>(
+      (after) => {
+        let q = client
           .from('grave_confirmations')
-          .select('individual_id, url')
+          .select('id, individual_id, url')
           .eq('tree_id', treeId)
           .order('id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       'Fetching grave confirmations failed',
-    ).catch(() => [] as { individual_id: string; url: string }[]),
+    ).catch(() => [] as { id: string; individual_id: string; url: string }[]),
   ]);
 
   const places = new Map<string, GeoPlace>();

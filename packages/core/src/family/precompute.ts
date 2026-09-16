@@ -10,7 +10,7 @@ import {
   type LinkQualifier,
   type RelationshipTier,
 } from './relationship.js';
-import { fetchAllPages } from '../supabase/paginate.js';
+import { fetchAllPages, PAGE_SIZE, seekAfter } from '../supabase/paginate.js';
 
 /**
  * The relationship precompute, kept free of app/server specifics so the
@@ -24,34 +24,43 @@ type DbClient = { from(table: string): any };
 export async function fetchFamilyGraph(client: DbClient, treeId: string): Promise<FamilyGraph> {
   const [individuals, families, familyChildren] = await Promise.all([
     fetchAllPages<GraphIndividualRow>(
-      (from, to) =>
-        client
+      (after) => {
+        let q = client
           .from('individuals')
           .select('id, full_name, sex, birth_year, death_year, living')
           .eq('tree_id', treeId)
           .order('id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       'Fetching individuals failed',
     ),
     fetchAllPages<GraphFamilyRow>(
-      (from, to) =>
-        client
+      (after) => {
+        let q = client
           .from('families')
           .select('id, husband_id, wife_id')
           .eq('tree_id', treeId)
           .order('id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       'Fetching families failed',
     ),
     fetchAllPages<GraphFamilyChildRow & { families: { tree_id: string } | null }>(
-      (from, to) =>
-        client
+      (after) => {
+        let q = client
           .from('family_children')
           .select('family_id, individual_id, father_relation, mother_relation, families!inner(tree_id)')
           .eq('families.tree_id', treeId)
           .order('family_id')
           .order('individual_id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = seekAfter(q, ['family_id', 'individual_id'], [after.family_id, after.individual_id]);
+        return q;
+      },
       'Fetching family children failed',
     ),
   ]);

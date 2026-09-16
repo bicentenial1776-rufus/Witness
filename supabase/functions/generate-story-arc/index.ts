@@ -28,7 +28,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk@0.65.0';
 
 import { requireCronSecret } from '../_shared/cron.ts';
-import { fetchAllPages } from '../_shared/family/paginate.ts';
+import { fetchAllPages, PAGE_SIZE, seekAfter } from '../_shared/family/paginate.ts';
 import {
   authenticate,
   checkDailyLimit,
@@ -77,6 +77,8 @@ interface SpouseRow {
 }
 
 interface EventRow {
+  /** Present when fetched from the database (the pagination cursor). */
+  id?: string;
   individual_id: string;
   event_type: string;
   date_year: number | null;
@@ -89,6 +91,10 @@ interface FamilyRow {
   husband_id: string | null;
   wife_id: string | null;
   marriage_date_year: number | null;
+}
+
+interface FetchedFamilyRow extends FamilyRow {
+  id: string;
 }
 
 /** One cached direct-ancestor row: who, how far up, and what to call them. */
@@ -156,8 +162,7 @@ const ARC_SCHEMA = {
 async function chunkedIn<T>(
   buildQuery: (
     ids: string[],
-    from: number,
-    to: number,
+    after: T | null,
   ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
   ids: string[],
   errorPrefix: string,
@@ -166,7 +171,7 @@ async function chunkedIn<T>(
   const out: T[] = [];
   for (let i = 0; i < ids.length; i += size) {
     const chunk = ids.slice(i, i + size);
-    out.push(...(await fetchAllPages<T>((from, to) => buildQuery(chunk, from, to), errorPrefix)));
+    out.push(...(await fetchAllPages<T>((after) => buildQuery(chunk, after), errorPrefix)));
   }
   return out;
 }
@@ -402,14 +407,17 @@ Deno.serve(async (req) => {
   let rels: RelRow[];
   try {
     rels = await fetchAllPages<RelRow>(
-      (from, to) =>
-        ctx.db
+      (after) => {
+        let q = ctx.db
           .from('relationships')
           .select('individual_id, generation_distance, label')
           .eq('tree_id', tree.id)
           .eq('is_direct_ancestor', true)
           .order('individual_id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('individual_id', after.individual_id);
+        return q;
+      },
       'Fetching relationships failed',
     );
   } catch (error) {
@@ -426,15 +434,18 @@ Deno.serve(async (req) => {
   const directIds = [...relByPerson.keys()];
   let parentRows: { individual_id: string }[];
   try {
-    parentRows = await chunkedIn<{ individual_id: string }>(
-      (ids, from, to) =>
-        ctx.db
+    parentRows = await chunkedIn<{ individual_id: string; family_id: string }>(
+      (ids, after) => {
+        let q = ctx.db
           .from('family_children')
-          .select('individual_id')
+          .select('individual_id, family_id')
           .in('individual_id', ids)
           .order('individual_id')
           .order('family_id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = seekAfter(q, ['individual_id', 'family_id'], [after.individual_id, after.family_id]);
+        return q;
+      },
       directIds,
       'Fetching parent links failed',
     );
@@ -558,39 +569,56 @@ Deno.serve(async (req) => {
   try {
     [peopleRows, eventRows, famRows] = await Promise.all([
       chunkedIn<PersonRow>(
-        (ids, from, to) =>
-          ctx.db
+        (ids, after) => {
+          let q = ctx.db
             .from('individuals')
             .select('id, full_name, birth_year, death_year, living')
             .in('id', ids)
             .order('id')
-            .range(from, to),
+            .limit(PAGE_SIZE);
+          if (after) q = q.gt('id', after.id);
+          return q;
+        },
         chainIds,
         'Fetching chain people failed',
       ),
+      // Seeks by id, not the display order (date_year, id): date_year can be
+      // null, and a null-safe seek isn't worth it when this is chunked to a
+      // ≤150-person chain and almost never leaves page one. Sorted by date
+      // below instead, once every row is in hand.
       chunkedIn<EventRow>(
-        (ids, from, to) =>
-          ctx.db
+        (ids, after) => {
+          let q = ctx.db
             .from('individual_events')
-            .select('individual_id, event_type, date_year, label, detail, places(raw)')
+            .select('id, individual_id, event_type, date_year, label, detail, places(raw)')
             .in('individual_id', ids)
-            .order('date_year', { ascending: true, nullsFirst: false })
             .order('id')
-            .range(from, to),
+            .limit(PAGE_SIZE);
+          if (after) q = q.gt('id', after.id);
+          return q;
+        },
         chainIds,
         'Fetching chain events failed',
       ),
-      fetchAllPages<FamilyRow>(
-        (from, to) =>
-          ctx.db
+      fetchAllPages<FetchedFamilyRow>(
+        (after) => {
+          let q = ctx.db
             .from('families')
-            .select('husband_id, wife_id, marriage_date_year')
+            .select('id, husband_id, wife_id, marriage_date_year')
             .eq('tree_id', tree.id)
             .order('id')
-            .range(from, to),
+            .limit(PAGE_SIZE);
+          if (after) q = q.gt('id', after.id);
+          return q;
+        },
         'Fetching families failed',
       ),
     ]);
+    eventRows.sort((a, b) => {
+      const ay = a.date_year ?? Number.MAX_SAFE_INTEGER;
+      const by = b.date_year ?? Number.MAX_SAFE_INTEGER;
+      return ay !== by ? ay - by : (a.id ?? '').localeCompare(b.id ?? '');
+    });
   } catch (error) {
     console.error('Arc record assembly failed:', error);
     return json(500, { error: 'Reading the line failed. Please try again.' });
@@ -606,13 +634,16 @@ Deno.serve(async (req) => {
   let spouseRows: SpouseRow[];
   try {
     spouseRows = await chunkedIn<SpouseRow>(
-      (ids, from, to) =>
-        ctx.db
+      (ids, after) => {
+        let q = ctx.db
           .from('individuals')
           .select('id, full_name, living')
           .in('id', ids)
           .order('id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       [...spouseIds],
       'Fetching spouses failed',
     );

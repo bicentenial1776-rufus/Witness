@@ -1,7 +1,7 @@
 import type { ParsedGedcom } from '../gedcom/index.js';
 import type { WitnessSupabaseClient } from '../supabase/client.js';
 import type { Database } from '../supabase/database.types.js';
-import { fetchAllPages } from '../supabase/paginate.js';
+import { fetchAllPages, PAGE_SIZE, seekAfter } from '../supabase/paginate.js';
 import { buildImportPayload } from '../supabase/transform.js';
 import { classifyPlace, regionOf } from './regions.js';
 
@@ -73,6 +73,8 @@ interface FamilyChildRow {
 }
 
 interface EventRow {
+  /** Present when fetched from the database (the pagination cursor); absent from a fresh GEDCOM parse. */
+  id?: string;
   individual_id: string;
   event_type: TreeEvent['eventType'];
   date_year: number | null;
@@ -207,50 +209,65 @@ export function childrenByParent(index: TreeIndex): Map<string, string[]> {
 export async function fetchTreeIndex(client: WitnessSupabaseClient, treeId: string): Promise<TreeIndex> {
   const [individuals, families, familyChildren, events, places] = await Promise.all([
     fetchAllPages<TreeIndividual>(
-      (from, to) =>
-        client
+      (after) => {
+        let q = client
           .from('individuals')
           .select('id, full_name, given_name, surname, sex, birth_year, death_year, living')
           .eq('tree_id', treeId)
           .order('id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       'Fetching individuals failed',
     ),
     fetchAllPages<FamilyRow>(
-      (from, to) =>
-        client
+      (after) => {
+        let q = client
           .from('families')
           .select('id, husband_id, wife_id, marriage_date_year, marriage_place_id')
           .eq('tree_id', treeId)
           .order('id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       'Fetching families failed',
     ),
     // family_children carries no tree_id; scope through the family join.
     fetchAllPages<FamilyChildRow>(
-      (from, to) =>
-        client
+      (after) => {
+        let q = client
           .from('family_children')
           .select('family_id, individual_id, birth_order, families!inner(tree_id)')
           .eq('families.tree_id', treeId)
           .order('family_id')
           .order('individual_id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = seekAfter(q, ['family_id', 'individual_id'], [after.family_id, after.individual_id]);
+        return q;
+      },
       'Fetching family children failed',
     ),
     fetchAllPages<EventRow>(
-      (from, to) =>
-        client
+      (after) => {
+        let q = client
           .from('individual_events')
-          .select('individual_id, event_type, date_year, place_id, date_confidence')
+          .select('id, individual_id, event_type, date_year, place_id, date_confidence')
           .eq('tree_id', treeId)
           .order('id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       'Fetching events failed',
     ),
     fetchAllPages<PlaceRow>(
-      (from, to) =>
-        client.from('places').select('id, raw, parts').eq('tree_id', treeId).order('id').range(from, to),
+      (after) => {
+        let q = client.from('places').select('id, raw, parts').eq('tree_id', treeId).order('id').limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       'Fetching places failed',
     ),
   ]);

@@ -1,6 +1,6 @@
 import type { WitnessSupabaseClient } from '../supabase/client.js';
 import type { Database } from '../supabase/database.types.js';
-import { fetchAllPages } from '../supabase/paginate.js';
+import { fetchAllPages, PAGE_SIZE, seekAfter } from '../supabase/paginate.js';
 
 /**
  * Tree Health: the forensic audit. Every check here is a pure function
@@ -136,6 +136,8 @@ export interface HealthIndividual {
 }
 
 export interface HealthEvent {
+  /** Present when fetched from the database (the pagination cursor). */
+  id?: string;
   individual_id: string;
   event_type: Database['public']['Enums']['individual_event_type'];
   date_year: number | null;
@@ -663,44 +665,56 @@ export async function fetchTreeHealthData(
 ): Promise<TreeHealthData> {
   const [individuals, events, familyRows, childRows] = await Promise.all([
     fetchAllPages<HealthIndividual>(
-      (from, to) =>
-        client
+      (after) => {
+        let q = client
           .from('individuals')
           .select('id, gedcom_xref, ancestry_uid, full_name, surname, sex, birth_year, death_year, living')
           .eq('tree_id', treeId)
           .order('id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       'Fetching individuals failed',
     ),
     fetchAllPages<HealthEvent>(
-      (from, to) =>
-        client
+      (after) => {
+        let q = client
           .from('individual_events')
-          .select('individual_id, event_type, date_year, date_month, date_day, date_qualifier, place_id')
+          .select('id, individual_id, event_type, date_year, date_month, date_day, date_qualifier, place_id')
           .eq('tree_id', treeId)
           .order('id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       'Fetching events failed',
     ),
     fetchAllPages<FamilyRow>(
-      (from, to) =>
-        client
+      (after) => {
+        let q = client
           .from('families')
           .select('id, husband_id, wife_id, marriage_date_year, marriage_date_month, marriage_date_day, marriage_date_qualifier')
           .eq('tree_id', treeId)
           .order('id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       'Fetching families failed',
     ),
     fetchAllPages<FamilyChildRow>(
-      (from, to) =>
-        client
+      (after) => {
+        let q = client
           .from('family_children')
           .select('family_id, individual_id, families!inner(tree_id)')
           .eq('families.tree_id', treeId)
           .order('family_id')
           .order('individual_id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = seekAfter(q, ['family_id', 'individual_id'], [after.family_id, after.individual_id]);
+        return q;
+      },
       'Fetching family children failed',
     ),
   ]);
