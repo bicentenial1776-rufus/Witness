@@ -29,7 +29,12 @@ export function SessionProvider({ children }: PropsWithChildren) {
     const { data: subscription } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       if (event === 'SIGNED_IN' && newSession) {
-        void logEvent(newSession.user.id, 'login', { platform: Platform.OS });
+        // isPad only means something on iOS — Platform.isPad is undefined
+        // elsewhere, same guard as useBroadsheet.
+        void logEvent(newSession.user.id, 'login', {
+          platform: Platform.OS,
+          ...(Platform.OS === 'ios' ? { isPad: Platform.isPad === true } : {}),
+        });
       }
     });
 
