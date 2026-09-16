@@ -198,6 +198,14 @@
       </div>
 
       <section>
+        <div class="sect-head"><h2>Platform</h2><span class="note" id="platform-note"></span></div>
+        <div class="panel">
+          <div id="platform-bars" style="margin-bottom:8px"></div>
+          <div class="sub" id="platform-callout"></div>
+        </div>
+      </section>
+
+      <section>
         <div class="sect-head"><h2>Import attempts</h2><span class="note" id="imports-note"></span></div>
         <div class="panel scroll"><table id="imports"></table></div>
       </section>
@@ -206,7 +214,7 @@
         <div>
           <h3>What is logged</h3>
           <ul>
-            <li><code>login</code> — a real sign-in (password, Apple, magic link). A restored session on app open is not one.</li>
+            <li><code>login</code> — a real sign-in (password, Apple, magic link). A restored session on app open is not one. Logins after the platform tag shipped also carry web / iPhone / iPad / Android, feeding the Platform section below.</li>
             <li><code>gedcom_import_completed</code> / <code>_failed</code> — file bytes, people, families, places, provider. A failure also carries the error and how far the import got; the tree it left behind is tagged <span class="tag failed">unfinished</span> above.</li>
             <li>Every AI call's model and tokens: biographies and context, story arcs, tree syntheses, research briefs, headstone reads, media readings.</li>
           </ul>
@@ -348,6 +356,40 @@
       const o = owners.get(t.user) || {}; const shared = memberCount.get(t.id);
       return `<tr class="${o.test ? 'dim' : ''}"><td>${esc(t.name)}${t.provider ? `<span class="tag">${esc(t.provider)}</span>` : ''}${shared ? `<span class="tag recent">shared · ${shared}</span>` : ''}${unfinished(t) ? '<span class="tag failed">unfinished</span>' : ''}</td><td class="muted">${esc((o.email || '?').replace(/@.*/, ''))}</td><td class="num">${fmt(t.people)}</td><td class="num">${mb(t.bytes)}</td><td class="muted">${t.imported ? new Date(t.imported).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</td></tr>`;
     }).join('');
+
+    // ---- platform: which surface each account has signed in from. Only
+    // logins after the platform tag shipped carry this — older ones have no
+    // `properties.platform` and fall into "not yet tagged" rather than
+    // guessing a value.
+    const loginPlatform = (e) => {
+      const p = e.properties || {};
+      if (!p.platform) return null;
+      return p.platform === 'ios' ? (p.isPad ? 'ipad' : 'iphone') : p.platform;
+    };
+    const platformsByUser = new Map();
+    for (const e of S.events || []) {
+      if (e.event_name !== 'login') continue;
+      const pf = loginPlatform(e);
+      if (!pf || (owners.get(e.user_id) || {}).test) continue;
+      const set = platformsByUser.get(e.user_id) || new Set();
+      set.add(pf);
+      platformsByUser.set(e.user_id, set);
+    }
+    const tally = { web: 0, iphone: 0, ipad: 0, android: 0, mixed: 0 };
+    for (const set of platformsByUser.values()) { set.size > 1 ? tally.mixed++ : tally[[...set][0]]++; }
+    const platRows = [['Web only', tally.web], ['iPhone only', tally.iphone], ['iPad only', tally.ipad], ['Android only', tally.android], ['More than one', tally.mixed]];
+    const maxP = Math.max(1, ...platRows.map((r) => r[1]));
+    const taggedCount = platformsByUser.size;
+    const untagged = real.length - taggedCount;
+    if (!taggedCount) {
+      $('platform-bars').innerHTML = '';
+      $('platform-note').textContent = '';
+      $('platform-callout').innerHTML = 'No tagged logins yet — this fills in once the platform tag reaches production and accounts sign in again.';
+    } else {
+      $('platform-bars').innerHTML = `<table>` + platRows.map(([l, n]) => `<tr><td style="width:130px" class="muted">${l}</td><td><div class="barcell"><span class="bar" style="width:${Math.max(2, 220 * n / maxP)}px;opacity:${n ? 1 : 0.35}"></span><span class="num">${n}</span></div></td></tr>`).join('') + `</table>`;
+      $('platform-note').textContent = `${fmt(taggedCount)} of ${fmt(real.length)} accounts tagged · ${fmt(untagged)} not yet`;
+      $('platform-callout').innerHTML = tally.web ? `<b>${fmt(tally.web)}</b> account${tally.web === 1 ? '' : 's'} ${tally.web === 1 ? 'has' : 'have'} only ever signed in on web.` : `No web-exclusive accounts among the tagged logins yet.`;
+    }
 
     // ---- import attempts: every completed or failed GEDCOM import, newest first
     const imports = (S.events || [])
