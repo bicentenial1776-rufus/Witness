@@ -55,7 +55,7 @@ describe('passengerVerificationLinks', () => {
     );
   });
 
-  it('opens a Banks row in the scanned book at the surname', () => {
+  it('opens a Banks row in the scanned book at the full name, as Banks writes it', () => {
     const links = passengerVerificationLinks(
       candidate({
         passengerName: 'Edward Winslow',
@@ -66,21 +66,23 @@ describe('passengerVerificationLinks', () => {
     );
     expect(links[0]).toEqual({
       label: 'Banks, Planters of the Commonwealth (archive.org)',
-      url: 'https://archive.org/details/plantersofcommon00bank?q=Winslow',
+      url: 'https://archive.org/details/plantersofcommon00bank?q=%22Edward%20Winslow%22',
     });
     expect(labels(links)).not.toContain('Find on Wikipedia');
   });
 
-  it('opens a Hotten row in the port register scan', () => {
-    const links = passengerVerificationLinks(
-      candidate({
-        passengerName: 'John King',
-        ship: 'Falcon',
-        arrivalYear: 1635,
-        source: 'John Camden Hotten, The Original Lists of Persons of Quality (1874) — Falcon (1635) register',
-      }),
-    );
-    expect(links[0]?.url).toBe('https://archive.org/details/originallistsofp00hott?q=King');
+  it('opens a Hotten row at the register line: surname and sworn age', () => {
+    const hotten = {
+      passengerName: 'John King',
+      ship: 'Falcon',
+      arrivalYear: 1635,
+      source: 'John Camden Hotten, The Original Lists of Persons of Quality (1874) — Falcon (1635) register',
+    };
+    // "Jo: KING 30" — the age the birth year was derived from.
+    const [withAge] = passengerVerificationLinks(candidate({ ...hotten, passengerBirthYear: 1605 }));
+    expect(withAge?.url).toBe('https://archive.org/details/originallistsofp00hott?q=%22King%2030%22');
+    const [noAge] = passengerVerificationLinks(candidate({ ...hotten, passengerBirthYear: null }));
+    expect(noAge?.url).toBe('https://archive.org/details/originallistsofp00hott?q=King');
   });
 
   it('falls back to a search only when the source names nothing linkable', () => {

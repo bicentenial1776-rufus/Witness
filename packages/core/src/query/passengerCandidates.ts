@@ -140,19 +140,34 @@ const WIKIPEDIA_TITLE = /Wikipedia, "([^"]+)"/g;
 
 /**
  * Public-domain transcriptions scanned at archive.org. The reader opens
- * on the first hit for `?q=`, so a surname query lands on the page where
- * the list names the person.
+ * on the first hit for `?q=`, and a quoted phrase finds the line rather
+ * than every page the word appears on — each book gets the phrase its
+ * lines are actually written in.
  */
-const SCANNED_BOOKS = [
+const SCANNED_BOOKS: {
+  pattern: RegExp;
+  archiveId: string;
+  label: string;
+  query: (candidate: PassengerCandidate, givenNames: string, surname: string) => string;
+}[] = [
   {
     pattern: /Planters of the Commonwealth/i,
     archiveId: 'plantersofcommon00bank',
     label: 'Banks, Planters of the Commonwealth',
+    // Banks writes names in full at the head of a line.
+    query: (_candidate, givenNames, surname) => (givenNames ? `"${givenNames} ${surname}"` : surname),
   },
   {
     pattern: /Original Lists of Persons of Quality/i,
     archiveId: 'originallistsofp00hott',
     label: 'Hotten, Original Lists of Persons of Quality',
+    // The registers abbreviate given names (Jo: for John) but end every
+    // line with the sworn age — and that age is where the row's birth
+    // year came from, so surname-and-age finds the line itself.
+    query: (candidate, _givenNames, surname) =>
+      candidate.passengerBirthYear
+        ? `"${surname} ${candidate.arrivalYear - candidate.passengerBirthYear}"`
+        : surname,
   },
 ];
 
@@ -188,9 +203,10 @@ export function passengerVerificationLinks(candidate: PassengerCandidate): Verif
 
   for (const book of SCANNED_BOOKS) {
     if (!book.pattern.test(candidate.source)) continue;
+    const query = book.query(candidate, givenNames, surname || candidate.passengerName);
     links.push({
       label: `${book.label} (archive.org)`,
-      url: `https://archive.org/details/${book.archiveId}?q=${encodeURIComponent(surname || candidate.passengerName)}`,
+      url: `https://archive.org/details/${book.archiveId}?q=${encodeURIComponent(query)}`,
     });
   }
 

@@ -47,7 +47,7 @@ function eraSentence(year: number): string {
 
 function provenanceSentence(source: string): string {
   if (/Hotten/i.test(source))
-    return 'The names here come from the London port registers — the certificates emigrants swore before sailing, with their ages — transcribed from the Public Record Office by John Camden Hotten in 1874.';
+    return 'The names here come from the London port registers — the certificates emigrants swore before sailing, with their ages — transcribed from the Public Record Office by John Camden Hotten in 1874. The clerks abbreviated given names as they wrote (Jo: for John, Tho: for Thomas, Wm for William) and set each person’s sworn age at the end of the line.';
   if (/Banks/i.test(source))
     return 'The names here come from Charles Edward Banks’s 1930 reconstruction from colonial records — his judgment of who sailed, usually without dates, compiled three centuries after the fact.';
   if (/land patent/i.test(source))
