@@ -136,30 +136,72 @@ export interface VerificationLink {
 }
 
 const WIKIDATA_QID = /\bQ\d+\b/;
+const WIKIPEDIA_TITLE = /Wikipedia, "([^"]+)"/g;
 
 /**
- * Where a human can go check a candidate before ruling on it — search
- * links, not citations. The matcher never claims a passenger fact is
- * true, so the card cannot link to "the" source; it links to the places
- * a researcher would actually look, built from what the row already
- * carries (name, ship, year, and — when the transcription named one — a
- * Wikidata item that resolves straight to its Wikipedia article).
+ * Public-domain transcriptions scanned at archive.org. The reader opens
+ * on the first hit for `?q=`, so a surname query lands on the page where
+ * the list names the person.
+ */
+const SCANNED_BOOKS = [
+  {
+    pattern: /Planters of the Commonwealth/i,
+    archiveId: 'plantersofcommon00bank',
+    label: 'Banks, Planters of the Commonwealth',
+  },
+  {
+    pattern: /Original Lists of Persons of Quality/i,
+    archiveId: 'originallistsofp00hott',
+    label: 'Hotten, Original Lists of Persons of Quality',
+  },
+];
+
+/**
+ * Where a human can go check a candidate before ruling on it. The source
+ * line already says where a row came from; this reads it and links to
+ * that page — the person's own Wikipedia article, the list they appear
+ * on, the scanned book opened to their surname — and falls back to a
+ * search only when the source names nothing linkable. A search result is
+ * a place to start looking; the source is where the claim lives.
  */
 export function passengerVerificationLinks(candidate: PassengerCandidate): VerificationLink[] {
   const links: VerificationLink[] = [];
+  const { givenNames, surname } = splitName(candidate.passengerName);
 
+  // Wikidata resolves an item straight to its English Wikipedia article.
   const qid = candidate.source.match(WIKIDATA_QID)?.[0];
   if (qid) {
-    links.push({ label: 'Wikidata record', url: `https://www.wikidata.org/wiki/${qid}` });
+    links.push({
+      label: 'Wikipedia article',
+      url: `https://www.wikidata.org/wiki/Special:GoToLinkedPage/enwiki/${qid}`,
+    });
   }
 
-  const query = `${candidate.passengerName} ${candidate.ship} ${candidate.arrivalYear}`;
-  links.push({
-    label: 'Search Wikipedia',
-    url: `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(query)}`,
-  });
+  for (const match of candidate.source.matchAll(WIKIPEDIA_TITLE)) {
+    const title = match[1];
+    if (!title) continue;
+    links.push({
+      label: `Wikipedia: ${title}`,
+      url: `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`,
+    });
+  }
 
-  const { givenNames, surname } = splitName(candidate.passengerName);
+  for (const book of SCANNED_BOOKS) {
+    if (!book.pattern.test(candidate.source)) continue;
+    links.push({
+      label: `${book.label} (archive.org)`,
+      url: `https://archive.org/details/${book.archiveId}?q=${encodeURIComponent(surname || candidate.passengerName)}`,
+    });
+  }
+
+  if (links.length === 0) {
+    const query = `${candidate.passengerName} ${candidate.ship} ${candidate.arrivalYear}`;
+    links.push({
+      label: 'Search Wikipedia',
+      url: `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(query)}`,
+    });
+  }
+
   const familySearchParams: string[] = [];
   if (givenNames) familySearchParams.push(`q.givenName=${encodeURIComponent(givenNames)}`);
   if (surname) familySearchParams.push(`q.surname=${encodeURIComponent(surname)}`);
@@ -168,13 +210,8 @@ export function passengerVerificationLinks(candidate: PassengerCandidate): Verif
     familySearchParams.push(`q.birthLikeDate.to=${candidate.passengerBirthYear + 2}`);
   }
   links.push({
-    label: 'Search FamilySearch',
+    label: 'FamilySearch (free account needed)',
     url: `https://www.familysearch.org/search/record/results?${familySearchParams.join('&')}`,
-  });
-
-  links.push({
-    label: 'Search Great Migration / American Ancestors',
-    url: `https://www.google.com/search?q=${encodeURIComponent(`${query} site:americanancestors.org`)}`,
   });
 
   return links;
