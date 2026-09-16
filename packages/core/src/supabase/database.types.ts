@@ -1052,6 +1052,48 @@ export type Database = {
           },
         ]
       }
+      individual_notes: {
+        Row: {
+          content: string
+          id: string
+          individual_id: string
+          position: number
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          id?: string
+          individual_id: string
+          position?: number
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          id?: string
+          individual_id?: string
+          position?: number
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "individual_notes_individual_id_fkey"
+            columns: ["individual_id"]
+            isOneToOne: false
+            referencedRelation: "individuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "individual_notes_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       individuals: {
         Row: {
           ancestry_apid: string | null

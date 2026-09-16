@@ -40,7 +40,7 @@ function parseDetailedEvent(
   shared: SharedRecords,
 ): GedcomEvent | undefined {
   const base = parseEvent(node, places, shared) ?? {};
-  const label = value(node, 'TYPE');
+  const label = decodeLabel(value(node, 'TYPE'));
   const noteNode = child(node, 'NOTE') ?? child(node, 'SNOTE');
   const detail = node.value.trim() || (noteNode ? resolveNote(noteNode, shared) : undefined);
   if (!base.date && !base.placeId && !label && !detail) return undefined;
@@ -49,6 +49,25 @@ function parseDetailedEvent(
     label,
     detail: detail || undefined,
   };
+}
+
+/**
+ * Some exports write a custom fact's TYPE URL-encoded — "Death+of+sister+",
+ * "Will%2FProbate" (Rich Douglass's PAF file, 2026-09-16). Decode only what
+ * looks encoded, and never let a stray "%" fail an import.
+ */
+function decodeLabel(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  if (!/%[0-9A-Fa-f]{2}|\+/.test(raw)) return raw;
+  const spaced = raw.replace(/\+/g, ' ');
+  let decoded = spaced;
+  try {
+    decoded = decodeURIComponent(spaced);
+  } catch {
+    // A "%" that is not an escape: keep the text as it stands.
+  }
+  const trimmed = decoded.replace(/\s+/g, ' ').trim();
+  return trimmed || undefined;
 }
 
 function parseName(nameNode: GedcomNode | undefined): IndividualName {

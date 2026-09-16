@@ -752,7 +752,21 @@ export async function applyRefresh(
 async function retireTree(supabase: WitnessSupabaseClient, treeId: string): Promise<boolean> {
   // ~40 calls for a 5,000-person tree; the ceiling is a runaway guard, and
   // falling out of the loop counts as not done rather than as success.
-  for (let i = 0; i < 400; i++) {
+  // Sized to the tree the way you.tsx sizes it (2026-09-15): a flat 400
+  // stopped short of the ~420 a 61,773-person tree needs.
+  const { data: tree } = await supabase
+    .from('trees')
+    .select('individual_count, family_count, place_count')
+    .eq('id', treeId)
+    .maybeSingle();
+  const maxCalls = Math.max(
+    400,
+    Math.ceil((tree?.individual_count ?? 0) / 400) +
+      Math.ceil((tree?.family_count ?? 0) / 500) +
+      Math.ceil((tree?.place_count ?? 0) / 200) +
+      60,
+  );
+  for (let i = 0; i < maxCalls; i++) {
     const { data, error } = await supabase.rpc('delete_tree_batch', { p_tree_id: treeId });
     if (error) return false;
     if ((data as { done?: boolean } | null)?.done) return true;

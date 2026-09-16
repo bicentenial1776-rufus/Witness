@@ -543,6 +543,10 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // "this record isn't here anymore".
   const [unreachable, setUnreachable] = useState(false);
   const [events, setEvents] = useState<EventRow[]>([]);
+  // The file's own notes on this person (imported-notes brief, 2026-09-16):
+  // read-only, in the file's order, part of the record — so companions
+  // read them too, unlike Betsey's box.
+  const [fileNotes, setFileNotes] = useState<string[]>([]);
   const [parents, setParents] = useState<RegisterPerson[]>([]);
   const [siblings, setSiblings] = useState<RegisterPerson[]>([]);
   const [marriages, setMarriages] = useState<Marriage[]>([]);
@@ -900,6 +904,19 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
         .returns<CitationRow[]>()
         .then(({ data }) => {
           if (!cancelled && data) setSources(groupCitations(data));
+        });
+
+      // What the file said about this person, in its own order. Page-scoped,
+      // never through the tree index. A database without the table (an
+      // app ahead of its migration) errors and the block stays hidden.
+      setFileNotes([]);
+      supabase
+        .from('individual_notes')
+        .select('content, position')
+        .eq('individual_id', id)
+        .order('position')
+        .then(({ data }) => {
+          if (!cancelled && data) setFileNotes(data.map((row) => row.content));
         });
 
       // The user's own confirmed memorial, if they've verified one.
@@ -2203,6 +2220,10 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                       {STORY_SHARE_LABEL}
                     </ThemedText>
                   )}
+                  {/* The file's voice, then the reader's: what the GEDCOM
+                      said about this person sits above Betsey's box, and is
+                      never fed to the story writer. */}
+                  {fileNotes.length > 0 && <FileNotes notes={fileNotes} theme={theme} />}
                   {/* Betsey's box, below the story — also present before one
                       exists, since lore doesn't wait for the writer. The
                       owner's margin, not a companion's. */}
@@ -2374,6 +2395,15 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 </View>
               </View>
             </>
+          ) : fileNotes.length > 0 ? (
+            /* A living person has no story panel; the file's notes still
+               belong on the page (owner-gated already, and share links
+               never carry them). */
+            <View style={{ marginTop: 2 }}>
+              <Panel theme={theme} label="From your file">
+                <FileNotes notes={fileNotes} theme={theme} bare />
+              </Panel>
+            </View>
           ) : null}
 
           {/* The record reads for everyone — living, offline, all of it. */}
@@ -2866,6 +2896,83 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
 }
 
 /** The inline expander card: amber-edged tint panel that opens in place. */
+/** Roughly eight serif lines before a long note asks to be opened. */
+const FILE_NOTE_CLAMP_LINES = 8;
+const FILE_NOTE_CLAMP_CHARS = 640;
+
+/**
+ * "From your file": the person-level notes the GEDCOM carried, read-only,
+ * in the file's order, one hairline between notes. Long notes clamp with
+ * a "Read the rest ›" toggle — some run to pages. `bare` drops the eyebrow
+ * when a Panel already supplies it.
+ */
+function FileNotes({
+  notes,
+  theme,
+  bare = false,
+}: {
+  notes: string[];
+  theme: ReturnType<typeof useTheme>;
+  bare?: boolean;
+}) {
+  const [open, setOpen] = useState<Set<number>>(() => new Set());
+  return (
+    <View style={{ marginTop: bare ? 0 : 10, gap: 10 }}>
+      {!bare && (
+        <Text
+          style={{
+            fontFamily: Fonts.mono,
+            fontSize: 12.5,
+            letterSpacing: 1.6,
+            textTransform: 'uppercase',
+            color: theme.accent,
+          }}
+        >
+          From your file
+        </Text>
+      )}
+      {notes.map((note, index) => {
+        const expanded = open.has(index);
+        const long = note.length > FILE_NOTE_CLAMP_CHARS;
+        return (
+          <View
+            key={index}
+            style={{
+              gap: 6,
+              paddingTop: index === 0 ? 0 : 10,
+              borderTopWidth: index === 0 ? 0 : 1,
+              borderTopColor: theme.border,
+            }}
+          >
+            <Text
+              numberOfLines={long && !expanded ? FILE_NOTE_CLAMP_LINES : undefined}
+              style={{ fontFamily: Fonts.serif, fontSize: 15.5, lineHeight: 23, color: theme.text }}
+            >
+              {note}
+            </Text>
+            {long && (
+              <Text
+                accessibilityRole="button"
+                onPress={() =>
+                  setOpen((current) => {
+                    const next = new Set(current);
+                    if (next.has(index)) next.delete(index);
+                    else next.add(index);
+                    return next;
+                  })
+                }
+                style={{ fontFamily: Fonts.mono, fontSize: 13, color: theme.accent }}
+              >
+                {expanded ? 'Show less ▴' : 'Read the rest ›'}
+              </Text>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 function Panel({
   theme,
   label,

@@ -126,6 +126,43 @@ describe('buildImportPayload', () => {
     });
   });
 
+  it('emits the person’s notes from the file as individual_notes rows, in file order', () => {
+    const enrichedText = fixtureText.replace(
+      '1 BURI',
+      [
+        '1 NOTE First note, inline.',
+        '2 CONT Second line of the first note.',
+        '1 NOTE @N1@',
+        '1 BURI',
+      ].join('\n'),
+    ).replace('0 TRLR', '0 @N1@ NOTE A shared note record.\n0 TRLR');
+    const payload = buildImportPayload(parseGedcom(enrichedText, 'sample.ged'), { userId: USER_ID });
+    const john = payload.individuals.find((i) => i.gedcom_xref === 'I1')!;
+    const notes = payload.individualNotes.filter((n) => n.individual_id === john.id);
+
+    expect(notes.map((n) => n.position)).toEqual([0, 1]);
+    expect(notes[0]).toMatchObject({
+      tree_id: payload.tree.id,
+      user_id: USER_ID,
+      content: 'First note, inline.\nSecond line of the first note.',
+    });
+    expect(notes[1]).toMatchObject({ content: 'A shared note record.' });
+    expect(notes.every((n) => typeof n.id === 'string' && n.id.length > 0)).toBe(true);
+  });
+
+  it('decodes a URL-encoded custom-fact label', () => {
+    const enrichedText = fixtureText.replace(
+      '1 BURI',
+      ['1 EVEN', '2 TYPE Death+of+sister+', '1 EVEN', '2 TYPE Will%2FProbate', '1 BURI'].join('\n'),
+    );
+    const payload = buildImportPayload(parseGedcom(enrichedText, 'sample.ged'), { userId: USER_ID });
+    const john = payload.individuals.find((i) => i.gedcom_xref === 'I1')!;
+    const labels = payload.individualEvents
+      .filter((e) => e.individual_id === john.id && e.event_type === 'custom')
+      .map((e) => e.label);
+    expect(labels).toEqual(['Death of sister', 'Will/Probate']);
+  });
+
   it('drops Family Tree Maker’s literal "(null)" from citation text, page, and url', () => {
     const ftmText = [
       '0 HEAD',

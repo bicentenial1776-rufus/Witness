@@ -5,6 +5,7 @@ type TreeInsert = Database['public']['Tables']['trees']['Insert'];
 type PlaceInsert = Database['public']['Tables']['places']['Insert'];
 type IndividualInsert = Database['public']['Tables']['individuals']['Insert'];
 type IndividualEventInsert = Database['public']['Tables']['individual_events']['Insert'];
+type IndividualNoteInsert = Database['public']['Tables']['individual_notes']['Insert'];
 type FamilyInsert = Database['public']['Tables']['families']['Insert'];
 type FamilyChildInsert = Database['public']['Tables']['family_children']['Insert'];
 type CuriosityInsert = Database['public']['Tables']['curiosities']['Insert'];
@@ -30,6 +31,8 @@ export interface ImportPayload {
   places: PlaceInsert[];
   individuals: IndividualInsert[];
   individualEvents: IndividualEventInsert[];
+  /** Person-level NOTE / SNOTE text from the file, in the file's order. */
+  individualNotes: IndividualNoteInsert[];
   families: FamilyInsert[];
   familyChildren: FamilyChildInsert[];
   curiosities: CuriosityInsert[];
@@ -130,6 +133,7 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
 
   const individuals: IndividualInsert[] = [];
   const individualEvents: IndividualEventInsert[] = [];
+  const individualNotes: IndividualNoteInsert[] = [];
   const mediaAttachments: MediaAttachment[] = [];
 
   const pushEvent = (...args: Parameters<typeof toIndividualEvent>) => {
@@ -142,6 +146,18 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
 
   for (const individual of parsed.individuals.values()) {
     const individualId = individualIdMap.get(individual.id)!;
+    // The file's notes on this person, in the file's order. Ids are minted
+    // here so a batch resent after a lost connection lands once.
+    individual.notes.forEach((content, position) => {
+      individualNotes.push({
+        id: generateId(),
+        tree_id: treeId,
+        user_id: userId,
+        individual_id: individualId,
+        position,
+        content,
+      });
+    });
     individuals.push({
       id: individualId,
       tree_id: treeId,
@@ -407,6 +423,7 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
     places,
     individuals,
     individualEvents,
+    individualNotes,
     families,
     familyChildren,
     curiosities,

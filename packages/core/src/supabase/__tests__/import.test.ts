@@ -70,6 +70,23 @@ describe('importParsedGedcom', () => {
     });
   });
 
+  it('writes the file’s notes after the people they belong to', async () => {
+    const noted = parseGedcom(
+      readFileSync(fixturePath, 'utf-8').replace('1 BURI', '1 NOTE Kept from the file.\n1 BURI'),
+      'sample.ged',
+    );
+    const { client, sent } = fakeClient();
+    await importParsedGedcom(client, noted, options);
+
+    const order = sent.map((s) => s.table);
+    const notesAt = order.indexOf('individual_notes');
+    expect(notesAt).toBeGreaterThan(order.lastIndexOf('individuals'));
+    expect(notesAt).toBeLessThan(order.indexOf('families'));
+    expect(batches(sent, 'individual_notes').flatMap((b) => b.rows)).toEqual([
+      expect.objectContaining({ content: 'Kept from the file.', position: 0 }),
+    ]);
+  });
+
   it('resends a batch after a lost connection and still finishes', async () => {
     const { client, sent } = fakeClient({ individuals: [NETWORK_LOST] });
     await importParsedGedcom(client, parsed, options);

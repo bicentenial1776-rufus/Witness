@@ -113,6 +113,34 @@ describe('occupation, custom event, and probate facts', () => {
     expect(john.probate?.date).toMatchObject({ year: 1920 });
   });
 
+  it('decodes a URL-encoded TYPE and leaves a plain one alone', () => {
+    const text = fixtureText.replace(
+      '1 BURI',
+      [
+        '1 EVEN',
+        '2 TYPE Death+of+sister+',
+        '1 EVEN',
+        '2 TYPE Will%2FProbate',
+        '1 EVEN',
+        '2 TYPE 100% sure',
+        '1 EVEN',
+        '2 TYPE Plain label',
+        '1 BURI',
+      ].join('\n'),
+    );
+    const parsed = parseGedcom(text, 'sample.ged');
+    const labels = parsed.individuals.get('I1')!.customEvents.map((e) => e.label);
+    expect(labels).toEqual(['Death of sister', 'Will/Probate', '100% sure', 'Plain label']);
+  });
+
+  it('keeps the person’s notes, inline and shared, in file order', () => {
+    const text = fixtureText
+      .replace('1 BURI', '1 NOTE Inline note.\n2 CONT Its second line.\n1 NOTE @N1@\n1 BURI')
+      .replace('0 TRLR', '0 @N1@ NOTE Shared note.\n0 TRLR');
+    const parsed = parseGedcom(text, 'sample.ged');
+    expect(parsed.individuals.get('I1')!.notes).toEqual(['Inline note.\nIts second line.', 'Shared note.']);
+  });
+
   it('drops an EVEN with no type, payload, date, or place', () => {
     const emptyText = fixtureText.replace('1 BURI', '1 EVEN\n1 BURI');
     const parsed = parseGedcom(emptyText, 'sample.ged');
