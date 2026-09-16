@@ -19,7 +19,7 @@ import {
   corsHeaders,
   json,
 } from '../_shared/enrich.ts';
-import { fetchAllPages } from '../_shared/family/paginate.ts';
+import { fetchAllPages, PAGE_SIZE, seekAfter } from '../_shared/family/paginate.ts';
 
 const MODEL = 'claude-opus-5';
 const PROMPT_VERSION = 2;
@@ -56,8 +56,7 @@ const ESSAY_SCHEMA = {
 async function chunkedIn<T>(
   buildQuery: (
     ids: string[],
-    from: number,
-    to: number,
+    after: T | null,
   ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
   ids: string[],
   errorPrefix: string,
@@ -66,7 +65,7 @@ async function chunkedIn<T>(
   const out: T[] = [];
   for (let i = 0; i < ids.length; i += size) {
     const chunk = ids.slice(i, i + size);
-    out.push(...(await fetchAllPages<T>((from, to) => buildQuery(chunk, from, to), errorPrefix)));
+    out.push(...(await fetchAllPages<T>((after) => buildQuery(chunk, after), errorPrefix)));
   }
   return out;
 }
@@ -88,6 +87,8 @@ interface SynthPersonRow {
 }
 
 interface SynthEventRow {
+  /** Present when fetched from the database (the pagination cursor). */
+  id?: string;
   individual_id: string;
   event_type: string;
   date_year: number | null;
@@ -141,14 +142,17 @@ Deno.serve(async (req) => {
   let parentRows: { individual_id: string }[];
   try {
     rels = await fetchAllPages<SynthRelRow>(
-      (from, to) =>
-        ctx.db
+      (after) => {
+        let q = ctx.db
           .from('relationships')
           .select('individual_id, generation_distance, label')
           .eq('tree_id', tree.id)
           .eq('is_direct_ancestor', true)
           .order('individual_id')
-          .range(from, to),
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('individual_id', after.individual_id);
+        return q;
+      },
       'Fetching relationships failed',
     );
   } catch (error) {
@@ -164,38 +168,47 @@ Deno.serve(async (req) => {
   try {
     [people, events, parentRows] = await Promise.all([
       chunkedIn<SynthPersonRow>(
-        (chunk, from, to) =>
-          ctx.db
+        (chunk, after) => {
+          let q = ctx.db
             .from('individuals')
             .select('id, full_name, surname, birth_year, death_year, living')
             .in('id', chunk)
             .order('id')
-            .range(from, to),
+            .limit(PAGE_SIZE);
+          if (after) q = q.gt('id', after.id);
+          return q;
+        },
         ids,
         'Fetching ancestors failed',
       ),
       chunkedIn<SynthEventRow>(
-        (chunk, from, to) =>
-          ctx.db
+        (chunk, after) => {
+          let q = ctx.db
             .from('individual_events')
-            .select('individual_id, event_type, date_year, places(raw)')
+            .select('id, individual_id, event_type, date_year, places(raw)')
             .in('individual_id', chunk)
             .order('individual_id')
             .order('id')
-            .range(from, to),
+            .limit(PAGE_SIZE);
+          if (after) q = seekAfter(q, ['individual_id', 'id'], [after.individual_id, after.id]);
+          return q;
+        },
         ids,
         'Fetching ancestor events failed',
         100,
       ),
-      chunkedIn<{ individual_id: string }>(
-        (chunk, from, to) =>
-          ctx.db
+      chunkedIn<{ individual_id: string; family_id: string }>(
+        (chunk, after) => {
+          let q = ctx.db
             .from('family_children')
-            .select('individual_id')
+            .select('individual_id, family_id')
             .in('individual_id', chunk)
             .order('individual_id')
             .order('family_id')
-            .range(from, to),
+            .limit(PAGE_SIZE);
+          if (after) q = seekAfter(q, ['individual_id', 'family_id'], [after.individual_id, after.family_id]);
+          return q;
+        },
         ids,
         'Fetching parent links failed',
       ),

@@ -1,5 +1,5 @@
 import type { WitnessSupabaseClient } from '../supabase/client.js';
-import { fetchAllPages } from '../supabase/paginate.js';
+import { fetchAllPages, PAGE_SIZE } from '../supabase/paginate.js';
 import { fetchTreeHealthData, type HealthFamily, type HealthIndividual, type TreeHealthData } from './treeHealth.js';
 
 /**
@@ -279,8 +279,11 @@ export async function fetchOrphanBundle(
   const [data, places] = await Promise.all([
     fetchTreeHealthData(client, treeId),
     fetchAllPages<{ id: string; raw: string }>(
-      (from, to) =>
-        client.from('places').select('id, raw').eq('tree_id', treeId).order('id').range(from, to),
+      (after) => {
+        let q = client.from('places').select('id, raw').eq('tree_id', treeId).order('id').limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
       'Fetching places failed',
     ),
   ]);

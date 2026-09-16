@@ -1,5 +1,5 @@
 import type { WitnessSupabaseClient } from '../supabase/client.js';
-import { fetchAllPages } from '../supabase/paginate.js';
+import { fetchAllPages, PAGE_SIZE } from '../supabase/paginate.js';
 
 /**
  * Temporal query: who in a tree was alive during a year range?
@@ -115,21 +115,22 @@ export async function aliveDuring(
   // Known birth year: born by the end of the range, not known to have died
   // before it began. (A null birth_year never satisfies lte, so these are
   // exactly the birth-documented candidates.)
-  const withBirth = await fetchAllPages<AliveCandidate>((from, to) =>
-    client
+  const withBirth = await fetchAllPages<AliveCandidate>((after) => {
+    let q = client
       .from('individuals')
       .select(CANDIDATE_COLUMNS)
       .eq('tree_id', treeId)
       .lte('birth_year', endYear)
       .or(`death_year.gte.${startYear},death_year.is.null`)
       .order('id')
-      .range(from, to),
-    'Temporal query failed',
-  );
+      .limit(PAGE_SIZE);
+    if (after) q = q.gt('id', after.id);
+    return q;
+  }, 'Temporal query failed');
 
   // Unknown birth year: place them by death year within an assumed lifespan.
-  const birthUnknown = await fetchAllPages<AliveCandidate>((from, to) =>
-    client
+  const birthUnknown = await fetchAllPages<AliveCandidate>((after) => {
+    let q = client
       .from('individuals')
       .select(CANDIDATE_COLUMNS)
       .eq('tree_id', treeId)
@@ -137,9 +138,10 @@ export async function aliveDuring(
       .gte('death_year', startYear)
       .lte('death_year', endYear + MAX_LIFESPAN_YEARS)
       .order('id')
-      .range(from, to),
-    'Temporal query failed',
-  );
+      .limit(PAGE_SIZE);
+    if (after) q = q.gt('id', after.id);
+    return q;
+  }, 'Temporal query failed');
 
   const matches: AliveMatch[] = [];
   for (const person of [...withBirth, ...birthUnknown]) {
