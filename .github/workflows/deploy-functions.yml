@@ -1,0 +1,59 @@
+name: Deploy edge functions
+
+# Manual deploy of Supabase Edge Functions from the selected ref, so a
+# function can ship from any machine — or none (the deploy-web recipe,
+# applied to supabase/functions). Requires a SUPABASE_ACCESS_TOKEN
+# repository secret (supabase.com → Account → Access Tokens). Per-function
+# settings — above all verify_jwt for the functions that answer webhooks
+# and cron without a user token — come from supabase/config.toml, exactly
+# as a laptop deploy reads them; a function missing from that file deploys
+# with verify_jwt ON, so pin every no-JWT function there before deploying it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      functions:
+        description: 'Function names, space-separated (blank = every function under supabase/functions)'
+        type: string
+        default: ''
+
+concurrency:
+  group: deploy-functions
+  cancel-in-progress: false
+
+env:
+  SUPABASE_PROJECT_REF: bdjsahbjptpcmouqozvs
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy
+        run: |
+          set -euo pipefail
+          NAMES="${{ inputs.functions }}"
+          if [ -z "$NAMES" ]; then
+            # Every function directory; _shared holds code, not a function.
+            NAMES=$(find supabase/functions -mindepth 1 -maxdepth 1 -type d -not -name '_*' -exec basename {} \; | sort | tr '\n' ' ')
+          fi
+          echo "Deploying: $NAMES" >> "$GITHUB_STEP_SUMMARY"
+          # shellcheck disable=SC2086
+          supabase functions deploy $NAMES --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Record what is live
+        run: |
+          set -euo pipefail
+          {
+            echo '```'
+            supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -97,6 +97,14 @@ Gotchas encoded in the repo:
 - **Prebuild once silently dropped the GEDCOM registration** from the generated Info.plist (after a prebuild whose pod install crashed midway). Since `ios/` is gitignored the loss was invisible. `plugins/with-gedcom-guard.js` (registered in `app.json → plugins`) injects an Xcode build phase that fails any build whose product Info.plist lacks `CFBundleDocumentTypes` — the regression now breaks the build loudly.
 - Build numbers are global per app in ASC; builds 1–3 (Jul 5–6) were pre-paywall, build 5 is the submitted one. Always bump past the highest ASC build.
 
+**Edge functions** deploy from a laptop with `supabase functions deploy <name…>`,
+or from anywhere via Actions → "Deploy edge functions" (`.github/workflows/
+deploy-functions.yml`, needs the `SUPABASE_ACCESS_TOKEN` repository secret;
+blank input deploys every function). Either path reads per-function settings
+from `supabase/config.toml` — a function that answers cron or webhooks without
+a user token must be pinned there with `verify_jwt = false`, or a deploy
+silently turns verification on.
+
 **App Store Connect API automation:** key id `3L6KTSQN4U`, issuer `427db4cd-26c0-4ced-9018-afc702a28277`, private key at `~/.appstoreconnect/private_keys/AuthKey_3L6KTSQN4U.p8` (never committed). JWTs must expire ≤ 20 minutes out or Apple rejects them. This key can read/patch nearly all metadata (subscription localizations, intro offers, privacy URL, category, review details, build attachment) — but **cannot** create/cancel review submissions, add subscription items to submissions, or answer the App Privacy questionnaire (UI-only, Admin role).
 
 ## Supabase (project `bdjsahbjptpcmouqozvs`, us-east-1)
