@@ -15,6 +15,8 @@ function candidate(overrides: Partial<PassengerCandidate>): PassengerCandidate {
     passengerName: 'John Alden',
     passengerBirthYear: 1598,
     passengerDeathYear: 1687,
+    registerDate: null,
+    boundFor: null,
     source: 'Wikipedia, "List of Mayflower passengers" (CC BY-SA); dates via Wikidata (Q6218491)',
     confidence: 'strong',
     reasons: [],

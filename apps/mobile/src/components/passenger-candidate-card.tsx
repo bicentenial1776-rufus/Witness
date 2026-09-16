@@ -3,7 +3,11 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { voyageExplainer } from '@witness/core/history';
-import { passengerVerificationLinks, type PassengerCandidate } from '@witness/core/query';
+import {
+  describeRegistration,
+  passengerVerificationLinks,
+  type PassengerCandidate,
+} from '@witness/core/query';
 
 import { Card } from '@/components/card';
 import { ExplainerDot } from '@/components/explainer-dot';
@@ -61,6 +65,7 @@ export function PassengerCandidateCard({
     candidate.passengerBirthYear || candidate.passengerDeathYear
       ? ` (${candidate.passengerBirthYear ?? '?'}–${candidate.passengerDeathYear ?? '?'})`
       : '';
+  const registration = describeRegistration(candidate);
 
   return (
     <Card style={{ marginBottom: 8 }}>
@@ -94,6 +99,7 @@ export function PassengerCandidateCard({
         {candidate.passengerName}
         {years}
       </ThemedText>
+      {registration && <ThemedText type="small">{registration}</ThemedText>}
       <ThemedText type="small">
         {CONFIDENCE_LABEL[candidate.confidence]} · {candidate.reasons.join(' · ')}
       </ThemedText>

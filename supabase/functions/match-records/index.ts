@@ -194,6 +194,8 @@ async function matchTree(client: Client, treeId: string, userId: string): Promis
       passenger_name: c.passenger.fullName,
       passenger_birth_year: c.passenger.birthYear,
       passenger_death_year: c.passenger.deathYear,
+      register_date: c.passenger.registerDate ?? null,
+      bound_for: c.passenger.boundFor ?? null,
       source: c.passenger.source,
       confidence: c.confidence,
       reasons: c.reasons,

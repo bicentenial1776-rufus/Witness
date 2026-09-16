@@ -49,6 +49,19 @@ function slug(value: string): string {
   return value.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+const PARTIAL_ISO = /^\d{4}(-\d{2}){0,2}$/;
+
+/** What a port register adds beyond the name — when it recorded the person
+    and where the ship was bound. Reconstructions carry neither. */
+function registerFields(header: string[], row: string[]): Pick<Passenger, 'registerDate' | 'boundFor'> {
+  const date = pick(header, row, 'date', 'register_date', 'registered');
+  const boundFor = pick(header, row, 'destination', 'bound_for');
+  return {
+    ...(PARTIAL_ISO.test(date) ? { registerDate: date } : {}),
+    ...(boundFor ? { boundFor } : {}),
+  };
+}
+
 /**
  * Rows to passengers. The header names the columns (see
  * data/immigrant-ships/README.md); anything unrecognized is ignored
@@ -88,6 +101,7 @@ export function rowsToPassengers(
       deathYear: parseYear(pick(header, row, 'death', 'death_year', 'died')),
       ageAtVoyage: age,
       ...(pick(header, row, 'notes') ? { notes: pick(header, row, 'notes') } : {}),
+      ...registerFields(header, row),
       source: pick(header, row, 'source') || fallbackSource,
     });
   }

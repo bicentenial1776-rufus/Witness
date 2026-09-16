@@ -55,9 +55,19 @@ surname | last_name | family_name
 birth | birth_year | born         # "c. 1584", "abt 1584", "1584?" all read as 1584
 death | death_year | died
 age                               # for lists that give ages, not dates
+date | register_date | registered # partial ISO date a port register recorded them: 1635-12-25 or 1635-12
+destination | bound_for           # where the register says the ship was bound
 notes
 source                            # per-row provenance; falls back to the voyage's
 ```
+
+The two register columns are what a port register says beyond the name —
+Hotten's certificates carry both; reconstructions carry neither. They
+reach the Crossing card as "Registered 25 December 1635 · bound for
+Barbados", and a confirmed crossing keeps the day and the destination.
+To carry them onto rows already in the dataset without re-importing (a
+re-import would drop the Banks half of a merged voyage), run
+`scripts/annotate-hotten-registers.ts` on a fresh parse.
 
 Then:
 

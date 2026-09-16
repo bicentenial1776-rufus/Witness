@@ -1392,6 +1392,8 @@ export type Database = {
           passenger_id: string
           passenger_name: string
           reasons: string[]
+          register_date: string | null
+          bound_for: string | null
           resolved_at: string | null
           ship: string
           source: string
@@ -1413,6 +1415,8 @@ export type Database = {
           passenger_id: string
           passenger_name: string
           reasons?: string[]
+          register_date?: string | null
+          bound_for?: string | null
           resolved_at?: string | null
           ship: string
           source: string
@@ -1434,6 +1438,8 @@ export type Database = {
           passenger_id?: string
           passenger_name?: string
           reasons?: string[]
+          register_date?: string | null
+          bound_for?: string | null
           resolved_at?: string | null
           ship?: string
           source?: string

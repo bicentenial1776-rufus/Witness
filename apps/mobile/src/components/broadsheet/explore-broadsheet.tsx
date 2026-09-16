@@ -139,6 +139,11 @@ export function ExploreBroadsheet({
         'Where it began, the moves it made, the oceans it crossed, and the couples who turned out to be kin',
       path: '/patterns',
     },
+    {
+      title: 'The ships they came on',
+      detail: 'Every voyage with someone of yours aboard — confirmed by you, or still a question',
+      path: '/voyages',
+    },
   ];
 
   return (

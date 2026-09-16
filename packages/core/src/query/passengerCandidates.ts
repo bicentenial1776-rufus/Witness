@@ -26,6 +26,10 @@ export interface PassengerCandidate {
   passengerName: string;
   passengerBirthYear: number | null;
   passengerDeathYear: number | null;
+  /** Partial ISO date the port register recorded them; null for reconstructions. */
+  registerDate: string | null;
+  /** Where the register says the ship was bound; null for reconstructions. */
+  boundFor: string | null;
   source: string;
   confidence: MatchConfidence;
   reasons: string[];
@@ -45,6 +49,8 @@ interface CandidateRow {
   passenger_name: string;
   passenger_birth_year: number | null;
   passenger_death_year: number | null;
+  register_date: string | null;
+  bound_for: string | null;
   source: string;
   confidence: string;
   reasons: string[];
@@ -53,8 +59,8 @@ interface CandidateRow {
 
 const CANDIDATE_SELECT =
   'id, tree_id, individual_id, voyage_id, passenger_id, ship, arrival_year, departure_port, ' +
-  'arrival_place, passenger_name, passenger_birth_year, passenger_death_year, source, ' +
-  'confidence, reasons, status';
+  'arrival_place, passenger_name, passenger_birth_year, passenger_death_year, register_date, ' +
+  'bound_for, source, confidence, reasons, status';
 
 function toCandidate(row: CandidateRow): PassengerCandidate {
   return {
@@ -70,6 +76,8 @@ function toCandidate(row: CandidateRow): PassengerCandidate {
     passengerName: row.passenger_name,
     passengerBirthYear: row.passenger_birth_year,
     passengerDeathYear: row.passenger_death_year,
+    registerDate: row.register_date,
+    boundFor: row.bound_for,
     source: row.source,
     confidence: row.confidence as MatchConfidence,
     reasons: row.reasons,
@@ -109,6 +117,71 @@ export async function fetchPassengerCandidatesForTree(
     .order('created_at', { ascending: false });
   if (error) throw new Error(`Fetching passenger candidates failed: ${error.message}`);
   return ((data ?? []) as unknown as CandidateRow[]).map(toCandidate);
+}
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/**
+ * "Registered 25 December 1635 · bound for Barbados" — what the port
+ * register says beyond the name. Null for a reconstruction, which says
+ * neither.
+ */
+export function describeRegistration(
+  candidate: Pick<PassengerCandidate, 'registerDate' | 'boundFor'>,
+): string | null {
+  const parts: string[] = [];
+  if (candidate.registerDate) {
+    const [year, month, day] = candidate.registerDate.split('-').map(Number);
+    const monthName = month ? MONTHS[month - 1] : undefined;
+    parts.push(['Registered', day || null, monthName, year].filter(Boolean).join(' '));
+  }
+  if (candidate.boundFor) parts.push(`bound for ${candidate.boundFor}`);
+  return parts.length ? parts.join(' · ') : null;
+}
+
+export interface VoyageRoster {
+  voyageId: string;
+  ship: string;
+  arrivalYear: number;
+  /** People the reader has ruled aboard. */
+  confirmed: number;
+  /** Names still awaiting a verdict. */
+  pending: number;
+}
+
+/** The tree's voyages: ships with someone confirmed aboard first, then
+    by year. Dismissed candidates count for nothing. */
+export function groupVoyages(candidates: readonly PassengerCandidate[]): VoyageRoster[] {
+  const byVoyage = new Map<string, VoyageRoster>();
+  for (const candidate of candidates) {
+    if (candidate.status === 'dismissed') continue;
+    const row = byVoyage.get(candidate.voyageId) ?? {
+      voyageId: candidate.voyageId,
+      ship: candidate.ship,
+      arrivalYear: candidate.arrivalYear,
+      confirmed: 0,
+      pending: 0,
+    };
+    if (candidate.status === 'confirmed') row.confirmed += 1;
+    else row.pending += 1;
+    byVoyage.set(candidate.voyageId, row);
+  }
+  return [...byVoyage.values()].sort(
+    (a, b) =>
+      Number(b.confirmed > 0) - Number(a.confirmed > 0) ||
+      a.arrivalYear - b.arrivalYear ||
+      a.ship.localeCompare(b.ship),
+  );
+}
+
+export async function fetchVoyageRoster(
+  client: WitnessSupabaseClient,
+  treeId: string,
+): Promise<VoyageRoster[]> {
+  return groupVoyages(await fetchPassengerCandidatesForTree(client, treeId));
 }
 
 /** Confirm or dismiss a candidate. Confirming a candidate that writes a

@@ -357,6 +357,14 @@ export default function ExploreTab() {
                   turned out to be kin
                 </ThemedText>
               </Card>
+              <Card
+                onPress={() => router.push({ pathname: '/voyages', params: { treeId: activeTree.id } })}
+              >
+                <ThemedText type="subtitle">The ships they came on</ThemedText>
+                <ThemedText type="small">
+                  Every voyage with someone of yours aboard — confirmed by you, or still a question
+                </ThemedText>
+              </Card>
               <Card onPress={() => router.push('/synthesis' as never)}>
                 <ThemedText type="subtitle">Your whole ancestry, read at once</ThemedText>
                 <ThemedText type="small">

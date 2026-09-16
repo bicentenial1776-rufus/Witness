@@ -1,4 +1,8 @@
-import { setPassengerCandidateStatus, type PassengerCandidate } from '@witness/core/query';
+import {
+  describeRegistration,
+  setPassengerCandidateStatus,
+  type PassengerCandidate,
+} from '@witness/core/query';
 
 import { supabase } from '@/lib/supabase';
 
@@ -14,13 +18,16 @@ export async function confirmPassengerCandidate(candidate: PassengerCandidate): 
   const userId = userData.user?.id;
   if (!userId) throw new Error('Not signed in');
 
+  // A register names where this ship was bound; a reconstruction only
+  // knows where the voyage as a whole arrived.
+  const destination = candidate.boundFor ?? candidate.arrivalPlace;
   let placeId: string | null = null;
-  if (candidate.arrivalPlace) {
+  if (destination) {
     const { data: existing } = await supabase
       .from('places')
       .select('id')
       .eq('tree_id', candidate.treeId)
-      .eq('raw', candidate.arrivalPlace)
+      .eq('raw', destination)
       .maybeSingle();
     if (existing) {
       placeId = existing.id as string;
@@ -30,8 +37,8 @@ export async function confirmPassengerCandidate(candidate: PassengerCandidate): 
         .insert({
           tree_id: candidate.treeId,
           user_id: userId,
-          raw: candidate.arrivalPlace,
-          parts: candidate.arrivalPlace.split(',').map((p) => p.trim()).filter(Boolean),
+          raw: destination,
+          parts: destination.split(',').map((p) => p.trim()).filter(Boolean),
         })
         .select('id')
         .single();
@@ -39,7 +46,16 @@ export async function confirmPassengerCandidate(candidate: PassengerCandidate): 
     }
   }
 
-  const detail = `${candidate.ship}, ${candidate.arrivalYear} — matched from ${candidate.source}`;
+  const registration = describeRegistration(candidate);
+  const detail = [`${candidate.ship}, ${candidate.arrivalYear}`, registration, `matched from ${candidate.source}`]
+    .filter(Boolean)
+    .join(' — ');
+  // The register's own date, down to the day when the OCR kept it.
+  const [, registerMonth, registerDay] = (candidate.registerDate ?? '').split('-').map(Number);
+  const registerDateFields = {
+    ...(registerMonth ? { date_month: registerMonth } : {}),
+    ...(registerDay ? { date_day: registerDay } : {}),
+  };
 
   // A GEDCOM import can carry a bare immigration tag with no date or
   // place — the crossing fills it in; an immigration event that already
@@ -58,6 +74,7 @@ export async function confirmPassengerCandidate(candidate: PassengerCandidate): 
       individual_id: candidate.individualId,
       event_type: 'immigration',
       date_year: candidate.arrivalYear,
+      ...registerDateFields,
       detail,
       place_id: placeId,
       sort_order: 150,
@@ -66,12 +83,22 @@ export async function confirmPassengerCandidate(candidate: PassengerCandidate): 
   } else if (existingEvent.date_year === null && existingEvent.place_id === null) {
     const { error: updateError } = await supabase
       .from('individual_events')
-      .update({ date_year: candidate.arrivalYear, place_id: placeId, detail })
+      .update({ date_year: candidate.arrivalYear, ...registerDateFields, place_id: placeId, detail })
       .eq('id', existingEvent.id);
     if (updateError) throw new Error(`The immigration event failed: ${updateError.message}`);
   }
 
   await setPassengerCandidateStatus(supabase, candidate.id, 'confirmed');
+
+  // The biography and its historical context were written from the facts
+  // as they stood; the crossing is a new fact, so the next read regenerates.
+  // The verdict is already saved — a failure here only leaves a stale story.
+  const { error: cacheError } = await supabase
+    .from('enrichment_cache')
+    .delete()
+    .eq('individual_id', candidate.individualId)
+    .in('enrichment_type', ['biography', 'historical_context']);
+  if (cacheError) console.warn('Could not clear the cached story:', cacheError.message);
 }
 
 export async function dismissPassengerCandidate(candidateId: string): Promise<void> {

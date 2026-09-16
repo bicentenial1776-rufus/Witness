@@ -20,7 +20,13 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { extractEntries, registerTitleCase as titleCase } from '../src/history/ocrParsers.js';
+import {
+  extractEntries,
+  formatRegisterDate,
+  normalizeDestination,
+  parseRegisterDate,
+  registerTitleCase as titleCase,
+} from '../src/history/ocrParsers.js';
 
 const SOURCE = 'John Camden Hotten, The Original Lists of Persons of Quality (1874)';
 
@@ -45,7 +51,17 @@ const SHIP_ALIASES: Record<string, string> = {
   'peter bonaven': 'peter bonaventure',
 };
 
-interface Row { given: string; surname: string; birth: string; notes: string; source: string }
+interface Row {
+  given: string;
+  surname: string;
+  birth: string;
+  /** The certificate's date, partial ISO; '' when its line did not survive. */
+  date: string;
+  /** Where the formula says the ship was bound; '' when it names no place. */
+  destination: string;
+  notes: string;
+  source: string;
+}
 interface VoyageOut { id: string; ship: string; arrivalYear: number; notes: string; source: string }
 
 function slug(s: string): string {
@@ -75,6 +91,12 @@ function main() {
   let consumed = 0;
   let skippedSample: string[] = [];
   let lastSurname = '';
+  // The certificate date precedes its formula; it holds until the next
+  // date line. A formula that arrives without a fresh date has lost its
+  // line to the OCR, and its rows carry no date rather than the last one.
+  let currentDate = '';
+  let dateSeenSinceBlock = false;
+  let currentDestination = '';
 
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
@@ -85,6 +107,12 @@ function main() {
     if (ym && !/&/.test(line)) {
       const y = Number(`1${ym[1]}`);
       if (y >= 1607 && y <= 1660) year = y;
+    }
+
+    const registerDate = parseRegisterDate(line);
+    if (registerDate) {
+      currentDate = formatRegisterDate({ ...registerDate, year: registerDate.year ?? year });
+      dateSeenSinceBlock = true;
     }
 
     // A register formula opens a block and names the ship.
@@ -127,6 +155,9 @@ function main() {
         inBlock = true;
         staleLines = 0;
         lastSurname = '';
+        if (!dateSeenSinceBlock) currentDate = '';
+        dateSeenSinceBlock = false;
+        currentDestination = normalizeDestination(dest);
         if (!voyageMeta.has(key)) {
           voyageMeta.set(key, { ship: titleCase(ship), year, dests: new Set() });
           rowsByVoyage.set(key, []);
@@ -149,6 +180,8 @@ function main() {
     for (const e of extracted.entries) {
       rowsByVoyage.get(currentKey)!.push({
         ...e,
+        date: currentDate,
+        destination: currentDestination,
         source: `${SOURCE} — ${voyageMeta.get(currentKey)!.ship} (${year}) register`,
       });
       consumed += 1;
@@ -182,10 +215,10 @@ function main() {
       notes: `London port register certificates${meta.dests.size ? `, bound for ${[...meta.dests].join(' / ')}` : ''}. Ages as sworn at embarkation; birth years derived from them.`,
       source: SOURCE,
     });
-    const csv = ['given,surname,birth,notes,source']
+    const csv = ['given,surname,birth,date,destination,notes,source']
       .concat(
         rows.map((r) =>
-          [r.given, r.surname, r.birth, r.notes, r.source]
+          [r.given, r.surname, r.birth, r.date, r.destination, r.notes, r.source]
             .map((f) => (/[",]/.test(f) ? `"${f.replace(/"/g, '""')}"` : f))
             .join(','),
         ),

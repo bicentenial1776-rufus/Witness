@@ -184,3 +184,137 @@ export function extractEntries(
   }
   return { entries, lastSurname };
 }
+
+// ---------------------------------------------------------------------
+// Hotten's certificate dates. Each register block opens with the day the
+// names were sworn, in the clerk's Latin: "xj° Aprilis 1635", "Nono die
+// Maij 1635", "25 Decembris 1635" — and, after the OCR, "1 6 Marcij
+// 1634" or "3rf Aprill 1635". The month is the anchor; the day is read
+// when it can be and left null when it cannot.
+
+const LATIN_MONTHS: [RegExp, number][] = [
+  [/\bJanuar/i, 1],
+  [/\bFebruar/i, 2],
+  [/\bMar(?:t|c)i|\bMarch\b/i, 3],
+  [/\bApril/i, 4],
+  [/\bMa[ij]{1,2}\b|\bMay\b/i, 5],
+  [/\bJun/i, 6],
+  [/\bJul/i, 7],
+  [/\bAugust/i, 8],
+  [/\bSeptemb/i, 9],
+  [/\bOctob/i, 10],
+  [/\bNovemb/i, 11],
+  [/\bDecemb/i, 12],
+];
+
+const LATIN_ORDINALS: Record<string, number> = {
+  primo: 1, secundo: 2, tertio: 3, quarto: 4, quinto: 5, sexto: 6,
+  septimo: 7, octavo: 8, nono: 9, decimo: 10, undecimo: 11, duodecimo: 12,
+};
+
+const ROMAN: Record<string, number> = { i: 1, v: 5, x: 10 };
+
+function readRoman(token: string): number | null {
+  // The clerks' final i is a j ("xj"), and the OCR reads i as l.
+  const raw = token.toLowerCase().replace(/[^a-z]/g, '');
+  if (!raw || /[^ivxjl]/.test(raw)) return null;
+  const letters = raw.replace(/[jl]/g, 'i');
+  let total = 0;
+  for (let i = 0; i < letters.length; i += 1) {
+    const value = ROMAN[letters[i]!]!;
+    const next = ROMAN[letters[i + 1] ?? ''] ?? 0;
+    total += value < next ? -value : value;
+  }
+  return total >= 1 && total <= 31 ? total : null;
+}
+
+function readDay(before: string): number | null {
+  const tokens = before
+    .replace(/\b(die|eodem)\b/gi, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (tokens.length === 0) return null;
+  // "1 6" — a two-digit day the OCR split in half.
+  const last = tokens[tokens.length - 1]!;
+  const previous = tokens[tokens.length - 2];
+  if (/^\d$/.test(last) && previous && /^\d$/.test(previous)) {
+    const joined = Number(previous + last);
+    return joined <= 31 ? joined : null;
+  }
+  const digits = /^(\d{1,2})/.exec(last);
+  if (digits) {
+    const day = Number(digits[1]);
+    return day >= 1 && day <= 31 ? day : null;
+  }
+  const word = last.toLowerCase().replace(/[^a-z]/g, '');
+  if (LATIN_ORDINALS[word]) return LATIN_ORDINALS[word]!;
+  return readRoman(last);
+}
+
+export interface RegisterDate {
+  /** Null when the line carries no readable year — the caller knows the running year. */
+  year: number | null;
+  month: number;
+  day: number | null;
+}
+
+/** A certificate's date line, or null for anything that is not one. */
+export function parseRegisterDate(line: string): RegisterDate | null {
+  const trimmed = line.trim();
+  if (trimmed.length > 45) return null;
+  for (const [pattern, month] of LATIN_MONTHS) {
+    const match = pattern.exec(trimmed);
+    if (!match) continue;
+    const yearMatch = /\b(1[5-7]\d{2})\b/.exec(trimmed.slice(match.index));
+    return {
+      year: yearMatch ? Number(yearMatch[1]) : null,
+      month,
+      day: readDay(trimmed.slice(0, match.index)),
+    };
+  }
+  return null;
+}
+
+/** '1635-12-25', or '1635-12' when the day did not survive. */
+export function formatRegisterDate(date: { year: number; month: number; day: number | null }): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return date.day ? `${date.year}-${pad(date.month)}-${pad(date.day)}` : `${date.year}-${pad(date.month)}`;
+}
+
+// The formulas' "transported to ___", as the OCR renders them. Spellings
+// are the clerks' (Virginea, the Barbadoes); the modern names are only
+// so one destination reads one way across the dataset.
+const DESTINATIONS: Record<string, string> = {
+  'new england': 'New England',
+  'newengland': 'New England',
+  'new': 'New England',
+  'new knyland': 'New England',
+  'virginea': 'Virginia',
+  'virginca': 'Virginia',
+  'virginia': 'Virginia',
+  'the barbadoes': 'Barbados',
+  'ye barbadoes': 'Barbados',
+  'barbadoes': 'Barbados',
+  'barbados': 'Barbados',
+  'sl christophers': 'St Christopher',
+  'st christophers': 'St Christopher',
+  's christo': 'St Christopher',
+  'the bormoodes': 'Bermuda',
+  'the bermudas': 'Bermuda',
+  'bermudas': 'Bermuda',
+};
+
+/** The destination as one name, or '' when the formula names no place. */
+export function normalizeDestination(raw: string): string {
+  const key = raw
+    .toLowerCase()
+    .replace(/\s*\b(im-?|imbarqued)\s*$/, '')
+    .replace(/[-'’]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!key) return '';
+  if (DESTINATIONS[key]) return DESTINATIONS[key]!;
+  if (/^the island/.test(key) || key === 'cripplegate') return '';
+  return registerTitleCase(key);
+}
