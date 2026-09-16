@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type PropsWithChildren } from 'react';
+import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { logEvent } from '@/lib/usage-events';
 
@@ -28,7 +29,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
     const { data: subscription } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       if (event === 'SIGNED_IN' && newSession) {
-        void logEvent(newSession.user.id, 'login');
+        void logEvent(newSession.user.id, 'login', { platform: Platform.OS });
       }
     });
 
