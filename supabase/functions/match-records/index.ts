@@ -152,8 +152,14 @@ interface TreeResult {
 }
 
 async function matchTree(client: Client, treeId: string, userId: string): Promise<TreeResult> {
+  // Stage timings in the log: a 5.6k-person tree takes a minute here, and
+  // when a run dies the log must say which stage it died in.
+  const t0 = Date.now();
+  const stage = (name: string) => console.log(`match-records ${treeId} ${name} +${Date.now() - t0}ms`);
   const people = await loadPeople(client, treeId);
+  stage(`people loaded (${people.length})`);
   const spouses = await loadSpouses(client, treeId);
+  stage('spouses loaded');
   const findingRows = new Map<string, Record<string, unknown>>();
   let crossingCandidates = 0;
   let registerLinks = 0;
@@ -207,6 +213,7 @@ async function matchTree(client: Client, treeId: string, userId: string): Promis
     if (error) throw new Error(`passenger upsert: ${error.message}`);
   }
   crossingCandidates = crossingRows.length;
+  stage(`crossing done (${crossingCandidates} candidates)`);
   for (const c of crossing) {
     if (c.confidence !== 'strong') continue;
     if (resolvedCrossingKeys.has(`${c.individual.id}:${c.passenger.id}`)) continue;
@@ -251,8 +258,9 @@ async function matchTree(client: Client, treeId: string, userId: string): Promis
         .eq('tree_id', treeId)
         .eq('register_key', register.register_key);
       if (heldError) throw new Error(`held links: ${heldError.message}`);
-      const heldById = new Map(
-        (held ?? []).map((r: { id: string; individual_id: string; status: string }) => [r.individual_id, r]),
+      type HeldLink = { id: string; individual_id: string; status: string };
+      const heldById = new Map<string, HeldLink>(
+        (held ?? []).map((r: HeldLink) => [r.individual_id, r] as const),
       );
       // A candidate still open takes the fresh score and reasons — a
       // newly noticed citation should reach the card; a verdict stands.
@@ -286,6 +294,7 @@ async function matchTree(client: Client, treeId: string, userId: string): Promis
         if (error) throw new Error(`exposure link insert: ${error.message}`);
       }
       registerLinks += rows.length;
+      stage(`${register.register_key} done (${rows.length} exposure links)`);
       continue;
     }
     if (register.variant !== 'A') continue;
@@ -360,6 +369,7 @@ async function matchTree(client: Client, treeId: string, userId: string): Promis
       if (error) throw new Error(`link upsert: ${error.message}`);
     }
     registerLinks += rows.length;
+    stage(`${register.register_key} done (${records.length} records, ${rows.length} links)`);
 
     for (const c of candidates) {
       if (c.confidence !== 'strong') continue;
@@ -385,6 +395,7 @@ async function matchTree(client: Client, treeId: string, userId: string): Promis
     });
     if (error) console.error('findings upsert failed (candidates written):', error.message);
   }
+  stage(`done (${findingRows.size} findings)`);
 
   return { treeId, crossingCandidates, registerLinks, findings: findingRows.size };
 }
@@ -446,11 +457,20 @@ Deno.serve(async (req) => {
     .eq('user_id', ctx.userId)
     .maybeSingle();
   if (!tree) return json(404, { error: 'No such tree, or no access.' });
-  try {
-    const result = await matchTree(ctx.db, treeId, ctx.userId);
-    return json(200, { mode: 'tree', ...result });
-  } catch (err) {
-    console.error('match-records failed:', err);
-    return json(500, { error: 'Matching failed. Try again shortly.' });
-  }
+  // Same shape as the sweep door: answer 202 and finish in the background.
+  // Holding the response open for a whole-tree match died at ~26 s on the
+  // 5.6k-person tree in production (the run takes about a minute), and the
+  // caller never read the counts anyway — the import screen fires this and
+  // forgets it, and Portraits pick the candidates up as they land.
+  const run = (async () => {
+    try {
+      const result = await matchTree(ctx.db, treeId, ctx.userId);
+      console.log('match-records tree done:', JSON.stringify(result));
+    } catch (err) {
+      console.error(`match-records failed for ${treeId}:`, err);
+    }
+  })();
+  // deno-lint-ignore no-explicit-any
+  (globalThis as any).EdgeRuntime?.waitUntil?.(run);
+  return json(202, { mode: 'tree', treeId });
 });
