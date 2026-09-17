@@ -32,6 +32,53 @@ describe('parseGedcom (fixture)', () => {
     expect(john!.hasDeathRecord).toBe(true);
   });
 
+  it('takes the name parts from the slashes when there are no GIVN/SURN subtags (PAF, AncestQuest)', () => {
+    // Rich Douglass's AncestQuest export, 2026-09-17: 61,773 NAME lines with
+    // slashes and not one GIVN or SURN — every surname landed null.
+    const ged = [
+      '0 HEAD',
+      '1 GEDC',
+      '2 VERS 5.5.1',
+      '0 @I1@ INDI',
+      '1 NAME RICHARD LEE /DOUGLASS/',
+      '1 SEX M',
+      '0 @I2@ INDI',
+      '1 NAME MAREE LOUISE "SUSIE" /Hohbein/',
+      '0 @I3@ INDI',
+      '1 NAME John /Smith/ Jr.',
+      '0 @I4@ INDI',
+      '1 NAME Richard Douglass',
+      '0 @I5@ INDI',
+      '1 NAME Ann /Lee/',
+      '2 GIVN Annie',
+      '2 SURN Leigh',
+      '0 TRLR',
+    ].join('\n');
+    const parsed = parseGedcom(ged, 'paf.ged');
+    expect(parsed.individuals.get('I1')!.name).toMatchObject({
+      full: 'RICHARD LEE DOUGLASS',
+      given: 'RICHARD LEE',
+      surname: 'DOUGLASS',
+    });
+    expect(parsed.individuals.get('I2')!.name).toMatchObject({
+      given: 'MAREE LOUISE "SUSIE"',
+      surname: 'Hohbein',
+    });
+    expect(parsed.individuals.get('I3')!.name).toMatchObject({
+      full: 'John Smith Jr.',
+      given: 'John',
+      surname: 'Smith',
+      suffix: 'Jr.',
+    });
+    // No slashes at all: the full name stands, the parts stay unknown.
+    const plain = parsed.individuals.get('I4')!.name;
+    expect(plain.full).toBe('Richard Douglass');
+    expect(plain.given).toBeUndefined();
+    expect(plain.surname).toBeUndefined();
+    // Subtags win over the slashes where both exist.
+    expect(parsed.individuals.get('I5')!.name).toMatchObject({ given: 'Annie', surname: 'Leigh' });
+  });
+
   it('interns places and dedupes repeats', () => {
     const john = result.individuals.get('I1')!;
     const boston = result.places.find((p) => p.id === john.birth!.placeId);

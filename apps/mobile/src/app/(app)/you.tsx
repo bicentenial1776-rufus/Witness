@@ -681,8 +681,9 @@ export default function YouTab() {
                 inviteAsking ? (
                   <View style={{ marginTop: 12, gap: 8 }}>
                     <ThemedText type="small">
-                      Who is this for? A name is enough — their email lets the seat find them
-                      when they sign in.
+                      Who is this for? One person per invitation — send another for each family
+                      member. A name is enough; their email lets the seat find them when they
+                      sign in.
                     </ThemedText>
                     <TextField
                       value={inviteName}

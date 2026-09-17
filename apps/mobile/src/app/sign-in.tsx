@@ -44,6 +44,7 @@ export default function SignIn() {
   const [email, setEmail] = useState(typeof handedEmail === 'string' ? handedEmail : '');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   // Where to land after sign-in. Allowlisted to the two flows that arrive
   // here carrying a destination: shared stories (audit G6: a cousin moved
   // to join by a particular ancestor should land back on that ancestor)
@@ -112,7 +113,7 @@ export default function SignIn() {
         <TextField
           ref={passwordRef}
           placeholder="Password"
-          secureTextEntry
+          secureTextEntry={!showPassword}
           textContentType="password"
           autoComplete="current-password"
           returnKeyType="go"
@@ -120,6 +121,9 @@ export default function SignIn() {
           value={password}
           onChangeText={setPassword}
         />
+        <ThemedText type="link" onPress={() => setShowPassword((s) => !s)} style={{ alignSelf: 'flex-end' }}>
+          {showPassword ? 'Hide password' : 'Show password'}
+        </ThemedText>
         <Button title="Sign in" busy={isSubmitting} onPress={handleSignIn} />
         <AppleSignInButton intent="sign-in" />
         <Link href="/forgot-password">

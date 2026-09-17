@@ -587,18 +587,39 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
     } else {
       await WebBrowser.openBrowserAsync(url);
     }
-    let prefill = '';
-    try {
-      const clip = await Clipboard.getStringAsync();
-      // "Copy Link" gives a URL; "Copy record details" gives the whole
-      // record with the URL inside — extract either way.
-      if (clip) prefill = extractFindAGraveUrl(clip) ?? '';
-    } catch {
-      // Clipboard permission denied — manual paste still works.
-    }
-    setGraveDraft(prefill);
+    setGraveDraft(await graveLinkFromClipboard());
     setGraveFlow('confirm');
   }
+
+  // "Copy Link" gives a URL; "Copy record details" gives the whole record
+  // with the URL inside — extract either way. Empty when the clipboard is
+  // unreadable (permission not granted, or nothing copied yet).
+  async function graveLinkFromClipboard(): Promise<string> {
+    try {
+      const clip = await Clipboard.getStringAsync();
+      return clip ? (extractFindAGraveUrl(clip) ?? '') : '';
+    } catch {
+      return '';
+    }
+  }
+
+  // The search opens in another tab, so the memorial link is copied AFTER
+  // this screen last looked at the clipboard. Look again when the reader
+  // comes back to this tab (Rufus, 2026-09-17: "can the URL be inserted
+  // automatically?"); on the web, reading the clipboard outside a click
+  // may be refused, so the paste link below asks from a press.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || graveFlow !== 'confirm') return;
+    const onFocus = () => {
+      if (graveDraft.trim()) return;
+      void graveLinkFromClipboard().then((link) => {
+        if (link) setGraveDraft(link);
+      });
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [graveFlow, graveDraft]);
 
   async function saveGrave() {
     if (!person) return;
@@ -2773,6 +2794,24 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
+                {extractFindAGraveUrl(graveDraft) === null && (
+                  <ThemedText
+                    type="link"
+                    accessibilityRole="button"
+                    onPress={() =>
+                      void graveLinkFromClipboard().then((link) => {
+                        if (link) setGraveDraft(link);
+                        else
+                          showAlert(
+                            'No memorial link on the clipboard',
+                            'On the memorial page use Share → Copy Link, then come back and press this again.',
+                          );
+                      })
+                    }
+                  >
+                    Paste the link I copied ›
+                  </ThemedText>
+                )}
                 {graveDraft.trim().length > 0 && extractFindAGraveUrl(graveDraft) === null && (
                   <ThemedText type="small">
                     No memorial link found in that yet — either Copy Link or Copy record

@@ -74,12 +74,21 @@ function parseName(nameNode: GedcomNode | undefined): IndividualName {
   if (!nameNode) return { full: 'Unknown' };
   // GEDCOM wraps the surname in slashes, e.g. "Henry Field /Howe/".
   const full = nameNode.value.replace(/\//g, '').replace(/\s+/g, ' ').trim();
+  // Ancestry and FTM also spell the parts out as GIVN/SURN subtags; PAF and
+  // AncestQuest write only the NAME line. Until 2026-09-17 the parts came
+  // from the subtags alone, so a 61,773-person PAF export landed with no
+  // given name or surname on anyone — every surname-driven feature
+  // (commonest names, the busiest line, orphan suggestions) went quiet.
+  // The slashes are the standard; the subtags win only where present.
+  const slashed = /^(.*?)\s*\/([^/]*)\/\s*(.*)$/.exec(nameNode.value);
+  const clean = (s: string | undefined) => s?.replace(/\s+/g, ' ').trim() || undefined;
   return {
     full: full || 'Unknown',
-    given: value(nameNode, 'GIVN'),
-    surname: value(nameNode, 'SURN'),
+    given: value(nameNode, 'GIVN') ?? clean(slashed?.[1]),
+    surname: value(nameNode, 'SURN') ?? clean(slashed?.[2]),
     prefix: value(nameNode, 'NPFX'),
-    suffix: value(nameNode, 'NSFX'),
+    // Text after the closing slash is a suffix — "John /Smith/ Jr.".
+    suffix: value(nameNode, 'NSFX') ?? clean(slashed?.[3]),
   };
 }
 

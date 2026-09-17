@@ -223,7 +223,10 @@ export default function ProximityTab() {
   const [index, setIndex] = useState<GeographyIndex | null>(null);
   const [relationships, setRelationships] = useState<Map<string, Kin>>(new Map());
   const [position, setPosition] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [denied, setDenied] = useState(false);
+  // 'ask' = the browser has not been asked yet and needs a press to do so.
+  const [locationState, setLocationState] = useState<
+    'checking' | 'ask' | 'asking' | 'granted' | 'denied' | 'unavailable' | 'failed'
+  >('checking');
   const [radiusMiles, setRadiusMiles] = useState(5);
   const [century, setCentury] = useState<number | null>(null);
   // Empty set = no filter; multi-select so Burial + Death can ride together.
@@ -252,28 +255,51 @@ export default function ProximityTab() {
         setFamilyIds(ids);
       })
       .catch(() => {});
+    // Only ask the browser on mount when it has already said yes. Safari
+    // (and Firefox) refuse a geolocation request that does not come from a
+    // user gesture — silently, no prompt — so a request fired from this
+    // effect landed as "denied" and the screen told people to allow access
+    // "when your browser asks", which it never did (Rufus, 2026-09-17).
+    // Otherwise the screen offers a button and asks from its press.
     if (!navigator.geolocation) {
-      setDenied(true);
+      setLocationState('unavailable');
+    } else if (typeof navigator.permissions?.query === 'function') {
+      navigator.permissions
+        .query({ name: 'geolocation' })
+        .then((status) => {
+          if (cancelled) return;
+          if (status.state === 'granted') requestPosition();
+          else setLocationState(status.state === 'denied' ? 'denied' : 'ask');
+        })
+        .catch(() => {
+          if (!cancelled) setLocationState('ask');
+        });
     } else {
-      navigator.geolocation.getCurrentPosition(
-        (location) => {
-          if (!cancelled) {
-            setPosition({
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-            });
-          }
-        },
-        () => {
-          if (!cancelled) setDenied(true);
-        },
-        { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 },
-      );
+      setLocationState('ask');
     }
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [treeId]);
+
+  function requestPosition() {
+    setLocationState('asking');
+    navigator.geolocation.getCurrentPosition(
+      (location) => {
+        setPosition({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+        setLocationState('granted');
+      },
+      (error) => {
+        setLocationState(error.code === error.PERMISSION_DENIED ? 'denied' : 'failed');
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 },
+    );
+  }
+  const denied = locationState === 'denied' || locationState === 'unavailable' || locationState === 'failed';
 
   const nearby = useMemo(() => {
     if (!index || !position) return null;
@@ -429,13 +455,55 @@ export default function ProximityTab() {
           ) : undefined
         }
       >
-        {denied && (
+        {locationState === 'ask' && (
+          <View style={{ gap: 12, marginVertical: 12 }}>
+            <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 17, color: BC.inkSecondary }}>
+              Witness needs your location to find the ancestors around you. Your position stays
+              in this browser — it is never sent to Witness.
+            </Text>
+            <Pressable
+              onPress={requestPosition}
+              accessibilityRole="button"
+              style={{
+                alignSelf: 'flex-start',
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+                backgroundColor: BC.accent,
+              }}
+            >
+              <Text style={{ fontFamily: BrandFonts.sans.semiBold, fontSize: 16, color: '#fff' }}>
+                Find the ancestors around me
+              </Text>
+            </Pressable>
+          </View>
+        )}
+        {locationState === 'denied' && (
           <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 17, color: BC.inkSecondary }}>
-            Witness needs your location to find the ancestors around you — allow location access
-            when your browser asks, then reload.
+            Location access is blocked for this site. Allow it in your browser’s site settings
+            (the lock or “aA” control beside the address), then reload.
           </Text>
         )}
-        {!denied && (!index || !position) && <ActivityIndicator style={{ marginVertical: 40 }} />}
+        {locationState === 'unavailable' && (
+          <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 17, color: BC.inkSecondary }}>
+            This browser cannot report a location, so Witness cannot find the ancestors around you.
+          </Text>
+        )}
+        {locationState === 'failed' && (
+          <View style={{ gap: 12, marginVertical: 12 }}>
+            <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 17, color: BC.inkSecondary }}>
+              Your browser could not work out where you are just now.
+            </Text>
+            <Pressable onPress={requestPosition} accessibilityRole="button">
+              <Text style={{ fontFamily: BrandFonts.sans.semiBold, fontSize: 16, color: BC.accent }}>
+                Try again
+              </Text>
+            </Pressable>
+          </View>
+        )}
+        {!denied && locationState !== 'ask' && (!index || !position) && (
+          <ActivityIndicator style={{ marginVertical: 40 }} />
+        )}
 
         {nearby && (
           <>

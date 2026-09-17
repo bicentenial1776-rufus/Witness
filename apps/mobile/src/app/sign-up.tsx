@@ -23,6 +23,7 @@ export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const passwordRef = useRef<TextInput>(null);
 
   async function handleSignUp() {
@@ -86,7 +87,7 @@ export default function SignUp() {
         <TextField
           ref={passwordRef}
           placeholder="Password (at least 8 characters)"
-          secureTextEntry
+          secureTextEntry={!showPassword}
           textContentType="newPassword"
           autoComplete="new-password"
           passwordRules="minlength: 8;"
@@ -95,6 +96,9 @@ export default function SignUp() {
           value={password}
           onChangeText={setPassword}
         />
+        <ThemedText type="link" onPress={() => setShowPassword((s) => !s)} style={{ alignSelf: 'flex-end' }}>
+          {showPassword ? 'Hide password' : 'Show password'}
+        </ThemedText>
         <Button title="Sign up" busy={isSubmitting} onPress={handleSignUp} />
         <AppleSignInButton intent="sign-up" />
         <Link href="/sign-in">

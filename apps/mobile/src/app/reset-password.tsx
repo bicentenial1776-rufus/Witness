@@ -43,6 +43,7 @@ function makeRecoveryClient(): SupabaseClient {
  */
 export default function ResetPassword() {
   const [status, setStatus] = useState<Status>(Platform.OS === 'web' ? 'checking' : 'invalid');
+  const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -125,7 +126,7 @@ export default function ResetPassword() {
         <ThemedText type="title">Choose a new password</ThemedText>
         <TextField
           placeholder="New password"
-          secureTextEntry
+          secureTextEntry={!showPassword}
           textContentType="newPassword"
           autoComplete="new-password"
           passwordRules="minlength: 8;"
@@ -138,7 +139,7 @@ export default function ResetPassword() {
         <TextField
           ref={confirmRef}
           placeholder="Confirm new password"
-          secureTextEntry
+          secureTextEntry={!showPassword}
           textContentType="newPassword"
           autoComplete="new-password"
           returnKeyType="go"
@@ -146,6 +147,9 @@ export default function ResetPassword() {
           value={confirmPassword}
           onChangeText={setConfirmPassword}
         />
+        <ThemedText type="link" onPress={() => setShowPassword((s) => !s)} style={{ alignSelf: 'flex-end' }}>
+          {showPassword ? 'Hide passwords' : 'Show passwords'}
+        </ThemedText>
         <Button title="Update password" busy={isSubmitting} onPress={handleSubmit} />
       </>
     );
