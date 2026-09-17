@@ -2,6 +2,7 @@ import type { WitnessSupabaseClient } from '../supabase/client.js';
 import type { Database } from '../supabase/database.types.js';
 import { fetchAllPages, PAGE_SIZE } from '../supabase/paginate.js';
 import { classifyPlace, regionOf } from './regions.js';
+import type { TreeIndex } from './treeIndex.js';
 
 /**
  * Geographic queries load the tree's places, events, and individuals once
@@ -157,6 +158,116 @@ export async function fetchGeographyIndex(
   // A personally confirmed memorial beats the imported citation's claim.
   for (const row of confirmedRows) graveLinks.set(row.individual_id, row.url);
 
+  return { places, events, individuals, graveLinks };
+}
+
+// From the tree index -------------------------------------------------------
+
+/**
+ * What the geography index needs beyond the tree index: coordinates (the
+ * geocoder fills them in for hours after an import, so they are read live)
+ * and the Find A Grave links. Three light reads — for a 61,773-person tree
+ * about four pages of (id, latitude, longitude) and a handful of link rows —
+ * against the ~30 heavy pages fetchGeographyIndex pulls for the same
+ * answer (2026-09-17: Explore's search RPC was starving behind that fetch).
+ */
+export interface GeographyExtras {
+  coordinates: { id: string; latitude: number | null; longitude: number | null }[];
+  graveRows: { id: string; individual_id: string | null; url: string | null }[];
+  confirmedRows: { id: string; individual_id: string; url: string }[];
+}
+
+export async function fetchGeographyExtras(
+  client: WitnessSupabaseClient,
+  treeId: string,
+): Promise<GeographyExtras> {
+  const [coordinates, graveRows, confirmedRows] = await Promise.all([
+    fetchAllPages<{ id: string; latitude: number | null; longitude: number | null }>(
+      (after) => {
+        let q = client
+          .from('places')
+          .select('id, latitude, longitude')
+          .eq('tree_id', treeId)
+          .not('latitude', 'is', null)
+          .order('id')
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
+      'Fetching coordinates failed',
+    ),
+    fetchAllPages<{ id: string; individual_id: string | null; url: string | null }>(
+      (after) => {
+        let q = client
+          .from('citations')
+          .select('id, individual_id, url')
+          .eq('tree_id', treeId)
+          .not('individual_id', 'is', null)
+          .ilike('url', '%findagrave.com%')
+          .order('id')
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
+      'Fetching grave links failed',
+    ).catch(() => [] as { id: string; individual_id: string | null; url: string | null }[]),
+    fetchAllPages<{ id: string; individual_id: string; url: string }>(
+      (after) => {
+        let q = client
+          .from('grave_confirmations')
+          .select('id, individual_id, url')
+          .eq('tree_id', treeId)
+          .order('id')
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
+      'Fetching grave confirmations failed',
+    ).catch(() => [] as { id: string; individual_id: string; url: string }[]),
+  ]);
+  return { coordinates, graveRows, confirmedRows };
+}
+
+/** The geography index assembled from a tree index plus the extras — no second whole-tree fetch. */
+export function geographyFromTreeIndex(index: TreeIndex, extras: GeographyExtras): GeographyIndex {
+  const coords = new Map(extras.coordinates.map((c) => [c.id, c]));
+  const places = new Map<string, GeoPlace>();
+  for (const place of index.places.values()) {
+    const c = coords.get(place.id);
+    places.set(place.id, {
+      id: place.id,
+      raw: place.raw,
+      parts: place.parts,
+      latitude: c?.latitude ?? null,
+      longitude: c?.longitude ?? null,
+      region: place.region,
+      country: place.country,
+    });
+  }
+  const events: GeoEvent[] = index.events.map((e) => ({
+    individualId: e.individualId,
+    eventType: e.eventType,
+    year: e.year,
+    placeId: e.placeId,
+  }));
+  const individuals = new Map<string, GeoIndividual>();
+  for (const i of index.individuals.values()) {
+    individuals.set(i.id, {
+      id: i.id,
+      full_name: i.full_name,
+      surname: i.surname,
+      birth_year: i.birth_year,
+      death_year: i.death_year,
+      living: i.living,
+    });
+  }
+  const graveLinks = new Map<string, string>();
+  for (const row of extras.graveRows) {
+    if (row.individual_id && row.url && !graveLinks.has(row.individual_id)) {
+      graveLinks.set(row.individual_id, row.url);
+    }
+  }
+  for (const row of extras.confirmedRows) graveLinks.set(row.individual_id, row.url);
   return { places, events, individuals, graveLinks };
 }
 
