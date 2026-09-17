@@ -6,6 +6,7 @@ import {
   Platform,
   ScrollView,
   TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 
 import { Button } from '@/components/button';
@@ -38,34 +39,38 @@ export default function ForgotPassword() {
 
   const form = (
     <ScrollView
-      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, gap: 12 }}
+      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
     >
-      <ThemedText type="title">Reset password</ThemedText>
-      <ThemedText type="small">
-        Enter your account email and we&apos;ll send a link to choose a new password.
-      </ThemedText>
-      <TextField
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        textContentType="username"
-        autoComplete="email"
-        returnKeyType="go"
-        value={email}
-        onChangeText={setEmail}
-        onSubmitEditing={handleSubmit}
-      />
-      <Button
-        title="Send reset link"
-        busy={isSubmitting}
-        disabled={!email}
-        onPress={handleSubmit}
-      />
-      <Link href="/sign-in">
-        <ThemedText type="link">Back to sign in</ThemedText>
-      </Link>
+      {/* Capped so the email input stays a normal reading width on a wide
+          browser window instead of stretching edge to edge. */}
+      <View style={{ width: '100%', maxWidth: 400, alignSelf: 'center', gap: 12 }}>
+        <ThemedText type="title">Reset password</ThemedText>
+        <ThemedText type="small">
+          Enter your account email and we&apos;ll send a link to choose a new password.
+        </ThemedText>
+        <TextField
+          placeholder="Email"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          textContentType="username"
+          autoComplete="email"
+          returnKeyType="go"
+          value={email}
+          onChangeText={setEmail}
+          onSubmitEditing={handleSubmit}
+        />
+        <Button
+          title="Send reset link"
+          busy={isSubmitting}
+          disabled={!email}
+          onPress={handleSubmit}
+        />
+        <Link href="/sign-in">
+          <ThemedText type="link">Back to sign in</ThemedText>
+        </Link>
+      </View>
     </ScrollView>
   );
 

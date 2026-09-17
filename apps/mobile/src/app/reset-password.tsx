@@ -8,6 +8,7 @@ import {
   ScrollView,
   TextInput,
   TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 
 import { Button } from '@/components/button';
@@ -152,11 +153,15 @@ export default function ResetPassword() {
 
   const form = (
     <ScrollView
-      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, gap: 12 }}
+      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
     >
-      {content}
+      {/* Capped so the password inputs stay a normal reading width on a
+          wide browser window instead of stretching edge to edge. */}
+      <View style={{ width: '100%', maxWidth: 400, alignSelf: 'center', gap: 12 }}>
+        {content}
+      </View>
     </ScrollView>
   );
 

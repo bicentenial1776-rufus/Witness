@@ -7,6 +7,7 @@ import {
   ScrollView,
   TextInput,
   TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 
 import { AppleSignInButton } from '@/components/apple-sign-in';
@@ -62,40 +63,44 @@ export default function SignUp() {
 
   const form = (
     <ScrollView
-      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, gap: 12 }}
+      contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
     >
-      <ThemedText type="title">Create account</ThemedText>
-      <TextField
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        textContentType="username"
-        autoComplete="email"
-        returnKeyType="next"
-        submitBehavior="submit"
-        onSubmitEditing={() => passwordRef.current?.focus()}
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextField
-        ref={passwordRef}
-        placeholder="Password (at least 8 characters)"
-        secureTextEntry
-        textContentType="newPassword"
-        autoComplete="new-password"
-        passwordRules="minlength: 8;"
-        returnKeyType="go"
-        onSubmitEditing={handleSignUp}
-        value={password}
-        onChangeText={setPassword}
-      />
-      <Button title="Sign up" busy={isSubmitting} onPress={handleSignUp} />
-      <AppleSignInButton intent="sign-up" />
-      <Link href="/sign-in">
-        <ThemedText type="link">Already have an account? Sign in</ThemedText>
-      </Link>
+      {/* Capped so email/password inputs stay a normal reading width on a
+          wide browser window instead of stretching edge to edge. */}
+      <View style={{ width: '100%', maxWidth: 400, alignSelf: 'center', gap: 12 }}>
+        <ThemedText type="title">Create account</ThemedText>
+        <TextField
+          placeholder="Email"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          textContentType="username"
+          autoComplete="email"
+          returnKeyType="next"
+          submitBehavior="submit"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          value={email}
+          onChangeText={setEmail}
+        />
+        <TextField
+          ref={passwordRef}
+          placeholder="Password (at least 8 characters)"
+          secureTextEntry
+          textContentType="newPassword"
+          autoComplete="new-password"
+          passwordRules="minlength: 8;"
+          returnKeyType="go"
+          onSubmitEditing={handleSignUp}
+          value={password}
+          onChangeText={setPassword}
+        />
+        <Button title="Sign up" busy={isSubmitting} onPress={handleSignUp} />
+        <AppleSignInButton intent="sign-up" />
+        <Link href="/sign-in">
+          <ThemedText type="link">Already have an account? Sign in</ThemedText>
+        </Link>
+      </View>
     </ScrollView>
   );
 

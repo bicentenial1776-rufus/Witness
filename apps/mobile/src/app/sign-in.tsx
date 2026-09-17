@@ -90,7 +90,7 @@ export default function SignIn() {
         Your ancestors witnessed history. Witness helps you see them.
       </Text>
 
-      <ThemedView type="backgroundElement" style={styles.card}>
+      <ThemedView type="backgroundElement" style={[styles.card, styles.cardWidth]}>
         <ThemedText type="subtitle">Sign in</ThemedText>
         {confirm === 'sent' && (
           <ThemedText type="small">
@@ -187,5 +187,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     gap: 12,
+  },
+  // Capped so email/password inputs stay a normal reading width on a wide
+  // browser window instead of stretching edge to edge.
+  cardWidth: {
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
   },
 });
