@@ -21,7 +21,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useKinMap } from '@/hooks/use-kin-map';
 import { useActiveTree } from '@/lib/active-tree';
 import { showAlert } from '@/lib/alert';
-import { getAuditReport } from '@/lib/curiosities-cache';
+import { getAuditReport, PROCESSING_NOTE } from '@/lib/curiosities-cache';
 import { saveTextFile } from '@/lib/export-file';
 import { CHECK_TITLES } from '@/lib/check-titles';
 import { supabase } from '@/lib/supabase';
@@ -53,6 +53,7 @@ export default function TreeHealthScreen() {
   const [report, setReport] = useState<TreeHealthReport | null>(null);
   const [people, setPeople] = useState<Map<string, { gedcom_xref: string | null; full_name?: string | null }>>(new Map());
   const [failed, setFailed] = useState(false);
+  const [precomputed, setPrecomputed] = useState(true);
   const [marked, setMarked] = useState<Set<string>>(new Set());
   const [ruled, setRuled] = useState<Set<string>>(new Set());
   const [showRuled, setShowRuled] = useState(false);
@@ -79,6 +80,7 @@ export default function TreeHealthScreen() {
       .then(([audit, marks, rulings]) => {
         if (cancelled) return;
         setPeople(audit.people);
+        setPrecomputed(audit.precomputed);
         setReport(audit.report);
         setMarked(new Set((marks.data ?? []).map((m) => m.finding_key)));
         setRuled(new Set((rulings.data ?? []).map((r) => r.xref_key)));
@@ -267,6 +269,11 @@ export default function TreeHealthScreen() {
           {total === 0 && (
             <ThemedText>
               Nothing to report — every check passed at the precision your dates were recorded.
+            </ThemedText>
+          )}
+          {!precomputed && (
+            <ThemedText type="small" style={{ opacity: 0.8 }}>
+              {PROCESSING_NOTE}
             </ThemedText>
           )}
         </>

@@ -5,7 +5,6 @@ import { ActivityIndicator, Linking, Platform, Pressable, SectionList, View } fr
 import { correctionSnapshot, subjectLabel } from '@witness/core/corrections';
 import { exportFileName, plainXref, punchListCsv, type PunchListCsvRow } from '@witness/core/export';
 import {
-  findOrphanRecords,
   findingKey,
   findingXrefKey,
   legacyFindingXrefKey,
@@ -32,7 +31,7 @@ import {
   type CorrectionPerson,
   type CorrectionRow,
 } from '@/lib/corrections';
-import { getAuditBundle, type AuditRun } from '@/lib/curiosities-cache';
+import { getAuditBundle, type AuditPerson, type AuditRun } from '@/lib/curiosities-cache';
 import { saveTextFile } from '@/lib/export-file';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
@@ -97,9 +96,8 @@ export default function PunchListScreen() {
     setFailed(false);
     (async () => {
       try {
-        const [run, places, marks, rulings, rows, tree] = await Promise.all([
+        const [run, marks, rulings, rows, tree] = await Promise.all([
           getAuditBundle(treeId),
-          supabase.from('places').select('id, raw').eq('tree_id', treeId).limit(10000),
           supabase.from('tree_health_marks').select('finding_key').eq('tree_id', treeId),
           supabase.from('tree_health_rulings').select('xref_key'),
           fetchTreeCorrections(treeId),
@@ -107,11 +105,7 @@ export default function PunchListScreen() {
         ]);
         if (cancelled) return;
         setBundle(run);
-        setOrphans(
-          findOrphanRecords(run.data, {
-            placeNames: new Map((places.data ?? []).map((p) => [p.id, p.raw])),
-          }),
-        );
+        setOrphans(run.orphans);
         setCorrections(rows);
         setMarked(new Set((marks.data ?? []).map((m) => m.finding_key)));
         setRuled(new Set((rulings.data ?? []).map((r) => r.xref_key)));
@@ -125,11 +119,9 @@ export default function PunchListScreen() {
     };
   }, [treeId]);
 
-  const people = bundle?.people ?? new Map();
-  const healthPeople = useMemo(
-    () => new Map((bundle?.data.individuals ?? []).map((i) => [i.id, i])),
-    [bundle],
-  );
+  const people = useMemo(() => bundle?.people ?? new Map<string, AuditPerson>(), [bundle]);
+  // Orphan rows read the same map — a precomputed run carries no raw tree data.
+  const healthPeople = people;
 
   const isRuled = useCallback(
     (finding: Pick<HealthFinding, 'check' | 'individualIds'>) =>

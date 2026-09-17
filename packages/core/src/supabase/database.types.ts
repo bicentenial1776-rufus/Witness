@@ -1423,6 +1423,50 @@ export type Database = {
         }
         Relationships: []
       }
+      orphan_records: {
+        Row: {
+          computed_at: string
+          deletion_candidate: boolean
+          id: string
+          kind: string
+          member_ids: string[]
+          primary_id: string
+          suggestion: Json | null
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          computed_at?: string
+          deletion_candidate?: boolean
+          id?: string
+          kind: string
+          member_ids: string[]
+          primary_id: string
+          suggestion?: Json | null
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          computed_at?: string
+          deletion_candidate?: boolean
+          id?: string
+          kind?: string
+          member_ids?: string[]
+          primary_id?: string
+          suggestion?: Json | null
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orphan_records_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       passenger_candidates: {
         Row: {
           arrival_place: string | null
@@ -2155,6 +2199,62 @@ export type Database = {
           },
         ]
       }
+      tree_health_findings: {
+        Row: {
+          check_id: string
+          computed_at: string
+          detail: string
+          family_id: string | null
+          finding_key: string
+          id: string
+          individual_ids: string[]
+          legacy_xref_key: string
+          primary_surname: string | null
+          severity: string
+          tree_id: string
+          user_id: string
+          xref_key: string
+        }
+        Insert: {
+          check_id: string
+          computed_at?: string
+          detail: string
+          family_id?: string | null
+          finding_key: string
+          id?: string
+          individual_ids: string[]
+          legacy_xref_key: string
+          primary_surname?: string | null
+          severity: string
+          tree_id: string
+          user_id: string
+          xref_key: string
+        }
+        Update: {
+          check_id?: string
+          computed_at?: string
+          detail?: string
+          family_id?: string | null
+          finding_key?: string
+          id?: string
+          individual_ids?: string[]
+          legacy_xref_key?: string
+          primary_surname?: string | null
+          severity?: string
+          tree_id?: string
+          user_id?: string
+          xref_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_health_findings_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tree_health_marks: {
         Row: {
           created_at: string
@@ -2312,6 +2412,8 @@ export type Database = {
       trees: {
         Row: {
           ancestry_tree_id: string | null
+          audit_computed_at: string | null
+          audit_summary: Json | null
           charset: string | null
           export_date: string | null
           family_count: number
@@ -2336,6 +2438,8 @@ export type Database = {
         }
         Insert: {
           ancestry_tree_id?: string | null
+          audit_computed_at?: string | null
+          audit_summary?: Json | null
           charset?: string | null
           export_date?: string | null
           family_count?: number
@@ -2360,6 +2464,8 @@ export type Database = {
         }
         Update: {
           ancestry_tree_id?: string | null
+          audit_computed_at?: string | null
+          audit_summary?: Json | null
           charset?: string | null
           export_date?: string | null
           family_count?: number

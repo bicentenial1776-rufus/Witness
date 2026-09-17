@@ -1,10 +1,14 @@
 import {
-  fetchTreeHealthData,
+  fetchOrphanBundle,
   findingKey,
   findingXrefKey,
   legacyFindingXrefKey,
   runTreeHealth,
+  type ConnectionSuggestion,
+  type HealthCheckId,
   type HealthFinding,
+  type HealthSeverity,
+  type OrphanReport,
   type TreeHealthData,
   type TreeHealthReport,
 } from '@witness/core/query';
@@ -14,9 +18,18 @@ import { supabase } from '@/lib/supabase';
 /**
  * Curiosities — the surface voice for Tree Health (docs/phone-ia-design-
  * brief.md): a curiosity is a prompt, not a problem. The forensic audit
- * runs once per tree per session (the same heavy fetch the Tree Check
- * makes); marks and rulings are re-read on every call so a "Mark fixed"
- * on the workbench is reflected the next time Home or the Tree tab asks.
+ * is read once per tree per session; marks and rulings are re-read on
+ * every call so a "Mark fixed" on the workbench is reflected the next
+ * time Home or the Tree tab asks.
+ *
+ * Since 2026-09-17 the audit is computed once per import by a worker
+ * (packages/core/scripts/precompute-audit.mts, migration 20260917210000)
+ * and stored in tree_health_findings / orphan_records. When a tree's
+ * stored audit is current — trees.audit_computed_at at or after
+ * imported_at — the session reads those few hundred rows plus the people
+ * they name. Until the worker has caught up with a fresh import the
+ * session computes the audit itself, exactly as before, so nothing is
+ * ever missing; screens say so (PROCESSING_NOTE).
  */
 
 export interface Curiosity {
@@ -37,17 +50,193 @@ export interface CuriositySummary {
   top: Curiosity[];
 }
 
-export interface AuditRun {
-  data: TreeHealthData;
-  report: TreeHealthReport;
-  people: Map<string, { gedcom_xref: string | null; surname: string | null; full_name: string }>;
+/** The people an audit names — everything the workbench screens print about a person. */
+export interface AuditPerson {
+  gedcom_xref: string | null;
+  surname: string | null;
+  full_name: string;
+  birth_year: number | null;
+  death_year: number | null;
+  living: boolean;
 }
 
+export interface AuditRun {
+  /** The raw tree bundle — null when the run was read from the precomputed tables. */
+  data: TreeHealthData | null;
+  report: TreeHealthReport;
+  orphans: OrphanReport;
+  people: Map<string, AuditPerson>;
+  /** False when this session had to compute the audit itself (worker not caught up yet). */
+  precomputed: boolean;
+}
+
+export const PROCESSING_NOTE =
+  'Witness is still preparing this tree’s checks after the import, so this first look was worked out on your device. It opens instantly once preparation finishes — usually within ten minutes.';
+
 const runs = new Map<string, Promise<AuditRun>>();
-// A failed audit fetch is ~30 paginated requests; without a backoff every
-// Home/Tree focus on a flaky network re-fires the whole sweep.
+// A failed audit fetch can be ~30 paginated requests; without a backoff
+// every Home/Tree focus on a flaky network re-fires the whole sweep.
 const failedAt = new Map<string, number>();
 const FAILURE_BACKOFF_MS = 60_000;
+
+const PRECOMPUTED_PAGE = 5000;
+// PK lookups for the named people, a few hundred ids per request so the
+// URL stays short, a handful in flight at once.
+const ID_BATCH = 250;
+const ID_CONCURRENCY = 4;
+
+interface AuditSummary {
+  individualsChecked?: number;
+  familiesChecked?: number;
+  mainTreeSize?: number;
+  totalDisconnected?: number;
+}
+
+async function pageAll<T extends { id: string }>(
+  build: (after: string | null) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  let after: string | null = null;
+  for (;;) {
+    const { data, error } = await build(after);
+    if (error) throw new Error(error.message);
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < PRECOMPUTED_PAGE) return rows;
+    after = page[page.length - 1]!.id;
+  }
+}
+
+async function fetchPeople(ids: Iterable<string>): Promise<Map<string, AuditPerson>> {
+  const people = new Map<string, AuditPerson>();
+  const all = [...new Set(ids)];
+  const batches: string[][] = [];
+  for (let i = 0; i < all.length; i += ID_BATCH) batches.push(all.slice(i, i + ID_BATCH));
+  for (let i = 0; i < batches.length; i += ID_CONCURRENCY) {
+    const results = await Promise.all(
+      batches.slice(i, i + ID_CONCURRENCY).map((batch) =>
+        supabase
+          .from('individuals')
+          .select('id, gedcom_xref, full_name, surname, birth_year, death_year, living')
+          .in('id', batch),
+      ),
+    );
+    for (const { data, error } of results) {
+      if (error) throw new Error(`Fetching audited people failed: ${error.message}`);
+      for (const p of data ?? []) {
+        people.set(p.id, {
+          gedcom_xref: p.gedcom_xref,
+          surname: p.surname,
+          full_name: p.full_name,
+          birth_year: p.birth_year,
+          death_year: p.death_year,
+          living: p.living ?? false,
+        });
+      }
+    }
+  }
+  return people;
+}
+
+/** The stored audit, or null when the worker has not caught up with the latest import. */
+async function readPrecomputed(treeId: string): Promise<AuditRun | null> {
+  const { data: tree, error } = await supabase
+    .from('trees')
+    .select('imported_at, audit_computed_at, audit_summary')
+    .eq('id', treeId)
+    .maybeSingle();
+  if (error) throw new Error(`Reading tree failed: ${error.message}`);
+  if (!tree?.audit_computed_at || !tree.imported_at) return null;
+  if (new Date(tree.audit_computed_at) < new Date(tree.imported_at)) return null;
+  const summary = (tree.audit_summary ?? {}) as AuditSummary;
+
+  const [findingRows, orphanRows] = await Promise.all([
+    pageAll((after) => {
+      let q = supabase
+        .from('tree_health_findings')
+        .select('id, check_id, severity, individual_ids, family_id, detail')
+        .eq('tree_id', treeId)
+        .order('id')
+        .limit(PRECOMPUTED_PAGE);
+      if (after) q = q.gt('id', after);
+      return q;
+    }),
+    pageAll((after) => {
+      let q = supabase
+        .from('orphan_records')
+        .select('id, kind, primary_id, member_ids, deletion_candidate, suggestion')
+        .eq('tree_id', treeId)
+        .order('id')
+        .limit(PRECOMPUTED_PAGE);
+      if (after) q = q.gt('id', after);
+      return q;
+    }),
+  ]);
+
+  const findings: HealthFinding[] = findingRows.map((r) => ({
+    check: r.check_id as HealthCheckId,
+    severity: r.severity as HealthSeverity,
+    individualIds: r.individual_ids,
+    ...(r.family_id ? { familyId: r.family_id } : {}),
+    detail: r.detail,
+  }));
+  const report: TreeHealthReport = {
+    findings,
+    individualsChecked: summary.individualsChecked ?? 0,
+    familiesChecked: summary.familiesChecked ?? 0,
+  };
+  const orphans: OrphanReport = {
+    mainTreeSize: summary.mainTreeSize ?? 0,
+    totalDisconnected: summary.totalDisconnected ?? 0,
+    islands: orphanRows
+      .filter((r) => r.kind === 'island')
+      .map((r) => ({
+        anchorId: r.primary_id,
+        memberIds: r.member_ids,
+        suggestion: r.suggestion as ConnectionSuggestion | null,
+      }))
+      .sort((a, b) => b.memberIds.length - a.memberIds.length),
+    solos: orphanRows
+      .filter((r) => r.kind === 'solo')
+      .map((r) => ({
+        individualId: r.primary_id,
+        deletionCandidate: r.deletion_candidate,
+        suggestion: r.suggestion as ConnectionSuggestion | null,
+      })),
+  };
+
+  const named = new Set<string>();
+  for (const f of findings) for (const id of f.individualIds) named.add(id);
+  for (const row of [...orphans.islands, ...orphans.solos]) {
+    named.add('anchorId' in row ? row.anchorId : row.individualId);
+    if (row.suggestion) named.add(row.suggestion.candidateId);
+  }
+  return { data: null, report, orphans, people: await fetchPeople(named), precomputed: true };
+}
+
+/** Today's client-side audit: the whole tree paged down and checked here. */
+async function computeLocally(treeId: string): Promise<AuditRun> {
+  const bundle = await fetchOrphanBundle(supabase, treeId);
+  return {
+    data: bundle.data,
+    report: runTreeHealth(bundle.data, { currentYear: new Date().getFullYear() }),
+    orphans: bundle.report,
+    people: new Map(
+      bundle.data.individuals.map((i) => [
+        i.id,
+        {
+          gedcom_xref: i.gedcom_xref,
+          surname: i.surname,
+          full_name: i.full_name,
+          birth_year: i.birth_year,
+          death_year: i.death_year,
+          living: i.living,
+        },
+      ]),
+    ),
+    precomputed: false,
+  };
+}
 
 function getAuditRun(treeId: string): Promise<AuditRun> {
   const lastFailure = failedAt.get(treeId);
@@ -56,16 +245,7 @@ function getAuditRun(treeId: string): Promise<AuditRun> {
   }
   let pending = runs.get(treeId);
   if (!pending) {
-    pending = fetchTreeHealthData(supabase, treeId).then((data) => ({
-      data,
-      report: runTreeHealth(data, { currentYear: new Date().getFullYear() }),
-      people: new Map(
-        data.individuals.map((i) => [
-          i.id,
-          { gedcom_xref: i.gedcom_xref, surname: i.surname, full_name: i.full_name },
-        ]),
-      ),
-    }));
+    pending = readPrecomputed(treeId).then((run) => run ?? computeLocally(treeId));
     pending.catch(() => {
       runs.delete(treeId); // don't cache failures…
       failedAt.set(treeId, Date.now()); // …but don't storm retries either
@@ -165,9 +345,8 @@ export async function getPersonCuriosities(
 }
 
 /**
- * The whole cached run — data included. The punch list needs the raw
- * TreeHealthData to compute orphan records without re-downloading the
- * ~30 pages this cache exists to save.
+ * The whole cached run — findings, orphan records, and the people they
+ * name — for the punch list and the Orphan Records workbench.
  */
 export async function getAuditBundle(treeId: string): Promise<AuditRun> {
   return getAuditRun(treeId);
@@ -180,9 +359,9 @@ export async function getAuditBundle(treeId: string): Promise<AuditRun> {
  */
 export async function getAuditReport(
   treeId: string,
-): Promise<{ report: TreeHealthReport; people: AuditRun['people'] }> {
-  const { report, people } = await getAuditRun(treeId);
-  return { report, people };
+): Promise<{ report: TreeHealthReport; people: AuditRun['people']; precomputed: boolean }> {
+  const { report, people, precomputed } = await getAuditRun(treeId);
+  return { report, people, precomputed };
 }
 
 export function invalidateCuriositiesCache(): void {

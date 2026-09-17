@@ -3,9 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, SectionList, View } from 'react-native';
 
 import {
-  fetchOrphanBundle,
   nameSlug,
-  type HealthIndividual,
   type OrphanIsland,
   type OrphanReport,
   type SoloOrphan,
@@ -21,6 +19,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useKinMap } from '@/hooks/use-kin-map';
 import { useActiveTree } from '@/lib/active-tree';
 import { showAlert } from '@/lib/alert';
+import { getAuditBundle, PROCESSING_NOTE, type AuditPerson } from '@/lib/curiosities-cache';
 import { saveTextFile } from '@/lib/export-file';
 import { supabase } from '@/lib/supabase';
 import { WideContent } from '@/constants/theme';
@@ -38,7 +37,7 @@ interface OrphanSection {
   data: OrphanRow[];
 }
 
-function years(person: HealthIndividual | undefined): string {
+function years(person: AuditPerson | undefined): string {
   if (!person) return '';
   return `${person.birth_year ?? '?'}–${person.living ? '' : (person.death_year ?? '?')}`;
 }
@@ -59,7 +58,8 @@ export default function OrphanRecordsScreen() {
   const kin = useKinMap(treeId);
   const broadsheet = useBroadsheet();
   const [report, setReport] = useState<OrphanReport | null>(null);
-  const [people, setPeople] = useState<Map<string, HealthIndividual>>(new Map());
+  const [people, setPeople] = useState<Map<string, AuditPerson>>(new Map());
+  const [precomputed, setPrecomputed] = useState(true);
   const [failed, setFailed] = useState(false);
   const [marked, setMarked] = useState<Set<string>>(new Set());
   const [ruled, setRuled] = useState<Set<string>>(new Set());
@@ -73,15 +73,19 @@ export default function OrphanRecordsScreen() {
     let cancelled = false;
     setReport(null);
     setFailed(false);
+    // The audit comes from the session cache Home already warmed — read
+    // from the precomputed tables when the worker has caught up with the
+    // import, computed here otherwise. Marks and rulings stay live reads.
     Promise.all([
-      fetchOrphanBundle(supabase, treeId),
+      getAuditBundle(treeId),
       supabase.from('tree_health_marks').select('finding_key').eq('tree_id', treeId),
       supabase.from('tree_health_rulings').select('xref_key'),
     ])
-      .then(([bundle, marks, rulings]) => {
+      .then(([run, marks, rulings]) => {
         if (cancelled) return;
-        setPeople(new Map(bundle.data.individuals.map((i) => [i.id, i])));
-        setReport(bundle.report);
+        setPeople(run.people);
+        setPrecomputed(run.precomputed);
+        setReport(run.orphans);
         setMarked(new Set((marks.data ?? []).map((m) => m.finding_key)));
         setRuled(new Set((rulings.data ?? []).map((r) => r.xref_key)));
       })
@@ -296,6 +300,11 @@ export default function OrphanRecordsScreen() {
           )}
           {report.totalDisconnected === 0 && (
             <ThemedText>Every record in your tree connects to every other. Remarkable.</ThemedText>
+          )}
+          {!precomputed && (
+            <ThemedText type="small" style={{ opacity: 0.8 }}>
+              {PROCESSING_NOTE}
+            </ThemedText>
           )}
         </>
       ) : failed ? (
