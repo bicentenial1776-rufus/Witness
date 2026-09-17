@@ -106,6 +106,9 @@ export default function Home() {
   const [recordPiece, setRecordPiece] = useState<RecordPiece | null>(null);
   const [arc, setArc] = useState<StoryArc | 'loading' | 'failed'>('loading');
   const [stage, setStage] = useState<FamilyStage | null>(null);
+  const hoursSinceImport = activeTree
+    ? (Date.now() - new Date(activeTree.imported_at).getTime()) / 3_600_000
+    : null;
   const [naraCounts, setNaraCounts] = useState<NaraCounts | null>(null);
   // The Archives focus: collapsed by default; expanding fetches up to 10
   // pending candidates to judge in place.
@@ -765,6 +768,27 @@ export default function Home() {
                   )}
                 </Feed>
               )}
+
+              {/* A fresh import: the record matching, place lookups and
+                  story warming run on their own schedules, and for a day
+                  or two the page is thinner than it will be. Say so,
+                  rather than leave the gaps silent (Rufus, 2026-09-17). */}
+              {hoursSinceImport !== null &&
+                hoursSinceImport < 48 &&
+                (!(naraCounts && naraCounts.pending > 0) || arc === 'failed' || !stage) && (
+                  <Feed eyebrow="Still settling in">
+                    <Text
+                      style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15.5, lineHeight: 22, color: L.ink }}
+                    >
+                      {hoursSinceImport < 1
+                        ? 'Your tree came in within the hour. '
+                        : `Your tree came in ${Math.round(hoursSinceImport)} hour${Math.round(hoursSinceImport) === 1 ? '' : 's'} ago. `}
+                      Witness is still placing its towns on the map, matching people to federal
+                      records and preparing stories behind the scenes — those parts of this page
+                      fill in over the next day or two. The tree itself is ready now.
+                    </Text>
+                  </Feed>
+                )}
             </>
           )
         );

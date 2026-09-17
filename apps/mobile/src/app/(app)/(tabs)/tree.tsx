@@ -6,10 +6,13 @@ import { buildFamilyStages, fetchNaraCounts, treeGenerationSpan, type NaraCounts
 
 import { Masthead, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { FamilyStage } from '@/components/broadsheet/family-stage';
+import { openFieldGuide } from '@/components/field-guide';
 import { RecordText } from '@/components/record-text';
 import { BrandFonts, Letterpress, WideContent, mono } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
+import { formatDate } from '@/lib/format-date';
+import { getLineageScope } from '@/lib/lineage-scope';
 import { supabase } from '@/lib/supabase';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
@@ -58,6 +61,27 @@ export default function TreeTab() {
   const [households, setHouseholds] = useState<number | null>(null);
   const [briefCounts, setBriefCounts] = useState<{ total: number; open: number } | null>(null);
   const [naraCounts, setNaraCounts] = useState<NaraCounts | null>(null);
+  // "Who gets featured" (You → Preferences), shown here so the reader
+  // knows whose line the digest and filters celebrate (Rufus, 2026-09-17).
+  const [featured, setFeatured] = useState<string | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getLineageScope().then((scope) => {
+        if (cancelled) return;
+        setFeatured(
+          scope === 'direct'
+            ? 'Direct line'
+            : scope === 'blood'
+              ? 'Blood relatives'
+              : 'Blood and married-in',
+        );
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -117,10 +141,42 @@ export default function TreeTab() {
   const stats = [
     `${Number(activeTree.individual_count).toLocaleString()} people`,
     `${Number(activeTree.family_count).toLocaleString()} families`,
+    `${Number(activeTree.place_count).toLocaleString()} places`,
     generations !== null ? `${generations} generations` : null,
   ]
     .filter(Boolean)
     .join(' · ');
+  // When the file came in — an update from a newer file says so.
+  const provenance = `${activeTree.refreshed_from ? 'Updated from a newer file' : 'Imported'} ${formatDate(activeTree.imported_at)}`;
+
+  const treeMeta = (
+    <View style={{ marginTop: 8, gap: 4 }}>
+      <Text style={mono(13, L.muted)}>{stats.toUpperCase()}</Text>
+      <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14.5, color: L.muted }}>{provenance}</Text>
+      {featured && (
+        <Pressable onPress={() => router.push('/you' as never)} hitSlop={6}>
+          <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14.5, color: L.muted }}>
+            Who gets featured: <Text style={{ color: L.deepAmber }}>{featured} ›</Text>
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  );
+
+  const helpSection = (
+    <Section eyebrow="Getting your bearings">
+      <Row
+        title="Questions and answers"
+        detail="What Witness does with your file, how the features work, and what to do when something looks off"
+        onPress={() => router.push('/faq' as never)}
+      />
+      <Row
+        title="The Field Guide"
+        detail="Every screen, explained — opens in your browser"
+        onPress={() => openFieldGuide()}
+      />
+    </Section>
+  );
 
   // Curiosities left this tab 2026-08-27: they are the Tree Check's own
   // findings re-voiced (curiosities-cache.ts says so outright), and two
@@ -237,9 +293,16 @@ export default function TreeTab() {
     return (
       <PageShell
         masthead={
-          <Masthead title={activeTree.name} metaMono={stats.toUpperCase()} metaCaption="The tree" />
+          <Masthead title={activeTree.name} metaMono={stats.toUpperCase()} metaCaption={provenance} />
         }
       >
+        {featured && (
+          <Pressable onPress={() => router.push('/you' as never)} hitSlop={6} style={{ marginTop: 12 }}>
+            <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14.5, color: L.muted }}>
+              Who gets featured: <Text style={{ color: L.deepAmber }}>{featured} ›</Text>
+            </Text>
+          </Pressable>
+        )}
         <View style={{ marginTop: 36 }}>
           <FamilyStage treeId={activeTree.id} />
         </View>
@@ -247,6 +310,7 @@ export default function TreeTab() {
         {owned && <View style={{ maxWidth: 680 }}>{treeHealthSection}</View>}
         {owned && <View style={{ maxWidth: 680 }}>{archivesSection}</View>}
         {owned && <View style={{ maxWidth: 680 }}>{briefsSection}</View>}
+        <View style={{ maxWidth: 680 }}>{helpSection}</View>
       </PageShell>
     );
   }
@@ -262,11 +326,13 @@ export default function TreeTab() {
         >
           {activeTree.name}
         </Text>
+        {treeMeta}
         {peopleSection}
         {familyStageDoor}
         {owned && treeHealthSection}
         {owned && archivesSection}
         {owned && briefsSection}
+        {helpSection}
       </ScrollView>
     </View>
   );

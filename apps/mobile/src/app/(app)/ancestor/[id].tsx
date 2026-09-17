@@ -1775,8 +1775,9 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
           ) : (
             ''
           )}
-          {/* The map caret: a glance at where that is, in place. Only
-              offered once the geocoder has actually placed the town. */}
+          {/* The map door: a glance at where that is, in place. Only
+              offered once the geocoder has actually placed the town. It
+              was a bare caret; nobody found it (Rufus, 2026-09-17). */}
           {birthCoords && (
             <Text
               style={{ color: theme.accent }}
@@ -1784,7 +1785,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
               accessibilityRole="button"
               accessibilityLabel={mapOpen ? 'Hide the map' : 'Show on a map'}
             >
-              {mapOpen ? '  ▴' : '  ▾'}
+              {mapOpen ? '  ·  Hide map ▴' : '  ·  Show map ▾'}
             </Text>
           )}
           {person.living ? '  ·  living' : ''}
