@@ -2,7 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { buildFamilyStages, fetchNaraCounts, treeGenerationSpan, type NaraCounts } from '@witness/core/query';
+import { fetchNaraCounts, type NaraCounts } from '@witness/core/query';
 
 import { Masthead, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { FamilyStage } from '@/components/broadsheet/family-stage';
@@ -11,10 +11,10 @@ import { RecordText } from '@/components/record-text';
 import { BrandFonts, Letterpress, WideContent, mono } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
+import { getFamilyStages, getTreeGenerationSpan } from '@/lib/family-stage-cache';
 import { formatDate } from '@/lib/format-date';
 import { getLineageScope } from '@/lib/lineage-scope';
 import { supabase } from '@/lib/supabase';
-import { getTreeIndex } from '@/lib/tree-index-cache';
 
 
 function Section({ eyebrow, children }: { eyebrow: string; children: ReactNode }) {
@@ -90,11 +90,13 @@ export default function TreeTab() {
       let cancelled = false;
       const treeId = activeTree.id;
 
-      getTreeIndex(treeId)
-        .then((index) => {
+      // Both memoized per tree index — rebuilding the stages over 61k
+      // people on every return to this tab was the Back lag (#15).
+      Promise.all([getTreeGenerationSpan(treeId), getFamilyStages(treeId)])
+        .then(([span, stages]) => {
           if (cancelled) return;
-          setGenerations(treeGenerationSpan(index));
-          setHouseholds(buildFamilyStages(index, { currentYear: new Date().getFullYear() }).byKey.size);
+          setGenerations(span);
+          setHouseholds(stages.byKey.size);
         })
         .catch(() => {});
 

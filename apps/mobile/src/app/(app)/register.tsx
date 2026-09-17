@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import {
-  buildFamilyStages,
   buildRegister,
   type Register,
   type RegisterEntry,
@@ -18,6 +17,7 @@ import { Broadsheet, BrandFonts, Letterpress, WideContent, mono } from '@/consta
 import { useKinMap } from '@/hooks/use-kin-map';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
+import { getFamilyStages } from '@/lib/family-stage-cache';
 import { setPendingStage } from '@/lib/stage-handoff';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
@@ -55,10 +55,9 @@ export default function RegisterScreen() {
   useEffect(() => {
     if (!treeId) return;
     let cancelled = false;
-    getTreeIndex(treeId)
-      .then((index) => {
+    Promise.all([getTreeIndex(treeId), getFamilyStages(treeId)])
+      .then(([index, stages]) => {
         if (cancelled) return;
-        const stages = buildFamilyStages(index, { currentYear: new Date().getFullYear() });
         setRegister(buildRegister(index, stages));
         setNames(new Map([...index.individuals.values()].map((i) => [i.id, i.full_name])));
       })

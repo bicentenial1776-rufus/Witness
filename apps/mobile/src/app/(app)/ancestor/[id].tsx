@@ -423,7 +423,7 @@ function AncestorNote({
       <ThemedText type="small" themeColor="textSecondary">
         {status === 'error'
           ? "Couldn't save — check your connection and type a character to retry."
-          : `Only you see this, and it never changes the story above.${status === 'saved' ? ' Saved.' : ''}`}
+          : `Only you see this. It stays in Witness — never in your GEDCOM file — and never changes the story above.${status === 'saved' ? ' Saved.' : ''}`}
       </ThemedText>
     </View>
   );

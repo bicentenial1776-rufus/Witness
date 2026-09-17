@@ -320,8 +320,13 @@ export default function FamilyStageScreen() {
 
   if (!stage || !marriage) {
     return (
-      <View style={{ flex: 1, backgroundColor: L.paper, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: L.paper, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <Text style={mono(13, L.inkUnrecorded)}>SETTING THE STAGE…</Text>
+        {(activeTree?.individual_count ?? 0) > 20_000 && (
+          <Text style={{ ...mono(11.5, L.inkUnrecorded), marginTop: 8, textAlign: 'center' }}>
+            ON A TREE THIS SIZE THE FIRST LOOK CAN TAKE ABOUT A MINUTE — AFTER THAT IT IS KEPT ON THIS DEVICE
+          </Text>
+        )}
       </View>
     );
   }

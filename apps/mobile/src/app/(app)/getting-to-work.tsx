@@ -62,12 +62,22 @@ function build(index: TreeIndex): Panels {
   const withBirth = people.filter((p) => p.birth_year !== null).length;
   const withDeath = people.filter((p) => p.death_year !== null).length;
 
+  // Grouped case-insensitively — a PAF file writes DOUGLASS for one
+  // branch and Douglass for another (Rich, 2026-09-17), and those are one
+  // name. Each name is shown in its commonest spelling.
   const surnameCounts = new Map<string, number>();
+  const spellings = new Map<string, Map<string, number>>();
   for (const person of people) {
     const surname = person.surname?.trim();
     if (!surname) continue;
-    surnameCounts.set(surname, (surnameCounts.get(surname) ?? 0) + 1);
+    const key = surname.toLocaleLowerCase();
+    surnameCounts.set(key, (surnameCounts.get(key) ?? 0) + 1);
+    const forms = spellings.get(key) ?? new Map<string, number>();
+    forms.set(surname, (forms.get(surname) ?? 0) + 1);
+    spellings.set(key, forms);
   }
+  const commonestSpelling = (key: string) =>
+    [...(spellings.get(key) ?? new Map<string, number>()).entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? key;
 
   const lifespans = averageLifespanByCentury(index);
   // Weighted across every cohort — the single "how long did they live" number.
@@ -119,7 +129,7 @@ function build(index: TreeIndex): Panels {
       .slice(0, 8)
       .map(([surname, n]) => ({
         key: surname,
-        label: surname,
+        label: commonestSpelling(surname),
         value: n,
         detail: `${n.toLocaleString()} people`,
       })),

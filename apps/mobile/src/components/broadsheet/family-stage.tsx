@@ -4,7 +4,6 @@ import { Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
 
 import { HISTORICAL_EVENTS, PRESIDENCIES } from '@witness/core/history';
 import {
-  buildFamilyStages,
   type FamilyStage as Stage,
   type FamilyStageIndex,
   type StagePerson,
@@ -13,7 +12,8 @@ import {
 import { RecordText } from '@/components/record-text';
 import { Broadsheet, BrandFonts, Letterpress, mono } from '@/constants/theme';
 import { consumePendingStage } from '@/lib/stage-handoff';
-import { getTreeIndex } from '@/lib/tree-index-cache';
+import { useActiveTree } from '@/lib/active-tree';
+import { getFamilyStages } from '@/lib/family-stage-cache';
 
 const C = Broadsheet.color;
 
@@ -48,6 +48,10 @@ function ageWord(years: number): string {
  * off the years they mark.
  */
 export function FamilyStage({ treeId }: { treeId: string }) {
+  const { activeTree } = useActiveTree();
+  // The first look on a big tree is the one-time index fetch; say so
+  // instead of a bare "setting the stage" for a minute (Rufus, 2026-09-17).
+  const bigTree = (activeTree?.individual_count ?? 0) > 20_000;
   const [stages, setStages] = useState<FamilyStageIndex | null>(null);
   const [failed, setFailed] = useState(false);
   const [currentKey, setCurrentKey] = useState<string | null>(null);
@@ -60,10 +64,9 @@ export function FamilyStage({ treeId }: { treeId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    getTreeIndex(treeId)
-      .then((index) => {
+    getFamilyStages(treeId)
+      .then((built) => {
         if (cancelled) return;
-        const built = buildFamilyStages(index, { currentYear: new Date().getFullYear() });
         setStages(built);
         const opening = built.topLevel[0];
         if (opening) {
@@ -153,6 +156,11 @@ export function FamilyStage({ treeId }: { treeId: string }) {
           }}
         >
           <Text style={mono(13, INK_UNRECORDED)}>SETTING THE STAGE…</Text>
+          {bigTree && (
+            <Text style={{ ...mono(11.5, INK_UNRECORDED), marginTop: 8, textAlign: 'center', paddingHorizontal: 24 }}>
+              ON A TREE THIS SIZE THE FIRST LOOK CAN TAKE ABOUT A MINUTE — AFTER THAT IT IS KEPT ON THIS DEVICE
+            </Text>
+          )}
         </View>
       </View>
     );

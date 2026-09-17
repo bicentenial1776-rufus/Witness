@@ -6,7 +6,6 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import type { ShelfEntry } from '@witness/core/history';
 import { dailyIssueOf, fromPassengerCandidate, pickWeekly } from '@witness/core/findings';
 import {
-  buildFamilyStages,
   fetchNaraCandidatesForTree,
   fetchNaraCounts,
   fetchPassengerCandidatesForIndividual,
@@ -36,7 +35,7 @@ import { usePurchases } from '@/lib/purchases';
 import { getShelf } from '@/lib/shelf-cache';
 import { getTodayArc, type StoryArc } from '@/lib/story-arc';
 import { supabase } from '@/lib/supabase';
-import { getTreeIndex } from '@/lib/tree-index-cache';
+import { getFamilyStages } from '@/lib/family-stage-cache';
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 const isToday = (d: Date) => startOfDay(d) === startOfDay(new Date());
@@ -106,8 +105,10 @@ export default function Home() {
   const [recordPiece, setRecordPiece] = useState<RecordPiece | null>(null);
   const [arc, setArc] = useState<StoryArc | 'loading' | 'failed'>('loading');
   const [stage, setStage] = useState<FamilyStage | null>(null);
+  // Read once per mount — the note is about the day, not the second.
+  const [openedAt] = useState(() => Date.now());
   const hoursSinceImport = activeTree
-    ? (Date.now() - new Date(activeTree.imported_at).getTime()) / 3_600_000
+    ? (openedAt - new Date(activeTree.imported_at).getTime()) / 3_600_000
     : null;
   const [naraCounts, setNaraCounts] = useState<NaraCounts | null>(null);
   // The Archives focus: collapsed by default; expanding fetches up to 10
@@ -252,10 +253,9 @@ export default function Home() {
       // households the stage index can draw, biased toward the ones with
       // a dated marriage and a real sibship — those graphs read as a
       // story, not a stub.
-      getTreeIndex(treeId)
-        .then((index) => {
+      getFamilyStages(treeId)
+        .then((stages) => {
           if (cancelled) return;
-          const stages = buildFamilyStages(index, { currentYear: new Date().getFullYear() });
           const all = [...stages.byKey.values()];
           const interesting = all.filter(
             (s) =>
