@@ -8,10 +8,12 @@ import { Masthead, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { FamilyStage } from '@/components/broadsheet/family-stage';
 import { openFieldGuide } from '@/components/field-guide';
 import { RecordText } from '@/components/record-text';
-import { BrandFonts, Letterpress, WideContent, mono } from '@/constants/theme';
+import { SearchBar } from '@/components/search-bar';
+import { BrandFonts, Letterpress, WideContent, mono, monoLink } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { getFamilyStages, getTreeGenerationSpan } from '@/lib/family-stage-cache';
+import { ARCHIVES_ENABLED } from '@/lib/features';
 import { formatDate } from '@/lib/format-date';
 import { getLineageScope } from '@/lib/lineage-scope';
 import { supabase } from '@/lib/supabase';
@@ -37,7 +39,17 @@ function Row({ title, detail, onPress }: { title: string; detail?: string; onPre
       style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingVertical: 8 }}
     >
       <View style={{ flexShrink: 1, gap: 3 }}>
-        <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 19, color: L.ink }}>{title}</Text>
+        {/* The one tappable convention: accent and underlined. */}
+        <Text
+          style={{
+            fontFamily: BrandFonts.serif.regular,
+            fontSize: 19,
+            color: L.deepAmber,
+            textDecorationLine: 'underline',
+          }}
+        >
+          {title}
+        </Text>
         {detail ? <Text style={mono(13, L.muted)}>{detail.toUpperCase()}</Text> : null}
       </View>
       <Text style={mono(13, L.amber)}>›</Text>
@@ -113,11 +125,13 @@ export default function TreeTab() {
           });
         });
 
-      fetchNaraCounts(supabase, treeId)
-        .then((counts) => {
-          if (!cancelled) setNaraCounts(counts);
-        })
-        .catch(() => {});
+      if (ARCHIVES_ENABLED) {
+        fetchNaraCounts(supabase, treeId)
+          .then((counts) => {
+            if (!cancelled) setNaraCounts(counts);
+          })
+          .catch(() => {});
+      }
 
       return () => {
         cancelled = true;
@@ -222,7 +236,7 @@ export default function TreeTab() {
             </Text>
             <Text style={mono(13, L.muted)}>ONE HOUSEHOLD DRAWN AS A LENGTH OF TIME</Text>
             <Pressable onPress={() => router.push('/register' as never)} hitSlop={8}>
-              <Text style={{ ...mono(13, L.deepAmber), marginTop: 4 }}>
+              <Text style={{ ...monoLink(13, L.deepAmber), marginTop: 4 }}>
                 {households !== null ? `THE REGISTER — ALL ${households.toLocaleString()} HOUSEHOLDS ›` : 'THE REGISTER ›'}
               </Text>
             </Pressable>
@@ -305,12 +319,15 @@ export default function TreeTab() {
             </Text>
           </Pressable>
         )}
+        <View style={{ maxWidth: 680, marginTop: 20 }}>
+          <SearchBar />
+        </View>
         <View style={{ marginTop: 36 }}>
           <FamilyStage treeId={activeTree.id} />
         </View>
         <View style={{ maxWidth: 680 }}>{peopleSection}</View>
         {owned && <View style={{ maxWidth: 680 }}>{treeHealthSection}</View>}
-        {owned && <View style={{ maxWidth: 680 }}>{archivesSection}</View>}
+        {owned && ARCHIVES_ENABLED && <View style={{ maxWidth: 680 }}>{archivesSection}</View>}
         {owned && <View style={{ maxWidth: 680 }}>{briefsSection}</View>}
         <View style={{ maxWidth: 680 }}>{helpSection}</View>
       </PageShell>
@@ -329,10 +346,11 @@ export default function TreeTab() {
           {activeTree.name}
         </Text>
         {treeMeta}
+        <SearchBar style={{ marginTop: 20 }} />
         {peopleSection}
         {familyStageDoor}
         {owned && treeHealthSection}
-        {owned && archivesSection}
+        {owned && ARCHIVES_ENABLED && archivesSection}
         {owned && briefsSection}
         {helpSection}
       </ScrollView>

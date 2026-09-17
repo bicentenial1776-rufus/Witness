@@ -7,6 +7,7 @@ import type { HistoricalEvent, ShelfEntry } from '@witness/core/history';
 
 import { KinLine, KinName } from '@/components/kin-line';
 import { RecordText } from '@/components/record-text';
+import { SearchBar } from '@/components/search-bar';
 import type { Kin } from '@/lib/relationship-cache';
 import { VISITED_MARK } from '@/lib/visits';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
@@ -96,7 +97,6 @@ export function ExploreBroadsheet({
   search: string;
   onSearch: (value: string) => void;
 }) {
-  const [searchFocused, setSearchFocused] = useState(false);
   const [drawerEvent, setDrawerEvent] = useState<string | null>(null);
   const searching = search.trim().length > 1;
 
@@ -217,37 +217,13 @@ export function ExploreBroadsheet({
         </>
       }
     >
-      {/* Search as a broadsheet line, not an input box. */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'baseline',
-          gap: 16,
-          borderBottomWidth: 1,
-          borderBottomColor: searchFocused ? C.ink : C.rule,
-          paddingBottom: 8,
-        }}
-      >
-        <RecordText eyebrow accent>
-          Search
-        </RecordText>
-        <TextInput
-          value={search}
-          onChangeText={onSearch}
-          onFocus={() => setSearchFocused(true)}
-          onBlur={() => setSearchFocused(false)}
-          placeholder="a name, a place, a year — “Elizabeth Dane”, “Mayflower”, “1675”"
-          placeholderTextColor={C.inkFaint}
-          style={{
-            flex: 1,
-            fontFamily: BrandFonts.serif.italic,
-            fontSize: 19,
-            color: C.ink,
-            paddingVertical: 2,
-            ...({ outlineStyle: 'none' } as object),
-          }}
-        />
-      </View>
+      {/* The one search box, same as every tab (Rufus, 2026-09-17). */}
+      <SearchBar
+        value={search}
+        onChangeText={onSearch}
+        onSubmit={onSearch}
+        hint="People, places and history — a name, a town, a year"
+      />
 
       {searching ? (
         <View style={{ marginTop: 8 }}>

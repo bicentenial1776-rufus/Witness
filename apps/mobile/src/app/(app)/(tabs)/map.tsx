@@ -7,6 +7,7 @@ import MapView, { Marker, type MapType } from 'react-native-maps';
 import { placesWithActivity, type GeographyIndex } from '@witness/core/query';
 
 import { NearMe } from '@/components/near-me';
+import { SearchBar } from '@/components/search-bar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
@@ -182,6 +183,7 @@ export default function AncestorMapTab() {
       )}
 
       <View style={{ position: 'absolute', top: 60, left: 0, right: 0, gap: 8, paddingHorizontal: 16 }}>
+        <SearchBar hint="" />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <SegmentedControl
             style={{ flex: 1 }}

@@ -24,7 +24,7 @@ import { KinReveal } from '@/components/kin-reveal';
 import { NaraCandidateCard } from '@/components/nara-candidate-card';
 import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
-import { BrandFonts, WideContent, mono } from '@/constants/theme';
+import { BrandFonts, WideContent, mono, monoLink } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { pullRecordPiece, recordEditionPieces, type RecordPiece } from '@/lib/edition-ledger';
@@ -36,6 +36,8 @@ import { getShelf } from '@/lib/shelf-cache';
 import { getTodayArc, type StoryArc } from '@/lib/story-arc';
 import { supabase } from '@/lib/supabase';
 import { getFamilyStages } from '@/lib/family-stage-cache';
+import { ARCHIVES_ENABLED } from '@/lib/features';
+import { SearchBar } from '@/components/search-bar';
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 const isToday = (d: Date) => startOfDay(d) === startOfDay(new Date());
@@ -270,11 +272,13 @@ export default function Home() {
         })
         .catch(() => {});
 
-      fetchNaraCounts(supabase, treeId)
-        .then((counts) => {
-          if (!cancelled) setNaraCounts(counts);
-        })
-        .catch(() => {});
+      if (ARCHIVES_ENABLED) {
+        fetchNaraCounts(supabase, treeId)
+          .then((counts) => {
+            if (!cancelled) setNaraCounts(counts);
+          })
+          .catch(() => {});
+      }
 
       getShelf(treeId)
         .then((entries) => {
@@ -318,7 +322,7 @@ export default function Home() {
         destination: { pathname: '/family-stage/[key]', params: { key: stage.key } },
       });
     }
-    if (naraCounts && naraCounts.pending > 0) {
+    if (ARCHIVES_ENABLED && naraCounts && naraCounts.pending > 0) {
       trail.push({
         key: 'archives',
         label: 'THE ARCHIVES',
@@ -462,7 +466,7 @@ export default function Home() {
                     </Pressable>
                   ) : null}
                   <Pressable onPress={() => router.push({ pathname: '/digest', params: { treeId: activeTree.id } })}>
-                    <Text style={mono(13, L.amber)}>THIS WEEK IN YOUR FAMILY ›</Text>
+                    <Text style={monoLink(13, L.amber)}>THIS WEEK IN YOUR FAMILY ›</Text>
                   </Pressable>
                 </Feed>
               )}
@@ -531,7 +535,7 @@ export default function Home() {
                         {ancestorNote}
                       </Text>
                     )}
-                    <Text style={{ ...mono(13, L.amber), marginTop: 4 }}>THEIR FULL STORY ›</Text>
+                    <Text style={{ ...monoLink(13, L.amber), marginTop: 4 }}>THEIR FULL STORY ›</Text>
                   </Pressable>
                 </Feed>
               )}
@@ -577,7 +581,7 @@ export default function Home() {
                       {recordPiece.sentence}
                     </Text>
                     {recordPiece.subjectId && (
-                      <Text style={{ ...mono(13, L.amber), marginTop: 2 }}>
+                      <Text style={{ ...monoLink(13, L.amber), marginTop: 2 }}>
                         JUDGE IT ON THEIR PORTRAIT ›
                       </Text>
                     )}
@@ -641,7 +645,7 @@ export default function Home() {
                       >
                         {arc.dek}
                       </Text>
-                      <Text style={{ ...mono(13, L.amber), marginTop: 4 }}>READ THE LINE ›</Text>
+                      <Text style={{ ...monoLink(13, L.amber), marginTop: 4 }}>READ THE LINE ›</Text>
                     </Pressable>
                   )}
                 </Feed>
@@ -688,14 +692,14 @@ export default function Home() {
                         .filter(Boolean)
                         .join(' · ')}
                     </Text>
-                    <Text style={{ ...mono(13, L.amber), marginTop: 4 }}>OPEN THE GRAPH ›</Text>
+                    <Text style={{ ...monoLink(13, L.amber), marginTop: 4 }}>OPEN THE GRAPH ›</Text>
                   </Pressable>
                 </Feed>
               )}
 
               {/* 5 · The National Archives — the waiting count; expanding
                   brings ten pending records to judge without leaving Home. */}
-              {naraCounts && naraCounts.pending > 0 && (
+              {ARCHIVES_ENABLED && naraCounts && naraCounts.pending > 0 && (
                 <Feed eyebrow="The National Archives">
                   <Pressable
                     onPress={() => {
@@ -717,7 +721,7 @@ export default function Home() {
                   </Pressable>
                   {!naraOpen ? (
                     <Pressable onPress={openArchivesFocus} hitSlop={6}>
-                      <Text style={mono(13, L.amber)}>
+                      <Text style={monoLink(13, L.amber)}>
                         {`LOOK THROUGH ${Math.min(10, naraCounts.pending)} ›`}
                       </Text>
                     </Pressable>
@@ -760,7 +764,7 @@ export default function Home() {
                         }
                         hitSlop={6}
                       >
-                        <Text style={mono(13, L.amber)}>
+                        <Text style={monoLink(13, L.amber)}>
                           {`ALL ${naraCounts.pending} IN THE ARCHIVES ›`}
                         </Text>
                       </Pressable>
@@ -775,7 +779,9 @@ export default function Home() {
                   rather than leave the gaps silent (Rufus, 2026-09-17). */}
               {hoursSinceImport !== null &&
                 hoursSinceImport < 48 &&
-                (!(naraCounts && naraCounts.pending > 0) || arc === 'failed' || !stage) && (
+                ((ARCHIVES_ENABLED && !(naraCounts && naraCounts.pending > 0)) ||
+                  arc === 'failed' ||
+                  !stage) && (
                   <Feed eyebrow="Still settling in">
                     <Text
                       style={{ fontFamily: BrandFonts.serif.regular, fontSize: 15.5, lineHeight: 22, color: L.ink }}
@@ -783,9 +789,9 @@ export default function Home() {
                       {hoursSinceImport < 1
                         ? 'Your tree came in within the hour. '
                         : `Your tree came in ${Math.round(hoursSinceImport)} hour${Math.round(hoursSinceImport) === 1 ? '' : 's'} ago. `}
-                      Witness is still placing its towns on the map, matching people to federal
-                      records and preparing stories behind the scenes — those parts of this page
-                      fill in over the next day or two. The tree itself is ready now.
+                      Witness is still placing its towns on the map and preparing stories behind
+                      the scenes — those parts of this page fill in over the next day or two. The
+                      tree itself is ready now.
                     </Text>
                   </Feed>
                 )}
@@ -806,7 +812,10 @@ export default function Home() {
           />
         }
       >
-        <View style={{ maxWidth: 680 }}>{feedBody}</View>
+        <View style={{ maxWidth: 680 }}>
+          {activeTree && <SearchBar style={{ marginBottom: 28 }} />}
+          {feedBody}
+        </View>
       </PageShell>
     );
   }
@@ -829,6 +838,7 @@ export default function Home() {
           </Pressable>
         </View>
 
+        {activeTree && <SearchBar style={{ marginTop: 16, marginBottom: 8 }} />}
         {feedBody}
       </ScrollView>
     </View>

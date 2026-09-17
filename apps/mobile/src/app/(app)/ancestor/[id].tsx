@@ -92,6 +92,7 @@ import {
   type GraveConfirmation,
 } from '@/lib/grave-link';
 import { invokeError, openResearchBrief } from '@/lib/research-brief';
+import { ARCHIVES_ENABLED } from '@/lib/features';
 import { supabase } from '@/lib/supabase';
 import { BrandFonts, Fonts, WideContent } from '@/constants/theme';
 import { useKinMap } from '@/hooks/use-kin-map';
@@ -245,7 +246,8 @@ function parseWorldContent(content: string): { text: string; general: string | n
 // edge function — e.g. v2's twin awareness, Betsey's report 2026-08-19)
 // retires stale stories here too: the tell button returns and the next
 // tap writes the corrected story over the old row.
-const ENRICHMENT_PROMPT_VERSION = { biography: 2, historical_context: 3 } as const;
+// biography 3 (2026-09-17): the file's own notes now reach the writer.
+const ENRICHMENT_PROMPT_VERSION = { biography: 3, historical_context: 3 } as const;
 
 /** One AI-enriched text section backed by a cache row + Edge Function. */
 function useEnrichment(
@@ -949,7 +951,9 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
 
       // National Archives candidates for this person (pending asks +
       // confirmed documents). Hidden while empty; enrichment is gradual.
-      fetchNaraCandidatesForIndividual(supabase, id)
+      (ARCHIVES_ENABLED
+        ? fetchNaraCandidatesForIndividual(supabase, id)
+        : Promise.resolve([] as NaraCandidate[]))
         .then((rows) => {
           if (!cancelled) setNaraCandidates(rows.filter((c) => c.status !== 'dismissed'));
         })
@@ -2006,6 +2010,14 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
         {/* ————— Overview: the rich teaser (2B) ————— */}
         <View style={{ display: activeTab === 'overview' ? 'flex' : 'none' }}>
           {teaser && <ThemedText style={{ marginTop: 16 }}>{teaser}</ThemedText>}
+          {/* The file's voice, then the reader's — under the description,
+              on the first tab (Rufus, 2026-09-17: they were under Life &
+              Times and nobody found them). Since the same day the file's
+              notes are also handed to the story writer as reference. */}
+          {fileNotes.length > 0 && <FileNotes notes={fileNotes} theme={theme} />}
+          {treeOwned && (
+            <AncestorNote individualId={person.id} treeId={person.tree_id} onText={setAncestorNote} />
+          )}
           {(parents.length > 0 || marriages.some((m) => m.spouse)) && (
             <View style={{ marginTop: 14 }}>
               {parents.length > 0 && (
@@ -2242,20 +2254,8 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                       {STORY_SHARE_LABEL}
                     </ThemedText>
                   )}
-                  {/* The file's voice, then the reader's: what the GEDCOM
-                      said about this person sits above Betsey's box, and is
-                      never fed to the story writer. */}
-                  {fileNotes.length > 0 && <FileNotes notes={fileNotes} theme={theme} />}
-                  {/* Betsey's box, below the story — also present before one
-                      exists, since lore doesn't wait for the writer. The
-                      owner's margin, not a companion's. */}
-                  {treeOwned && (
-                    <AncestorNote
-                      individualId={person.id}
-                      treeId={person.tree_id}
-                      onText={setAncestorNote}
-                    />
-                  )}
+                  {/* The file's notes and Betsey's box moved to the Overview
+                      tab (2026-09-17). */}
                 </Panel>
               </View>
 
@@ -2417,15 +2417,6 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 </View>
               </View>
             </>
-          ) : fileNotes.length > 0 ? (
-            /* A living person has no story panel; the file's notes still
-               belong on the page (owner-gated already, and share links
-               never carry them). */
-            <View style={{ marginTop: 2 }}>
-              <Panel theme={theme} label="From your file">
-                <FileNotes notes={fileNotes} theme={theme} bare />
-              </Panel>
-            </View>
           ) : null}
 
           {/* The record reads for everyone — living, offline, all of it. */}
@@ -2574,7 +2565,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
         {/* Actionable above reference (Rufus, 2026-09-02): the records
             waiting on a verdict print before the citation list — the
             reader's job first, the bibliography after. */}
-        {naraCandidates.length > 0 && (
+        {ARCHIVES_ENABLED && naraCandidates.length > 0 && (
           <View style={{ gap: 8, marginTop: 16 }}>
             <ThemedText type="subtitle">In the National Archives</ThemedText>
             <ThemedText type="small">
@@ -2957,19 +2948,35 @@ function FileNotes({
 }) {
   const [open, setOpen] = useState<Set<number>>(() => new Set());
   return (
-    <View style={{ marginTop: bare ? 0 : 10, gap: 10 }}>
+    <View
+      style={{
+        marginTop: bare ? 0 : 16,
+        gap: 10,
+        // A boundary around the file's own words (Rufus, 2026-09-17).
+        borderWidth: bare ? 0 : 1,
+        borderColor: theme.border,
+        borderRadius: 6,
+        padding: bare ? 0 : 12,
+      }}
+    >
       {!bare && (
-        <Text
-          style={{
-            fontFamily: Fonts.mono,
-            fontSize: 12.5,
-            letterSpacing: 1.6,
-            textTransform: 'uppercase',
-            color: theme.accent,
-          }}
-        >
-          From your file
-        </Text>
+        <>
+          <Text
+            style={{
+              fontFamily: Fonts.mono,
+              fontSize: 12.5,
+              letterSpacing: 1.6,
+              textTransform: 'uppercase',
+              color: theme.accent,
+            }}
+          >
+            Notes from your file
+          </Text>
+          <Text style={{ fontFamily: Fonts.sans, fontSize: 14.5, lineHeight: 20, color: theme.textSecondary }}>
+            Carried in from your GEDCOM, word for word. The story on the Life &amp; Times tab
+            draws on these as reference.
+          </Text>
+        </>
       )}
       {notes.map((note, index) => {
         const expanded = open.has(index);

@@ -14,6 +14,7 @@ import {
 
 import { KinLine, KinName } from '@/components/kin-line';
 import { RecordText } from '@/components/record-text';
+import { SearchBar } from '@/components/search-bar';
 import { Masthead, MarginPanel, PageShell, useBroadsheet } from '@/components/broadsheet';
 import { PlaceDrawer } from '@/components/broadsheet/place-drawer';
 import { ThemedText } from '@/components/themed-text';
@@ -501,6 +502,10 @@ export default function AncestorMapTab() {
         </>
       }
     >
+      {/* The one search box, same as every tab (Rufus, 2026-09-17). */}
+      <View style={{ maxWidth: 680, marginBottom: 24 }}>
+        <SearchBar />
+      </View>
       {/* Era band: inline text tabs, active underlined in orange. */}
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 24, flexWrap: 'wrap' }}>
         {ERAS.map((era, i) => {

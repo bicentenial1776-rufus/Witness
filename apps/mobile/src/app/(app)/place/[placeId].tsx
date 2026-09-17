@@ -19,6 +19,7 @@ import { SanbornBlock } from '@/components/sanborn-block';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getGeographyIndex } from '@/lib/geography-cache';
+import { ARCHIVES_ENABLED } from '@/lib/features';
 import { supabase } from '@/lib/supabase';
 
 export default function PlaceScreen() {
@@ -35,7 +36,7 @@ export default function PlaceScreen() {
     // Papers of this place: NARA documents the worker matched to people
     // with events here. The section simply hides while empty (enrichment
     // is gradual) or on error.
-    if (placeId) {
+    if (ARCHIVES_ENABLED && placeId) {
       fetchNaraCandidatesForPlace(supabase, treeId, placeId)
         .then((rows) => {
           if (!cancelled) setCandidates(rows);

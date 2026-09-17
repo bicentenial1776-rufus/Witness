@@ -24,7 +24,9 @@ const MODEL = 'claude-sonnet-4-6';
 // older writer quietly expires and retells corrected on the next tap
 // (Betsey's twins report, 2026-08-19). v2: twin awareness + the AI-
 // authorship disclosure shipping alongside.
-const PROMPT_VERSION = 2;
+// 3 (2026-09-17): the family file's own notes (individual_notes) reach the
+// writer as reference material. Every stale story retells on next view.
+const PROMPT_VERSION = 3;
 
 // Same window Tree Health uses: births within two days of each other in
 // one family are a multiple birth, not a data problem.
@@ -405,6 +407,42 @@ Deno.serve(async (req) => {
     }
   }
 
+  // The family file's own notes on this person — the NOTE records carried
+  // in from the GEDCOM (Rufus, 2026-09-17: "feed them to the story writer
+  // for additional material"). Reference, in the file's own words: the
+  // compiler's research, transcribed records, family lore. Capped so a
+  // note that runs to pages cannot crowd out the record.
+  const { data: fileNotes } = await admin
+    .from('individual_notes')
+    .select('content, position')
+    .eq('individual_id', individualId)
+    .order('position');
+  let notesSection = '';
+  const noteTexts = (fileNotes ?? [])
+    .map((n: { content: string }) => n.content.replace(/\s+/g, ' ').trim())
+    .filter((t: string) => t.length > 0);
+  if (noteTexts.length > 0) {
+    let budget = 6000;
+    const kept: string[] = [];
+    for (const text of noteTexts) {
+      if (budget <= 0) break;
+      const slice = text.slice(0, budget);
+      kept.push(slice);
+      budget -= slice.length;
+    }
+    notesSection =
+      `\n\nNOTES FROM THE FAMILY FILE:\n${kept.map((t, i) => `— note ${i + 1}: ${t}`).join('\n')}\n\n` +
+      [
+        'These notes were written by whoever compiled the family file — research findings, transcribed records, remembered stories. They are reference material, not the record.',
+        '- Draw on them for texture the documented facts alone do not give: an occupation, a move, a church, how a marriage came about, what a family remembered.',
+        '- Attribute in plain words when a note is the only source: "the family file notes that…", "according to a note in the file…". Never present a note\'s claim as a documented fact.',
+        '- Where a note contradicts the documented facts, keep the facts and mention the note\'s version as the note\'s.',
+        '- A note may quote a record verbatim; you may paraphrase it, and quote only words that appear in it.',
+        '- Notes sometimes name people who are not in the documented facts; refer to them by role ("a neighbor", "an uncle") rather than by name.',
+        '- Never invent beyond the notes, and never conjecture causes or feelings they do not state.',
+      ].join('\n');
+  }
+
   const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY')! });
 
   let response;
@@ -429,7 +467,7 @@ Deno.serve(async (req) => {
       messages: [
         {
           role: 'user',
-          content: `Write the biography of this ancestor.\n\nDocumented facts:\n${facts.join('\n')}${relativesSection}${documentsSection}`,
+          content: `Write the biography of this ancestor.\n\nDocumented facts:\n${facts.join('\n')}${relativesSection}${documentsSection}${notesSection}`,
         },
       ],
     });

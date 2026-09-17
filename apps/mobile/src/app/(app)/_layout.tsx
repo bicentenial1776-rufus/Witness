@@ -118,7 +118,11 @@ export default function AppLayout() {
           color: theme.text,
         },
         headerShadowVisible: false,
-        headerBackButtonDisplayMode: 'minimal',
+        // The arrow alone read as decoration (Rufus, 2026-09-17): show the
+        // screen it returns to — "One Generation at a Time" — or "Back"
+        // when the title will not fit.
+        headerBackButtonDisplayMode: 'default',
+        headerBackTitle: 'Back',
         contentStyle: { backgroundColor: theme.background },
       }}
     >

@@ -73,15 +73,19 @@ const styles = StyleSheet.create({
     lineHeight: 30,
     fontWeight: 600,
   },
+  // One convention for everything tappable (Rufus, 2026-09-17): the accent
+  // color AND an underline, so a reader never has to guess what responds.
   link: {
     lineHeight: 26,
     fontSize: 18,
     fontWeight: 500,
+    textDecorationLine: 'underline',
   },
   linkPrimary: {
     lineHeight: 26,
     fontSize: 18,
     fontWeight: 600,
+    textDecorationLine: 'underline',
   },
   code: {
     fontFamily: Fonts.mono,

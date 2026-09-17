@@ -2,7 +2,6 @@ import { router, usePathname } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
 import { RecordText } from '@/components/record-text';
-import { useActiveTree } from '@/lib/active-tree';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
 
 /**
@@ -59,7 +58,6 @@ const DESTINATIONS: { label: string; href: string; match: (p: string) => boolean
 
 export function Rail() {
   const pathname = usePathname();
-  const { activeTree } = useActiveTree();
 
   return (
     <View
@@ -72,23 +70,12 @@ export function Rail() {
         paddingBottom: 20,
       }}
     >
+      {/* Wordmark only (Rufus, 2026-09-17): the tree's name and figures
+          moved to the Tree tab's own heading; the rail is the four doors. */}
       <View style={{ paddingHorizontal: 18, marginBottom: 26 }}>
         <RecordText eyebrow accent>
           Witness
         </RecordText>
-        {activeTree && (
-          <Text
-            style={{
-              fontFamily: BrandFonts.serif.regular,
-              fontSize: 15,
-              color: C.inkSecondary,
-              marginTop: 6,
-            }}
-            numberOfLines={2}
-          >
-            {activeTree.name}
-          </Text>
-        )}
       </View>
 
       {DESTINATIONS.map((destination) => {
@@ -117,35 +104,6 @@ export function Rail() {
           </Pressable>
         );
       })}
-
-      {activeTree && (
-        <View
-          style={{
-            marginTop: 30,
-            marginHorizontal: 18,
-            paddingTop: 16,
-            borderTopWidth: 1,
-            borderTopColor: C.rule,
-            gap: 10,
-          }}
-        >
-          <RecordText eyebrow muted>
-            The tree
-          </RecordText>
-          {[
-            [activeTree.individual_count, 'people'],
-            [activeTree.family_count, 'families'],
-            [activeTree.place_count, 'places'],
-          ].map(([count, label]) => (
-            <View key={String(label)} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 14, color: C.inkSecondary }}>
-                {label}
-              </Text>
-              <RecordText>{Number(count).toLocaleString()}</RecordText>
-            </View>
-          ))}
-        </View>
-      )}
 
       <View style={{ flex: 1 }} />
       <Pressable onPress={() => router.push('/you')} style={{ paddingHorizontal: 18, paddingTop: 16 }}>

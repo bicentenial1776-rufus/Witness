@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { pulseSummary, type TreePulse } from '@witness/core/pulse';
 
+import { ARCHIVES_ENABLED } from '@/lib/features';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -161,19 +162,23 @@ export function ledgerEntries(ledger: ResearchLedger): LedgerEntry[] {
       route: '/orphan-records',
       count: ledger.orphans.fixed + ledger.orphans.ruled,
     },
-    {
-      key: 'archives',
-      label: 'The National Archives',
-      detail: [
-        ledger.archives.confirmed > 0 && `${ledger.archives.confirmed} confirmed`,
-        ledger.archives.dismissed > 0 && `${ledger.archives.dismissed} dismissed`,
-        ledger.archives.pending > 0 && `${ledger.archives.pending} awaiting you`,
-      ]
-        .filter(Boolean)
-        .join(' · '),
-      route: '/archives',
-      count: ledger.archives.confirmed + ledger.archives.dismissed + ledger.archives.pending,
-    },
+    ...(ARCHIVES_ENABLED
+      ? [
+          {
+            key: 'archives',
+            label: 'The National Archives',
+            detail: [
+              ledger.archives.confirmed > 0 && `${ledger.archives.confirmed} confirmed`,
+              ledger.archives.dismissed > 0 && `${ledger.archives.dismissed} dismissed`,
+              ledger.archives.pending > 0 && `${ledger.archives.pending} awaiting you`,
+            ]
+              .filter(Boolean)
+              .join(' · '),
+            route: '/archives' as const,
+            count: ledger.archives.confirmed + ledger.archives.dismissed + ledger.archives.pending,
+          },
+        ]
+      : []),
   ];
   return rows.filter((row) => row.count > 0);
 }

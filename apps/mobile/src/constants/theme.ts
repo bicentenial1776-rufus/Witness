@@ -211,6 +211,14 @@ export const mono = (size: number, color: string = Letterpress.ink) => ({
   color,
 });
 
+// A tappable mono label — the one convention for everything that responds
+// (Rufus, 2026-09-17): accent color plus an underline, same as ThemedText's
+// link presets.
+export const monoLink = (size: number, color: string = Letterpress.deepAmber) => ({
+  ...mono(size, color),
+  textDecorationLine: 'underline' as const,
+});
+
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
 

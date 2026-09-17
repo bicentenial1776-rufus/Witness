@@ -13,7 +13,7 @@ import { KinLine, KinName } from '@/components/kin-line';
 import { RecordText } from '@/components/record-text';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Broadsheet, BrandFonts, Letterpress, WideContent, mono } from '@/constants/theme';
+import { Broadsheet, BrandFonts, Letterpress, WideContent, mono, monoLink } from '@/constants/theme';
 import { useKinMap } from '@/hooks/use-kin-map';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
@@ -155,7 +155,7 @@ export default function RegisterScreen() {
         {entry.place ? ` · ${entry.place}` : ''}
       </Text>
       <View style={{ flex: 1 }} />
-      <Text style={mono(13, L.amber)}>›</Text>
+      <Text style={monoLink(13, L.amber)}>›</Text>
     </Pressable>
   );
 

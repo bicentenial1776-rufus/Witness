@@ -1,4 +1,4 @@
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
 
@@ -25,6 +25,7 @@ import { VISITED_MARK, fetchVisitedSet } from '@/lib/visits';
 import { Card } from '@/components/card';
 import { KinLine, KinName } from '@/components/kin-line';
 import { usePeopleList } from '@/components/people-list';
+import { SearchBar } from '@/components/search-bar';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -81,6 +82,11 @@ export default function ExploreTab() {
   const [shelfFailed, setShelfFailed] = useState(false);
   const [shelfAttempt, setShelfAttempt] = useState(0);
   const [search, setSearch] = useState('');
+  // A query handed over from another tab's search box (?q=…).
+  const { q: handedQuery } = useLocalSearchParams<{ q?: string }>();
+  useEffect(() => {
+    if (typeof handedQuery === 'string' && handedQuery.trim()) setSearch(handedQuery.trim());
+  }, [handedQuery]);
   const [people, setPeople] = useState<PersonHit[]>([]);
   // Betsey's star (2026-08-19): which of these results the reader has
   // already been to. Owned here so both explore variants share one fetch.
@@ -309,14 +315,11 @@ export default function ExploreTab() {
 
       {activeTree ? (
         <>
-          <TextField
-            placeholder="Search people, places & history — “Elizabeth Dane”, “Worcester”…"
-            returnKeyType="search"
+          <SearchBar
             value={search}
             onChangeText={setSearch}
-            autoCapitalize="none"
-            autoCorrect={false}
-            clearButtonMode="while-editing"
+            onSubmit={setSearch}
+            hint="People, places and history — a name, a town, a year"
           />
 
           {!searching && (
