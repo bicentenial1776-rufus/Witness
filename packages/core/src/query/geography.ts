@@ -595,6 +595,41 @@ export interface PlaceActivity {
  * first — the map's marker source. Events without a year only count
  * when no era filter is applied.
  */
+/**
+ * The Map's search (Rufus, 2026-09-17): the located places of the people
+ * whose names match the query — every word of the query must appear in
+ * the name, case-insensitively — busiest first, inside the era window
+ * when one is given. On-device over the geography index, so it answers
+ * as fast as the reader types; no request, no RPC.
+ */
+export function placesForPeople(
+  index: GeographyIndex,
+  query: string,
+  era?: { startYear: number; endYear: number },
+): { places: PlaceActivity[]; people: number } {
+  const words = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return { places: [], people: 0 };
+  const matched = new Set<string>();
+  for (const person of index.individuals.values()) {
+    const name = person.full_name.toLocaleLowerCase();
+    if (words.every((w) => name.includes(w))) matched.add(person.id);
+  }
+  const counts = new Map<string, number>();
+  for (const event of index.events) {
+    if (!event.placeId || !matched.has(event.individualId)) continue;
+    if (era && (event.year === null || event.year < era.startYear || event.year > era.endYear)) continue;
+    counts.set(event.placeId, (counts.get(event.placeId) ?? 0) + 1);
+  }
+  const places: PlaceActivity[] = [];
+  for (const [placeId, eventCount] of counts) {
+    const place = index.places.get(placeId);
+    if (!place || place.latitude === null || place.longitude === null) continue;
+    places.push({ place, eventCount });
+  }
+  places.sort((a, b) => b.eventCount - a.eventCount);
+  return { places, people: matched.size };
+}
+
 export function placesWithActivity(
   index: GeographyIndex,
   era?: { startYear: number; endYear: number },

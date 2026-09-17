@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import MapView, { Marker, type MapType } from 'react-native-maps';
 
-import { placesWithActivity, type GeographyIndex } from '@witness/core/query';
+import { placesForPeople, placesWithActivity, type GeographyIndex } from '@witness/core/query';
 
 import { NearMe } from '@/components/near-me';
 import { SearchBar } from '@/components/search-bar';
@@ -94,10 +94,19 @@ export default function AncestorMapTab() {
     }, [treeId]),
   );
 
+  // The map's search: the places of the people whose names match, in
+  // place of the busiest-places view, until cleared.
+  const [draft, setDraft] = useState('');
+  const [query, setQuery] = useState('');
+  const found = useMemo(() => {
+    if (!index || !query.trim()) return null;
+    return placesForPeople(index, query.trim(), ERAS[eraIndex]?.range);
+  }, [index, query, eraIndex]);
   const markers = useMemo(() => {
     if (!index) return [];
+    if (found) return found.places.slice(0, MAX_MARKERS);
     return placesWithActivity(index, ERAS[eraIndex]?.range).slice(0, MAX_MARKERS);
-  }, [index, eraIndex]);
+  }, [index, eraIndex, found]);
 
   const initialRegion = useMemo(() => {
     if (!markers.length) {
@@ -127,7 +136,7 @@ export default function AncestorMapTab() {
       { edgePadding: { top: 140, right: 60, bottom: 80, left: 60 }, animated: true },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eraIndex, index]);
+  }, [eraIndex, index, query]);
 
   if (!treeId) {
     return (
@@ -183,7 +192,30 @@ export default function AncestorMapTab() {
       )}
 
       <View style={{ position: 'absolute', top: 60, left: 0, right: 0, gap: 8, paddingHorizontal: 16 }}>
-        <SearchBar hint="" />
+        <SearchBar
+          value={draft}
+          onChangeText={setDraft}
+          onSubmit={setQuery}
+          label="Find people on the map"
+          hint={
+            found
+              ? found.people === 0
+                ? `No one named “${query}” in this tree`
+                : `${found.people.toLocaleString()} ${found.people === 1 ? 'person' : 'people'} · ${found.places.length.toLocaleString()} located ${found.places.length === 1 ? 'place' : 'places'}`
+              : ''
+          }
+        />
+        {found && (
+          <ThemedText
+            type="link"
+            onPress={() => {
+              setQuery('');
+              setDraft('');
+            }}
+          >
+            Show every place again
+          </ThemedText>
+        )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <SegmentedControl
             style={{ flex: 1 }}

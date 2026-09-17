@@ -7,6 +7,7 @@ import { ActivityIndicator, Pressable, Text, View, useColorScheme } from 'react-
 
 import {
   ancestorsAtPlace,
+  placesForPeople,
   placesWithActivity,
   type GeographyIndex,
   type PlaceActivity,
@@ -306,10 +307,19 @@ export default function AncestorMapTab() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const containerRef = useRef<View>(null);
 
+  // The map's search: the places of the people whose names match, in
+  // place of the busiest-places view, until cleared.
+  const [draft, setDraft] = useState('');
+  const [query, setQuery] = useState('');
+  const found = useMemo(() => {
+    if (!index || !query.trim()) return null;
+    return placesForPeople(index, query.trim(), ERAS[eraIndex]?.range);
+  }, [index, query, eraIndex]);
   const markers = useMemo(() => {
     if (!index) return [];
+    if (found) return found.places.slice(0, MAX_MARKERS);
     return placesWithActivity(index, ERAS[eraIndex]?.range).slice(0, MAX_MARKERS);
-  }, [index, eraIndex]);
+  }, [index, eraIndex, found]);
 
   const eraCounts = useMemo(() => {
     if (!index) return ERAS.map(() => 0);
@@ -503,8 +513,41 @@ export default function AncestorMapTab() {
       }
     >
       {/* The one search box, same as every tab (Rufus, 2026-09-17). */}
-      <View style={{ maxWidth: 680, marginBottom: 24 }}>
-        <SearchBar />
+      <View style={{ maxWidth: 680, marginBottom: 24, gap: 8 }}>
+        <SearchBar
+          value={draft}
+          onChangeText={setDraft}
+          onSubmit={setQuery}
+          label="Find people on the map"
+          hint="A name — the places where those people left records light up"
+        />
+        {found && (
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
+            <RecordText>
+              {found.people === 0
+                ? `No one named “${query}” in this tree`
+                : `${found.people.toLocaleString()} ${found.people === 1 ? 'person' : 'people'} named “${query}” · ${found.places.length.toLocaleString()} located ${found.places.length === 1 ? 'place' : 'places'}${ERAS[eraIndex]?.range ? ` · ${ERAS[eraIndex].label}` : ''}`}
+            </RecordText>
+            <Pressable
+              onPress={() => {
+                setQuery('');
+                setDraft('');
+              }}
+              hitSlop={6}
+            >
+              <Text
+                style={{
+                  fontFamily: BrandFonts.sans.semiBold,
+                  fontSize: 14.5,
+                  color: C.accent,
+                  textDecorationLine: 'underline',
+                }}
+              >
+                Show every place again
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </View>
       {/* Era band: inline text tabs, active underlined in orange. */}
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 24, flexWrap: 'wrap' }}>
