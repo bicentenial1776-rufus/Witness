@@ -61,7 +61,12 @@ export default function DeleteAccount() {
     for (const tree of ownedTrees) {
       let drained = false;
       for (let i = 0; i < 400; i++) {
-        const { data, error } = await supabase.rpc('delete_tree_batch', { p_tree_id: tree.id });
+        // p_force: deleting the account deletes an import in flight too —
+        // the guard that protects a tree from a stray tap does not apply.
+        const { data, error } = await supabase.rpc('delete_tree_batch', {
+          p_tree_id: tree.id,
+          p_force: true,
+        });
         if (error) {
           setWorking(null);
           showAlert(

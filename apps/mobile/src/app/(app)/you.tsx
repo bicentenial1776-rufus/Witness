@@ -282,6 +282,19 @@ export default function YouTab() {
     else setShareLinks((current) => current?.filter((link) => link.token !== token) ?? null);
   }
 
+  // An import is "in flight" while its heartbeat (else its start) is under
+  // ten minutes old — the same rule the server's delete guard applies.
+  const IMPORT_FRESH_MS = 10 * 60 * 1000;
+  function importInFlight(tree: TreeRow): boolean {
+    if (tree.import_status !== 'importing') return false;
+    const last = new Date(tree.import_heartbeat_at ?? tree.imported_at).getTime();
+    return Date.now() - last < IMPORT_FRESH_MS;
+  }
+  function minutesAgo(iso: string): string {
+    const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+    return minutes === 0 ? 'moments ago' : minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+  }
+
   function confirmDelete(tree: TreeRow) {
     showDestructiveConfirm(
       `Delete "${tree.name}"?`,
@@ -299,6 +312,7 @@ export default function YouTab() {
         // claiming 5,495 people while holding 295 (2026-08-01).
         let error: string | null = null;
         let done = false;
+        let refused = false;
         let removed = 0;
         setDeleting({ treeId: tree.id, removed: 0, stage: 'starting' });
         // Sized to the tree, with room to spare: a flat cap of 400 calls
@@ -316,7 +330,18 @@ export default function YouTab() {
             error = rpcError.message;
             break;
           }
-          const result = data as { done?: boolean; deleted?: number; stage?: string } | null;
+          const result = data as {
+            done?: boolean;
+            deleted?: number;
+            stage?: string;
+            refused?: boolean;
+          } | null;
+          // The server will not delete a tree whose import is still landing
+          // rows (migration 20260917220000) — the 2026-09-17 mid-import delete.
+          if (result?.refused) {
+            refused = true;
+            break;
+          }
           removed += result?.deleted ?? 0;
           setDeleting({ treeId: tree.id, removed, stage: result?.stage ?? '' });
           if (result?.done) {
@@ -351,7 +376,12 @@ export default function YouTab() {
         invalidateTreeIndexCache();
         refresh();
 
-        if (error) {
+        if (refused) {
+          showAlert(
+            'Still importing',
+            'This tree is still being imported — rows are landing right now, so Witness left it alone. If the import has truly stopped, it becomes deletable ten minutes after its last activity.',
+          );
+        } else if (error) {
           showAlert(
             'Delete failed',
             `${error}\n\n${removed.toLocaleString()} records were removed before it stopped, so this tree is now incomplete. Delete it again to finish.`,
@@ -452,10 +482,17 @@ export default function YouTab() {
           // Rows that landed before an import stopped. Nothing here should
           // read as a tree to use — only as something to clear away.
           const unfinished = tree.import_status !== 'complete';
+          const inFlight = importInFlight(tree);
           return (
           <Card key={tree.id}>
             <ThemedText type="subtitle">{tree.name}</ThemedText>
-            {unfinished ? (
+            {inFlight ? (
+              <ThemedText type="small">
+                Importing now — started {minutesAgo(tree.imported_at)}, last activity{' '}
+                {minutesAgo(tree.import_heartbeat_at ?? tree.imported_at)}. Leave the tab it is
+                running in open; this tree will be ready here when it finishes.
+              </ThemedText>
+            ) : unfinished ? (
               <ThemedText type="small">
                 This import didn’t finish — {tree.individual_count.toLocaleString()} people landed
                 before it stopped, {formatDate(tree.imported_at)}. Delete it, then bring the file
@@ -524,7 +561,7 @@ export default function YouTab() {
                 Delete used to sit among the safe actions looking exactly like
                 them; adding "Update from a newer file" beside it made a
                 mis-tap both likelier and more expensive. */}
-            {tree.owned ? (
+            {inFlight ? null : tree.owned ? (
               <ThemedText
                 type="link"
                 onPress={() => {

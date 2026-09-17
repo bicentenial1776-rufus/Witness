@@ -48,6 +48,9 @@ export interface TreeRow {
       the import stopped. Never the fallback active tree; You offers only
       a delete. A pre-column saved list defaults to complete. */
   import_status: 'importing' | 'complete' | 'failed';
+  /** Stamped by the importer every ~20 s while rows land; with imported_at
+      it tells an import in flight from one that died (You's delete guard). */
+  import_heartbeat_at?: string | null;
   /** False for a tree shared with this account (family sharing): readable,
       never writable — every destructive loop must check this. Derived at
       fetch time; a pre-sharing saved list defaults to owned. */
@@ -101,7 +104,7 @@ export function ActiveTreeProvider({ children }: { children: ReactNode }) {
     const { data: rawData, error } = await supabase
       .from('trees')
       .select(
-        'id, name, user_id, individual_count, family_count, place_count, imported_at, gedcom_path, gedcom_bytes, home_person_id, refreshed_from, import_status, home_person:individuals!trees_home_person_id_fkey(full_name)',
+        'id, name, user_id, individual_count, family_count, place_count, imported_at, gedcom_path, gedcom_bytes, home_person_id, refreshed_from, import_status, import_heartbeat_at, home_person:individuals!trees_home_person_id_fkey(full_name)',
       )
       .order('imported_at', { ascending: false });
     const data: TreeRow[] = ((rawData ?? []) as unknown as Omit<TreeRow, 'owned'>[]).map((row) => ({

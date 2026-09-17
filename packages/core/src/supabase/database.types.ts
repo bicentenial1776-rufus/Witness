@@ -2423,6 +2423,7 @@ export type Database = {
           gedcom_version: string | null
           home_person_id: string | null
           id: string
+          import_heartbeat_at: string | null
           import_status: string
           imported_at: string
           individual_count: number
@@ -2449,6 +2450,7 @@ export type Database = {
           gedcom_version?: string | null
           home_person_id?: string | null
           id?: string
+          import_heartbeat_at?: string | null
           import_status?: string
           imported_at?: string
           individual_count?: number
@@ -2475,6 +2477,7 @@ export type Database = {
           gedcom_version?: string | null
           home_person_id?: string | null
           id?: string
+          import_heartbeat_at?: string | null
           import_status?: string
           imported_at?: string
           individual_count?: number
@@ -2552,7 +2555,7 @@ export type Database = {
         Args: { p_old_tree_id: string; p_new_tree_id: string }
         Returns: Json
       }
-      delete_tree_batch: { Args: { p_tree_id: string }; Returns: Json }
+      delete_tree_batch: { Args: { p_tree_id: string; p_force?: boolean }; Returns: Json }
       get_invite: { Args: { p_token: string }; Returns: Json }
       get_share: { Args: { p_token: string }; Returns: Json }
       get_waiting_seat: { Args: never; Returns: Json }

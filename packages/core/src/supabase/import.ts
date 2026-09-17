@@ -6,6 +6,8 @@ import { buildImportPayload, type BuildImportPayloadOptions } from './transform.
 const DEFAULT_BATCH_SIZE = 500;
 const MAX_ATTEMPTS = 5;
 const DEFAULT_RETRY_DELAY_MS = 1000;
+// Import heartbeat interval — see heartbeat() in importParsedGedcom.
+const HEARTBEAT_MS = 20_000;
 
 type TableName = keyof Database['public']['Tables'];
 
@@ -165,6 +167,26 @@ export async function importParsedGedcom(
   const stoppedAt = (table: TableName, message: string) =>
     new GedcomImportError(message, { treeId, table, insertedRows, totalRows });
 
+  // A heartbeat on the tree row while rows land, so the server's delete guard
+  // (delete_tree_batch, migration 20260917220000) can tell an import that is
+  // running from one that died. Fire-and-forget and never fatal: the import
+  // must not stop over its own progress note.
+  let lastHeartbeat = Date.now();
+  function heartbeat(): void {
+    if (Date.now() - lastHeartbeat < HEARTBEAT_MS) return;
+    lastHeartbeat = Date.now();
+    void client
+      .from('trees')
+      .update({ import_heartbeat_at: new Date().toISOString() })
+      .eq('id', treeId)
+      .then(
+        ({ error }) => {
+          if (error) console.warn('Import heartbeat failed:', error.message);
+        },
+        () => {},
+      );
+  }
+
   async function insertBatch(table: TableName, rows: Record<string, unknown>[]): Promise<void> {
     const failure = await attempt(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -175,6 +197,7 @@ export async function importParsedGedcom(
     if (!failure) {
       insertedRows += rows.length;
       options.onProgress?.({ table, insertedRows, totalRows });
+      heartbeat();
       return;
     }
     if (isOversized(failure) && rows.length > 1) {
