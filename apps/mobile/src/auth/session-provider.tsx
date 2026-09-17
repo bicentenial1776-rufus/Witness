@@ -1,7 +1,9 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type PropsWithChildren } from 'react';
 import { Platform } from 'react-native';
+import { clearTreeIndexCopies } from '@/lib/offline-tree';
 import { supabase } from '@/lib/supabase';
+import { invalidateTreeIndexCache } from '@/lib/tree-index-cache';
 import { logEvent } from '@/lib/usage-events';
 
 interface SessionContextValue {
@@ -28,6 +30,12 @@ export function SessionProvider({ children }: PropsWithChildren) {
     // cleared, so an insert would just fail RLS's auth.uid() check.
     const { data: subscription } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
+      if (event === 'SIGNED_OUT') {
+        invalidateTreeIndexCache();
+        // A shared computer must not keep the tree in IndexedDB after sign-
+        // out; the phone's field copy is a document and stays.
+        if (Platform.OS === 'web') clearTreeIndexCopies();
+      }
       if (event === 'SIGNED_IN' && newSession) {
         // isPad only means something on iOS — Platform.isPad is undefined
         // elsewhere, same guard as useBroadsheet.

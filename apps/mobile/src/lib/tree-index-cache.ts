@@ -1,6 +1,6 @@
 import { fetchTreeIndex, type TreeIndex } from '@witness/core/query';
 
-import { loadTreeIndexCopy, saveTreeIndexCopy } from '@/lib/offline-tree';
+import { loadTreeIndexCopy, saveTreeIndexCopy, type TreeIndexCopy } from '@/lib/offline-tree';
 import { supabase } from '@/lib/supabase';
 
 // One tree index per tree per session — the Family Stage and future
@@ -12,14 +12,51 @@ const cache = new Map<string, Promise<TreeIndex>>();
 // (SPEC_offline-field-mode.md).
 const FIELD_TIMEOUT_MS = 4000;
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise.catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
 /**
- * Live fetch first; the saved field copy answers when the network fails
- * or stalls. A live success refreshes the copy on disk either way, so the
- * next signal-less visit reads the newest tree this device has seen.
+ * The tree's import stamp — the index is built only from import-time
+ * tables, so a copy taken at the same imported_at is the same index.
+ * Null when the row cannot be read in time (offline, or a stalled link).
+ */
+function fetchStamp(treeId: string): Promise<string | null> {
+  return withTimeout(
+    Promise.resolve(
+      supabase
+        .from('trees')
+        .select('imported_at')
+        .eq('id', treeId)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (error) throw error;
+          return data?.imported_at ?? null;
+        }),
+    ),
+    FIELD_TIMEOUT_MS,
+  );
+}
+
+/**
+ * The saved copy answers first when it is current: one small row instead
+ * of paging the whole tree (a minute per browser session on a 61,773-
+ * person tree, 2026-09-17). Otherwise live fetch, which refreshes the
+ * copy; if the live fetch stalls, whatever copy exists — current or not —
+ * steps in, exactly as the field mode always did. With no stamp readable
+ * at all (offline) the copy answers straight away.
  */
 async function fetchWithFieldCopy(treeId: string): Promise<TreeIndex> {
+  const copyPromise: Promise<TreeIndexCopy | null> = loadTreeIndexCopy(treeId);
+  const stamp = await fetchStamp(treeId);
+  const copy = await copyPromise;
+  if (copy && (stamp === null || (copy.stamp !== null && copy.stamp === stamp))) return copy.index;
+
   const live = fetchTreeIndex(supabase, treeId);
-  live.then((index) => saveTreeIndexCopy(treeId, index)).catch(() => {});
+  live.then((index) => saveTreeIndexCopy(treeId, index, stamp)).catch(() => {});
 
   const first = await Promise.race([
     live.then(
@@ -31,9 +68,7 @@ async function fetchWithFieldCopy(treeId: string): Promise<TreeIndex> {
     ),
   ]);
   if (first.settled && first.index) return first.index;
-
-  const copy = await loadTreeIndexCopy(treeId);
-  if (copy) return copy;
+  if (copy) return copy.index;
   // No copy on disk: the live fetch — however slow, however doomed — is
   // still the only answer there is.
   return live;
