@@ -1,7 +1,10 @@
 // Mirrored at supabase/functions/_shared/family/paginate.ts — keep in sync
 // (portSync.test.ts enforces byte equality outside this header).
 
-export const PAGE_SIZE = 1000;
+// Equal to the project's PostgREST max_rows (raised from 1,000 on 2026-09-17).
+// A page the server capped below this would read as the last page and the
+// fetch would silently truncate, so never raise this ahead of that setting.
+export const PAGE_SIZE = 10000;
 
 type PageResult<T> = { data: T[] | null; error: { message: string } | null };
 
