@@ -704,6 +704,7 @@ export type Database = {
           father_relation: string | null
           individual_id: string
           mother_relation: string | null
+          tree_id: string | null
           user_id: string
         }
         Insert: {
@@ -712,6 +713,7 @@ export type Database = {
           father_relation?: string | null
           individual_id: string
           mother_relation?: string | null
+          tree_id?: string | null
           user_id: string
         }
         Update: {
@@ -720,6 +722,7 @@ export type Database = {
           father_relation?: string | null
           individual_id?: string
           mother_relation?: string | null
+          tree_id?: string | null
           user_id?: string
         }
         Relationships: [

@@ -290,6 +290,7 @@ export function buildImportPayload(parsed: ParsedGedcom, options: BuildImportPay
       familyChildren.push({
         family_id: familyId,
         individual_id: childId,
+        tree_id: treeId,
         user_id: userId,
         birth_order: index,
         father_relation: relation?.fatherRelation ?? pedigreeFor('father'),

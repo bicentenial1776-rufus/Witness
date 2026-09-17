@@ -234,13 +234,12 @@ export async function fetchTreeIndex(client: WitnessSupabaseClient, treeId: stri
       },
       'Fetching families failed',
     ),
-    // family_children carries no tree_id; scope through the family join.
     fetchAllPages<FamilyChildRow>(
       (after) => {
         let q = client
           .from('family_children')
-          .select('family_id, individual_id, birth_order, families!inner(tree_id)')
-          .eq('families.tree_id', treeId)
+          .select('family_id, individual_id, birth_order')
+          .eq('tree_id', treeId)
           .order('family_id')
           .order('individual_id')
           .limit(PAGE_SIZE);

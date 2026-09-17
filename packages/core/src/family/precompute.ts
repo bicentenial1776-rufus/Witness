@@ -49,12 +49,12 @@ export async function fetchFamilyGraph(client: DbClient, treeId: string): Promis
       },
       'Fetching families failed',
     ),
-    fetchAllPages<GraphFamilyChildRow & { families: { tree_id: string } | null }>(
+    fetchAllPages<GraphFamilyChildRow>(
       (after) => {
         let q = client
           .from('family_children')
-          .select('family_id, individual_id, father_relation, mother_relation, families!inner(tree_id)')
-          .eq('families.tree_id', treeId)
+          .select('family_id, individual_id, father_relation, mother_relation')
+          .eq('tree_id', treeId)
           .order('family_id')
           .order('individual_id')
           .limit(PAGE_SIZE);

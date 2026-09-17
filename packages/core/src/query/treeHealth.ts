@@ -707,8 +707,8 @@ export async function fetchTreeHealthData(
       (after) => {
         let q = client
           .from('family_children')
-          .select('family_id, individual_id, families!inner(tree_id)')
-          .eq('families.tree_id', treeId)
+          .select('family_id, individual_id')
+          .eq('tree_id', treeId)
           .order('family_id')
           .order('individual_id')
           .limit(PAGE_SIZE);
