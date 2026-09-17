@@ -1,4 +1,5 @@
 import type { WitnessSupabaseClient } from '../supabase/client.js';
+import { fetchAllPages, PAGE_SIZE as SHARED_PAGE_SIZE } from '../supabase/paginate.js';
 import { aliveDuring, type AliveMatch, type YearRange } from '../query/aliveDuring.js';
 import { fetchFamilyGraph } from './precompute.js';
 import {
@@ -51,28 +52,42 @@ export function inLineageScope(row: CachedRelationship, scope: LineageScope): bo
 
 const PAGE_SIZE = 1000;
 
-/** Every cached relationship row for the tree, nearest generations first. */
+/**
+ * Every cached relationship row for the tree, nearest generations first.
+ *
+ * Keyset pages on individual_id, sorted here rather than by the server: the
+ * old OFFSET loop ordered by (generation_distance, individual_id) made every
+ * page read and sort all of the tree's rows before discarding the offset —
+ * 13 pages × 12,421 rows on a 61,773-person tree, 17 s (2026-09-17). Seeking
+ * by individual_id is one index range scan per page, and the covering index
+ * on (tree_id, individual_id) answers it without touching the heap.
+ */
 export async function fetchRelationshipRows(
   client: WitnessSupabaseClient,
   treeId: string,
 ): Promise<CachedRelationship[]> {
-  const rows: CachedRelationship[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await client
+  type Row = Omit<CachedRelationship, 'tier'> & { tier: string };
+  const rows = await fetchAllPages<Row>((after) => {
+    let q = client
       .from('relationships')
       .select(
         'individual_id, label, tier, qualifier, generation_distance, line, is_direct_ancestor, is_direct_descendant',
       )
       .eq('tree_id', treeId)
-      .order('generation_distance')
       .order('individual_id')
-      .range(from, from + PAGE_SIZE - 1);
-    if (error) throw new Error(`Fetching relationships failed: ${error.message}`);
-    // tier is a plain text column with a check constraint; the enum lives
-    // in the code rather than in Postgres, so narrow it on the way in.
-    rows.push(...(data ?? []).map((row) => ({ ...row, tier: row.tier as RelationshipTier })));
-    if (!data || data.length < PAGE_SIZE) return rows;
-  }
+      .limit(SHARED_PAGE_SIZE);
+    if (after) q = q.gt('individual_id', after.individual_id);
+    return q;
+  }, 'Fetching relationships failed');
+  // tier is a plain text column with a check constraint; the enum lives
+  // in the code rather than in Postgres, so narrow it on the way in.
+  return rows
+    .map((row) => ({ ...row, tier: row.tier as RelationshipTier }))
+    .sort(
+      (a, b) =>
+        a.generation_distance - b.generation_distance ||
+        (a.individual_id < b.individual_id ? -1 : a.individual_id > b.individual_id ? 1 : 0),
+    );
 }
 
 const fetchCached = fetchRelationshipRows;
