@@ -1,6 +1,7 @@
 import { router, usePathname } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
+import { openFieldGuide } from '@/components/field-guide';
 import { RecordText } from '@/components/record-text';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
 
@@ -104,6 +105,40 @@ export function Rail() {
           </Pressable>
         );
       })}
+
+      {/* Below the four doors: the guides and family sharing (Rufus,
+          2026-09-17), plain links in the one tappable convention. */}
+      <View
+        style={{
+          marginTop: 30,
+          marginHorizontal: 18,
+          paddingTop: 16,
+          borderTopWidth: 1,
+          borderTopColor: C.rule,
+          gap: 12,
+        }}
+      >
+        {(
+          [
+            ['Family sharing', () => router.push('/you' as never)],
+            ['Questions & answers', () => router.push('/faq' as never)],
+            ['The Field Guide', () => openFieldGuide()],
+          ] as const
+        ).map(([label, go]) => (
+          <Pressable key={label} onPress={go} hitSlop={6}>
+            <Text
+              style={{
+                fontFamily: BrandFonts.sans.regular,
+                fontSize: 14.5,
+                color: C.accent,
+                textDecorationLine: 'underline',
+              }}
+            >
+              {label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
 
       <View style={{ flex: 1 }} />
       <Pressable onPress={() => router.push('/you')} style={{ paddingHorizontal: 18, paddingTop: 16 }}>

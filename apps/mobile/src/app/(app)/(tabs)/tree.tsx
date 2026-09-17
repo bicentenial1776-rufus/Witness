@@ -12,6 +12,13 @@ import { SearchBar } from '@/components/search-bar';
 import { BrandFonts, Letterpress, WideContent, mono, monoLink } from '@/constants/theme';
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
+import {
+  SEAT_LIMIT,
+  fetchMembers,
+  fetchPendingInvites,
+  type InviteRow,
+  type TreeMemberRow,
+} from '@/lib/family-sharing';
 import { getFamilyStages, getTreeGenerationSpan } from '@/lib/family-stage-cache';
 import { ARCHIVES_ENABLED } from '@/lib/features';
 import { formatDate } from '@/lib/format-date';
@@ -93,6 +100,28 @@ export default function TreeTab() {
         cancelled = true;
       };
     }, []),
+  );
+
+  // Family sharing at a glance (Rufus, 2026-09-17): who reads with you,
+  // which invitations are still waiting. Managing them stays on You.
+  const [members, setMembers] = useState<TreeMemberRow[] | null>(null);
+  const [invites, setInvites] = useState<InviteRow[] | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!activeTree?.owned) return;
+      let cancelled = false;
+      const treeId = activeTree.id;
+      Promise.all([fetchMembers(treeId), fetchPendingInvites()])
+        .then(([rows, pending]) => {
+          if (cancelled) return;
+          setMembers(rows);
+          setInvites(pending.filter((invite) => invite.tree_id === treeId));
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }, [activeTree?.id, activeTree?.owned]),
   );
 
   useFocusEffect(
@@ -177,6 +206,39 @@ export default function TreeTab() {
         </Pressable>
       )}
     </View>
+  );
+
+  const seatsUsed = (members?.length ?? 0) + (invites?.length ?? 0);
+  const sharingSection = (
+    <Section eyebrow="Family sharing">
+      <Text style={{ fontFamily: BrandFonts.sans.regular, fontSize: 15, lineHeight: 22, color: L.muted }}>
+        Up to {SEAT_LIMIT} family members can read this tree with you — {seatsUsed} of {SEAT_LIMIT}{' '}
+        {seatsUsed === 1 ? 'seat' : 'seats'} in use. One invitation per person.
+      </Text>
+      {(members ?? []).map((member) => (
+        <View key={member.user_id} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+          <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 17, color: L.ink, flexShrink: 1 }}>
+            {member.display_name ?? 'A family member'}
+          </Text>
+          <Text style={mono(12.5, L.muted)}>READING SINCE {formatDate(member.joined_at).toUpperCase()}</Text>
+        </View>
+      ))}
+      {(invites ?? []).map((invite) => (
+        <View key={invite.token} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+          <Text style={{ fontFamily: BrandFonts.serif.regular, fontSize: 17, color: L.ink, flexShrink: 1 }}>
+            {invite.invited_name ?? 'Invitation'}
+          </Text>
+          <Text style={mono(12.5, L.deepAmber)}>
+            WAITING · SENT {formatDate(invite.created_at).toUpperCase()}
+          </Text>
+        </View>
+      ))}
+      <Row
+        title={seatsUsed < SEAT_LIMIT ? 'Invite a family member' : 'Manage family sharing'}
+        detail="Seats, invitations, and who reads with you"
+        onPress={() => router.push('/you' as never)}
+      />
+    </Section>
   );
 
   const helpSection = (
@@ -329,6 +391,7 @@ export default function TreeTab() {
         {owned && <View style={{ maxWidth: 680 }}>{treeHealthSection}</View>}
         {owned && ARCHIVES_ENABLED && <View style={{ maxWidth: 680 }}>{archivesSection}</View>}
         {owned && <View style={{ maxWidth: 680 }}>{briefsSection}</View>}
+        {owned && <View style={{ maxWidth: 680 }}>{sharingSection}</View>}
         <View style={{ maxWidth: 680 }}>{helpSection}</View>
       </PageShell>
     );
@@ -352,6 +415,7 @@ export default function TreeTab() {
         {owned && treeHealthSection}
         {owned && ARCHIVES_ENABLED && archivesSection}
         {owned && briefsSection}
+        {owned && sharingSection}
         {helpSection}
       </ScrollView>
     </View>
