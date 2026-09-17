@@ -74,18 +74,34 @@ async function fetchWithFieldCopy(treeId: string): Promise<TreeIndex> {
   return live;
 }
 
+const settled = new Set<string>();
+
 export function getTreeIndex(treeId: string): Promise<TreeIndex> {
   let pending = cache.get(treeId);
   if (!pending) {
-    pending = fetchWithFieldCopy(treeId).catch((error: unknown) => {
-      cache.delete(treeId); // don't cache failures
-      throw error;
-    });
+    pending = fetchWithFieldCopy(treeId)
+      .then((index) => {
+        settled.add(treeId);
+        return index;
+      })
+      .catch((error: unknown) => {
+        cache.delete(treeId); // don't cache failures
+        throw error;
+      });
     cache.set(treeId, pending);
   }
   return pending;
 }
 
+/**
+ * True once this session holds the tree index — the point at which any
+ * index-backed fallback (search, lists) is free rather than a minute.
+ */
+export function hasTreeIndexInSession(treeId: string): boolean {
+  return settled.has(treeId);
+}
+
 export function invalidateTreeIndexCache(): void {
   cache.clear();
+  settled.clear();
 }

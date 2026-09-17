@@ -42,23 +42,42 @@ returns table (
 )
 language sql
 stable
+-- SECURITY DEFINER, with the access check written out below: under row-
+-- level security `ilike` (not leakproof) may not be used as an index
+-- condition, so as the authenticated role the trigram indexes were never
+-- chosen and every name in the tree was compared. Running as the owner
+-- lets the indexes apply; `allowed` reproduces the individuals policy
+-- (owner, or member of a shared tree) for the one tree searched.
+security definer
+set search_path = public, extensions
 as $$
-  with pattern as (
+  with allowed as (
+    select 1
+    from trees t
+    where t.id = p_tree_id
+      and (t.user_id = auth.uid() or t.id in (select member_tree_ids()))
+  ),
+  pattern as (
     -- The query is data, not pattern: escape ilike's metacharacters.
     select '%' || replace(replace(replace(p_query, '\', '\\'), '%', '\%'), '_', '\_') || '%' as p
   ),
+  -- The pattern is read as a scalar subquery, not joined: joined, the
+  -- planner treats `ilike` as a join filter and compares every row in the
+  -- tree; as an init-plan parameter it can drive the trigram indexes.
   name_hits as (
     select i.id, i.full_name, i.birth_year, i.death_year, i.living, null::text as place
-    from individuals i, pattern
-    where i.tree_id = p_tree_id
-      and i.full_name ilike pattern.p
+    from individuals i
+    where exists (select 1 from allowed)
+      and i.tree_id = p_tree_id
+      and i.full_name ilike (select p from pattern)
   ),
   matching_places as (
     -- The tree's own places first (trigram index), then their events.
     select pl.id, pl.raw
-    from places pl, pattern
-    where pl.tree_id = p_tree_id
-      and pl.raw ilike pattern.p
+    from places pl
+    where exists (select 1 from allowed)
+      and pl.tree_id = p_tree_id
+      and pl.raw ilike (select p from pattern)
   ),
   place_hits as (
     -- One row per person with any event at a matching place, tagged with

@@ -33,7 +33,8 @@ import { noTreeMessage, useActiveTree } from '@/lib/active-tree';
 import { getEventLibrary } from '@/lib/event-library';
 import { getShelf } from '@/lib/shelf-cache';
 import { supabase } from '@/lib/supabase';
-import { getTreeIndex } from '@/lib/tree-index-cache';
+import { hasTreeIndexCopy } from '@/lib/offline-tree';
+import { getTreeIndex, hasTreeIndexInSession } from '@/lib/tree-index-cache';
 import { WideContent } from '@/constants/theme';
 
 /** With the filter open the page is the wrong unit: load this many matches at once. */
@@ -242,9 +243,19 @@ export default function ExploreTab() {
           p_offset: wide ? 0 : peoplePage * PEOPLE_PAGE,
         })
         .returns<SearchPersonRow[]>();
+      // The fuse is only short when the fallback is cheap: an index already
+      // in this session, or a saved copy on this device. With neither, the
+      // fallback is a minute's fetch that also starves the live query on the
+      // shared database (2026-09-17: the RPC hit its 30 s timeout behind
+      // the fetch it had triggered) — so wait for the live answer instead.
+      const cheapFallback =
+        hasTreeIndexInSession(activeTree.id) || (await hasTreeIndexCopy(activeTree.id));
+      if (cancelled) return;
       const result = await Promise.race([
         live,
-        new Promise<'stalled'>((resolve) => setTimeout(() => resolve('stalled'), 4000)),
+        new Promise<'stalled'>((resolve) =>
+          setTimeout(() => resolve('stalled'), cheapFallback ? 4000 : 25_000),
+        ),
       ]);
       if (cancelled) return;
       if (result !== 'stalled' && !result.error) {

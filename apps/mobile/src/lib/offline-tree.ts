@@ -143,6 +143,22 @@ export async function loadTreeIndexCopy(treeId: string): Promise<TreeIndexCopy |
   }
 }
 
+/**
+ * Whether a copy exists at all — cheap (a key lookup, not the 24 MB read),
+ * for callers deciding whether falling back to the copy is cheap.
+ */
+export async function hasTreeIndexCopy(treeId: string): Promise<boolean> {
+  try {
+    if (Platform.OS === 'web') {
+      const key = await idbRun<IDBValidKey | undefined>('readonly', (store) => store.getKey(treeId));
+      return key !== undefined;
+    }
+    return copyFile(treeId).exists;
+  } catch {
+    return false;
+  }
+}
+
 /** Copies of deleted trees are garbage — keep only the trees that still exist. */
 export function pruneTreeIndexCopies(keepTreeIds: string[]): void {
   if (Platform.OS === 'web') {
