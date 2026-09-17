@@ -414,3 +414,61 @@ a single town — evaluated opportunistically, not as a general pipeline.
 sandbox can't reach arbitrary external domains (egress is allowlisted to
 package registries and GitHub) — testing an OAI-PMH endpoint needs a
 local machine or a session with open network access.
+
+## A Better Home-Person Suggestion (from record order, not youth)
+
+*2026-09-16. Rufus asked whether the GEDCOM format offers a way to find
+the recommended home person. Today `suggestHomePerson`
+(`packages/core/src/family/homePerson.ts`) proposes the living person
+with the most recent birth year — on a real tree, a grandchild.*
+
+**What the format offers: nothing standard.** GEDCOM 5.5.1 and 7.0 have
+no home-person field. `HEAD.SUBM` names a submitter record, but on every
+file checked it is boilerplate ("Not Given" from Family Tree Maker,
+"Ancestry.com Member Trees Submitter" from Ancestry, absent from
+RootsMagic). None of the four vendors examined writes a root-person
+extension tag (`_ROOT`, `_HOME`, or the like).
+
+**What the files do carry: record order.** The first `INDI` record is the
+owner or home person in every non-Ancestry file checked:
+
+| Program | File | First person | Who that is |
+|---|---|---|---|
+| RootsMagic | Betsey.ged | Betsey Kiel, b. 1951 | the owner |
+| PAF | Rich Douglass's export | Richard Lee Douglass, b. 1943 | the owner |
+| Legacy | SPR tree (production) | Steven Peter Rogers, b. 1957 | the home person he chose |
+| Family Tree Maker | Howe/Field 2026-09-11 | Ruth Field, b. 1954 | presumably the FTM home person |
+
+Ancestry is the exception: the September Howe/Field export leads with
+Ruth, the July one with Henry (b. 2018), so Ancestry's order tracks
+something else — possibly the tree's current home person, unverified.
+
+**Today's rule misfires, and production shows it.** Youngest-living
+picked Henry (b. 2018) for Howe/Field and Bailee Bannon (b. 1988) for
+Betsey's tree. The Williss tree's home person was born 2013 — almost
+certainly the suggestion accepted as-is. Rich's tree has "RICHARD
+DOUGLASS" (no birth year) as home person while his I1 is "RICHARD LEE
+DOUGLASS, 1943" — likely a duplicate record picked by hand.
+
+**Structural heuristics don't rescue it.** "Most ancestors" and "most
+balanced paternal/maternal lines" (max over people of the smaller of the
+two parents' ancestor counts) both pick the owner's *children* on a
+couple's joint tree, because only the children have both lines deep; on
+Betsey's tree the balanced rule picks people born in the 1870s.
+Structure can find the owner's generation at best, never the owner.
+
+**Proposal.** Order the suggestion: (1) a vendor root tag if one ever
+appears; (2) the first `INDI` record for RootsMagic, PAF, Legacy, and
+Family Tree Maker; (3) for Ancestry and unknown sources, still the first
+record, but shown as a question with two alternatives beside it — the
+youngest-living pick and the oldest living person with both parents
+recorded. The home-person screen (`apps/mobile/src/app/(app)/home-person.tsx`)
+already exists; this changes what it proposes, not the screen. The
+parser keeps file position through `Map` insertion order, so the
+change is in `suggestHomePerson` plus a `file_position` (or the xref's
+numeric part, unreliable for Ancestry) carried through the import.
+About an hour, plus a test on each of the four file types above.
+
+**Open question for Rufus:** who is the home person set to in FTM and in
+Ancestry today? That settles whether FTM writes the home person first
+and what Ancestry's order means.
