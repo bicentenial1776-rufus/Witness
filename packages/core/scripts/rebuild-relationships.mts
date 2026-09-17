@@ -53,7 +53,7 @@ for (let from = 0; ; from += 1000) {
 for (let i = 0; i < rows.length; i += 500) {
   const { error: upsertErr } = await supabase
     .from('relationships')
-    .upsert(rows.slice(i, i + 500), { onConflict: 'tree_id,home_person_id,individual_id' });
+    .upsert(rows.slice(i, i + 500), { onConflict: 'tree_id,user_id,home_person_id,individual_id' });
   if (upsertErr) throw upsertErr;
 }
 
