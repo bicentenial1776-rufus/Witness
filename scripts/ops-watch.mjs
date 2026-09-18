@@ -109,16 +109,27 @@ if (SERVICE_KEY) {
     const memAvail = metric(text, 'node_memory_MemAvailable_bytes');
     const memTotal = metric(text, 'node_memory_MemTotal_bytes');
     const memPct = memAvail !== null && memTotal ? Math.round((memAvail / memTotal) * 100) : null;
-    const diskAvail = metric(text, 'node_filesystem_avail_bytes');
-    const diskSize = metric(text, 'node_filesystem_size_bytes');
-    const diskPct = diskAvail !== null && diskSize ? Math.round((diskAvail / diskSize) * 100) : null;
+    // Every mount, worst first: the data volume (/data, 2 GB on 2026-09-18
+    // with 13% free) is the one that matters, not the 10 GB root.
+    const mounts = new Map();
+    for (const m of text.matchAll(/^node_filesystem_(size|avail)_bytes\{[^}]*mountpoint="([^"]*)"[^}]*\} (\S+)$/gm)) {
+      const entry = mounts.get(m[2]) ?? {};
+      entry[m[1]] = Number(m[3]);
+      mounts.set(m[2], entry);
+    }
+    const worst = [...mounts.entries()]
+      .filter(([, v]) => v.size && v.avail !== undefined)
+      .map(([mount, v]) => ({ mount, pct: Math.round((v.avail / v.size) * 100), size: v.size, avail: v.avail }))
+      .sort((a, b) => a.pct - b.pct)[0];
+    const diskPct = worst ? worst.pct : null;
+    const diskLabel = worst ? `${worst.mount} ${(worst.avail / 1e9).toFixed(2)} of ${(worst.size / 1e9).toFixed(2)} GB free (${worst.pct}%)` : 'n/a';
     const dbBytes = metric(text, 'pg_database_size_bytes');
     if (load1 !== null && load1 / cores >= T.load1PerCore)
       alert('load', `**Load ${load1.toFixed(2)} on ${cores} cores** (${(load1 / cores).toFixed(2)} per core)`);
     if (memPct !== null && memPct <= T.memAvailPct) alert('memory', `**Only ${memPct}% of memory available**`);
-    if (diskPct !== null && diskPct <= T.diskAvailPct) alert('disk', `**Only ${diskPct}% of disk available**`);
+    if (diskPct !== null && diskPct <= T.diskAvailPct) alert('disk', `**Disk nearly full: ${diskLabel}**`);
     notes.push(
-      `machine: load1=${load1?.toFixed(2) ?? 'n/a'}/${cores} cores · mem avail ${memPct ?? 'n/a'}% · disk avail ${diskPct ?? 'n/a'}%${dbBytes ? ` · db ${(dbBytes / 1e9).toFixed(2)} GB` : ''}`,
+      `machine: load1=${load1?.toFixed(2) ?? 'n/a'}/${cores} cores · mem avail ${memPct ?? 'n/a'}% · disk ${diskLabel}${dbBytes ? ` · db ${(dbBytes / 1e9).toFixed(2)} GB` : ''}`,
     );
   } else {
     notes.push(`machine: metrics endpoint ${res ? `HTTP ${res.status}` : 'unreachable'}`);
