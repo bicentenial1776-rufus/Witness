@@ -255,11 +255,20 @@ export async function fetchTreeIndex(client: WitnessSupabaseClient, treeId: stri
       },
       'Fetching family children failed',
     ),
-    fetchAllPages<EventRow>(
+    // Two reads, on purpose. The main page carries only the columns in
+    // individual_events_tree_id_id_covering_idx and stays an index-only
+    // scan (160 buffers a page); asking for `detail` here turned it into a
+    // heap walk — 10,078 buffers a page on the 61,773-person tree, the
+    // shape that overloaded the Micro instance on 2026-09-17. The rooms'
+    // census words (detail on residence/census events, PR #27) come in a
+    // second read that touches only the rows that have them — none on a
+    // tree imported before the parser kept them, and served by the partial
+    // index individual_events_detail_idx after (migration 20260918120000).
+    fetchAllPages<Omit<EventRow, 'detail'>>(
       (after) => {
         let q = client
           .from('individual_events')
-          .select('id, individual_id, event_type, date_year, place_id, date_confidence, detail')
+          .select('id, individual_id, event_type, date_year, place_id, date_confidence')
           .eq('tree_id', treeId)
           .order('id')
           .limit(PAGE_SIZE);
@@ -267,7 +276,26 @@ export async function fetchTreeIndex(client: WitnessSupabaseClient, treeId: stri
         return q;
       },
       'Fetching events failed',
-    ),
+    ).then(async (rows) => {
+      const details = await fetchAllPages<{ id: string; detail: string | null }>(
+        (after) => {
+          let q = client
+            .from('individual_events')
+            .select('id, detail')
+            .eq('tree_id', treeId)
+            .in('event_type', ['residence', 'census'])
+            .not('detail', 'is', null)
+            .order('id')
+            .limit(PAGE_SIZE);
+          if (after) q = q.gt('id', after.id);
+          return q;
+        },
+        'Fetching event details failed',
+      );
+      if (details.length === 0) return rows as EventRow[];
+      const byId = new Map(details.map((d) => [d.id, d.detail]));
+      return rows.map((row) => ({ ...row, detail: byId.get(row.id) ?? null })) as EventRow[];
+    }),
     fetchAllPages<PlaceRow>(
       (after) => {
         let q = client.from('places').select('id, raw, parts').eq('tree_id', treeId).order('id').limit(PAGE_SIZE);
