@@ -1,0 +1,62 @@
+name: Ops watch
+
+# The watcher: every ten minutes, scripts/ops-watch.mjs reads service
+# health, API 5xx and statement-timeout counts, machine load/memory/disk,
+# and what Postgres is doing, and keeps one GitHub issue labelled
+# ops-alert — opened on trouble (GitHub emails the owner), commented on
+# while it lasts, closed on recovery. No secret beyond the
+# SUPABASE_ACCESS_TOKEN the deploy workflows already use.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print the report without touching the issue'
+        type: boolean
+        default: false
+
+concurrency:
+  group: ops-watch
+  cancel-in-progress: false
+
+permissions:
+  issues: write
+  contents: read
+
+env:
+  SUPABASE_PROJECT_REF: bdjsahbjptpcmouqozvs
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fetch the service-role key (for the metrics endpoint)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          KEY=$(npx --yes supabase@latest projects api-keys --project-ref "$SUPABASE_PROJECT_REF" -o json \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const k=JSON.parse(s).find(k=>k.name==="service_role");process.stdout.write(k?k.api_key:"")})')
+          echo "::add-mask::$KEY"
+          echo "SUPABASE_SERVICE_ROLE_KEY=$KEY" >> "$GITHUB_ENV"
+
+      - name: Watch
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            node scripts/ops-watch.mjs --dry-run
+          else
+            node scripts/ops-watch.mjs
+          fi
