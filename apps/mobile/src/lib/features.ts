@@ -20,4 +20,7 @@ export const ARCHIVES_ENABLED = false;
  * the first of three gates (lib/fsv-access.ts); the other two are an active
  * seat and a row in fsv_early_access, which is also the kill switch.
  */
-export const FSV_ROOMS_ENABLED = false;
+// On since 2026-09-18 for the internal-tester TestFlight (Greg's ladder,
+// docs/FSV_PHASE1_DARK.md): the other two gates — an active seat and a row
+// in fsv_early_access — still keep every door shut for everyone else.
+export const FSV_ROOMS_ENABLED = true;
