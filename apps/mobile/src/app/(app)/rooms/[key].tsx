@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { fsvCanEnter, fsvHouseholdRecord, type FsvHouseholdRecord } from '@witness/core/fsv';
 
-import FsvRoomDom from '@/components/fsv-room-dom';
+import FsvRoomDom, { type RoomOutcome } from '@/components/fsv-room-dom';
 import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { useFsvAccess } from '@/lib/fsv-access';
+import { supabase } from '@/lib/supabase';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 
 /**
@@ -26,8 +27,24 @@ import { getTreeIndex } from '@/lib/tree-index-cache';
  *
  * The room page itself is world/rooms/FSV_Census_Day.html, put beside the
  * world by `npm run world:sync -w @witness/fsv`.
+ *
+ * How the opening went is written once to fsv_room_log (the migration of
+ * 19 September 2026): opened, no room, timed out, failed. The app has no
+ * other report from a device, and a black panel on somebody's iPad would
+ * otherwise be invisible to us. The write is fire-and-forget: the room
+ * never waits on it and never fails for it.
  */
 const ROOM_PATH = 'world/rooms/FSV_Census_Day.html';
+
+async function logOutcome(familyKey: string, outcome: RoomOutcome, ms: number, note: string): Promise<void> {
+  try {
+    /* the table is new in this branch; the generated Database types learn
+       it when they are regenerated (supabase gen types), and this line
+       becomes supabase.from('fsv_room_log').insert(...) */
+    const loose = supabase as unknown as { from: (table: string) => { insert: (row: Record<string, unknown>) => Promise<unknown> } };
+    await loose.from('fsv_room_log').insert({ family_key: familyKey, outcome, ms: Math.round(ms), note: note || null });
+  } catch { /* the report is not the room */ }
+}
 
 export default function RoomScreen() {
   const theme = useTheme();
@@ -67,6 +84,7 @@ export default function RoomScreen() {
             record={record}
             day={Math.max(0, parseInt(day ?? '0', 10) || 0)}
             title={title}
+            onOutcome={(outcome, ms, note) => logOutcome(key ?? '', outcome, ms, note)}
             dom={{ style: styles.world, scrollEnabled: false, bounces: false, webviewDebuggingEnabled: true }}
           />
         </View>
