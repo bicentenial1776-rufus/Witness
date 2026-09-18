@@ -2555,6 +2555,10 @@ export type Database = {
         Args: { p_old_tree_id: string; p_new_tree_id: string }
         Returns: Json
       }
+      carry_tree_sharing: {
+        Args: { p_old_tree_id: string; p_new_tree_id: string }
+        Returns: Json
+      }
       delete_tree_batch: { Args: { p_tree_id: string; p_force?: boolean }; Returns: Json }
       get_invite: { Args: { p_token: string }; Returns: Json }
       get_share: { Args: { p_token: string }; Returns: Json }

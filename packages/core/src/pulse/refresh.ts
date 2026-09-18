@@ -681,6 +681,20 @@ export async function applyRefresh(
   });
   if (identityError) console.warn('Ancestry identity did not carry:', identityError.message);
 
+  // Family sharing: the open invitations and the members' seats move to the
+  // new tree (their home persons re-pointed by xref). Until 2026-09-18 they
+  // did not, and retiring the old tree cascaded them away — Rufus lost four
+  // pending invitations on the 2026-09-12 refresh. A failure is logged, and
+  // the rows are then left on the old tree rather than the refresh failing:
+  // the old tree's retirement below is what would lose them, so it is
+  // skipped in that case.
+  const { data: sharingCarried, error: sharingError } = await supabase.rpc('carry_tree_sharing', {
+    p_old_tree_id: oldTreeId,
+    p_new_tree_id: newTreeId,
+  });
+  if (sharingError) console.warn('Family sharing did not carry:', sharingError.message);
+  else console.log('Family sharing carried:', JSON.stringify(sharingCarried));
+
   const { error: pulseError } = await supabase
     .from('trees')
     .update({
@@ -693,8 +707,11 @@ export async function applyRefresh(
     .eq('id', newTreeId);
   if (pulseError) throw new Error(`Could not record the Tree Pulse: ${pulseError.message}`);
 
-  // Last, and only now that everything worth keeping has moved.
-  const oldTreeDeleted = await retireTree(supabase, oldTreeId);
+  // Last, and only now that everything worth keeping has moved. If the
+  // sharing rows could not move, the old tree stays (deletable from You
+  // once the invitations have been re-sent) rather than taking them with it.
+  const oldTreeDeleted = sharingError ? false : await retireTree(supabase, oldTreeId);
+  if (sharingError) console.warn('Old tree kept: its invitations and members could not be carried.');
 
   // The photo objects follow once the old tree no longer reads them. A
   // move that fails leaves the row on its old path — readable by the
