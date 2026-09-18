@@ -60,7 +60,7 @@ async function onEarlyAccessList(): Promise<boolean> {
 }
 
 export function useFsvAccess(): FsvAccess {
-  const { isEntitled } = usePurchases();
+  const { isEntitled, isLoading } = usePurchases();
   const [list, setList] = useState<boolean | null>(null);
   useEffect(() => {
     if (!FSV_ROOMS_ENABLED || !isEntitled) return;
@@ -69,6 +69,10 @@ export function useFsvAccess(): FsvAccess {
     return () => { alive = false; };
   }, [isEntitled]);
   if (!FSV_ROOMS_ENABLED) return { allowed: false, why: 'flag' };
+  // On the web the seat is unknown until RevenueCat answers (a second or
+  // two on a direct room link); "checking" then, not "no seat" — the room
+  // screen said "not open" during that window (2026-09-18).
+  if (isLoading && !isEntitled) return { allowed: false, why: 'checking' };
   if (!isEntitled) return { allowed: false, why: 'seat' };
   if (list === null) return { allowed: false, why: 'checking' };
   return list ? { allowed: true, why: 'ok' } : { allowed: false, why: 'list' };

@@ -74,7 +74,11 @@ export default function RoomScreen() {
       {shut ? (
         <View style={styles.note}>
           <Text style={[styles.noteText, { color: theme.textSecondary }]}>
-            {record === undefined && access.allowed ? 'Reading the household…' : 'This room is not open.'}
+            {access.why === 'checking' || (record === undefined && access.allowed)
+              ? 'Opening the room…'
+              : record === null && access.allowed
+                ? 'This household is not in the tree you have open — rooms open from a Portrait in your own tree.'
+                : 'This room is not open.'}
           </Text>
         </View>
       ) : (
