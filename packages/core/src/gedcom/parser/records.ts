@@ -17,11 +17,14 @@ import { stripXref } from './xref.js';
 export interface SharedRecords {
   notes: Map<string, string>;
   media: Map<string, { file?: string; title?: string }>;
+  /** Source titles by xref, so an event can say which census counted it. */
+  sources: Map<string, string>;
 }
 
 export function collectSharedRecords(records: GedcomNode[]): SharedRecords {
   const notes = new Map<string, string>();
   const media = new Map<string, { file?: string; title?: string }>();
+  const sources = new Map<string, string>();
 
   for (const record of records) {
     if (!record.xref) continue;
@@ -30,9 +33,12 @@ export function collectSharedRecords(records: GedcomNode[]): SharedRecords {
       if (text) notes.set(stripXref(record.xref), text);
     } else if (record.tag === 'OBJE') {
       media.set(stripXref(record.xref), parseMediaRecord(record));
+    } else if (record.tag === 'SOUR') {
+      const title = value(record, 'TITL');
+      if (title) sources.set(stripXref(record.xref), title);
     }
   }
-  return { notes, media };
+  return { notes, media, sources };
 }
 
 function parseMediaRecord(node: GedcomNode): { file?: string; title?: string } {

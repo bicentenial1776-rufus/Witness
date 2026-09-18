@@ -41,6 +41,9 @@ export interface TreeEvent {
   year: number | null;
   placeId: string | null;
   dateConfidence: Database['public']['Enums']['date_confidence'] | null;
+  /** The event's free text: an occupation's title; for a residence or a
+      census, the row's own words and its source titles (see parseEvent). */
+  detail: string | null;
 }
 
 export interface TreePlace {
@@ -80,6 +83,8 @@ interface EventRow {
   date_year: number | null;
   place_id: string | null;
   date_confidence: TreeEvent['dateConfidence'];
+  /** The event's free text (see TreeEvent.detail); absent from older rows. */
+  detail?: string | null;
 }
 
 interface PlaceRow {
@@ -128,6 +133,7 @@ export function buildTreeIndexFromRows(
     year: row.date_year,
     placeId: row.place_id,
     dateConfidence: row.date_confidence,
+    detail: row.detail ?? null,
   }));
 
   return { individuals: individualMap, families: familyList, events: eventList, places: placeMap };
@@ -169,6 +175,7 @@ export function buildTreeIndexFromParsed(parsed: ParsedGedcom): TreeIndex {
       date_year: row.date_year ?? null,
       place_id: row.place_id ?? null,
       date_confidence: row.date_confidence ?? null,
+      detail: row.detail ?? null,
     })),
     payload.places.map((row) => ({ id: row.id!, raw: row.raw, parts: row.parts ?? [] })),
   );
@@ -252,7 +259,7 @@ export async function fetchTreeIndex(client: WitnessSupabaseClient, treeId: stri
       (after) => {
         let q = client
           .from('individual_events')
-          .select('id, individual_id, event_type, date_year, place_id, date_confidence')
+          .select('id, individual_id, event_type, date_year, place_id, date_confidence, detail')
           .eq('tree_id', treeId)
           .order('id')
           .limit(PAGE_SIZE);

@@ -12,8 +12,24 @@ function parseEvent(
   node: GedcomNode | undefined,
   places: PlaceRegistry,
   shared: SharedRecords,
+  tag?: string,
 ): GedcomEvent | undefined {
   if (!node) return undefined;
+  /* THE WORDS ON A CENSUS ROW (19 September 2026, for Family Street View's
+     rooms). An export writes a census onto each person as a residence: a
+     date, a place, a NOTE in the form "Occupation: Boot Bottomer; Relation
+     to Head: Wife", and a source whose title names the census. The note and
+     the titles were dropped here, so a room could not tell a census from a
+     residence, nor who was head, nor what anybody did. They ride in
+     `detail`, the note first, then one "Source: <title>" line per source,
+     for RESI and CENS only; every other event's detail is what it was. */
+  let detail: string | undefined;
+  if (tag === 'RESI' || tag === 'CENS') {
+    const notes = children(node, 'NOTE').map((n) => resolveNote(n, shared)).filter((t): t is string => !!t);
+    const titles = children(node, 'SOUR').map((sn) => shared.sources.get(stripXref(sn.value.trim()))).filter((t): t is string => !!t);
+    const lines = notes.concat(titles.map((t) => 'Source: ' + t));
+    if (lines.length) detail = lines.join('\n');
+  }
   const dateNode = child(node, 'DATE');
   const dateValue = dateNode?.value.trim();
   // GEDCOM 7.0 moves free-text qualifiers out of the date payload into a
@@ -24,6 +40,7 @@ function parseEvent(
   return {
     date: date && phrase ? { ...date, raw: phrase } : date,
     placeId: places.intern(placeValue),
+    ...(detail ? { detail } : {}),
     media: children(node, 'OBJE').map((media) => resolveMediaRef(media, shared)),
   };
 }
@@ -150,7 +167,7 @@ export function parseIndividual(
 
   const parseEvents = (tag: string) =>
     children(node, tag)
-      .map((n) => parseEvent(n, places, shared))
+      .map((n) => parseEvent(n, places, shared, tag))
       .filter((e): e is GedcomEvent => Boolean(e));
 
   return {

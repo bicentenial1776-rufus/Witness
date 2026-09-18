@@ -11,3 +11,13 @@
  * the cron.schedule from migration 20260726150000.
  */
 export const ARCHIVES_ENABLED = false;
+
+/**
+ * FSV ROOMS — Family Street View, phase 1: a household's home on a census
+ * day, entered from the Portrait and the Family Graph. Built into the app
+ * DARK (docs/FSV_PHASE1_DARK.md): while this is false no mark is drawn, no
+ * room screen opens, and nothing here is read or queried. Turning it on is
+ * the first of three gates (lib/fsv-access.ts); the other two are an active
+ * seat and a row in fsv_early_access, which is also the kill switch.
+ */
+export const FSV_ROOMS_ENABLED = false;
