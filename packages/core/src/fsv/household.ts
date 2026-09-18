@@ -26,12 +26,14 @@
  *     day says it is thin.
  *  4. SAME FILE, SAME SEED. The household's seed is FNV-1a over its key.
  *
- * What the index does not carry, said plainly so nobody expects it: the
- * words on a census row (a relation to the head, an occupation) and the
- * row's source title. The parser keeps neither on an event, so which
- * census a row belongs to is inferred from the country and the year, and
- * no occupation is written. When the parser keeps them, this is where they
- * go.
+ * The words on a census row — "Occupation: Boot Bottomer; Relation to
+ * Head: Wife" — and the row's source title ride on the event's `detail`
+ * (parseEvent, for RESI and CENS). So a day is a day a CENSUS counted:
+ * a residence whose source names no census is a residence, not a day; a
+ * relation the row states is kept and a row that puts a person in
+ * somebody else's house (a servant, a boarder) is left out; an occupation
+ * is written on the person for that day. A file whose export wrote none of
+ * that falls back to the family record's relations and no occupations.
  */
 
 import type { TreeFamily, TreeIndex, TreeIndividual } from '../query/treeIndex.js';
@@ -48,6 +50,8 @@ export interface FsvPerson {
 
 export interface FsvDayPerson {
   pid: string;
+  /** As the census row says it, where it says it. */
+  relation?: string;
   occupation?: string;
 }
 
@@ -100,7 +104,35 @@ const CENSUS_DAY: Record<string, string> = {
   'England|1901': '1901-03-31', 'England|1911': '1911-04-02'
 };
 
-/** Which census a residence row belongs to, from where and when — the source title is not in the index. */
+/** The row's own words, from the event's detail: "Occupation: X; Relation to Head: Y", and its source titles. */
+function rowWords(detail: string | null | undefined): { fields: Record<string, string>; sources: string[] } {
+  const fields: Record<string, string> = {};
+  const sources: string[] = [];
+  String(detail || '').split(/[;\n]/).forEach((part) => {
+    const src = part.match(/^\s*Source:\s*(.+)$/);
+    if (src) { sources.push(src[1]!.trim()); return; }
+    const m = part.match(/^\s*([A-Za-z][A-Za-z \-/']{1,40}?)\s*:\s*(.*)$/);
+    if (m) fields[m[1]!.trim().toLowerCase()] = m[2]!.trim();
+  });
+  return { fields, sources };
+}
+/** Which census a source title names, and its year: "1880 United States Federal Census", "1871 Census of Canada". */
+function censusFromTitles(titles: string[]): { kind: string; year: number } | null {
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  for (const t of titles) {
+    const m = t.match(/(\d{4}) (United States Federal|England|Scotland|Wales|Canada|Ireland)\b[^,;]*Census/i);
+    const of = t.match(/(\d{4}) Census of (Canada|Ireland)/i) || t.match(/Census of (Canada|Ireland),? (\d{4})/i);
+    const st = t.match(/(State|Provincial) Census/i);
+    if (m) return { kind: m[2]!, year: +m[1]! };
+    if (of) return /^\d/.test(of[1]!) ? { kind: cap(of[2]!), year: +of[1]! } : { kind: cap(of[1]!), year: +of[2]! };
+    if (st) return { kind: 'State', year: 0 };
+  }
+  return null;
+}
+/* a relation that puts a person in somebody else's house */
+const ELSEWHERE = /^(servant|boarder|lodger|roomer|hired|employee|inmate|patient|prisoner|visitor)/i;
+
+/** Which census a residence row belongs to, from where and when — for a file whose export names no source. */
 function censusKind(country: string | null, year: number): string {
   const c = String(country || '').toLowerCase();
   if (/united states|usa/.test(c) && year >= 1790 && year % 10 === 0) return 'United States Federal';
@@ -176,35 +208,71 @@ export function fsvHouseholdRecord(index: TreeIndex, familyId: string): FsvHouse
   join(f.wife_id, f.husband_id ? 'wife' : 'head');
   (f.children ?? []).forEach((c) => { const p = index.individuals.get(c); join(c, p && p.sex === 'F' ? 'daughter' : 'son'); });
 
-  const married = placeParts(index, f.marriage_place_id);
-  const year = f.marriage_year ?? null;
+  /* the household's place: the marriage's where the record gives one, else
+     the head's earliest placed event, else the wife's — program.ts's own
+     rule (placeOf). Without it a household with no marriage place had no
+     country, so no door: 900 of Greg's 1,431 (19 September 2026). */
+  const earliestPlaced = (id: string | null | undefined) => {
+    if (!id) return null;
+    const ev = index.events.filter((e) => e.individualId === id && e.placeId).sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999))[0];
+    return ev ? ev.placeId : null;
+  };
+  const placeId = f.marriage_place_id || earliestPlaced(f.husband_id) || earliestPlaced(f.wife_id) || null;
+  const married = placeParts(index, placeId);
+  /* the household's year: the marriage where the record gives one, else the
+     head's birth and twenty-five (the wife's, failing that) — program.ts's
+     own rule, flagged lean. Without it a household with no marriage date
+     had no year, so no thin day, so no door: 900 of Greg's 1,431. */
+  const headP = index.individuals.get(f.husband_id ?? '') ?? index.individuals.get(f.wife_id ?? '');
+  const wifeP = index.individuals.get(f.wife_id ?? '');
+  const guessed = f.marriage_year === null || f.marriage_year === undefined;
+  const year: number | null = !guessed ? f.marriage_year! : (headP && headP.birth_year !== null ? headP.birth_year + 25 : (wifeP && wifeP.birth_year !== null ? wifeP.birth_year + 25 : null));
 
-  /* the rows: every residence or census the record wrote on a member, by year */
-  const byYear = new Map<number, { pid: string; year: number; town: string | null; county: string | null; state: string | null; country: string | null }[]>();
+  /* the rows: every census the record wrote on a member, by year. A
+     residence is a row only when its source names a census, or when the
+     export named no sources at all (then every residence is taken, as the
+     first version of this read took them). */
+  type Row = { pid: string; year: number; town: string | null; county: string | null; state: string | null; country: string | null; said: string; occupation: string | null; kind: string | null };
+  const byYear = new Map<number, Row[]>();
+  const anySources = index.events.some((e) => (e.eventType === 'residence' || e.eventType === 'census') && /(^|\n)Source:/.test(String(e.detail || '')));
   index.events.forEach((e) => {
     if (e.eventType !== 'residence' && e.eventType !== 'census') return;
     if (!rel.has(e.individualId) || e.year === null || e.year === undefined) return;
+    const w = rowWords(e.detail);
+    const census = censusFromTitles(w.sources);
+    if (anySources && !census && e.eventType !== 'census') return;
+    /* a census that asked where everyone lived five years before gives a residence, not a day */
+    if (census && census.year && census.year !== e.year) return;
     const pp = placeParts(index, e.placeId);
     if (!byYear.has(e.year)) byYear.set(e.year, []);
-    byYear.get(e.year)!.push({ pid: e.individualId, year: e.year, town: pp.town, county: pp.county, state: pp.state, country: pp.country });
+    byYear.get(e.year)!.push({ pid: e.individualId, year: e.year, town: pp.town, county: pp.county, state: pp.state, country: pp.country,
+      said: (w.fields['relation to head'] || w.fields['relation to head of house'] || '').toLowerCase(),
+      occupation: w.fields['occupation'] || null, kind: census ? census.kind : null });
   });
 
   const days: FsvDay[] = [];
   [...byYear.keys()].sort((a, b) => a - b).forEach((y) => {
     if (year !== null && y < year) return;
     const rows = byYear.get(y)!;
-    const anchor = rows.find((r) => r.pid === f.husband_id) || rows.find((r) => r.pid === f.wife_id);
-    if (!anchor) return;
+    /* whose house: the head or the wife on a row that is not somebody
+       else's house. "head" or "self" makes them the head; "wife" makes the
+       head her husband; a row that says nothing is the husband's house. */
+    const couple = rows.filter((r) => (r.pid === f.husband_id || r.pid === f.wife_id) && /^(|head|self|wife|husband)$/.test(r.said));
+    if (!couple.length) return;
+    const anchor = couple.find((r) => /^(head|self)$/.test(r.said)) || couple.find((r) => r.pid === f.husband_id) || couple[0]!;
     const present: FsvDayPerson[] = [];
     rows.forEach((r) => {
-      if (r.town !== anchor.town) return;
+      if (r.town !== anchor.town || ELSEWHERE.test(r.said)) return;
       if (present.some((q) => q.pid === r.pid)) return;
       const p = persons[r.pid];
       if (p && p.died !== null && p.died < y) return;
-      present.push({ pid: r.pid });
+      const q: FsvDayPerson = { pid: r.pid };
+      if (r.said) q.relation = r.said;
+      if (r.occupation) q.occupation = r.occupation;
+      present.push(q);
     });
     if (present.length < 2) return;
-    const kind = censusKind(anchor.country, y);
+    const kind = anchor.kind || censusKind(anchor.country, y);
     days.push({ year: y, date: CENSUS_DAY[kind + '|' + y] ?? null, census: kind, town: anchor.town, county: anchor.county,
       state: anchor.state, country: anchor.country, present, implied: [] });
   });
@@ -225,7 +293,7 @@ export function fsvHouseholdRecord(index: TreeIndex, familyId: string): FsvHouse
   return {
     fid: f.id, seed, living: false,
     year, place: married.raw, rgn: married.country, cult: null,
-    evidence: year !== null && married.raw ? 'full' : 'lean',
+    evidence: !guessed && !!f.marriage_place_id ? 'full' : 'lean',
     members, days, persons
   };
 }

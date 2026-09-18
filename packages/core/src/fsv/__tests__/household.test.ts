@@ -25,12 +25,12 @@ function closedIndex(): TreeIndex {
     ]),
     families: [{ id: 'f1', husband_id: 'h', wife_id: 'w', marriage_year: 1874, marriage_place_id: 'p1', children: ['c', 'k'] }],
     events: [
-      { individualId: 'h', eventType: 'residence', year: 1880, placeId: 'p2', dateConfidence: 'exact' },
-      { individualId: 'w', eventType: 'residence', year: 1880, placeId: 'p2', dateConfidence: 'exact' },
-      { individualId: 'c', eventType: 'residence', year: 1880, placeId: 'p2', dateConfidence: 'exact' },
-      { individualId: 'h', eventType: 'census', year: 1900, placeId: 'p2', dateConfidence: 'exact' },
-      { individualId: 'c', eventType: 'census', year: 1900, placeId: 'p3', dateConfidence: 'exact' },
-      { individualId: 'h', eventType: 'residence', year: 1870, placeId: 'p2', dateConfidence: 'exact' }
+      { individualId: 'h', eventType: 'residence', year: 1880, placeId: 'p2', dateConfidence: 'exact', detail: null },
+      { individualId: 'w', eventType: 'residence', year: 1880, placeId: 'p2', dateConfidence: 'exact', detail: null },
+      { individualId: 'c', eventType: 'residence', year: 1880, placeId: 'p2', dateConfidence: 'exact', detail: null },
+      { individualId: 'h', eventType: 'census', year: 1900, placeId: 'p2', dateConfidence: 'exact', detail: null },
+      { individualId: 'c', eventType: 'census', year: 1900, placeId: 'p3', dateConfidence: 'exact', detail: null },
+      { individualId: 'h', eventType: 'residence', year: 1870, placeId: 'p2', dateConfidence: 'exact', detail: null }
     ],
     places: new Map([
       place('p1', 'Boston, Suffolk, Massachusetts, USA', ['Boston', 'Suffolk', 'Massachusetts', 'USA'], 'United States'),
@@ -79,6 +79,30 @@ describe('fsvHouseholdRecord', () => {
     expect(r.persons).toEqual({});
     expect(r.place).toBeNull();
     expect(fsvCanEnter(r)).toEqual({ ok: false, why: 'living' });
+  });
+
+  it('reads the words on a census row: the relation, the occupation, which census; and leaves a servant out', () => {
+    const ix = closedIndex();
+    const src = 'Source: 1880 United States Federal Census';
+    ix.events = [
+      { individualId: 'h', eventType: 'residence', year: 1880, placeId: 'p2', dateConfidence: 'exact', detail: 'Occupation: Boot Bottomer; Relation to Head: Self\n' + src },
+      { individualId: 'w', eventType: 'residence', year: 1880, placeId: 'p2', dateConfidence: 'exact', detail: 'Relation to Head: Wife\n' + src },
+      { individualId: 'c', eventType: 'residence', year: 1880, placeId: 'p2', dateConfidence: 'exact', detail: 'Relation to Head: Servant\n' + src },
+      /* a residence with no census behind it is a residence, not a day */
+      { individualId: 'h', eventType: 'residence', year: 1885, placeId: 'p2', dateConfidence: 'exact', detail: null },
+      { individualId: 'w', eventType: 'residence', year: 1885, placeId: 'p2', dateConfidence: 'exact', detail: null },
+      /* and the 1940 census's "where in 1935" is a residence too */
+      { individualId: 'h', eventType: 'residence', year: 1895, placeId: 'p2', dateConfidence: 'exact', detail: 'Source: 1900 United States Federal Census' },
+      { individualId: 'w', eventType: 'residence', year: 1895, placeId: 'p2', dateConfidence: 'exact', detail: 'Source: 1900 United States Federal Census' }
+    ];
+    const r = fsvHouseholdRecord(ix, 'f1')!;
+    expect(r.days.map((d) => d.year)).toEqual([1880]);
+    const d = r.days[0]!;
+    expect(d.census).toBe('United States Federal');
+    expect(d.present.map((p) => p.pid)).toEqual(['h', 'w']);
+    expect(d.present[0]!.occupation).toBe('Boot Bottomer');
+    expect(d.present[0]!.relation).toBe('self');
+    expect(d.present[1]!.relation).toBe('wife');
   });
 
   it('returns null for a family the index does not have', () => {
