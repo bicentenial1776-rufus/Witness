@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBroadsheet } from '@/components/broadsheet';
 import { BrandFonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { setPerspective } from '@/lib/perspective';
 
 /**
  * The persistent bottom bar — rendered by the (app) layout OUTSIDE the
@@ -51,7 +52,11 @@ export function WitnessTabBar() {
             key={tab.title}
             accessibilityRole="button"
             accessibilityLabel={tab.title}
-            onPress={() => router.navigate(tab.href as never)}
+            onPress={() => {
+              // A section change ends the perspective lens (Rich, 2026-09-18).
+              setPerspective(null);
+              router.navigate(tab.href as never);
+            }}
             style={{ flex: 1, alignItems: 'center', gap: 2, paddingVertical: 4 }}
           >
             <SymbolView name={tab.icon} tintColor={String(color)} size={24} />

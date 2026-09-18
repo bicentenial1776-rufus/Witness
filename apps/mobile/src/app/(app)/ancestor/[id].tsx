@@ -1646,15 +1646,28 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 : 'See the tree from their perspective'
             }
           >
-            <Text
+            {/* Was a bare ⇅ glyph; Rich tapped it without knowing and the
+                lens then followed him into every relatives screen
+                (2026-09-18). Now it says what it does. */}
+            <View
               style={{
-                fontFamily: Fonts.mono,
-                fontSize: 15,
-                color: perspective?.id === person.id ? theme.accent : theme.textSecondary,
+                borderWidth: 1,
+                borderColor: perspective?.id === person.id ? theme.accent : theme.border,
+                borderRadius: 12,
+                paddingHorizontal: 8,
+                paddingVertical: 2,
               }}
             >
-              ⇅
-            </Text>
+              <Text
+                style={{
+                  fontFamily: Fonts.mono,
+                  fontSize: 12,
+                  color: perspective?.id === person.id ? theme.accent : theme.textSecondary,
+                }}
+              >
+                {perspective?.id === person.id ? 'SEEING THE TREE FROM HERE ✓' : 'SEE THE TREE FROM HERE'}
+              </Text>
+            </View>
           </Pressable>
           {crossingFlag && (
             <Pressable

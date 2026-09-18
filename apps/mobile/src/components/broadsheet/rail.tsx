@@ -4,6 +4,7 @@ import { Pressable, Text, View } from 'react-native';
 import { openFieldGuide } from '@/components/field-guide';
 import { RecordText } from '@/components/record-text';
 import { Broadsheet, BrandFonts } from '@/constants/theme';
+import { setPerspective } from '@/lib/perspective';
 
 /**
  * The persistent left rail (redesign §2, structure rule 1): wordmark, tree
@@ -69,6 +70,10 @@ export function Rail() {
         borderRightColor: C.rule,
         paddingTop: 28,
         paddingBottom: 20,
+        // Pinned to the viewport: on a page taller than the window the
+        // rail used to stretch with it and "Account" sailed off the bottom
+        // (Rich, 2026-09-18). Web-only properties, harmless elsewhere.
+        ...({ position: 'sticky', top: 0, height: '100vh', alignSelf: 'flex-start' } as object),
       }}
     >
       {/* Wordmark only (Rufus, 2026-09-17): the tree's name and figures
@@ -84,7 +89,12 @@ export function Rail() {
         return (
           <Pressable
             key={destination.href}
-            onPress={() => router.push(destination.href as never)}
+            onPress={() => {
+              // A section change ends the perspective lens: "seen from
+              // someone else" is a task, not a setting (Rich, 2026-09-18).
+              setPerspective(null);
+              router.push(destination.href as never);
+            }}
             style={{
               paddingVertical: 11,
               paddingHorizontal: 18,
