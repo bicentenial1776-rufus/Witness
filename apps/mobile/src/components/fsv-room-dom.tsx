@@ -34,7 +34,7 @@
 import type { DOMProps } from 'expo/dom';
 import { useEffect, useRef, useState } from 'react';
 
-interface RoomState { hour?: string; hourLabel?: string; weather?: string; fire?: boolean; sound?: boolean; year?: number; people?: number }
+interface RoomState { hour?: string; hourLabel?: string; weather?: string; fire?: boolean; sound?: boolean; tags?: boolean; year?: number; people?: number }
 export type RoomOutcome = 'opened' | 'no-room' | 'timed-out' | 'failed';
 
 const PATIENCE_MS = 20000;
@@ -67,7 +67,7 @@ export default function FsvRoomDom({ path, record, day, title, onOutcome }: {
       if (m.type !== 'fsv-state' && m.type !== 'fsv-room') return;
       setUp(true);
       say('opened');
-      if (m.type === 'fsv-state') setSt({ hour: m.hour, hourLabel: m.hourLabel, weather: m.weather, fire: m.fire, sound: m.sound, year: m.year, people: m.people });
+      if (m.type === 'fsv-state') setSt({ hour: m.hour, hourLabel: m.hourLabel, weather: m.weather, fire: m.fire, sound: m.sound, tags: m.tags, year: m.year, people: m.people });
     };
     const onErr = (e: ErrorEvent) => say('failed', String(e.message ?? 'error'));
     const late = setTimeout(() => say('timed-out'), PATIENCE_MS);
@@ -89,6 +89,7 @@ export default function FsvRoomDom({ path, record, day, title, onOutcome }: {
         {chip(st.weather || 'weather', !!st.weather && st.weather !== 'clear', () => tell({ weather: 'next', begin: true }))}
         {chip(st.fire === false ? 'light fire' : 'douse fire', st.fire !== false, () => tell({ fire: st.fire === false, begin: true }))}
         {chip(st.sound === false ? 'silent' : 'sound', st.sound !== false, () => tell({ sound: st.sound === false, begin: true }))}
+        {chip(st.tags === false ? 'no tags' : 'tags', st.tags !== false, () => tell({ tags: st.tags === false, begin: true }))}
       </div>
       <iframe ref={frame} src={src} title="The room" allow="fullscreen; autoplay; accelerometer; gyroscope"
         style={{ width: '100%', height: '100%', border: 'none', margin: 0, background: '#000' }} />
