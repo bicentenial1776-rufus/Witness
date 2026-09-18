@@ -1,19 +1,32 @@
 name: Ops watch
 
-# The watcher: every ten minutes, scripts/ops-watch.mjs reads service
-# health, API 5xx and statement-timeout counts, machine load/memory/disk,
-# and what Postgres is doing, and keeps one GitHub issue labelled
-# ops-alert — opened on trouble (GitHub emails the owner), commented on
-# while it lasts, closed on recovery. No secret beyond the
-# SUPABASE_ACCESS_TOKEN the deploy workflows already use.
+# The watcher, and the audit worker's clock.
+#
+# GitHub's cron is best-effort and drops high-frequency schedules: on
+# 2026-09-18 a */10 schedule fired twice in ten hours, and the audit
+# worker's own */10 schedule five times in a day. So this job LOOPS: it
+# runs the checks every ten minutes for up to five and a half hours, then
+# dispatches its successor (workflow_dispatch may be triggered with the
+# Actions token), and the concurrency group keeps exactly one loop alive.
+# The cron is only a restarter should a chain ever break.
+#
+# Each tick: scripts/ops-watch.mjs (service health, 5xx and statement
+# timeouts, load/memory/disk, pg_stat_activity → one GitHub issue labelled
+# ops-alert, opened on trouble and closed on recovery) and
+# packages/core/scripts/precompute-audit.mts --pending (Tree Health and
+# Orphan Records for any tree imported since its last audit).
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
     inputs:
+      once:
+        description: 'Run a single check and exit (no loop, no successor)'
+        type: boolean
+        default: false
       dry_run:
-        description: 'Print the report without touching the issue'
+        description: 'With once: print the report without touching the issue'
         type: boolean
         default: false
 
@@ -23,28 +36,36 @@ concurrency:
 
 permissions:
   issues: write
+  actions: write
   contents: read
 
 env:
   SUPABASE_PROJECT_REF: bdjsahbjptpcmouqozvs
+  EXPO_PUBLIC_SUPABASE_URL: https://bdjsahbjptpcmouqozvs.supabase.co
+  TICK_SECONDS: 600
+  LOOP_MINUTES: 330
 
 jobs:
   watch:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
-      - name: Fetch the service-role key (for the metrics endpoint)
+      - name: Install (for the audit worker)
+        run: npm ci
+
+      - name: Fetch the service-role key
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
-          KEY=$(npx --yes supabase@latest projects api-keys --project-ref "$SUPABASE_PROJECT_REF" -o json \
+          KEY=$(npx supabase@latest projects api-keys --project-ref "$SUPABASE_PROJECT_REF" -o json \
             | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const k=JSON.parse(s).find(k=>k.name==="service_role");process.stdout.write(k?k.api_key:"")})')
           echo "::add-mask::$KEY"
           echo "SUPABASE_SERVICE_ROLE_KEY=$KEY" >> "$GITHUB_ENV"
@@ -54,9 +75,27 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          ONCE: ${{ inputs.once }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
-            node scripts/ops-watch.mjs --dry-run
-          else
-            node scripts/ops-watch.mjs
-          fi
+          set -uo pipefail
+          tick() {
+            echo "::group::watch $(date -u +%H:%M)"
+            if [ "$DRY_RUN" = "true" ]; then node scripts/ops-watch.mjs --dry-run; else node scripts/ops-watch.mjs; fi
+            echo "::endgroup::"
+            echo "::group::audit --pending $(date -u +%H:%M)"
+            (cd packages/core && npx tsx scripts/precompute-audit.mts --pending) || echo "audit worker exited non-zero (see above)"
+            echo "::endgroup::"
+          }
+          if [ "$ONCE" = "true" ]; then tick; exit 0; fi
+          END=$(( $(date +%s) + LOOP_MINUTES * 60 ))
+          while [ "$(date +%s)" -lt "$END" ]; do
+            tick
+            sleep "$TICK_SECONDS"
+          done
+
+      - name: Hand off to the next loop
+        if: ${{ always() && inputs.once != true }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run ops-watch.yml --ref main || echo "could not dispatch the successor; the */30 cron restarts the chain"

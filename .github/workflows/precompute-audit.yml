@@ -7,9 +7,10 @@ name: Precompute tree audits
 # The service-role key is fetched at run time with the same SUPABASE_ACCESS_TOKEN
 # secret deploy-functions.yml uses, so nothing new is stored in GitHub.
 
+# The schedule moved to ops-watch.yml (2026-09-18): GitHub's cron dropped
+# most */10 firings, so the watcher's ten-minute loop now runs --pending.
+# This workflow remains for explicit, manual runs.
 on:
-  schedule:
-    - cron: '*/10 * * * *'
   workflow_dispatch:
     inputs:
       trees:
