@@ -25,6 +25,7 @@ export const CHECK_TITLES: Record<HealthCheckId, string> = {
   possible_duplicate_person: 'Possibly the same person, entered twice',
   husband_recorded_female: 'Husband recorded as female',
   wife_recorded_male: 'Wife recorded as male',
+  spouse_is_self: 'Married to themselves',
   same_surname_couple: 'Couples sharing a surname',
   sibling_born_too_soon: 'Siblings born close together',
   sibling_born_impossibly_soon: 'Siblings born impossibly close',

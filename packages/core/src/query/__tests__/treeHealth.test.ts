@@ -215,6 +215,27 @@ describe('family checks', () => {
     expect(checksIn(r)).toContain('husband_recorded_female');
     expect(checksIn(r)).toContain('wife_recorded_male');
     expect(checksIn(r)).toContain('same_surname_couple');
+    // Both spouses named with their recorded sexes — the error may be on
+    // either record (Rich Douglass, 2026-09-18: the message blamed
+    // Gertrude when her wife Leland was the one recorded female).
+    const husbandFinding = r.findings.find((f) => f.check === 'husband_recorded_female')!;
+    expect(husbandFinding.detail).toBe(
+      'A Doiron (recorded female) is the husband in a marriage to B Doiron (recorded male) — one of the two records is likely wrong.',
+    );
+    expect(husbandFinding.individualIds).toEqual(['h', 'w']);
+  });
+
+  it('calls a family whose husband and wife are the same record a marriage to oneself, not a sex error', () => {
+    const r = audit({
+      individuals: [person({ id: 'laura', sex: 'F', full_name: 'Laura Pickren' }), person({ id: 'kid' })],
+      families: [family({ id: 'f1', husband_id: 'laura', wife_id: 'laura', children: ['kid'] })],
+    });
+    expect(checksIn(r)).toContain('spouse_is_self');
+    expect(checksIn(r)).not.toContain('husband_recorded_female');
+    expect(checksIn(r)).not.toContain('wife_recorded_male');
+    const finding = r.findings.find((f) => f.check === 'spouse_is_self')!;
+    expect(finding.severity).toBe('fail');
+    expect(finding.detail).toContain('Laura Pickren is recorded as both husband and wife of the same family (with 1 child)');
   });
 
   it('grades sibling spacing: twins pass, tight gaps caution, impossible gaps fail', () => {

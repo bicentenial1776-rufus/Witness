@@ -39,6 +39,7 @@ export type HealthCheckId =
   | 'possible_duplicate_person'
   | 'husband_recorded_female'
   | 'wife_recorded_male'
+  | 'spouse_is_self'
   | 'same_surname_couple'
   | 'sibling_born_too_soon'
   | 'sibling_born_impossibly_soon'
@@ -408,23 +409,46 @@ export function runTreeHealth(data: TreeHealthData, options: { currentYear: numb
       family.marriage_date_qualifier,
     );
 
-    if (husband && husband.sex === 'F') {
+    // Sex-and-role checks. Rich Douglass's file (2026-09-18) showed why the
+    // sentence must name BOTH spouses with their recorded sexes: "Gertrude
+    // is recorded as female but appears as a husband" blamed Gertrude when
+    // the error was her wife Leland recorded as female; and a family whose
+    // husband and wife are the same record (a marriage to oneself — a
+    // mis-linked spouse in the source) is its own kind of finding, not a
+    // sex error.
+    const sexWord = (p: HealthIndividual) => (p.sex === 'M' ? 'male' : p.sex === 'F' ? 'female' : 'of unrecorded sex');
+    const childCount = family.children.length;
+    if (husband && wife && husband.id === wife.id) {
       findings.push({
-        check: 'husband_recorded_female',
-        severity: 'caution',
+        check: 'spouse_is_self',
+        severity: 'fail',
         individualIds: [husband.id],
         familyId: family.id,
-        detail: `${husband.full_name} is recorded as female but appears as a husband.`,
+        detail: `${husband.full_name} is recorded as both husband and wife of the same family${childCount > 0 ? ` (with ${childCount} ${childCount === 1 ? 'child' : 'children'})` : ''} — a marriage to themselves. The spouse in that family is probably mis-linked at your source.`,
       });
-    }
-    if (wife && wife.sex === 'M') {
-      findings.push({
-        check: 'wife_recorded_male',
-        severity: 'caution',
-        individualIds: [wife.id],
-        familyId: family.id,
-        detail: `${wife.full_name} is recorded as male but appears as a wife.`,
-      });
+    } else {
+      if (husband && husband.sex === 'F') {
+        findings.push({
+          check: 'husband_recorded_female',
+          severity: 'caution',
+          individualIds: wife ? [husband.id, wife.id] : [husband.id],
+          familyId: family.id,
+          detail: wife
+            ? `${husband.full_name} (recorded female) is the husband in a marriage to ${wife.full_name} (recorded ${sexWord(wife)}) — one of the two records is likely wrong.`
+            : `${husband.full_name} is recorded as female but stands as the husband of a family with no wife recorded.`,
+        });
+      }
+      if (wife && wife.sex === 'M') {
+        findings.push({
+          check: 'wife_recorded_male',
+          severity: 'caution',
+          individualIds: husband ? [wife.id, husband.id] : [wife.id],
+          familyId: family.id,
+          detail: husband
+            ? `${wife.full_name} (recorded male) is the wife in a marriage to ${husband.full_name} (recorded ${sexWord(husband)}) — one of the two records is likely wrong.`
+            : `${wife.full_name} is recorded as male but stands as the wife of a family with no husband recorded.`,
+        });
+      }
     }
 
     if (husband?.surname && wife?.surname && husband.surname === wife.surname) {
