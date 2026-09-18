@@ -287,14 +287,14 @@ export async function fetchTreeIndex(client: WitnessSupabaseClient, treeId: stri
             .not('detail', 'is', null)
             .order('id')
             .limit(PAGE_SIZE);
-          if (after) q = q.gt('id', after.id);
+          if (after?.id) q = q.gt('id', after.id);
           return q;
         },
         'Fetching event details failed',
       );
       if (details.length === 0) return rows as EventRow[];
       const byId = new Map(details.map((d) => [d.id, d.detail]));
-      return rows.map((row) => ({ ...row, detail: byId.get(row.id) ?? null })) as EventRow[];
+      return rows.map((row) => ({ ...row, detail: (row.id && byId.get(row.id)) ?? null })) as EventRow[];
     }),
     fetchAllPages<PlaceRow>(
       (after) => {
