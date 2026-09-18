@@ -70,6 +70,7 @@ import { portraitFromIndex } from '@witness/core/query';
 import { getPersonCuriosities, type Curiosity } from '@/lib/curiosities-cache';
 import { getEventLibrary } from '@/lib/event-library';
 import { getFamilyStages } from '@/lib/family-stage-cache';
+import { useFsvDoor } from '@/lib/fsv-access';
 import { useActiveTree } from '@/lib/active-tree';
 import { getTreeIndex } from '@/lib/tree-index-cache';
 import { advanceTrail, dismissTrail, nextTrailPiece } from '@/lib/issue-trail';
@@ -558,6 +559,8 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
   // may be the SPOUSE), so the link is offered only once the real index
   // says the door opens somewhere.
   const [stageKey, setStageKey] = useState<string | null>(null);
+  /* the door into the household's room: shut unless lib/fsv-access says yes */
+  const fsvDoor = useFsvDoor(stageKey);
   const [tags, setTags] = useState<LivedThroughTag[]>([]);
   const [sources, setSources] = useState<SourceGroup[]>([]);
   // The user-confirmed Find a Grave memorial — testimony beside the record.
@@ -2491,6 +2494,20 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
                 style={{ paddingTop: 8 }}
               >
                 <ThemedText type="link">Family Graph ›</ThemedText>
+              </Pressable>
+            )}
+            {/* The door into the household's room (Family Street View, phase
+                1). Dark: useFsvDoor is shut unless the flag, the seat and the
+                early-access list all say yes, and then only for a household
+                the rooms' rule admits. See docs/FSV_PHASE1_DARK.md. */}
+            {fsvDoor.open && fsvDoor.familyId !== null && (
+              <Pressable
+                onPress={() =>
+                  router.push({ pathname: '/rooms/[key]', params: { key: fsvDoor.familyId } } as never)
+                }
+                style={{ paddingTop: 8 }}
+              >
+                <ThemedText type="link">Go in ›</ThemedText>
               </Pressable>
             )}
             {parents.length > 0 && (

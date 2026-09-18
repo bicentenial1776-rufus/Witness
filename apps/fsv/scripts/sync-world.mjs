@@ -25,6 +25,9 @@ const candidates = [
 ].filter(Boolean);
 
 const REL = join('witness-demo', 'dist', 'witness_fsv_demo.html');
+/* and the room page — phase 1's interiors, built by npm run build:census in
+   the design repo — which the app's room screen opens beside the world */
+const ROOM_REL = join('experiments', 'census_day', 'dist', 'FSV_Census_Day.html');
 
 let src = null;
 for (const c of candidates) {
@@ -60,3 +63,16 @@ const mobileDest = resolve(here, '..', '..', 'mobile', 'public', 'world');
 mkdirSync(mobileDest, { recursive: true });
 copyFileSync(src, join(mobileDest, 'witness_fsv_demo.html'));
 console.log('sync-world: copied again into ' + mobileDest);
+/* the room page, beside the world, in world/rooms/ */
+{
+  const repo = candidates.map((c) => resolve(c)).find((c) => existsSync(join(c, ROOM_REL)));
+  if (!repo) {
+    console.error('sync-world: the room page is not built. In the design repo run: npm run build:census');
+    process.exit(1);
+  }
+  const roomsDir = join(dest, 'rooms');
+  mkdirSync(roomsDir, { recursive: true });
+  const from = join(repo, ROOM_REL), to = join(roomsDir, 'FSV_Census_Day.html');
+  copyFileSync(from, to);
+  console.log('sync-world: room page ' + (statSync(to).size / 1048576).toFixed(2) + ' MB -> ' + to);
+}

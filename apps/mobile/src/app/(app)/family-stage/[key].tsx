@@ -25,6 +25,7 @@ import { BrandFonts, Letterpress, mono, type LetterpressPalette } from '@/consta
 import { useLetterpress } from '@/hooks/use-theme';
 import { useActiveTree } from '@/lib/active-tree';
 import { getFamilyStages } from '@/lib/family-stage-cache';
+import { useFsvDoor } from '@/lib/fsv-access';
 import { getLineageTierMap, type LineageTier } from '@/lib/relationship-cache';
 
 
@@ -78,6 +79,8 @@ export default function FamilyStageScreen() {
   const currentYear = new Date().getFullYear();
 
   const [stages, setStages] = useState<FamilyStageIndex | null>(null);
+  /* the door into this household's room: shut unless lib/fsv-access says yes */
+  const fsvDoor = useFsvDoor(paramKey ?? null);
   const [failed, setFailed] = useState(false);
   const [currentKey, setCurrentKey] = useState<string | null>(null);
   const [chartHeight, setChartHeight] = useState(0);
@@ -435,6 +438,16 @@ export default function FamilyStageScreen() {
           <Text style={mono(13, L.amber)}>← BACK</Text>
         </Pressable>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {/* The door into this household's room (Family Street View, phase
+              1): shut, and not drawn, unless lib/fsv-access says yes. */}
+          {fsvDoor.open && fsvDoor.familyId !== null && (
+            <Pressable
+              onPress={() => router.push({ pathname: '/rooms/[key]', params: { key: fsvDoor.familyId } } as never)}
+              hitSlop={10}
+            >
+              <Text style={mono(13, L.amber)}>GO IN ›</Text>
+            </Pressable>
+          )}
           <RecordText eyebrow style={{ color: L.muted }}>
             The family graph
           </RecordText>

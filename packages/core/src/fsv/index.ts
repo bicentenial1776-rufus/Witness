@@ -10,3 +10,11 @@ export {
   type FsvHousehold,
   type FsvConfidence
 } from './program.js';
+export {
+  fsvHouseholdRecord,
+  type FsvHouseholdRecord,
+  type FsvDay,
+  type FsvDayPerson,
+  type FsvPerson
+} from './household.js';
+export { fsvCanEnter, type FsvDoor, type FsvDoorReason } from './enterable.js';
