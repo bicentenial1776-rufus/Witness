@@ -60,6 +60,7 @@ export function FamilyStage({ treeId }: { treeId: string }) {
   const [showEvents, setShowEvents] = useState(false);
   const [showPresidents, setShowPresidents] = useState(false);
   const [chartWidth, setChartWidth] = useState(0);
+  const [trackWidth, setTrackWidth] = useState(0);
   const sweepTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -68,7 +69,17 @@ export function FamilyStage({ treeId }: { treeId: string }) {
       .then((built) => {
         if (cancelled) return;
         setStages(built);
-        const opening = built.topLevel[0];
+        // Open on the reader's own household — the family they grew up in,
+        // else one they head — before the best-documented one. "What
+        // controls the family being viewed?" (Rich, 2026-09-18): you do.
+        const homeId = activeTree?.home_person_id ?? null;
+        const stagesAll = [...built.byKey.values()];
+        const mine =
+          (homeId &&
+            (stagesAll.find((s) => s.rows.some((r) => r.kind === 'person' && r.id === homeId && r.role === 'child')) ??
+              stagesAll.find((s) => s.rows.some((r) => r.kind === 'person' && r.id === homeId)))) ||
+          null;
+        const opening = mine ?? built.topLevel[0];
         if (opening) {
           setCurrentKey(opening.key);
           setYear(opening.scrubStart);
@@ -556,17 +567,23 @@ export function FamilyStage({ treeId }: { treeId: string }) {
               {sweeping ? 'HOLD' : 'SWEEP THE YEARS'}
             </Text>
           </Pressable>
+          {/* The pointer is read against the TRACK's own width. It used to
+              be read against the chart's, which is wider (the button and
+              the year range share this row), so the ball sat in one place
+              and the grab answered somewhere to its right (Rich,
+              2026-09-18). */}
           <View
             style={{ flex: 1, height: 26, justifyContent: 'center' }}
+            onLayout={(event: LayoutChangeEvent) => setTrackWidth(event.nativeEvent.layout.width)}
             onStartShouldSetResponder={() => true}
             onMoveShouldSetResponder={() => true}
             onResponderGrant={(event) => {
               stopSweep();
-              const ratio = Math.min(1, Math.max(0, event.nativeEvent.locationX / Math.max(1, chartWidth)));
+              const ratio = Math.min(1, Math.max(0, event.nativeEvent.locationX / Math.max(1, trackWidth)));
               setYear(Math.round(stage.scrubStart + ratio * (stage.scrubEnd - stage.scrubStart)));
             }}
             onResponderMove={(event) => {
-              const ratio = Math.min(1, Math.max(0, event.nativeEvent.locationX / Math.max(1, chartWidth)));
+              const ratio = Math.min(1, Math.max(0, event.nativeEvent.locationX / Math.max(1, trackWidth)));
               setYear(Math.round(stage.scrubStart + ratio * (stage.scrubEnd - stage.scrubStart)));
             }}
           >
