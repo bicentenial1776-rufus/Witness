@@ -295,12 +295,54 @@ export default function YouTab() {
     return minutes === 0 ? 'moments ago' : minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
   }
 
-  function confirmDelete(tree: TreeRow) {
+  async function confirmDelete(tree: TreeRow) {
+    // Family sharing lives on the tree (Rufus, 2026-09-18: four pending
+    // invitations vanished with a retired tree). Before offering the
+    // delete, count the seats and open invitations on this tree; if the
+    // owner has another tree they move there first (carry_tree_sharing),
+    // and if there is nowhere to move them the warning says so outright.
+    const [membersRes, invitesRes] = await Promise.all([
+      supabase.from('tree_members').select('user_id', { count: 'exact', head: true }).eq('tree_id', tree.id),
+      supabase
+        .from('invites')
+        .select('token', { count: 'exact', head: true })
+        .eq('tree_id', tree.id)
+        .is('accepted_at', null)
+        .is('revoked_at', null)
+        .gt('expires_at', new Date().toISOString()),
+    ]);
+    const seats = membersRes.count ?? 0;
+    const openInvites = invitesRes.count ?? 0;
+    const sharingTarget =
+      seats + openInvites > 0
+        ? ((activeTree && activeTree.id !== tree.id && activeTree.owned && activeTree.import_status === 'complete'
+            ? activeTree
+            : (trees ?? []).find((t) => t.id !== tree.id && t.owned && t.import_status === 'complete')) ?? null)
+        : null;
+    const sharingNote =
+      seats + openInvites === 0
+        ? ''
+        : sharingTarget
+          ? `\n\nFamily sharing — ${seats} ${seats === 1 ? 'member' : 'members'} and ${openInvites} open ${openInvites === 1 ? 'invitation' : 'invitations'} — will move to “${sharingTarget.name}” first.`
+          : `\n\nThis tree has ${seats} family ${seats === 1 ? 'member' : 'members'} and ${openInvites} open ${openInvites === 1 ? 'invitation' : 'invitations'}. With no other tree to move them to, deleting it ends their access — they will have to be invited again.`;
     showDestructiveConfirm(
       `Delete "${tree.name}"?`,
-      `This removes the imported copy (${tree.individual_count.toLocaleString()} people) from Witness. Your GEDCOM file is untouched.`,
+      `This removes the imported copy (${tree.individual_count.toLocaleString()} people) from Witness. Your GEDCOM file is untouched.${sharingNote}`,
       'Delete',
       async () => {
+        if (sharingTarget) {
+          const { error: carryError } = await supabase.rpc('carry_tree_sharing', {
+            p_old_tree_id: tree.id,
+            p_new_tree_id: sharingTarget.id,
+          });
+          if (carryError) {
+            showAlert(
+              'Family sharing could not be moved',
+              `${carryError.message}\n\nThe tree was not deleted. Try again in a moment.`,
+            );
+            return;
+          }
+        }
         // A whole-tree cascade delete exceeds the API statement timeout
         // on real trees, so the server deletes in bounded slices and we
         // call until it reports done (see delete_tree_batch migration).
