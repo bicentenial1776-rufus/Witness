@@ -36,6 +36,20 @@ jobs:
       - name: Build shared core package
         run: npm run build --workspace packages/core
 
+      # Family Street View's built pages are kept out of git on purpose
+      # (.gitignore: apps/mobile/public/world/) and live as assets on the
+      # fsv-world release. The web export copies public/ to the site root,
+      # so the room screen finds world/rooms/FSV_Census_Day.html.
+      - name: Fetch the FSV world pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p apps/mobile/public/world/rooms
+          gh release download fsv-world --pattern 'witness_fsv_demo.html' --dir apps/mobile/public/world --clobber
+          gh release download fsv-world --pattern 'FSV_Census_Day.html' --dir apps/mobile/public/world/rooms --clobber
+          ls -la apps/mobile/public/world apps/mobile/public/world/rooms
+
       - name: Export web bundle
         working-directory: apps/mobile
         env:
