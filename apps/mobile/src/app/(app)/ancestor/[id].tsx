@@ -56,7 +56,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
 
 import { showAlert } from '@/lib/alert';
-import { ancestryRecordUrl, providerPersonLink, type ProviderLink } from '@/lib/ancestry';
+import { ancestryRecordUrl, archiveOrgDeepLink, providerPersonLink, type ProviderLink } from '@/lib/ancestry';
 import {
   ancestryImmigrationSearchUrl,
   familySearchArrivalsUrl,
@@ -202,7 +202,10 @@ function groupCitations(rows: CitationRow[]): SourceGroup[] {
     }
     // A memorial URL beats any other link the same source happens to carry;
     // a citation with no link but an Ancestry record id still gets one.
-    const url = row.url ?? ancestryRecordUrl(row.ancestry_apid);
+    // An archive.org book link gets the citation's page appended so it opens
+    // on the reference itself rather than the book's landing page.
+    const rawUrl = row.url ?? ancestryRecordUrl(row.ancestry_apid);
+    const url = rawUrl ? archiveOrgDeepLink(rawUrl, row.page) : null;
     if (url && (!group.url || (isFindAGraveUrl(url) && !isFindAGraveUrl(group.url)))) {
       group.url = url;
     }

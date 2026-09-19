@@ -54,6 +54,22 @@ export function ancestryRecordUrl(apid: string | null | undefined): string | nul
   return `https://www.ancestry.com/discoveryui-content/view/${match[2]}:${match[1]}`;
 }
 
+/**
+ * Archive.org's BookReader jumps to a specific scan via `/page/n{N}` appended
+ * to the book's `/details/{id}` URL. GEDCOM citation `page` fields are
+ * freeform ("p. 45", "pp. 45-46") — the first digit run is taken as the
+ * target page. Returns the URL unchanged when it isn't an archive.org book
+ * link, or when no page number can be read, so this is safe to call on any
+ * citation URL.
+ */
+export function archiveOrgDeepLink(url: string, page: string | null | undefined): string {
+  const details = /^(https?:\/\/archive\.org\/details\/[^/?#]+)\/?$/i.exec(url.trim());
+  if (!details) return url;
+  const pageNumber = /(\d+)/.exec(page ?? '');
+  if (!pageNumber) return url;
+  return `${details[1]}/page/n${pageNumber[1]}`;
+}
+
 // Valid person-page tab paths, verified 2026-07-24: /facts and /gallery
 // respond (401 signed-out); /sources is a 404 — Sources is a panel on the
 // facts page, not a routable tab.
