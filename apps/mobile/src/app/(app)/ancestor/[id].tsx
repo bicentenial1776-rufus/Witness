@@ -11,6 +11,7 @@ import {
   type LivedThroughTag,
 } from '@witness/core/history';
 import {
+  archiveOrgDeepLink,
   eventTypeLabel,
   fetchNaraCandidatesForIndividual,
   fetchPassengerCandidatesForIndividual,
@@ -56,7 +57,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
 
 import { showAlert } from '@/lib/alert';
-import { ancestryRecordUrl, archiveOrgDeepLink, providerPersonLink, type ProviderLink } from '@/lib/ancestry';
+import { ancestryRecordUrl, providerPersonLink, type ProviderLink } from '@/lib/ancestry';
 import {
   ancestryImmigrationSearchUrl,
   familySearchArrivalsUrl,

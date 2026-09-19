@@ -16,3 +16,4 @@ export * from './familyStage.js';
 export * from './register.js';
 export * from './offline.js';
 export * from './peopleList.js';
+export * from './archiveLinks.js';
