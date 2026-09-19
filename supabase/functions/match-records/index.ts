@@ -35,12 +35,12 @@ import {
   type RegisterRecord,
 } from '../_shared/records/mod.ts';
 import { makeAcadianPlugin, type AcadianNameVariants } from '../_shared/records/acadianNames.ts';
+import { fetchAllPages, PAGE_SIZE } from '../_shared/family/paginate.ts';
 
 import passengerData from './passengers.json' with { type: 'json' };
 import acadianVariants from './acadian-variants.json' with { type: 'json' };
 
 const MAX_TREES_PER_SWEEP = 10;
-const PAGE = 1000;
 
 const dataset = passengerData as unknown as PassengerDataset;
 
@@ -57,65 +57,80 @@ type Client = any;
 
 async function loadPeople(client: Client, treeId: string): Promise<RegisterPersonFacts[]> {
   const people = new Map<string, RegisterPersonFacts>();
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await client
-      .from('individuals')
-      .select('id, full_name, sex, birth_year, death_year, living')
-      .eq('tree_id', treeId)
-      .order('id')
-      .range(from, from + PAGE - 1);
-    if (error) throw new Error(`individuals: ${error.message}`);
-    for (const row of data ?? []) {
-      if (row.living) continue; // the living stay out of record candidates
-      people.set(row.id, {
-        id: row.id,
-        fullName: row.full_name ?? '',
-        sex: row.sex ?? 'U',
-        birthYear: row.birth_year,
-        deathYear: row.death_year,
-        events: [],
-      });
-    }
-    if (!data || data.length < PAGE) break;
+  // Keyset pages throughout (paginate.ts): the OFFSET loops this replaces
+  // re-walked every earlier row on each page, and the citations read alone
+  // cost 142k buffers a call on the 61k-person tree (pg_stat_statements,
+  // 2026-09-19). Each page carries `id` so the next can seek past it.
+  // deno-lint-ignore no-explicit-any
+  type Row = any;
+  const individuals = await fetchAllPages<Row>(
+    (after) => {
+      let q = client
+        .from('individuals')
+        .select('id, full_name, sex, birth_year, death_year, living')
+        .eq('tree_id', treeId)
+        .order('id')
+        .limit(PAGE_SIZE);
+      if (after) q = q.gt('id', after.id);
+      return q;
+    },
+    'individuals',
+  );
+  for (const row of individuals) {
+    if (row.living) continue; // the living stay out of record candidates
+    people.set(row.id, {
+      id: row.id,
+      fullName: row.full_name ?? '',
+      sex: row.sex ?? 'U',
+      birthYear: row.birth_year,
+      deathYear: row.death_year,
+      events: [],
+    });
   }
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await client
-      .from('individual_events')
-      .select('individual_id, event_type, date_year, places (parts)')
-      .eq('tree_id', treeId)
-      .order('id')
-      .range(from, from + PAGE - 1);
-    if (error) throw new Error(`events: ${error.message}`);
-    for (const row of data ?? []) {
-      const person = people.get(row.individual_id);
-      if (!person) continue;
-      (person.events as unknown[]).push({
-        type: row.event_type,
-        year: row.date_year ?? null,
-        placeParts: row.places?.parts ?? null,
-      });
-    }
-    if (!data || data.length < PAGE) break;
+  const events = await fetchAllPages<Row>(
+    (after) => {
+      let q = client
+        .from('individual_events')
+        .select('id, individual_id, event_type, date_year, places (parts)')
+        .eq('tree_id', treeId)
+        .order('id')
+        .limit(PAGE_SIZE);
+      if (after) q = q.gt('id', after.id);
+      return q;
+    },
+    'events',
+  );
+  for (const row of events) {
+    const person = people.get(row.individual_id);
+    if (!person) continue;
+    (person.events as unknown[]).push({
+      type: row.event_type,
+      year: row.date_year ?? null,
+      placeParts: row.places?.parts ?? null,
+    });
   }
   // The sources the tree cites per person — a register's strongest
   // signal from the file itself ("U.S., Civil War Pension Index").
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await client
-      .from('citations')
-      .select('individual_id, sources (title)')
-      .eq('tree_id', treeId)
-      .not('individual_id', 'is', null)
-      .order('id')
-      .range(from, from + PAGE - 1);
-    if (error) throw new Error(`citations: ${error.message}`);
-    for (const row of data ?? []) {
-      const person = people.get(row.individual_id);
-      const title = row.sources?.title as string | null | undefined;
-      if (!person || !title) continue;
-      const titles = (person.citationTitles ?? []) as string[];
-      if (!titles.includes(title)) (person as { citationTitles?: string[] }).citationTitles = [...titles, title];
-    }
-    if (!data || data.length < PAGE) break;
+  const citations = await fetchAllPages<Row>(
+    (after) => {
+      let q = client
+        .from('citations')
+        .select('id, individual_id, sources (title)')
+        .eq('tree_id', treeId)
+        .not('individual_id', 'is', null)
+        .order('id')
+        .limit(PAGE_SIZE);
+      if (after) q = q.gt('id', after.id);
+      return q;
+    },
+    'citations',
+  );
+  for (const row of citations) {
+    const person = people.get(row.individual_id);
+    const title = row.sources?.title as string | null | undefined;
+    if (!person || !title) continue;
+    const titles = (person.citationTitles ?? []) as string[];
+    if (!titles.includes(title)) (person as { citationTitles?: string[] }).citationTitles = [...titles, title];
   }
   return [...people.values()];
 }
@@ -126,20 +141,24 @@ async function loadPeople(client: Client, treeId: string): Promise<RegisterPerso
  */
 async function loadSpouses(client: Client, treeId: string): Promise<Map<string, string[]>> {
   const spouses = new Map<string, string[]>();
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await client
-      .from('families')
-      .select('husband_id, wife_id')
-      .eq('tree_id', treeId)
-      .order('id')
-      .range(from, from + PAGE - 1);
-    if (error) throw new Error(`families: ${error.message}`);
-    for (const row of data ?? []) {
-      if (!row.husband_id || !row.wife_id) continue;
-      spouses.set(row.husband_id, [...(spouses.get(row.husband_id) ?? []), row.wife_id]);
-      spouses.set(row.wife_id, [...(spouses.get(row.wife_id) ?? []), row.husband_id]);
-    }
-    if (!data || data.length < PAGE) break;
+  // deno-lint-ignore no-explicit-any
+  const families = await fetchAllPages<any>(
+    (after) => {
+      let q = client
+        .from('families')
+        .select('id, husband_id, wife_id')
+        .eq('tree_id', treeId)
+        .order('id')
+        .limit(PAGE_SIZE);
+      if (after) q = q.gt('id', after.id);
+      return q;
+    },
+    'families',
+  );
+  for (const row of families) {
+    if (!row.husband_id || !row.wife_id) continue;
+    spouses.set(row.husband_id, [...(spouses.get(row.husband_id) ?? []), row.wife_id]);
+    spouses.set(row.wife_id, [...(spouses.get(row.wife_id) ?? []), row.husband_id]);
   }
   return spouses;
 }
@@ -303,31 +322,32 @@ async function matchTree(client: Client, treeId: string, userId: string): Promis
       : people;
     if (exposed.length === 0) continue;
 
-    const records: RegisterRecord[] = [];
-    for (let from = 0; ; from += PAGE) {
-      const { data, error } = await client
-        .from('register_records')
-        .select('id, register_key, record_kind, name_as_recorded, surname_normalized, given_normalized, entity_key, attributes, source_citation, finding_aid_url')
-        .eq('register_key', register.register_key)
-        .order('id')
-        .range(from, from + PAGE - 1);
-      if (error) throw new Error(`register_records: ${error.message}`);
-      for (const row of data ?? []) {
-        records.push({
-          id: row.id,
-          registerKey: row.register_key,
-          recordKind: row.record_kind,
-          nameAsRecorded: row.name_as_recorded,
-          surnameNormalized: row.surname_normalized,
-          givenNormalized: row.given_normalized,
-          entityKey: row.entity_key,
-          attributes: row.attributes ?? {},
-          sourceCitation: row.source_citation,
-          findingAidUrl: row.finding_aid_url,
-        });
-      }
-      if (!data || data.length < PAGE) break;
-    }
+    // deno-lint-ignore no-explicit-any
+    const recordRows = await fetchAllPages<any>(
+      (after) => {
+        let q = client
+          .from('register_records')
+          .select('id, register_key, record_kind, name_as_recorded, surname_normalized, given_normalized, entity_key, attributes, source_citation, finding_aid_url')
+          .eq('register_key', register.register_key)
+          .order('id')
+          .limit(PAGE_SIZE);
+        if (after) q = q.gt('id', after.id);
+        return q;
+      },
+      'register_records',
+    );
+    const records: RegisterRecord[] = recordRows.map((row) => ({
+      id: row.id,
+      registerKey: row.register_key,
+      recordKind: row.record_kind,
+      nameAsRecorded: row.name_as_recorded,
+      surnameNormalized: row.surname_normalized,
+      givenNormalized: row.given_normalized,
+      entityKey: row.entity_key,
+      attributes: row.attributes ?? {},
+      sourceCitation: row.source_citation,
+      findingAidUrl: row.finding_aid_url,
+    }));
 
     const candidates = matchRegisterRecords(
       records,

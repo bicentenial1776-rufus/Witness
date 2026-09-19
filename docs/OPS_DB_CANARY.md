@@ -29,7 +29,7 @@ in a fresh session, read-only, against the Witness Supabase project. It:
 |---|---|
 | Postgres statement timeouts (65 min) | > 0 |
 | PostgREST 500/504 (65 min) | >= 5 |
-| Any canary query | > 3,000 ms (authenticated `statement_timeout` is 8 s) |
+| Any canary query | > 3,000 ms (the `authenticated` role's `statement_timeout` is 30 s, a role setting PostgREST applies; `authenticator` logs in at 8 s and `anon` at 3 s — confirmed 2026-09-19) |
 | Active query age | > 30 s |
 | The canary itself cannot reach the database | always |
 
@@ -53,10 +53,13 @@ nothing.
   change landed outside this repo's `supabase/migrations/` (compare
   `supabase_migrations.schema_migrations` against the directory).
 
-## Related debt (performance advisor, 2026-09-15)
+## Related debt (performance advisor, 2026-09-15) — closed
 
 After the 2026-09-15 migration the Supabase performance advisor still
 reported 50 tables re-evaluating `auth.uid()` per row (`auth_rls_initplan`)
-and 72 duplicate permissive policies (`multiple_permissive_policies`). Any
-of those tables can reproduce the incident above once its row count grows.
-They should be fixed in one reviewed migration, not ad hoc in the SQL editor.
+and 72 duplicate permissive policies (`multiple_permissive_policies`).
+Closed by `20260917212731_finish_auth_rls_initplan.sql` and
+`20260917214208_consolidate_remaining_shared_read_policies.sql` (the files
+lived only on a branch until 2026-09-19) and the two FSV policies in
+`20260919200000_cost_audit_tuning.sql`. As of 2026-09-19 the advisor reports
+neither lint. The full audit is `docs/COST_AUDIT_2026-09-19.md`.
