@@ -3,3 +3,5 @@
 # time the design repo ships a world — in a repo that is not FSV's. Fetch it
 # instead: npm run world:sync -w @witness/fsv
 public/world/*.html
+# Room pages ship the same way, one folder down.
+public/world/rooms/*.html
