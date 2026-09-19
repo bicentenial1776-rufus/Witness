@@ -109,18 +109,21 @@ if (SERVICE_KEY) {
     const memAvail = metric(text, 'node_memory_MemAvailable_bytes');
     const memTotal = metric(text, 'node_memory_MemTotal_bytes');
     const memPct = memAvail !== null && memTotal ? Math.round((memAvail / memTotal) * 100) : null;
-    // Every mount, worst first: the data volume (/data, 2 GB on 2026-09-18
-    // with 13% free) is the one that matters, not the 10 GB root.
+    // Only the data volume: /data holds Postgres and is the disk we size
+    // (2 GB → 32 GB on 2026-09-19). The 10 GB root is Supabase's OS disk —
+    // after the resize it became the fullest mount, and an alert on it
+    // would be one nobody here can act on. Fall back to the worst mount
+    // only if /data is missing from the metrics.
     const mounts = new Map();
     for (const m of text.matchAll(/^node_filesystem_(size|avail)_bytes\{[^}]*mountpoint="([^"]*)"[^}]*\} (\S+)$/gm)) {
       const entry = mounts.get(m[2]) ?? {};
       entry[m[1]] = Number(m[3]);
       mounts.set(m[2], entry);
     }
-    const worst = [...mounts.entries()]
+    const usable = [...mounts.entries()]
       .filter(([, v]) => v.size && v.avail !== undefined)
-      .map(([mount, v]) => ({ mount, pct: Math.round((v.avail / v.size) * 100), size: v.size, avail: v.avail }))
-      .sort((a, b) => a.pct - b.pct)[0];
+      .map(([mount, v]) => ({ mount, pct: Math.round((v.avail / v.size) * 100), size: v.size, avail: v.avail }));
+    const worst = usable.find((m) => m.mount === '/data') ?? usable.sort((a, b) => a.pct - b.pct)[0];
     const diskPct = worst ? worst.pct : null;
     const diskLabel = worst ? `${worst.mount} ${(worst.avail / 1e9).toFixed(2)} of ${(worst.size / 1e9).toFixed(2)} GB free (${worst.pct}%)` : 'n/a';
     const dbBytes = metric(text, 'pg_database_size_bytes');
