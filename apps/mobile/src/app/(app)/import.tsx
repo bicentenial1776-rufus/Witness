@@ -31,6 +31,7 @@ import { useActiveTree } from '@/lib/active-tree';
 import { invalidateGeographyCache } from '@/lib/geography-cache';
 import { getRecoveryCode, isVaultAvailable, storeOriginal } from '@/lib/gedcom-vault';
 import { supabase } from '@/lib/supabase';
+import { publishTreeIndex } from '@/lib/tree-index-cache';
 import { logEvent } from '@/lib/usage-events';
 
 function count(n: number, singular: string, plural: string): string {
@@ -256,7 +257,7 @@ export default function ImportGedcom() {
     if (!session) return;
     setStep({ name: 'importing', fileName, parsed, original, progress: null });
     try {
-      const { treeId } = await importParsedGedcom(supabase, parsed, {
+      const { treeId, index } = await importParsedGedcom(supabase, parsed, {
         userId: session.user.id,
         // Hermes has no global `crypto`, so the id generator comes from expo-crypto.
         generateId: randomUUID,
@@ -264,6 +265,12 @@ export default function ImportGedcom() {
           setStep({ name: 'importing', fileName, parsed, original, progress }),
       });
       invalidateGeographyCache();
+      // The index built from the rows just written: this session's and this
+      // device's copy now, and one Storage object for every other session —
+      // nobody pages this tree again. Fire-and-forget; the worker is the backstop.
+      publishTreeIndex(treeId, index).catch((error) =>
+        console.warn('Tree index snapshot not published (worker will)', error),
+      );
 
       void logEvent(session.user.id, 'gedcom_import_completed', {
         bytes: original.byteLength,

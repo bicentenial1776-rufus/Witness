@@ -2426,6 +2426,7 @@ export type Database = {
           import_heartbeat_at: string | null
           import_status: string
           imported_at: string
+          index_snapshot_at: string | null
           individual_count: number
           last_pulse: Json | null
           last_pulse_at: string | null
@@ -2453,6 +2454,7 @@ export type Database = {
           import_heartbeat_at?: string | null
           import_status?: string
           imported_at?: string
+          index_snapshot_at?: string | null
           individual_count?: number
           last_pulse?: Json | null
           last_pulse_at?: string | null
@@ -2480,6 +2482,7 @@ export type Database = {
           import_heartbeat_at?: string | null
           import_status?: string
           imported_at?: string
+          index_snapshot_at?: string | null
           individual_count?: number
           last_pulse?: Json | null
           last_pulse_at?: string | null

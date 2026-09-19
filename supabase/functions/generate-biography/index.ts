@@ -8,7 +8,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk@0.65.0';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import {
-  DAILY_LIMIT,
+  checkDailyLimit,
   checkEntitlement,
   corsHeaders,
   json,
@@ -213,22 +213,12 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (cached) return json(200, { biography: cached.content, cached: true });
 
-  const gated = await checkEntitlement({ db, admin, userId } as EnrichContext);
+  // The shared daily pool (every generator counts against it), not a
+  // biography-only count of enrichment_cache as before 2026-09-19.
+  const gated =
+    (await checkEntitlement({ db, admin, userId } as EnrichContext)) ??
+    (await checkDailyLimit({ db, admin, userId } as EnrichContext));
   if (gated) return gated;
-
-  const startOfDay = new Date();
-  startOfDay.setUTCHours(0, 0, 0, 0);
-  const { count: usedToday } = await db
-    .from('enrichment_cache')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('created_at', startOfDay.toISOString());
-  if ((usedToday ?? 0) >= DAILY_LIMIT) {
-    return json(429, {
-      error: `Daily limit of ${DAILY_LIMIT} AI generations reached. It resets at midnight UTC.`,
-      code: 'rate_limited',
-    });
-  }
 
   // Gather the documented facts of this life.
   const { data: events } = await db

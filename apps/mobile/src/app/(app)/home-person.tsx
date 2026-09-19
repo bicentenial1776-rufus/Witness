@@ -27,11 +27,19 @@ type Step =
   | { name: 'suggested'; candidate: HomePersonCandidate }
   | { name: 'choosing' }
   | { name: 'saving'; personName: string; traced: number | null }
-  | { name: 'done'; personName: string; cachedAncestors: number };
+  | { name: 'done'; personName: string; cachedAncestors: number }
+  | { name: 'queued'; personName: string };
+
+// Above this, compute-relationships' whole-graph walk has hit the edge
+// runtime's limit (2026-09-17, the 61,773-person tree) and the on-device
+// walk is minutes of a phone's battery. Record the pointer and let the
+// rebuild-relationships worker (ops-watch tick, every ten minutes) do it.
+const LARGE_TREE = 20_000;
 
 export default function HomePersonScreen() {
   const { treeId } = useLocalSearchParams<{ treeId: string }>();
   const { trees } = useActiveTree();
+  const treeSize = trees?.find((tree) => tree.id === treeId)?.individual_count ?? 0;
   const [step, setStep] = useState<Step>({ name: 'loading' });
   const [search, setSearch] = useState('');
   const [candidates, setCandidates] = useState<PersonRow[]>([]);
@@ -128,6 +136,16 @@ export default function HomePersonScreen() {
         // trees only: the fallback writes the tree's own pointer, which a
         // shared tree refuses (the member's pointer lives on their seat).
         if (!owned) throw new Error(error.message);
+        if (treeSize >= LARGE_TREE) {
+          const { error: pointerError } = await supabase
+            .from('trees')
+            .update({ home_person_id: person.id })
+            .eq('id', treeId);
+          if (pointerError) throw new Error(pointerError.message);
+          invalidateRelationshipCache();
+          setStep({ name: 'queued', personName: person.full_name });
+          return;
+        }
         ({ cachedAncestors } = await setHomePerson(supabase, treeId, person.id));
       }
       invalidateRelationshipCache();
@@ -208,6 +226,20 @@ export default function HomePersonScreen() {
             {step.traced ? ` — ${step.traced.toLocaleString()} relatives traced` : '…'}
           </ThemedText>
         </View>
+      )}
+
+      {step.name === 'queued' && (
+        <>
+          <ThemedText type="subtitle">Welcome home, {step.personName.split(' ')[0]}.</ThemedText>
+          <ThemedText>
+            This is a big tree, so Witness is tracing your family lines in the background.
+            Relationship labels appear on every list within about ten minutes.
+          </ThemedText>
+          <Button
+            title="Done"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          />
+        </>
       )}
 
       {step.name === 'done' && (

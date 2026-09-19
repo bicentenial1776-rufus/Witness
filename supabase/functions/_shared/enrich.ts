@@ -4,9 +4,14 @@
 
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
-// Effectively unlimited for human use; exists to stop a runaway bug loop,
-// not to meter people. (Raised from 20 during family beta, July 2026.)
-export const DAILY_LIMIT = 1000;
+// Generous for human use; exists to stop a runaway loop, not to meter
+// people. (20 → 1000 during family beta, July 2026; 1000 → 300 in the cost
+// audit of 2026-09-19: Their World + Their Story fire on every uncached
+// Portrait open, so 300 is ~150 ancestors a day per person at ~$0.015 a
+// call, and a bug loop stops at ~$4.50 instead of ~$15.) Every generator
+// shares this one pool through checkDailyLimit; the count per user per
+// day is on the dashboard's db_health snapshot.
+export const DAILY_LIMIT = 300;
 
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

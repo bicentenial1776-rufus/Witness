@@ -145,7 +145,18 @@ export function buildTreeIndexFromRows(
  */
 export function buildTreeIndexFromParsed(parsed: ParsedGedcom): TreeIndex {
   let next = 0;
-  const payload = buildImportPayload(parsed, { userId: 'index', generateId: () => `x${next++}` });
+  return buildTreeIndexFromPayload(
+    buildImportPayload(parsed, { userId: 'index', generateId: () => `x${next++}` }),
+  );
+}
+
+/**
+ * The index from the rows the importer is about to write (or just wrote):
+ * the same shapes the database would hand back, without the round trip.
+ * importParsedGedcom returns this so the app can publish it as the tree's
+ * snapshot (treeIndexSnapshot.ts) the moment the import completes.
+ */
+export function buildTreeIndexFromPayload(payload: ReturnType<typeof buildImportPayload>): TreeIndex {
   return buildTreeIndexFromRows(
     payload.individuals.map((row) => ({
       id: row.id!,

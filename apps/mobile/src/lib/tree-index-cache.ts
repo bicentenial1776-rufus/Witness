@@ -1,4 +1,11 @@
-import { fetchTreeIndex, type TreeIndex } from '@witness/core/query';
+import {
+  downloadTreeIndexSnapshot,
+  fetchTreeIndex,
+  snapshotIsCurrent,
+  uploadTreeIndexSnapshot,
+  type TreeIndex,
+  type TreeIndexStamps,
+} from '@witness/core/query';
 
 import { loadTreeIndexCopy, saveTreeIndexCopy, type TreeIndexCopy } from '@/lib/offline-tree';
 import { supabase } from '@/lib/supabase';
@@ -20,25 +27,42 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
 }
 
 /**
- * The tree's import stamp — the index is built only from import-time
- * tables, so a copy taken at the same imported_at is the same index.
- * Null when the row cannot be read in time (offline, or a stalled link).
+ * The tree's stamps — the index is built only from import-time tables,
+ * so a copy taken at the same imported_at is the same index, and a
+ * Storage snapshot stamped at or after it is too. Null when the row
+ * cannot be read in time (offline, or a stalled link).
  */
-function fetchStamp(treeId: string): Promise<string | null> {
+function fetchStamps(treeId: string): Promise<TreeIndexStamps | null> {
   return withTimeout(
     Promise.resolve(
       supabase
         .from('trees')
-        .select('imported_at')
+        .select('imported_at, index_snapshot_at')
         .eq('id', treeId)
         .maybeSingle()
         .then(({ data, error }) => {
           if (error) throw error;
-          return data?.imported_at ?? null;
+          return data ?? null;
         }),
     ),
     FIELD_TIMEOUT_MS,
   );
+}
+
+/**
+ * The live index: the Storage snapshot when one exists for this import
+ * (one CDN request instead of ~25 pages and the database's json_agg —
+ * docs/COST_AUDIT_2026-09-19.md item 1), else paging the tables.
+ */
+async function fetchLive(treeId: string, stamps: TreeIndexStamps | null): Promise<TreeIndex> {
+  if (stamps && snapshotIsCurrent(stamps)) {
+    try {
+      return await downloadTreeIndexSnapshot(supabase, treeId, stamps.index_snapshot_at);
+    } catch (error) {
+      console.warn('Tree index snapshot unavailable, paging the tree instead', error);
+    }
+  }
+  return fetchTreeIndex(supabase, treeId);
 }
 
 /**
@@ -51,11 +75,12 @@ function fetchStamp(treeId: string): Promise<string | null> {
  */
 async function fetchWithFieldCopy(treeId: string): Promise<TreeIndex> {
   const copyPromise: Promise<TreeIndexCopy | null> = loadTreeIndexCopy(treeId);
-  const stamp = await fetchStamp(treeId);
+  const stamps = await fetchStamps(treeId);
+  const stamp = stamps?.imported_at ?? null;
   const copy = await copyPromise;
   if (copy && (stamp === null || (copy.stamp !== null && copy.stamp === stamp))) return copy.index;
 
-  const live = fetchTreeIndex(supabase, treeId);
+  const live = fetchLive(treeId, stamps);
   live.then((index) => saveTreeIndexCopy(treeId, index, stamp)).catch(() => {});
 
   const first = await Promise.race([
@@ -104,4 +129,20 @@ export function hasTreeIndexInSession(treeId: string): boolean {
 export function invalidateTreeIndexCache(): void {
   cache.clear();
   settled.clear();
+}
+
+/**
+ * After an import: the index the importer just built from its own rows
+ * becomes this session's copy and the on-device copy at once (the first
+ * whole-tree screen opens instantly instead of paging the tree), and is
+ * published to Storage so every other session and device reads one object.
+ * Never fatal — the build-tree-index worker writes the snapshot within its
+ * next tick if this upload is lost.
+ */
+export async function publishTreeIndex(treeId: string, index: TreeIndex): Promise<void> {
+  cache.set(treeId, Promise.resolve(index));
+  settled.add(treeId);
+  const { data } = await supabase.from('trees').select('imported_at').eq('id', treeId).maybeSingle();
+  saveTreeIndexCopy(treeId, index, data?.imported_at ?? null);
+  await uploadTreeIndexSnapshot(supabase, treeId, index);
 }

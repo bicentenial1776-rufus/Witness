@@ -1,6 +1,7 @@
 import type { ParsedGedcom } from '../gedcom/index.js';
 import type { WitnessSupabaseClient } from './client.js';
 import type { Database } from './database.types.js';
+import { buildTreeIndexFromPayload, type TreeIndex } from '../query/treeIndex.js';
 import { buildImportPayload, type BuildImportPayloadOptions } from './transform.js';
 
 const DEFAULT_BATCH_SIZE = 500;
@@ -111,6 +112,12 @@ export interface ImportGedcomOptions extends BuildImportPayloadOptions {
 
 export interface ImportGedcomResult {
   treeId: string;
+  /**
+   * The tree index built from the rows just written — what the app
+   * publishes as the tree's Storage snapshot (query/treeIndexSnapshot.ts)
+   * so no session has to page the tree.
+   */
+  index: TreeIndex;
 }
 
 /**
@@ -246,7 +253,7 @@ export async function importParsedGedcom(
   const { error: reuseError } = await client.rpc('reuse_geocodes', { p_tree_id: treeId });
   if (reuseError) console.warn('Geocode reuse failed (worker will cover it):', reuseError.message);
 
-  return { treeId };
+  return { treeId, index: buildTreeIndexFromPayload(payload) };
 }
 
 export { buildImportPayload } from './transform.js';

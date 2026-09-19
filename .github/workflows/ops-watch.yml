@@ -86,6 +86,12 @@ jobs:
             echo "::group::audit --pending $(date -u +%H:%M)"
             (cd packages/core && npx tsx scripts/precompute-audit.mts --pending) || echo "audit worker exited non-zero (see above)"
             echo "::endgroup::"
+            echo "::group::tree-index --pending $(date -u +%H:%M)"
+            (cd packages/core && npx tsx scripts/build-tree-index.mts --pending) || echo "tree-index worker exited non-zero (see above)"
+            echo "::endgroup::"
+            echo "::group::relationships --pending $(date -u +%H:%M)"
+            (cd packages/core && npx tsx scripts/rebuild-relationships.mts --pending) || echo "relationships worker exited non-zero (see above)"
+            echo "::endgroup::"
           }
           if [ "$ONCE" = "true" ]; then tick; exit 0; fi
           END=$(( $(date +%s) + LOOP_MINUTES * 60 ))

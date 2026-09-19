@@ -1,13 +1,8 @@
-import {
-  evaluateLibraryQuery,
-  fetchTreeIndex,
-  type LibraryCatalogEntry,
-  type LibraryMatch,
-  type TreeIndex,
-} from '@witness/core/query';
+import { evaluateLibraryQuery, type LibraryCatalogEntry, type LibraryMatch } from '@witness/core/query';
 
 import { onGeographyInvalidated } from '@/lib/geography-cache';
 import { supabase } from '@/lib/supabase';
+import { getTreeIndex, invalidateTreeIndexCache } from '@/lib/tree-index-cache';
 
 /**
  * The Query Library's data layer: the server-side catalog (fetched once per
@@ -36,20 +31,12 @@ export function getCatalog(): Promise<LibraryCatalogEntry[]> {
   return catalogPromise;
 }
 
-const indexCache = new Map<string, Promise<TreeIndex>>();
 const countsCache = new Map<string, Promise<Map<string, number>>>();
 
-export function getTreeIndex(treeId: string): Promise<TreeIndex> {
-  let pending = indexCache.get(treeId);
-  if (!pending) {
-    pending = fetchTreeIndex(supabase, treeId).catch((error: unknown) => {
-      indexCache.delete(treeId);
-      throw error;
-    });
-    indexCache.set(treeId, pending);
-  }
-  return pending;
-}
+// The Library used to keep its own copy of the tree index and page the
+// tree a second time in a session that already held one; it now shares
+// tree-index-cache's (snapshot → field copy → pages).
+export { getTreeIndex };
 
 /** Result count per catalog entry id, for this tree. */
 export function getLibraryCounts(treeId: string): Promise<Map<string, number>> {
@@ -85,7 +72,7 @@ export async function runLibraryQuery(
 // A re-import or tree delete invalidates geography — same moment our index
 // and counts go stale.
 onGeographyInvalidated(() => {
-  indexCache.clear();
+  invalidateTreeIndexCache();
   countsCache.clear();
 });
 
