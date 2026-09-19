@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 
 import type { PersonRegisterLink, RegisterDef, RegisterRecord } from '@witness/core/registers';
 import { findUnitMentions, makeUnitParser, type UnitTerms } from '@witness/core/registers';
+import { archiveOrgBookLink } from '@witness/core/query';
 
 import { Card } from '@/components/card';
 import { ExplainerDot } from '@/components/explainer-dot';
@@ -184,7 +185,7 @@ export function RegisterCandidateCard({
           type="link"
           accessibilityRole="button"
           accessibilityLabel={`View the source for ${register.displayName}`}
-          onPress={() => openExternal(link.findingAidUrl!)}
+          onPress={() => openExternal(archiveOrgBookLink(link.findingAidUrl!, { name: personName ?? link.recordName }))}
         >
           View source ›
         </ThemedText>
@@ -253,7 +254,7 @@ export function RegisterCandidateCard({
               </Pressable>
               {link.findingAidUrl && (
                 <Pressable
-                  onPress={() => openExternal(link.findingAidUrl!)}
+                  onPress={() => openExternal(archiveOrgBookLink(link.findingAidUrl!, { name: personName ?? link.recordName }))}
                   accessibilityRole="button"
                   style={{
                     backgroundColor: theme.backgroundElement,
@@ -304,7 +305,7 @@ export function RegisterCandidateCard({
             <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
               {link.findingAidUrl && (
                 <Pressable
-                  onPress={() => openExternal(link.findingAidUrl!)}
+                  onPress={() => openExternal(archiveOrgBookLink(link.findingAidUrl!, { name: personName ?? link.recordName }))}
                   accessibilityRole="button"
                   style={{
                     backgroundColor: theme.accent,

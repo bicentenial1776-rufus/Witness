@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { archiveOrgDeepLink, citedPageNumber } from '../archiveLinks.js';
+import {
+  archiveOrgBookLink,
+  archiveOrgDeepLink,
+  bookSearchTerm,
+  citedPageNumber,
+} from '../archiveLinks.js';
 
 const BOOK = 'https://archive.org/details/vitalrecordsofsp00spencer';
+const LAROQUE = 'https://archive.org/details/reportconcerning21publ';
 
 // The page field Ancestry and Family Tree Maker write for Library of
 // Congress book citations: the only digits are the publication year.
@@ -42,34 +48,76 @@ describe('citedPageNumber', () => {
   });
 });
 
-describe('archiveOrgDeepLink', () => {
+describe('bookSearchTerm', () => {
+  it('searches for the surname', () => {
+    expect(bookSearchTerm('Jean Doiron')).toBe('Doiron');
+    expect(bookSearchTerm('Rufus Scott Howe')).toBe('Howe');
+    expect(bookSearchTerm('Jean /Doiron/')).toBe('Doiron');
+  });
+
+  it('searches a single-word name as it stands', () => {
+    expect(bookSearchTerm('Baptiste')).toBe('Baptiste');
+  });
+
+  it('has nothing to search for without a name', () => {
+    expect(bookSearchTerm(null)).toBeNull();
+    expect(bookSearchTerm(undefined)).toBeNull();
+    expect(bookSearchTerm('   ')).toBeNull();
+  });
+});
+
+describe('archiveOrgBookLink', () => {
   it('opens a book at its cited printed page', () => {
-    expect(archiveOrgDeepLink(BOOK, 'p. 45')).toBe(`${BOOK}/page/45`);
-    expect(archiveOrgDeepLink(`${BOOK}/`, 'pp. 45-46')).toBe(`${BOOK}/page/45`);
-    expect(archiveOrgDeepLink(BOOK, '145')).toBe(`${BOOK}/page/145`);
-    expect(archiveOrgDeepLink(` ${BOOK} `, 'page 12')).toBe(`${BOOK}/page/12`);
+    expect(archiveOrgBookLink(BOOK, { page: 'p. 45' })).toBe(`${BOOK}/page/45`);
+    expect(archiveOrgBookLink(`${BOOK}/`, { page: 'pp. 45-46' })).toBe(`${BOOK}/page/45`);
+    expect(archiveOrgBookLink(BOOK, { page: '145' })).toBe(`${BOOK}/page/145`);
+    expect(archiveOrgBookLink(` ${BOOK} `, { page: 'page 12' })).toBe(`${BOOK}/page/12`);
   });
 
-  it('leaves the landing page alone when the field only carries a year', () => {
-    expect(archiveOrgDeepLink(BOOK, LOC_METADATA)).toBe(BOOK);
+  it('prefers the cited page over a name search', () => {
+    expect(archiveOrgBookLink(BOOK, { page: 'p. 45', name: 'Rufus Howe' })).toBe(`${BOOK}/page/45`);
   });
 
-  it('leaves the URL alone when no page is named', () => {
-    expect(archiveOrgDeepLink(BOOK, null)).toBe(BOOK);
-    expect(archiveOrgDeepLink(BOOK, '')).toBe(BOOK);
-    expect(archiveOrgDeepLink(BOOK, 'Spencer births')).toBe(BOOK);
+  it('searches the book for the surname when no page is cited', () => {
+    expect(archiveOrgBookLink(LAROQUE, { name: 'Jean Doiron' })).toBe(`${LAROQUE}?q=Doiron`);
+    expect(archiveOrgBookLink(BOOK, { page: LOC_METADATA, name: 'Rufus Scott Howe' })).toBe(`${BOOK}?q=Howe`);
+    expect(archiveOrgBookLink(BOOK, { page: null, name: 'Rufus Howe' })).toBe(`${BOOK}?q=Howe`);
+  });
+
+  it('encodes a surname the URL cannot carry as written', () => {
+    expect(archiveOrgBookLink(LAROQUE, { name: "Marie d'Entremont" })).toBe(`${LAROQUE}?q=d'Entremont`);
+    expect(archiveOrgBookLink(LAROQUE, { name: 'Anne Le Blanc' })).toBe(`${LAROQUE}?q=Blanc`);
+    expect(archiveOrgBookLink(LAROQUE, { name: 'Pierre Thériault' })).toBe(
+      `${LAROQUE}?q=${encodeURIComponent('Thériault')}`,
+    );
+  });
+
+  it('leaves the landing page alone with neither a page nor a name', () => {
+    expect(archiveOrgBookLink(BOOK, { page: LOC_METADATA })).toBe(BOOK);
+    expect(archiveOrgBookLink(BOOK, { page: null, name: null })).toBe(BOOK);
+    expect(archiveOrgBookLink(BOOK, {})).toBe(BOOK);
   });
 
   it('never rewrites a link that is not a bare archive.org book page', () => {
     const grave = 'https://www.findagrave.com/memorial/123/john-doe';
-    expect(archiveOrgDeepLink(grave, 'p. 45')).toBe(grave);
+    expect(archiveOrgBookLink(grave, { page: 'p. 45', name: 'John Doe' })).toBe(grave);
     const ancestry = 'https://www.ancestry.com/discoveryui-content/view/12345:7602';
-    expect(archiveOrgDeepLink(ancestry, 'p. 45')).toBe(ancestry);
+    expect(archiveOrgBookLink(ancestry, { name: 'John Doe' })).toBe(ancestry);
     const search = `${BOOK}?q=Howe`;
-    expect(archiveOrgDeepLink(search, 'p. 45')).toBe(search);
+    expect(archiveOrgBookLink(search, { name: 'Rufus Howe' })).toBe(search);
     const stream = 'https://archive.org/stream/historyofdurhamm00stac#page/253/mode/1up';
-    expect(archiveOrgDeepLink(stream, 'p. 45')).toBe(stream);
+    expect(archiveOrgBookLink(stream, { page: 'p. 45' })).toBe(stream);
     const alreadyPaged = `${BOOK}/page/44/mode/2up`;
-    expect(archiveOrgDeepLink(alreadyPaged, 'p. 45')).toBe(alreadyPaged);
+    expect(archiveOrgBookLink(alreadyPaged, { page: 'p. 45' })).toBe(alreadyPaged);
+    const acadianOrg = 'https://www.acadian.org/history/acadian-prisoners-grand-pre/';
+    expect(archiveOrgBookLink(acadianOrg, { name: 'Pierre Alin' })).toBe(acadianOrg);
+  });
+});
+
+describe('archiveOrgDeepLink', () => {
+  it('is the page-only form', () => {
+    expect(archiveOrgDeepLink(BOOK, 'p. 45')).toBe(`${BOOK}/page/45`);
+    expect(archiveOrgDeepLink(BOOK, LOC_METADATA)).toBe(BOOK);
+    expect(archiveOrgDeepLink(BOOK, null)).toBe(BOOK);
   });
 });

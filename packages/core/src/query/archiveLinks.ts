@@ -1,17 +1,27 @@
+import { splitName } from '../history/passengers.js';
+
 /**
- * Archive.org's BookReader opens a scanned book at a given page when the
- * book's `/details/{id}` URL carries `/page/{label}`, where the label is
- * the number printed on the page (the reader maps it through the scan's
- * page labels). `/page/n{N}` would be the raw leaf index, which sits a
- * front-matter's worth off the printed number, so it is not used here.
+ * Archive.org's BookReader can open a scanned book two ways beyond its
+ * landing page, both off the book's `/details/{id}` URL:
  *
- * GEDCOM citation `page` fields are freeform, and only some of them name
- * a page. Ancestry and Family Tree Maker write the source's own metadata
- * into the field for a whole class of book citations — "Contributor: The
- * Library of Congress; Publisher: …; Date: 1909; URL: …" — where the only
- * digits are a year. So a page number is read only from an explicit page
- * marker ("p. 45", "pp. 45–46", "page 12", "Page: 12") or from a field
- * that is nothing but a number. Anything else leaves the URL alone.
+ * - `/page/{label}` opens at the page whose printed number is `label` (the
+ *   reader maps it through the scan's page labels; `/page/n{N}` would be
+ *   the raw leaf index, a front-matter's worth off, so it is not used).
+ * - `?q={text}` opens the reader searching the book's OCR text for `text`:
+ *   it reports how many times the words occur, jumps to the first hit and
+ *   lets the reader step through the rest. The Crossing card has opened
+ *   Banks and Hotten this way since 2026-09-16.
+ *
+ * Which one a citation earns depends on what it carries. GEDCOM `page`
+ * fields are freeform and only some name a page: Ancestry and Family Tree
+ * Maker write the source's own metadata into the field for a whole class
+ * of book citations — "Contributor: The Library of Congress; Publisher: …;
+ * Date: 1909; URL: …" — where the only digits are a year. So a page number
+ * is read only from an explicit marker ("p. 45", "pp. 45–46", "page 12",
+ * "Page: 12") or from a field that is nothing but a number. A citation with
+ * no cited page falls back to searching the book for the person's surname,
+ * which is how a reader actually checks a vital-records volume or a census
+ * translation: every entry for the family, in order.
  */
 const ARCHIVE_DETAILS = /^(https?:\/\/archive\.org\/details\/[^/?#]+)\/?$/i;
 const MARKED_PAGE = /\b(?:pp?|pg|pages?)\s*[.:]?\s*(\d{1,4})\b/i;
@@ -30,14 +40,37 @@ export function citedPageNumber(page: string | null | undefined): number | null 
 }
 
 /**
- * An archive.org book link opened at the cited page. Returns the URL
- * unchanged when it is not a bare `/details/{id}` archive.org link or when
- * the page field names no page, so it is safe to call on any citation URL.
+ * The word to search a book for on a person's behalf: the surname, which
+ * finds every entry for the family. A single-word name is searched as is.
  */
-export function archiveOrgDeepLink(url: string, page: string | null | undefined): string {
+export function bookSearchTerm(name: string | null | undefined): string | null {
+  const trimmed = (name ?? '').trim();
+  if (!trimmed) return null;
+  const { surname } = splitName(trimmed);
+  return (surname || trimmed).trim() || null;
+}
+
+/**
+ * An archive.org book link opened where a reader can check the claim: at
+ * the cited printed page when the citation names one, else searching the
+ * book for the person's surname. Returns the URL unchanged when it is not
+ * a bare `/details/{id}` archive.org link, or when neither a page nor a
+ * name is available, so it is safe to call on any source URL.
+ */
+export function archiveOrgBookLink(
+  url: string,
+  where: { page?: string | null; name?: string | null },
+): string {
   const details = ARCHIVE_DETAILS.exec(url.trim());
   if (!details) return url;
-  const number = citedPageNumber(page);
-  if (number === null) return url;
-  return `${details[1]}/page/${number}`;
+  const number = citedPageNumber(where.page);
+  if (number !== null) return `${details[1]}/page/${number}`;
+  const term = bookSearchTerm(where.name);
+  if (term) return `${details[1]}?q=${encodeURIComponent(term)}`;
+  return url;
+}
+
+/** The page-only form of archiveOrgBookLink, for callers with no name. */
+export function archiveOrgDeepLink(url: string, page: string | null | undefined): string {
+  return archiveOrgBookLink(url, { page });
 }

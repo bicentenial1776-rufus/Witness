@@ -11,7 +11,7 @@ import {
   type LivedThroughTag,
 } from '@witness/core/history';
 import {
-  archiveOrgDeepLink,
+  archiveOrgBookLink,
   eventTypeLabel,
   fetchNaraCandidatesForIndividual,
   fetchPassengerCandidatesForIndividual,
@@ -191,7 +191,7 @@ function openExternal(url: string) {
  * most facts first. Facts keep one mention each; excerpts dedupe (the
  * same census line often backs several facts).
  */
-function groupCitations(rows: CitationRow[]): SourceGroup[] {
+function groupCitations(rows: CitationRow[], personName: string | null): SourceGroup[] {
   const groups = new Map<string, SourceGroup>();
   for (const row of rows) {
     const title = row.sources?.title ?? 'Untitled source';
@@ -203,10 +203,11 @@ function groupCitations(rows: CitationRow[]): SourceGroup[] {
     }
     // A memorial URL beats any other link the same source happens to carry;
     // a citation with no link but an Ancestry record id still gets one.
-    // An archive.org book link gets the citation's page appended so it opens
-    // on the reference itself rather than the book's landing page.
+    // An archive.org book opens at the cited page, or — when the citation
+    // names none — searching the book for the surname, so the reader sees
+    // every entry for the family and can step through them.
     const rawUrl = row.url ?? ancestryRecordUrl(row.ancestry_apid);
-    const url = rawUrl ? archiveOrgDeepLink(rawUrl, row.page) : null;
+    const url = rawUrl ? archiveOrgBookLink(rawUrl, { page: row.page, name: personName }) : null;
     if (url && (!group.url || (isFindAGraveUrl(url) && !isFindAGraveUrl(group.url)))) {
       group.url = url;
     }
@@ -933,7 +934,7 @@ export default function AncestorScreen({ personId }: { personId?: string } = {})
         .eq('individual_id', id)
         .returns<CitationRow[]>()
         .then(({ data }) => {
-          if (!cancelled && data) setSources(groupCitations(data));
+          if (!cancelled && data) setSources(groupCitations(data, personRow?.full_name ?? null));
         });
 
       // What the file said about this person, in its own order. Page-scoped,
