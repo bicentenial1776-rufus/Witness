@@ -18,3 +18,12 @@ export {
   type FsvPerson
 } from './household.js';
 export { fsvCanEnter, type FsvDoor, type FsvDoorReason } from './enterable.js';
+export {
+  fsvHouseholdPortraits,
+  fsvKeepsakePlace,
+  FSV_KEEPSAKE_KINDS,
+  type FsvKeepsakeKind,
+  type FsvKeepsakes,
+  type FsvPortraitKeepsake,
+  type FsvTimeKeepsake
+} from './keepsakes.js';

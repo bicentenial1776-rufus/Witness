@@ -39,8 +39,11 @@ export type RoomOutcome = 'opened' | 'no-room' | 'timed-out' | 'failed';
 
 const PATIENCE_MS = 20000;
 
-export default function FsvRoomDom({ path, record, day, title, onOutcome }: {
-  path: string; record: unknown; day: number; title: string;
+export default function FsvRoomDom({ path, record, keepsakes, day, title, onOutcome }: {
+  path: string; record: unknown;
+  /** The household's pictures and the material of its time (docs/FSV_KEEPSAKES_SEAM.md); null while loading. */
+  keepsakes?: unknown;
+  day: number; title: string;
   onOutcome?: (outcome: RoomOutcome, ms: number, note: string) => Promise<void>;
   dom?: DOMProps;
 }) {
@@ -49,20 +52,34 @@ export default function FsvRoomDom({ path, record, day, title, onOutcome }: {
   const frame = useRef<HTMLIFrameElement>(null);
   const [st, setSt] = useState<RoomState>({});
   const [up, setUp] = useState(false);
+  const [ready, setReady] = useState(false);
   const [noRoom, setNoRoom] = useState<string | null>(null);
   const told = useRef(false);
   const t0 = useRef(Date.now());
+  const latestKeepsakes = useRef<unknown>(keepsakes);
+  latestKeepsakes.current = keepsakes;
   const tell = (m: Record<string, unknown>) => { try { frame.current?.contentWindow?.postMessage({ type: 'fsv-set', ...m }, '*'); } catch { /* not up yet */ } };
   const say = (outcome: RoomOutcome, note = '') => {
     if (told.current) return;
     told.current = true;
     void onOutcome?.(outcome, Date.now() - t0.current, note).catch(() => { /* the report is not the room */ });
   };
+  // Keepsakes that land after the household went in are posted on their
+  // own; the room hangs its placeholders until then.
+  useEffect(() => {
+    if (!ready || !keepsakes) return;
+    try { frame.current?.contentWindow?.postMessage({ type: 'fsv-keepsakes', keepsakes }, '*'); } catch { /* not up yet */ }
+  }, [ready, keepsakes]);
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       const m = e.data;
       if (!m || typeof m.type !== 'string' || !m.type.startsWith('fsv-')) return;
-      if (m.type === 'fsv-ready') { try { frame.current?.contentWindow?.postMessage({ type: 'fsv-household', record, day }, '*'); } catch { /* not up yet */ } return; }
+      if (m.type === 'fsv-ready') {
+        setReady(true);
+        const k = latestKeepsakes.current;
+        try { frame.current?.contentWindow?.postMessage({ type: 'fsv-household', record, day, ...(k ? { keepsakes: k } : {}) }, '*'); } catch { /* not up yet */ }
+        return;
+      }
       if (m.type === 'fsv-noroom') { setNoRoom(String(m.why ?? '')); say('no-room', String(m.why ?? '')); return; }
       if (m.type !== 'fsv-state' && m.type !== 'fsv-room') return;
       setUp(true);
